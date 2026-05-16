@@ -1,32 +1,30 @@
 export type {
-  ActivityType,
-  ActivityDataMap,
   ActivityData,
-  MultipleChoiceOption,
-  MultipleChoiceData,
+  ActivityDataMap,
+  ActivityResult,
+  ActivityType,
   BlankConfig,
   FillInTheBlanksData,
-  LearnerResponse,
-  MultipleChoiceLearnerResponse,
   FillInTheBlanksLearnerResponse,
+  InteractionEvent,
+  LearnerResponse,
+  MultipleChoiceData,
+  MultipleChoiceLearnerResponse,
+  MultipleChoiceOption,
   ScoringDetail,
   ScoringResult,
   ValidationError,
   ValidationResult,
-  ActivityResult,
-  InteractionEvent,
 } from './activity.js';
-
-export type {
-  XAPIObject,
-  XAPIActor,
-  XAPIVerbObject,
-  XAPIScore,
-  XAPIResult,
-  XAPIContext,
-  XAPIStatement,
-  XAPIConfig,
-  XAPIError,
-} from './xapi.js';
-
 export type { ThemeTokens } from './theme.js';
+export type {
+  XAPIActor,
+  XAPIConfig,
+  XAPIContext,
+  XAPIError,
+  XAPIObject,
+  XAPIResult,
+  XAPIScore,
+  XAPIStatement,
+  XAPIVerbObject,
+} from './xapi.js';

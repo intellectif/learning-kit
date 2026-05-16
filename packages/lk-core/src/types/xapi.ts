@@ -101,9 +101,7 @@ export interface XAPIConfig {
   /** Full URL of the LRS statements endpoint. */
   endpoint: string;
   /** Authentication credentials for the LRS. */
-  auth:
-    | { type: 'basic'; username: string; password: string }
-    | { type: 'bearer'; token: string };
+  auth: { type: 'basic'; username: string; password: string } | { type: 'bearer'; token: string };
   /** IRI identifying the activity in all statements sent by this hook instance. */
   activityId: string;
   actor: XAPIActor;
