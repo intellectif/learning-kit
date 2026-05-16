@@ -1,0 +1,11 @@
+{
+  "name": "@intellectif/lk-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LRS proxy and analytics helpers for learning-kit (Phase 3 — not yet implemented)",
+  "type": "module",
+  "scripts": {
+    "lint": "biome check ."
+  },
+  "license": "MIT"
+}

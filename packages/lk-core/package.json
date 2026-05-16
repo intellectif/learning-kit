@@ -1,0 +1,48 @@
+{
+  "name": "@intellectif/lk-core",
+  "version": "0.1.0",
+  "description": "Schemas, scoring engine, and xAPI builder for learning-kit",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./scoring": {
+      "types": "./dist/scoring.d.ts",
+      "import": "./dist/scoring.js",
+      "require": "./dist/scoring.cjs"
+    },
+    "./xapi": {
+      "types": "./dist/xapi.d.ts",
+      "import": "./dist/xapi.js",
+      "require": "./dist/xapi.cjs"
+    },
+    "./schemas": {
+      "types": "./dist/schemas.d.ts",
+      "import": "./dist/schemas.js",
+      "require": "./dist/schemas.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
+    "lint": "biome check ."
+  },
+  "dependencies": {
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.6",
+    "fast-check": "^3.22.0",
+    "tsup": "^8.3.0",
+    "vitest": "^4.1.6"
+  },
+  "license": "MIT"
+}

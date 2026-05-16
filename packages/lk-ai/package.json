@@ -1,0 +1,11 @@
+{
+  "name": "@intellectif/lk-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI content generation helpers for learning-kit (Phase 3 — not yet implemented)",
+  "type": "module",
+  "scripts": {
+    "lint": "biome check ."
+  },
+  "license": "MIT"
+}
