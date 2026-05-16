@@ -1,3 +1,4 @@
+export * from './errors.js';
 export * from './schemas/index.js';
 export * from './scoring/index.js';
 export * from './types/index.js';
