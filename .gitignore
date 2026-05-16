@@ -1,6 +1,6 @@
 # Kiro IDE spec files (internal — not for contributors)
 .kiro/
-
+.claude/
 # Dependencies
 node_modules/
 
