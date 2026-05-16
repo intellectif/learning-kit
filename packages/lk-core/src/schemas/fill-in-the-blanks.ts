@@ -31,9 +31,7 @@ export const FillInTheBlanksDataSchema = z
     passThreshold: z.number().min(0).max(1).optional(),
     locale: z.string().optional(),
     learningObjectives: z.array(z.string()).optional(),
-    difficultyLevel: z
-      .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)])
-      .optional(),
+    difficultyLevel: z.literal([1, 2, 3, 4, 5]).optional(),
   })
   .refine(
     (data) => {

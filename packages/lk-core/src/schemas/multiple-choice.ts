@@ -11,9 +11,12 @@ export const MultipleChoiceOptionSchema = z.object({
 /**
  * Zod schema validating the full Multiple Choice activity data contract.
  *
- * The refinement guarantees at least one option is marked correct; without it
- * a schema-valid activity could be impossible to ever answer correctly,
- * producing undefined scoring-engine behaviour.
+ * Two semantic guards: (1) at least one option must be correct, otherwise the
+ * activity can never be answered correctly; (2) `mode: 'single'` must have
+ * exactly one correct option — multiple correct options under single-select
+ * make `showCorrectAnswers` and the xAPI correct-response ambiguous and mask
+ * authoring errors. Both are unrepresentable in JSON Schema and are dropped
+ * from `toJSONSchema` output by design.
  */
 export const MultipleChoiceDataSchema = z
   .object({
@@ -29,11 +32,17 @@ export const MultipleChoiceDataSchema = z
     shuffle: z.boolean().optional(),
     locale: z.string().optional(),
     learningObjectives: z.array(z.string()).optional(),
-    difficultyLevel: z
-      .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)])
-      .optional(),
+    difficultyLevel: z.literal([1, 2, 3, 4, 5]).optional(),
   })
   .refine((data) => data.options.some((option) => option.isCorrect), {
     error: 'At least one option must be marked correct.',
     path: ['options'],
-  });
+  })
+  .refine(
+    (data) =>
+      data.mode !== 'single' || data.options.filter((option) => option.isCorrect).length === 1,
+    {
+      error: 'Single-select activities (mode: "single") must have exactly one correct option.',
+      path: ['options'],
+    },
+  );
