@@ -6,6 +6,7 @@ import type {
   XAPIResult,
   XAPIStatement,
 } from '../types/xapi.js';
+import { validateXAPIStatement } from './validators.js';
 import { XAPI_VERB_DISPLAY, XAPIVerb, type XAPIVerbKey } from './verbs.js';
 
 /** Caller-supplied activity object descriptor (mapped to an xAPI Activity). */
@@ -104,7 +105,7 @@ function buildResult(
  */
 export const xAPIBuilder = {
   buildStatement(params: XAPIStatementParams): XAPIStatement {
-    return {
+    const statement: XAPIStatement = {
       id: crypto.randomUUID(),
       actor: params.actor,
       verb: {
@@ -117,6 +118,10 @@ export const xAPIBuilder = {
       timestamp: new Date().toISOString(),
       version: '1.0.3',
     };
+    // Design xAPIBuilder step 4: validate every statement (throws in dev,
+    // warns in prod). All build*Statement helpers route through here.
+    validateXAPIStatement(statement);
+    return statement;
   },
 
   buildAnsweredStatement(params: AnsweredStatementParams): XAPIStatement {
