@@ -1,0 +1,38 @@
+# Kiro IDE spec files (internal — not for contributors)
+.kiro/
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Turborepo cache
+.turbo/
+
+# Test & coverage
+coverage/
+.nyc_output/
+
+# Size-limit reports
+.size-limit-result.json
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Changesets pre-release state
+.changeset/pre.json
+
+# Editor & OS artifacts
+.DS_Store
+Thumbs.db
+*.log
+*.local
+
+# pnpm virtual store (generated)
+.pnpm-store/
