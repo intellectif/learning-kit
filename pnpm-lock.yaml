@@ -38,7 +38,7 @@ importers:
   packages/lk-core:
     dependencies:
       zod:
-        specifier: ^3.22.4
+        specifier: ^3.25.0
         version: 3.25.76
     devDependencies:
       '@vitest/coverage-v8':

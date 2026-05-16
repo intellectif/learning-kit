@@ -38,7 +38,7 @@
     "lint": "biome check ."
   },
   "dependencies": {
-    "zod": "^3.22.4"
+    "zod": "^3.25.0"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.6",

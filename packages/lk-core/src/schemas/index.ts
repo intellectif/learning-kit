@@ -3,6 +3,7 @@ import { FillInTheBlanksDataSchema } from './fill-in-the-blanks.js';
 import { MultipleChoiceDataSchema } from './multiple-choice.js';
 
 export { BlankConfigSchema, FillInTheBlanksDataSchema } from './fill-in-the-blanks.js';
+export { fillInTheBlanksJsonSchema, multipleChoiceJsonSchema } from './json-schema.js';
 export { MultipleChoiceDataSchema, MultipleChoiceOptionSchema } from './multiple-choice.js';
 
 /** Maps each activity type to the Zod schema that validates its data. */
