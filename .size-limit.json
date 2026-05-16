@@ -1,0 +1,12 @@
+[
+  {
+    "name": "MultipleChoice",
+    "path": "packages/lk-react/dist/MultipleChoice.mjs",
+    "limit": "50 kB"
+  },
+  {
+    "name": "FillInTheBlanks",
+    "path": "packages/lk-react/dist/FillInTheBlanks.mjs",
+    "limit": "50 kB"
+  }
+]

@@ -12,7 +12,9 @@
     "dev": "turbo run dev",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "turbo run build && changeset publish"
+    "release": "turbo run build && changeset publish",
+    "size": "size-limit",
+    "e2e": "turbo run e2e"
   },
   "keywords": [],
   "author": "Intellectif LLC",
@@ -33,7 +35,6 @@
     "size-limit": "^12.1.0",
     "turbo": "^2.9.14",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.3",
     "vitest": "^4.1.6"
   }
 }
