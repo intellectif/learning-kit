@@ -2,3 +2,7 @@ packages:
   - "apps/*"
   - "packages/*"
   - "docs/*"
+minimumReleaseAge: 1800
+
+allowBuilds:
+  esbuild: true
