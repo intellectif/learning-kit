@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "description": "React 19 activity components, hooks, and theming for learning-kit",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "**/*.css"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -34,7 +36,8 @@
       "types": "./dist/theme/ThemeProvider.d.ts",
       "import": "./dist/theme/ThemeProvider.js",
       "require": "./dist/theme/ThemeProvider.cjs"
-    }
+    },
+    "./theme/defaults.css": "./dist/theme/defaults.css"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

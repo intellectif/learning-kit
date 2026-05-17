@@ -1,3 +1,4 @@
+import { copyFileSync, mkdirSync } from 'node:fs';
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
@@ -16,4 +17,10 @@ export default defineConfig({
   treeshake: true,
   splitting: true,
   external: ['react', 'react-dom', '@intellectif/lk-core'],
+  // tsup does not process/copy CSS. Mirror the static token stylesheet into
+  // dist so the `./theme/defaults.css` export resolves (cross-platform).
+  onSuccess: async () => {
+    mkdirSync('dist/theme', { recursive: true });
+    copyFileSync('src/theme/defaults.css', 'dist/theme/defaults.css');
+  },
 });
