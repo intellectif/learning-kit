@@ -6,3 +6,7 @@ minimumReleaseAge: 1800
 
 allowBuilds:
   esbuild: true
+  # msw's postinstall is a benign console nudge (node -e import(...).catch(noop));
+  # it builds nothing and MSW works without it (msw/node + the `msw` CLI bin).
+  # Disallowed to keep the install-script surface minimal.
+  msw: false

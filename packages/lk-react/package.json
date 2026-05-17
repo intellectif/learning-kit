@@ -1,0 +1,76 @@
+{
+  "name": "@intellectif/lk-react",
+  "version": "0.1.0",
+  "description": "React 19 activity components, hooks, and theming for learning-kit",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./components/MultipleChoice": {
+      "types": "./dist/components/MultipleChoice.d.ts",
+      "import": "./dist/components/MultipleChoice.js",
+      "require": "./dist/components/MultipleChoice.cjs"
+    },
+    "./components/FillInTheBlanks": {
+      "types": "./dist/components/FillInTheBlanks.d.ts",
+      "import": "./dist/components/FillInTheBlanks.js",
+      "require": "./dist/components/FillInTheBlanks.cjs"
+    },
+    "./hooks/useActivityState": {
+      "types": "./dist/hooks/useActivityState.d.ts",
+      "import": "./dist/hooks/useActivityState.js",
+      "require": "./dist/hooks/useActivityState.cjs"
+    },
+    "./hooks/useXAPI": {
+      "types": "./dist/hooks/useXAPI.d.ts",
+      "import": "./dist/hooks/useXAPI.js",
+      "require": "./dist/hooks/useXAPI.cjs"
+    },
+    "./theme/ThemeProvider": {
+      "types": "./dist/theme/ThemeProvider.d.ts",
+      "import": "./dist/theme/ThemeProvider.js",
+      "require": "./dist/theme/ThemeProvider.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
+    "lint": "biome check ."
+  },
+  "peerDependencies": {
+    "@intellectif/lk-core": "workspace:^",
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "@axe-core/react": "^4.10.0",
+    "@intellectif/lk-core": "workspace:*",
+    "@playwright/test": "^1.49.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitest/coverage-v8": "^4.1.6",
+    "fast-check": "^3.22.0",
+    "jsdom": "^25.0.1",
+    "msw": "^2.6.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsup": "^8.3.0",
+    "vitest": "^4.1.6",
+    "vitest-axe": "^0.1.0"
+  },
+  "license": "MIT"
+}
