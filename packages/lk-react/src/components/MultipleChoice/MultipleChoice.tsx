@@ -150,42 +150,54 @@ export function MultipleChoice({
 
   const questionId = `${data.id}-question`;
 
+  const optionList = displayedOptions.map((option) => {
+    const checked = selected.includes(option.id);
+    return (
+      <label
+        key={option.id}
+        className="lk-mc-option"
+        data-correct={submitted ? String(option.isCorrect) : undefined}
+      >
+        <input
+          type={isSingle ? 'radio' : 'checkbox'}
+          name={isSingle ? `${data.id}-options` : undefined}
+          value={option.id}
+          checked={checked}
+          disabled={inactive}
+          aria-disabled={inactive || undefined}
+          onChange={(e) =>
+            isSingle ? selectSingle(option.id) : toggleMulti(option.id, e.target.checked)
+          }
+        />
+        <span>{option.text}</span>
+        {submitted && option.feedback ? (
+          <span className="lk-mc-option-feedback" role="note">
+            {option.feedback}
+          </span>
+        ) : null}
+      </label>
+    );
+  });
+
   return (
     <div className="lk-mc" lang={locale} style={theme as CSSProperties | undefined}>
       <form onSubmit={handleSubmit}>
         <fieldset disabled={inactive}>
           <legend id={questionId}>{data.question}</legend>
-          {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: both radiogroup and group support aria-labelledby; role is computed so Biome cannot verify it statically */}
-          <div role={isSingle ? 'radiogroup' : 'group'} aria-labelledby={questionId}>
-            {displayedOptions.map((option) => {
-              const checked = selected.includes(option.id);
-              return (
-                <label
-                  key={option.id}
-                  className="lk-mc-option"
-                  data-correct={submitted ? String(option.isCorrect) : undefined}
-                >
-                  <input
-                    type={isSingle ? 'radio' : 'checkbox'}
-                    name={isSingle ? `${data.id}-options` : undefined}
-                    value={option.id}
-                    checked={checked}
-                    disabled={inactive}
-                    aria-disabled={inactive || undefined}
-                    onChange={(e) =>
-                      isSingle ? selectSingle(option.id) : toggleMulti(option.id, e.target.checked)
-                    }
-                  />
-                  <span>{option.text}</span>
-                  {submitted && option.feedback ? (
-                    <span className="lk-mc-option-feedback" role="note">
-                      {option.feedback}
-                    </span>
-                  ) : null}
-                </label>
-              );
-            })}
-          </div>
+          {/*
+            single: an explicit radiogroup is meaningful (fieldset's implicit
+            role is `group`, not `radiogroup`). multi: the fieldset + legend
+            already provide a named group — an explicit role="group" here would
+            be a redundant, duplicate same-named group in the a11y tree, so we
+            use a plain layout div. (Refines the design ARIA sketch.)
+          */}
+          {isSingle ? (
+            <div role="radiogroup" aria-labelledby={questionId}>
+              {optionList}
+            </div>
+          ) : (
+            <div>{optionList}</div>
+          )}
           <button type="submit" disabled={inactive}>
             Submit
           </button>

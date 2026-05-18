@@ -212,7 +212,14 @@ export function FillInTheBlanks({
                     >
                       Show hint
                     </button>
-                    <span id={hintId} role="tooltip" aria-live="polite">
+                    {/*
+                      Not role="tooltip": a real ARIA tooltip is a named
+                      hover/focus popup. This is a click-to-reveal hint that
+                      is the input's aria-describedby target and is announced
+                      via aria-live. (Refines the design ARIA sketch; fixes
+                      axe aria-tooltip-name.)
+                    */}
+                    <span id={hintId} aria-live="polite">
                       {revealed.has(seg.id) ? blank.hint : ''}
                     </span>
                   </>
