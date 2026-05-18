@@ -6,34 +6,13 @@ import {
   type MultipleChoiceOption,
   score,
   validateActivity,
-  type XAPIActor,
   xAPIBuilder,
 } from '@intellectif/lk-core';
 import { type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { useActivityState } from '../../hooks/useActivityState.js';
+import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import type { ActivityProps } from '../types.js';
-
-/** Dev = anything other than an explicit production NODE_ENV (browser-safe). */
-function isDevelopment(): boolean {
-  const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
-  return g.process?.env?.NODE_ENV !== 'production';
-}
-
-/**
- * The component cannot know the learner's identity (Req 3.1 fixes the prop
- * set). It emits a structurally-valid statement with an anonymous actor;
- * real identity is applied by the useXAPI/LRS layer (XAPIConfig.actor).
- */
-const ANONYMOUS_ACTOR: XAPIActor = {
-  objectType: 'Agent',
-  account: { homePage: 'https://github.com/intellectif/learning-kit', name: 'anonymous' },
-};
-
-/** `data.id` is not an IRI; xAPI object ids must be. Wrap it as a URN. */
-function objectIdFor(id: string): string {
-  return `urn:learning-kit:activity:${encodeURIComponent(id)}`;
-}
 
 /** FNV-1a hash → 32-bit seed. */
 function hashSeed(input: string): number {
