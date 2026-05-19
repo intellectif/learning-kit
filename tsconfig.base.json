@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    // tsup 8.5.1 injects `baseUrl: '.'` unconditionally into its DTS rollup
+    // config (egoist/tsup#1388, fix unreleased in #1390), which trips TS 6.0's
+    // TS5101 baseUrl-deprecation error. Remove once a patched tsup ships.
+    "ignoreDeprecations": "6.0",
+    "strict": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "exactOptionalPropertyTypes": true
+  }
+}

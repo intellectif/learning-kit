@@ -1,0 +1,352 @@
+/*
+ * learning-kit OPTIONAL default skin — a slick, neutral monochrome look
+ * (ElevenLabs-like). Entirely token-driven, so `ThemeProvider` / dark mode
+ * restyle it for free.
+ *
+ * Override contract: every rule lives in the `lk-skin` CSS cascade layer.
+ * Unlayered author styles ALWAYS win over layered styles, so a consumer can
+ * restyle any `.lk-*` hook with plain CSS and no `!important`. Import order:
+ *   import '@intellectif/lk-react/theme/defaults.css';  (tokens)
+ *   import '@intellectif/lk-react/theme/skin.css';      (this — optional)
+ * This file is NOT imported by the components; it is opt-in and is kept
+ * separate from the tokens-only `defaults.css` (Tailwind-safety contract).
+ */
+
+@layer lk-skin {
+  .lk-mc,
+  .lk-fib {
+    font-family: var(--lk-font-family-base);
+    font-size: var(--lk-font-size-base);
+    line-height: var(--lk-line-height-base);
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    padding: var(--lk-spacing-lg);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-lg);
+  }
+
+  .lk-mc *,
+  .lk-fib * {
+    box-sizing: border-box;
+  }
+
+  .lk-mc fieldset,
+  .lk-fib fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .lk-mc legend {
+    padding: 0;
+    margin-bottom: var(--lk-spacing-md);
+    font-size: var(--lk-font-size-lg);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  /* ── Activity media (image / audio / video / embed) ──────────────────── */
+  .lk-media {
+    margin: 0 0 var(--lk-spacing-lg);
+  }
+
+  .lk-media-el {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--lk-radius-base);
+    border: 1px solid var(--lk-color-border);
+  }
+
+  /* Responsive 16:9 frame for embedded players. */
+  .lk-media-embed {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+  }
+
+  .lk-media-embed .lk-media-el {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ── Activity sequence (question-set pager) ──────────────────────────── */
+  .lk-seq-progress {
+    margin-bottom: var(--lk-spacing-sm);
+    font-size: var(--lk-font-size-sm);
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-seq-question:focus {
+    outline: none;
+  }
+
+  .lk-seq-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--lk-spacing-md);
+    margin-top: var(--lk-spacing-md);
+  }
+
+  .lk-seq-nav button {
+    padding: var(--lk-spacing-sm) var(--lk-spacing-lg);
+    font: inherit;
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    cursor: pointer;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-seq-nav button:hover:not(:disabled) {
+    border-color: var(--lk-color-primary);
+  }
+
+  .lk-seq-nav button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  /* ── Multiple choice options ─────────────────────────────────────────── */
+  .lk-mc-option {
+    display: flex;
+    align-items: center;
+    gap: var(--lk-spacing-sm);
+    padding: var(--lk-spacing-md);
+    margin-bottom: var(--lk-spacing-sm);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    background: var(--lk-color-surface);
+    cursor: pointer;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-mc-option:hover {
+    border-color: var(--lk-color-primary);
+    background: var(--lk-color-surface-raised);
+  }
+
+  .lk-mc-option:has(input:checked) {
+    border-color: var(--lk-color-primary);
+    box-shadow: inset 0 0 0 1px var(--lk-color-primary);
+  }
+
+  .lk-mc-option:has(input:disabled) {
+    cursor: default;
+  }
+
+  .lk-mc-option[data-correct="true"] {
+    border-color: var(--lk-color-success);
+    box-shadow: inset 0 0 0 1px var(--lk-color-success);
+  }
+
+  .lk-mc-option[data-correct="false"]:has(input:checked) {
+    border-color: var(--lk-color-error);
+    box-shadow: inset 0 0 0 1px var(--lk-color-error);
+  }
+
+  .lk-mc-option input {
+    accent-color: var(--lk-color-primary);
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+  }
+
+  .lk-mc-option-feedback {
+    margin-left: auto;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  /* ── Fill-in-the-blanks passage ──────────────────────────────────────── */
+  /* Generous line-height so inline blanks on wrapped lines never collide. */
+  .lk-fib-passage {
+    margin: 0 0 var(--lk-spacing-lg);
+    font-size: var(--lk-font-size-lg);
+    line-height: 2.6;
+  }
+
+  .lk-fib-blank {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--lk-spacing-xs);
+    vertical-align: middle;
+    margin: 0 2px;
+  }
+
+  /* Explicit font metrics: `font: inherit` would pull the passage's large
+     line-height (2.6) into the field and balloon its height. */
+  .lk-fib-blank input {
+    font-family: var(--lk-font-family-base);
+    font-size: var(--lk-font-size-base);
+    line-height: 1.4;
+    color: var(--lk-color-text);
+    padding: 2px var(--lk-spacing-sm);
+    border: 1px solid var(--lk-color-border);
+    background: var(--lk-color-surface);
+    border-radius: var(--lk-radius-sm);
+    min-width: 7ch;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-fib-blank input:hover {
+    border-color: var(--lk-color-primary);
+  }
+
+  /* Contained focus (no outline-offset) so the ring stays inside the line
+     box and never bleeds into the line above/below. */
+  .lk-fib-blank input:focus-visible {
+    outline: none;
+    border-color: var(--lk-color-focus-ring);
+    box-shadow: 0 0 0 2px var(--lk-color-focus-ring);
+  }
+
+  .lk-fib-blank input[data-correct="true"] {
+    border-color: var(--lk-color-success);
+  }
+
+  .lk-fib-blank input[data-correct="false"] {
+    border-color: var(--lk-color-error);
+  }
+
+  /* Icon hint button: a subtle circular affordance, not a text pill. */
+  .lk-fib-hint-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--lk-color-text-muted);
+    background: var(--lk-color-surface-raised);
+    border: 1px solid var(--lk-color-border);
+    border-radius: 50%;
+    padding: 3px;
+    line-height: 0;
+    cursor: pointer;
+  }
+
+  .lk-fib-hint-btn:hover {
+    border-color: var(--lk-color-primary);
+    color: var(--lk-color-text);
+  }
+
+  /* Inline per-blank feedback shown after submission. */
+  .lk-fib-blank-feedback {
+    margin-left: var(--lk-spacing-xs);
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-fib-blank-feedback[data-correct="true"] {
+    color: var(--lk-color-success);
+  }
+
+  .lk-fib-blank-feedback[data-correct="false"] {
+    color: var(--lk-color-error);
+  }
+
+  /* Learner control to declutter feedback after submission. */
+  .lk-fib-feedback-toggle {
+    margin-top: var(--lk-spacing-md);
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .lk-fib-feedback-toggle:hover {
+    color: var(--lk-color-text);
+  }
+
+  /* Revealed hint rendered as a floating popover above the blank. The empty
+     placeholder span (pre-reveal) is hidden so nothing shows until clicked. */
+  .lk-fib-blank [aria-live]:empty {
+    display: none;
+  }
+
+  .lk-fib-blank [aria-live]:not(:empty) {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    z-index: 1;
+    max-width: 16rem;
+    padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    font-size: var(--lk-font-size-sm);
+    line-height: var(--lk-line-height-base);
+    color: var(--lk-color-surface);
+    background: var(--lk-color-text);
+    border-radius: var(--lk-radius-sm);
+    box-shadow: 0 4px 12px rgb(0 0 0 / 18%);
+  }
+
+  /* Little caret pointing at the blank. */
+  .lk-fib-blank [aria-live]:not(:empty)::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: var(--lk-spacing-sm);
+    border: 5px solid transparent;
+    border-top-color: var(--lk-color-text);
+  }
+
+  .lk-fib-answer {
+    padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    border-radius: var(--lk-radius-sm);
+    background: color-mix(in srgb, var(--lk-color-success) 14%, var(--lk-color-surface));
+    color: var(--lk-color-text);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  /* ── Submit buttons ──────────────────────────────────────────────────── */
+  .lk-mc button[type="submit"],
+  .lk-fib button[type="submit"] {
+    margin-top: var(--lk-spacing-md);
+    padding: var(--lk-spacing-sm) var(--lk-spacing-lg);
+    font: inherit;
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-surface);
+    background: var(--lk-color-primary);
+    border: 0;
+    border-radius: var(--lk-radius-base);
+    cursor: pointer;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-mc button[type="submit"]:hover,
+  .lk-fib button[type="submit"]:hover {
+    background: var(--lk-color-primary-hover);
+  }
+
+  .lk-mc button[type="submit"]:disabled,
+  .lk-fib button[type="submit"]:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  /* ── Focus ring (keyboard) ───────────────────────────────────────────── */
+  .lk-mc :focus-visible,
+  .lk-fib :focus-visible {
+    outline: 2px solid var(--lk-color-focus-ring);
+    outline-offset: 2px;
+  }
+
+  /* Inline controls in the passage use a contained ring (no offset) so the
+     focus indicator never overlaps the line above/below. */
+  .lk-fib-blank button:focus-visible {
+    outline-offset: 0;
+  }
+
+  /* ── Feedback / status region ────────────────────────────────────────── */
+  .lk-mc > [aria-live],
+  .lk-fib > [aria-live] {
+    margin-top: var(--lk-spacing-md);
+    color: var(--lk-color-text-muted);
+    font-size: var(--lk-font-size-sm);
+  }
+}

@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+# Least-privilege, OIDC-based. NO npm token is stored anywhere:
+# `id-token: write` lets npm Trusted Publishing mint a short-lived,
+# per-run identity (with provenance). `contents`/`pull-requests: write`
+# are for the Changesets "version packages" PR via the built-in GITHUB_TOKEN.
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.0.8
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted Publishing (OIDC) requires a recent npm. setup-node ships
+      # npm 10 with Node 22; bump to npm >= 11.5.
+      - name: Use OIDC-capable npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Prerequisites (one-time, on npmjs.com): a Trusted Publisher must be
+      # configured for EACH package (Package → Settings → Publishing access →
+      # Trusted Publisher → GitHub Actions: this repo + workflow `release.yml`).
+      # The very first publish of each package is done manually & interactively
+      # by a maintainer (`npm login`, 2FA on) — see docs/releasing.md.
+      - name: Create release PR or publish (OIDC, no stored token)
+        uses: changesets/action@v1
+        with:
+          publish: pnpm release
+          version: pnpm version-packages
+          commit: 'chore: version packages'
+          title: 'chore: version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

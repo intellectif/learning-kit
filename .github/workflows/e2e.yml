@@ -1,0 +1,49 @@
+name: E2E
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.0.8
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check for Playwright config
+        id: playwright
+        run: |
+          if [ -f "playwright.config.ts" ]; then
+            echo "configured=true" >> $GITHUB_OUTPUT
+          else
+            echo "configured=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install Playwright browsers
+        if: steps.playwright.outputs.configured == 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build
+        if: steps.playwright.outputs.configured == 'true'
+        run: pnpm turbo run build
+
+      - name: Run E2E tests
+        if: steps.playwright.outputs.configured == 'true'
+        run: pnpm turbo run e2e
