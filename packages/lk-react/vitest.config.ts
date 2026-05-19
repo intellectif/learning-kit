@@ -5,6 +5,9 @@ export default defineConfig({
     environment: 'jsdom',
     passWithNoTests: true,
     setupFiles: ['./vitest.setup.ts'],
+    // Unit/component tests only live in src/. `e2e/` holds Playwright specs
+    // (own runner, imports @playwright/test) — Vitest must not collect them.
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

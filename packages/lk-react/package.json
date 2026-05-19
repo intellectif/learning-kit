@@ -50,7 +50,8 @@
     "build": "tsup",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
-    "lint": "biome check ."
+    "lint": "biome check .",
+    "e2e": "playwright test -c ../../playwright.config.ts"
   },
   "peerDependencies": {
     "@intellectif/lk-core": "workspace:^",
