@@ -33,6 +33,13 @@ export const sampleFillInTheBlanks: FillInTheBlanksData = {
   type: 'fill-in-the-blanks',
   id: 'demo-fib-water-cycle',
   title: 'The Water Cycle',
+  // Embedded video the question is based on (provider embed URL — not the
+  // watch page; YouTube watch links cannot play in a <video> element).
+  media: {
+    type: 'embed',
+    url: 'https://www.youtube.com/embed/TD3XSIE4ymo',
+    alt: 'Video: how the water cycle works',
+  },
   passage:
     'Liquid water becomes vapour through {{evaporation}}, then returns to the ground as {{precipitation}}.',
   blanks: [
@@ -41,3 +48,20 @@ export const sampleFillInTheBlanks: FillInTheBlanksData = {
   ],
   scoringStrategy: 'partial',
 };
+
+export const sampleFillInTheBlanks2: FillInTheBlanksData = {
+  schemaVersion: '1.0',
+  type: 'fill-in-the-blanks',
+  id: 'demo-fib-water-cycle-2',
+  title: 'The Water Cycle — Part 2',
+  passage:
+    'Water collected in clouds is stored as {{condensation}}, and water that soaks into the soil becomes {{groundwater}}.',
+  blanks: [
+    { id: 'condensation', acceptedAnswers: ['condensation'], hint: 'Opposite of evaporation' },
+    { id: 'groundwater', acceptedAnswers: ['groundwater', 'ground water'] },
+  ],
+  scoringStrategy: 'partial',
+};
+
+/** A set of same-kind questions, shown via the in-place ActivitySequence pager. */
+export const sampleFibSet: FillInTheBlanksData[] = [sampleFillInTheBlanks, sampleFillInTheBlanks2];

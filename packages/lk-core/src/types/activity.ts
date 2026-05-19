@@ -17,11 +17,14 @@ export type ActivityData = MultipleChoiceData | FillInTheBlanksData;
  * URL-only: hosting/delivery is the consuming application's responsibility.
  */
 export interface ActivityMedia {
-  /** The kind of media; selects the rendered element. */
-  type: 'image' | 'audio' | 'video';
-  /** Source URL of the media resource. */
+  /** The kind of media; selects the rendered element. `embed` → sandboxed iframe. */
+  type: 'image' | 'audio' | 'video' | 'embed';
+  /**
+   * Source URL. For `embed` this MUST be the provider's embeddable URL
+   * (e.g. `https://www.youtube.com/embed/<id>`), not the watch page.
+   */
   url: string;
-  /** Alternative text. Required for `image` (WCAG 1.1.1); optional label otherwise. */
+  /** Alternative text. Required for `image` and `embed`; optional label for audio/video. */
   alt?: string;
   /** Optional WebVTT captions track URL for `audio`/`video`. */
   captionsUrl?: string;

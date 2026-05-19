@@ -13,6 +13,9 @@ out/
 # Turborepo cache
 .turbo/
 
+# tsup transient bundled-config temp file
+**/tsup.config.bundled_*.mjs
+
 # Playwright
 playwright-report/
 test-results/

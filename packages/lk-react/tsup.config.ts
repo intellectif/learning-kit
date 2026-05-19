@@ -4,6 +4,7 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
+    'components/ActivitySequence': 'src/components/ActivitySequence/index.tsx',
     'components/MultipleChoice': 'src/components/MultipleChoice/index.tsx',
     'components/FillInTheBlanks': 'src/components/FillInTheBlanks/index.tsx',
     'hooks/useActivityState': 'src/hooks/useActivityState.ts',

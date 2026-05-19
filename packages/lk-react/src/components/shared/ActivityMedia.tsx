@@ -3,9 +3,10 @@ import type { ActivityMedia as ActivityMediaData } from '@intellectif/lk-core';
 /**
  * Presentational media block shown above a question or passage. URL-only:
  * the SDK does not host media (consumer responsibility). Accessibility:
- * images use `alt` (schema requires it to be non-empty); audio/video expose
- * an optional accessible label and render a captions `<track>` when the
- * activity provides `captionsUrl` (Req 14.5).
+ * images use `alt` (schema requires it non-empty); audio/video expose an
+ * optional label and a captions `<track>` when `captionsUrl` is provided;
+ * `embed` renders a responsive sandboxed iframe with `alt` as its required
+ * accessible `title` (Req 14.5).
  */
 export function ActivityMedia({ media }: { media: ActivityMediaData }): React.JSX.Element {
   const { type, url, alt, captionsUrl } = media;
@@ -26,6 +27,24 @@ export function ActivityMedia({ media }: { media: ActivityMediaData }): React.JS
           <source src={url} />
           {captionsUrl ? <track kind="captions" src={captionsUrl} default /> : null}
         </audio>
+      </figure>
+    );
+  }
+
+  if (type === 'embed') {
+    return (
+      <figure className="lk-media">
+        <div className="lk-media-embed">
+          <iframe
+            className="lk-media-el"
+            src={url}
+            title={alt ?? 'Embedded media'}
+            loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        </div>
       </figure>
     );
   }

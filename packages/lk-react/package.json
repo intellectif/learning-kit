@@ -12,6 +12,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./components/ActivitySequence": {
+      "types": "./dist/components/ActivitySequence.d.ts",
+      "import": "./dist/components/ActivitySequence.js",
+      "require": "./dist/components/ActivitySequence.cjs"
+    },
     "./components/MultipleChoice": {
       "types": "./dist/components/MultipleChoice.d.ts",
       "import": "./dist/components/MultipleChoice.js",

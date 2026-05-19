@@ -22,7 +22,7 @@ test('fill blanks → submit fires onComplete and POSTs a valid xAPI statement',
   // Both blanks correct → partial strategy 2/2 = 1.
   expect(statement.result.score.scaled).toBe(1);
 
-  await expect(page.getByText(/Fill in the Blanks: scored 100% — passed/)).toBeVisible();
+  await expect(page.getByText(/FIB question 1: scored 100% — passed/)).toBeVisible();
 });
 
 test('hint button reveals the hint text', async ({ page }) => {
@@ -41,5 +41,5 @@ test('keyboard-only: type answers and submit with Enter', async ({ page }) => {
   await page.getByRole('button', { name: 'Check answers' }).press('Enter');
   await requestPromise;
 
-  await expect(page.getByText(/Fill in the Blanks: scored 100%/)).toBeVisible();
+  await expect(page.getByText(/FIB question 1: scored 100%/)).toBeVisible();
 });

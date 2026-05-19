@@ -39,4 +39,16 @@ describe('ActivityMedia', () => {
     expect(track).toHaveAttribute('kind', 'captions');
     expect(track).toHaveAttribute('src', 'https://x.test/v.vtt');
   });
+
+  it('renders an embed as a titled iframe', () => {
+    const { container } = render(
+      <ActivityMedia
+        media={{ type: 'embed', url: 'https://www.youtube.com/embed/abc', alt: 'Water cycle' }}
+      />,
+    );
+    const iframe = container.querySelector('iframe');
+    expect(iframe).toHaveAttribute('src', 'https://www.youtube.com/embed/abc');
+    expect(iframe).toHaveAttribute('title', 'Water cycle');
+    expect(iframe).toHaveAttribute('allowfullscreen');
+  });
 });

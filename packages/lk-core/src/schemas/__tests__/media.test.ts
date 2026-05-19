@@ -28,6 +28,19 @@ describe('MediaSchema', () => {
     ).toBe(false);
   });
 
+  it('accepts an embed with alt and rejects an embed without alt', () => {
+    expect(
+      MediaSchema.safeParse({
+        type: 'embed',
+        url: 'https://www.youtube.com/embed/abc',
+        alt: 'Water cycle video',
+      }).success,
+    ).toBe(true);
+    expect(
+      MediaSchema.safeParse({ type: 'embed', url: 'https://www.youtube.com/embed/abc' }).success,
+    ).toBe(false);
+  });
+
   it('rejects a non-URL source and an invalid type', () => {
     expect(MediaSchema.safeParse({ type: 'audio', url: 'not-a-url' }).success).toBe(false);
     expect(MediaSchema.safeParse({ type: 'gif', url: 'https://x.test/a.gif' }).success).toBe(false);

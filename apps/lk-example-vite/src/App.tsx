@@ -1,11 +1,11 @@
 import type { ActivityResult } from '@intellectif/lk-core';
-import { FillInTheBlanks } from '@intellectif/lk-react/components/FillInTheBlanks';
+import { ActivitySequence } from '@intellectif/lk-react/components/ActivitySequence';
 import { MultipleChoice } from '@intellectif/lk-react/components/MultipleChoice';
 import { useXAPI } from '@intellectif/lk-react/hooks/useXAPI';
 import { ThemeProvider } from '@intellectif/lk-react/theme/ThemeProvider';
 import { useState } from 'react';
 import { LRS_ENDPOINT } from './config';
-import { sampleFillInTheBlanks, sampleMultipleChoice } from './sample-data';
+import { sampleFibSet, sampleMultipleChoice } from './sample-data';
 
 export function App(): React.JSX.Element {
   const [log, setLog] = useState<{ id: string; text: string }[]>([]);
@@ -40,8 +40,9 @@ export function App(): React.JSX.Element {
       <main style={{ maxWidth: 680, margin: '0 auto', padding: 24 }}>
         <h1>learning-kit — Vite + React 19 example</h1>
         <p>
-          Two activities wired to a mock LRS (MSW). Submitting an activity scores it locally and
-          POSTs an xAPI statement to the intercepted endpoint.
+          A single Multiple Choice activity, plus a Fill-in-the-Blanks question set shown via the
+          in-place pager (Previous / Next, no scrolling). Submitting scores locally and POSTs an
+          xAPI statement to the mock LRS (MSW).
         </p>
 
         <section aria-labelledby="mc-heading">
@@ -53,11 +54,10 @@ export function App(): React.JSX.Element {
         </section>
 
         <section aria-labelledby="fib-heading">
-          <h2 id="fib-heading">Fill in the Blanks</h2>
-          <FillInTheBlanks
-            data={sampleFillInTheBlanks}
-            onComplete={handleComplete('Fill in the Blanks')}
-            showCorrectAnswers
+          <h2 id="fib-heading">Fill in the Blanks — question set</h2>
+          <ActivitySequence
+            activities={sampleFibSet}
+            onActivityComplete={(result, i) => handleComplete(`FIB question ${i + 1}`)(result)}
           />
         </section>
 
