@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { MediaSchema } from './media.js';
 
 /** Zod schema for a single Multiple Choice option. */
 export const MultipleChoiceOptionSchema = z.object({
@@ -28,6 +29,7 @@ export const MultipleChoiceDataSchema = z
     mode: z.enum(['single', 'multi']),
     options: z.array(MultipleChoiceOptionSchema).min(2).max(10),
     scoringStrategy: z.enum(['all-or-nothing', 'partial']),
+    media: MediaSchema.optional(),
     passThreshold: z.number().min(0).max(1).optional(),
     shuffle: z.boolean().optional(),
     locale: z.string().optional(),

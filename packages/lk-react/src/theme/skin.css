@@ -44,6 +44,19 @@
     font-weight: var(--lk-font-weight-bold);
   }
 
+  /* ── Activity media (image / audio / video) ──────────────────────────── */
+  .lk-media {
+    margin: 0 0 var(--lk-spacing-lg);
+  }
+
+  .lk-media-el {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--lk-radius-base);
+    border: 1px solid var(--lk-color-border);
+  }
+
   /* ── Multiple choice options ─────────────────────────────────────────── */
   .lk-mc-option {
     display: flex;
@@ -96,49 +109,100 @@
   }
 
   /* ── Fill-in-the-blanks passage ──────────────────────────────────────── */
+  /* Generous line-height so inline blanks on wrapped lines never collide. */
   .lk-fib-passage {
     margin: 0 0 var(--lk-spacing-lg);
     font-size: var(--lk-font-size-lg);
+    line-height: 2.6;
   }
 
   .lk-fib-blank {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: var(--lk-spacing-xs);
+    vertical-align: middle;
+    margin: 0 2px;
   }
 
   .lk-fib-blank input {
     font: inherit;
     color: var(--lk-color-text);
     padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
-    border: 0;
-    border-bottom: 2px solid var(--lk-color-border);
-    background: var(--lk-color-surface-raised);
-    border-radius: var(--lk-radius-sm) var(--lk-radius-sm) 0 0;
+    border: 1px solid var(--lk-color-border);
+    background: var(--lk-color-surface);
+    border-radius: var(--lk-radius-sm);
     min-width: 7ch;
     transition: var(--lk-transition-fast);
   }
 
   .lk-fib-blank input:hover {
-    border-bottom-color: var(--lk-color-primary);
+    border-color: var(--lk-color-primary);
+  }
+
+  /* Contained focus (no outline-offset) so the ring stays inside the line
+     box and never bleeds into the line above/below. */
+  .lk-fib-blank input:focus-visible {
+    outline: none;
+    border-color: var(--lk-color-focus-ring);
+    box-shadow: 0 0 0 2px var(--lk-color-focus-ring);
   }
 
   .lk-fib-blank input[data-correct="true"] {
-    border-bottom-color: var(--lk-color-success);
+    border-color: var(--lk-color-success);
   }
 
   .lk-fib-blank input[data-correct="false"] {
-    border-bottom-color: var(--lk-color-error);
+    border-color: var(--lk-color-error);
   }
 
+  /* Compact pill button instead of underlined text. */
   .lk-fib-blank button {
     font-size: var(--lk-font-size-sm);
+    line-height: 1;
     color: var(--lk-color-text-muted);
-    background: none;
-    border: 0;
-    padding: 0 var(--lk-spacing-xs);
+    background: var(--lk-color-surface-raised);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-sm);
+    padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
     cursor: pointer;
-    text-decoration: underline;
+    white-space: nowrap;
+  }
+
+  .lk-fib-blank button:hover {
+    border-color: var(--lk-color-primary);
+    color: var(--lk-color-text);
+  }
+
+  /* Revealed hint rendered as a floating popover above the blank. The empty
+     placeholder span (pre-reveal) is hidden so nothing shows until clicked. */
+  .lk-fib-blank [aria-live]:empty {
+    display: none;
+  }
+
+  .lk-fib-blank [aria-live]:not(:empty) {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    z-index: 1;
+    max-width: 16rem;
+    padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    font-size: var(--lk-font-size-sm);
+    line-height: var(--lk-line-height-base);
+    color: var(--lk-color-surface);
+    background: var(--lk-color-text);
+    border-radius: var(--lk-radius-sm);
+    box-shadow: 0 4px 12px rgb(0 0 0 / 18%);
+  }
+
+  /* Little caret pointing at the blank. */
+  .lk-fib-blank [aria-live]:not(:empty)::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: var(--lk-spacing-sm);
+    border: 5px solid transparent;
+    border-top-color: var(--lk-color-text);
   }
 
   .lk-fib-answer {
@@ -180,6 +244,12 @@
   .lk-fib :focus-visible {
     outline: 2px solid var(--lk-color-focus-ring);
     outline-offset: 2px;
+  }
+
+  /* Inline controls in the passage use a contained ring (no offset) so the
+     focus indicator never overlaps the line above/below. */
+  .lk-fib-blank button:focus-visible {
+    outline-offset: 0;
   }
 
   /* ── Feedback / status region ────────────────────────────────────────── */

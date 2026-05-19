@@ -36,6 +36,16 @@ const multi = (): MultipleChoiceData => ({
 });
 
 describe('MultipleChoice', () => {
+  it('renders activity media above the question when present', () => {
+    render(
+      <MultipleChoice
+        data={single({ media: { type: 'image', url: 'https://x.test/p.png', alt: 'Prompt' } })}
+        onComplete={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('img', { name: 'Prompt' })).toBeInTheDocument();
+  });
+
   it('renders the question and all options as a radiogroup', () => {
     render(<MultipleChoice data={single()} onComplete={vi.fn()} />);
     expect(screen.getByText('What is 2 + 2?')).toBeInTheDocument();

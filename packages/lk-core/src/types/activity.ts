@@ -12,6 +12,21 @@ export interface ActivityDataMap {
 /** Union of all valid activity data shapes. */
 export type ActivityData = MultipleChoiceData | FillInTheBlanksData;
 
+/**
+ * Optional media (image/audio/video) shown above a question or passage.
+ * URL-only: hosting/delivery is the consuming application's responsibility.
+ */
+export interface ActivityMedia {
+  /** The kind of media; selects the rendered element. */
+  type: 'image' | 'audio' | 'video';
+  /** Source URL of the media resource. */
+  url: string;
+  /** Alternative text. Required for `image` (WCAG 1.1.1); optional label otherwise. */
+  alt?: string;
+  /** Optional WebVTT captions track URL for `audio`/`video`. */
+  captionsUrl?: string;
+}
+
 /** A single selectable option within a Multiple Choice activity. */
 export interface MultipleChoiceOption {
   /** Unique identifier for this option within the activity. */
@@ -40,6 +55,8 @@ export interface MultipleChoiceData {
   options: MultipleChoiceOption[];
   /** Scoring algorithm applied when the learner submits. */
   scoringStrategy: 'all-or-nothing' | 'partial';
+  /** Optional media shown above the question. */
+  media?: ActivityMedia;
   /** Minimum scaled score [0–1] required to pass. Defaults to 0.6 when absent. */
   passThreshold?: number;
   /** When true, options are shuffled deterministically per session. */
@@ -80,6 +97,8 @@ export interface FillInTheBlanksData {
   blanks: BlankConfig[];
   /** Scoring algorithm applied when the learner submits. */
   scoringStrategy: 'all-or-nothing' | 'partial';
+  /** Optional media shown above the passage. */
+  media?: ActivityMedia;
   /** Minimum scaled score [0–1] required to pass. Defaults to 0.6 when absent. */
   passThreshold?: number;
   /** BCP 47 language tag for the activity content. */

@@ -20,6 +20,16 @@ const fib = (over: Partial<FillInTheBlanksData> = {}): FillInTheBlanksData => ({
 });
 
 describe('FillInTheBlanks', () => {
+  it('renders activity media above the passage when present', () => {
+    render(
+      <FillInTheBlanks
+        data={fib({ media: { type: 'image', url: 'https://x.test/p.png', alt: 'Map' } })}
+        onComplete={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('img', { name: 'Map' })).toBeInTheDocument();
+  });
+
   it('renders the passage with named inline inputs', () => {
     render(<FillInTheBlanks data={fib()} onComplete={vi.fn()} />);
     expect(screen.getByRole('form', { name: 'Capitals' })).toBeInTheDocument();

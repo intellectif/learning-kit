@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { MediaSchema } from './media.js';
 
 /** Matches `{{ blank_id }}` placeholders in a passage, capturing the trimmed id. */
 const PLACEHOLDER_RE = /\{\{\s*([^{}]+?)\s*\}\}/g;
@@ -28,6 +29,7 @@ export const FillInTheBlanksDataSchema = z
     passage: z.string().min(1),
     blanks: z.array(BlankConfigSchema).min(1),
     scoringStrategy: z.enum(['all-or-nothing', 'partial']),
+    media: MediaSchema.optional(),
     passThreshold: z.number().min(0).max(1).optional(),
     locale: z.string().optional(),
     learningObjectives: z.array(z.string()).optional(),

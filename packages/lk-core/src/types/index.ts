@@ -1,6 +1,7 @@
 export type {
   ActivityData,
   ActivityDataMap,
+  ActivityMedia,
   ActivityResult,
   ActivityType,
   BlankConfig,

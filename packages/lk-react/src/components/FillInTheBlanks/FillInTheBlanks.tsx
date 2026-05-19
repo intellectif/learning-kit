@@ -11,6 +11,7 @@ import {
 import { type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { useActivityState } from '../../hooks/useActivityState.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
+import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import type { ActivityProps } from '../types.js';
 
@@ -111,15 +112,26 @@ export function FillInTheBlanks({
     fireInteraction('blank-filled', { blankId, value });
   };
 
-  const revealHint = (blankId: string): void => {
+  const toggleHint = (blankId: string): void => {
     if (inactive) {
       return;
     }
     if (state === 'idle') {
       start();
     }
-    setRevealed((prev) => new Set(prev).add(blankId));
-    fireInteraction('hint-requested', { blankId });
+    setRevealed((prev) => {
+      const next = new Set(prev);
+      if (next.has(blankId)) {
+        next.delete(blankId);
+        return next;
+      }
+      next.add(blankId);
+      return next;
+    });
+    // Only a reveal is a "hint requested"; hiding is not a new request.
+    if (!revealed.has(blankId)) {
+      fireInteraction('hint-requested', { blankId });
+    }
   };
 
   const handleSubmit = (event: React.FormEvent): void => {
@@ -170,6 +182,7 @@ export function FillInTheBlanks({
       style={theme as CSSProperties | undefined}
       onSubmit={handleSubmit}
     >
+      {data.media ? <ActivityMedia media={data.media} /> : null}
       <fieldset disabled={inactive}>
         <p className="lk-fib-passage">
           {segments.map((seg, i) => {
@@ -207,17 +220,19 @@ export function FillInTheBlanks({
                     <button
                       type="button"
                       aria-controls={hintId}
+                      aria-expanded={revealed.has(seg.id)}
                       disabled={inactive}
-                      onClick={() => revealHint(seg.id)}
+                      onClick={() => toggleHint(seg.id)}
                     >
-                      Show hint
+                      {revealed.has(seg.id) ? 'Hide hint' : 'Show hint'}
                     </button>
                     {/*
                       Not role="tooltip": a real ARIA tooltip is a named
-                      hover/focus popup. This is a click-to-reveal hint that
-                      is the input's aria-describedby target and is announced
-                      via aria-live. (Refines the design ARIA sketch; fixes
-                      axe aria-tooltip-name.)
+                      hover/focus popup with strict WCAG 1.4.13 constraints.
+                      This is an accessible click-to-toggle disclosure that is
+                      the input's aria-describedby target and is announced via
+                      aria-live; the skin gives it a tooltip-like *visual*
+                      without the tooltip *semantics*. (Refines Task 15.3.)
                     */}
                     <span id={hintId} aria-live="polite">
                       {revealed.has(seg.id) ? blank.hint : ''}

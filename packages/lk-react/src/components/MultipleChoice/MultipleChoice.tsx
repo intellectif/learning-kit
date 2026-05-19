@@ -11,6 +11,7 @@ import {
 import { type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { useActivityState } from '../../hooks/useActivityState.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
+import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import type { ActivityProps } from '../types.js';
 
@@ -181,6 +182,7 @@ export function MultipleChoice({
 
   return (
     <div className="lk-mc" lang={locale} style={theme as CSSProperties | undefined}>
+      {data.media ? <ActivityMedia media={data.media} /> : null}
       <form onSubmit={handleSubmit}>
         <fieldset disabled={inactive}>
           <legend id={questionId}>{data.question}</legend>
