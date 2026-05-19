@@ -1,11 +1,11 @@
-import type { ActivityResult } from '@intellectif/lk-core';
-import { ActivitySequence } from '@intellectif/lk-react/components/ActivitySequence';
-import { MultipleChoice } from '@intellectif/lk-react/components/MultipleChoice';
-import { useXAPI } from '@intellectif/lk-react/hooks/useXAPI';
-import { ThemeProvider } from '@intellectif/lk-react/theme/ThemeProvider';
-import { useState } from 'react';
-import { LRS_ENDPOINT } from './config';
-import { sampleFibSet, sampleMultipleChoice } from './sample-data';
+import type { ActivityResult } from "@intellectif/lk-core";
+import { ActivitySequence } from "@intellectif/lk-react/components/ActivitySequence";
+import { MultipleChoice } from "@intellectif/lk-react/components/MultipleChoice";
+import { useXAPI } from "@intellectif/lk-react/hooks/useXAPI";
+import { ThemeProvider } from "@intellectif/lk-react/theme/ThemeProvider";
+import { useState } from "react";
+import { LRS_ENDPOINT } from "./config";
+import { sampleFibSet, sampleMultipleChoice } from "./sample-data";
 
 export function App(): React.JSX.Element {
   const [log, setLog] = useState<{ id: string; text: string }[]>([]);
@@ -18,9 +18,9 @@ export function App(): React.JSX.Element {
   // Req 3.1: components cannot know who the learner is).
   const { sendStatement } = useXAPI({
     endpoint: LRS_ENDPOINT,
-    auth: { type: 'bearer', token: 'demo-token' },
-    activityId: 'https://learning-kit.test/demo',
-    actor: { objectType: 'Agent', mbox: 'mailto:learner@example.com' },
+    auth: { type: "bearer", token: "demo-token" },
+    activityId: "https://learning-kit.test/demo",
+    actor: { objectType: "Agent", mbox: "mailto:learner@example.com" },
     onError: (err) => append(`xAPI send failed: ${err.message}`),
   });
 
@@ -29,7 +29,7 @@ export function App(): React.JSX.Element {
     (result: ActivityResult): void => {
       append(
         `${label}: scored ${Math.round(result.score * 100)}% — ${
-          result.passed ? 'passed' : 'not passed'
+          result.passed ? "passed" : "not passed"
         } (${result.timeSpent} ms)`,
       );
       void sendStatement(result.xapiStatement);
@@ -37,19 +37,22 @@ export function App(): React.JSX.Element {
 
   return (
     <ThemeProvider>
-      <main style={{ maxWidth: 680, margin: '0 auto', padding: 24 }}>
+      <main style={{ maxWidth: 680, margin: "0 auto", padding: 24 }}>
         <h1>learning-kit — Vite + React 19 example</h1>
         <p>
-          A single Multiple Choice activity, plus a Fill-in-the-Blanks question set shown via the
-          in-place pager (Previous / Next, no scrolling). Submitting scores locally and POSTs an
-          xAPI statement to the mock LRS (MSW).
+          A single Multiple Choice activity, plus a Fill-in-the-Blanks question
+          set shown via the in-place pager (Previous / Next, no scrolling).
+          Submitting scores locally and POSTs an xAPI statement to the mock LRS
+          (MSW).
         </p>
+        <h3>Answer key:</h3>
+        <p>Tokyo, evaporation, precipitation, condensation, groundwater</p>
 
         <section aria-labelledby="mc-heading">
           <h2 id="mc-heading">Multiple Choice</h2>
           <MultipleChoice
             data={sampleMultipleChoice}
-            onComplete={handleComplete('Multiple Choice')}
+            onComplete={handleComplete("Multiple Choice")}
           />
         </section>
 
@@ -57,7 +60,9 @@ export function App(): React.JSX.Element {
           <h2 id="fib-heading">Fill in the Blanks — question set</h2>
           <ActivitySequence
             activities={sampleFibSet}
-            onActivityComplete={(result, i) => handleComplete(`FIB question ${i + 1}`)(result)}
+            onActivityComplete={(result, i) =>
+              handleComplete(`FIB question ${i + 1}`)(result)
+            }
           />
         </section>
 
