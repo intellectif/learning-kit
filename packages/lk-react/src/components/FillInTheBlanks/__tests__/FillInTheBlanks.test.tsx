@@ -30,6 +30,20 @@ describe('FillInTheBlanks', () => {
     expect(screen.getByRole('img', { name: 'Map' })).toBeInTheDocument();
   });
 
+  it('shows authored overall feedback after submission', async () => {
+    const user = userEvent.setup();
+    render(
+      <FillInTheBlanks
+        data={fib({ feedback: { correct: 'Great geography skills!' } })}
+        onComplete={vi.fn()}
+      />,
+    );
+    await user.type(screen.getByRole('textbox', { name: 'Fill in blank 1' }), 'Paris');
+    await user.type(screen.getByRole('textbox', { name: 'Fill in blank 2' }), 'Madrid');
+    await user.click(screen.getByRole('button', { name: 'Check answers' }));
+    expect(screen.getByText(/Great geography skills!/)).toBeInTheDocument();
+  });
+
   it('renders the passage with named inline inputs', () => {
     render(<FillInTheBlanks data={fib()} onComplete={vi.fn()} />);
     expect(screen.getByRole('form', { name: 'Capitals' })).toBeInTheDocument();

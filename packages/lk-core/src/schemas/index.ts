@@ -2,6 +2,7 @@ import type { ActivityDataMap, ActivityType, ValidationResult } from '../types/a
 import { FillInTheBlanksDataSchema } from './fill-in-the-blanks.js';
 import { MultipleChoiceDataSchema } from './multiple-choice.js';
 
+export { FeedbackSchema } from './feedback.js';
 export { BlankConfigSchema, FillInTheBlanksDataSchema } from './fill-in-the-blanks.js';
 export { fillInTheBlanksJsonSchema, multipleChoiceJsonSchema } from './json-schema.js';
 export { MediaSchema } from './media.js';

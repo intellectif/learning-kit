@@ -30,6 +30,18 @@ export interface ActivityMedia {
   captionsUrl?: string;
 }
 
+/**
+ * Optional authored "overall feedback" shown after submission, chosen by
+ * whether the learner passed (h5p-style overall feedback). Distinct from
+ * per-option feedback; either field may be omitted.
+ */
+export interface ActivityFeedback {
+  /** Shown when the learner passes (score ≥ pass threshold). */
+  correct?: string;
+  /** Shown when the learner does not pass. */
+  incorrect?: string;
+}
+
 /** A single selectable option within a Multiple Choice activity. */
 export interface MultipleChoiceOption {
   /** Unique identifier for this option within the activity. */
@@ -60,6 +72,8 @@ export interface MultipleChoiceData {
   scoringStrategy: 'all-or-nothing' | 'partial';
   /** Optional media shown above the question. */
   media?: ActivityMedia;
+  /** Optional authored overall feedback shown after submission. */
+  feedback?: ActivityFeedback;
   /** Minimum scaled score [0–1] required to pass. Defaults to 0.6 when absent. */
   passThreshold?: number;
   /** When true, options are shuffled deterministically per session. */
@@ -102,6 +116,8 @@ export interface FillInTheBlanksData {
   scoringStrategy: 'all-or-nothing' | 'partial';
   /** Optional media shown above the passage. */
   media?: ActivityMedia;
+  /** Optional authored overall feedback shown after submission. */
+  feedback?: ActivityFeedback;
   /** Minimum scaled score [0–1] required to pass. Defaults to 0.6 when absent. */
   passThreshold?: number;
   /** BCP 47 language tag for the activity content. */

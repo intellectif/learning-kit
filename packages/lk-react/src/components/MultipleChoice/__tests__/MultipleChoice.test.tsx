@@ -46,6 +46,19 @@ describe('MultipleChoice', () => {
     expect(screen.getByRole('img', { name: 'Prompt' })).toBeInTheDocument();
   });
 
+  it('shows authored overall feedback after submission', async () => {
+    const user = userEvent.setup();
+    render(
+      <MultipleChoice
+        data={single({ feedback: { incorrect: 'Review addition and retry.' } })}
+        onComplete={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole('radio', { name: 'Three' }));
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    expect(screen.getByText(/Review addition and retry\./)).toBeInTheDocument();
+  });
+
   it('renders the question and all options as a radiogroup', () => {
     render(<MultipleChoice data={single()} onComplete={vi.fn()} />);
     expect(screen.getByText('What is 2 + 2?')).toBeInTheDocument();

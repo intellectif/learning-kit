@@ -138,10 +138,11 @@ export function MultipleChoice({
       timeSpent,
       xapiStatement,
     });
+    const overall = scoringResult.passed ? data.feedback?.correct : data.feedback?.incorrect;
     setSummary(
       `Answer submitted. Score ${Math.round(scoringResult.score * 100)}%. ${
         scoringResult.passed ? 'Passed.' : 'Not passed.'
-      }`,
+      }${overall ? ` ${overall}` : ''}`,
     );
     fireInteraction('submitted', {
       selectedOptionIds: selected,
