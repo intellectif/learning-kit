@@ -17,10 +17,11 @@ export default defineConfig({
   treeshake: true,
   splitting: true,
   external: ['react', 'react-dom', '@intellectif/lk-core'],
-  // tsup does not process/copy CSS. Mirror the static token stylesheet into
-  // dist so the `./theme/defaults.css` export resolves (cross-platform).
+  // tsup does not process/copy CSS. Mirror the static stylesheets into dist so
+  // the `./theme/defaults.css` and `./theme/skin.css` exports resolve.
   onSuccess: async () => {
     mkdirSync('dist/theme', { recursive: true });
     copyFileSync('src/theme/defaults.css', 'dist/theme/defaults.css');
+    copyFileSync('src/theme/skin.css', 'dist/theme/skin.css');
   },
 });

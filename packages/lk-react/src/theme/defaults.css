@@ -10,18 +10,18 @@
  * Mirrors theme/tokens.ts (the canonical source). Keep in sync.
  */
 :root {
-  /* Colours */
-  --lk-color-primary: #2563eb;
-  --lk-color-primary-hover: #1d4ed8;
+  /* Colours — neutral monochrome (mirrors tokens.ts) */
+  --lk-color-primary: #18181b;
+  --lk-color-primary-hover: #27272a;
   --lk-color-surface: #ffffff;
-  --lk-color-surface-raised: #f8fafc;
-  --lk-color-border: #cbd5e1;
-  --lk-color-text: #0f172a;
-  --lk-color-text-muted: #475569;
+  --lk-color-surface-raised: #fafafa;
+  --lk-color-border: #e4e4e7;
+  --lk-color-text: #18181b;
+  --lk-color-text-muted: #52525b;
   --lk-color-success: #15803d;
   --lk-color-error: #b91c1c;
   --lk-color-warning: #b45309;
-  --lk-color-focus-ring: #2563eb;
+  --lk-color-focus-ring: #18181b;
 
   /* Spacing */
   --lk-spacing-xs: 4px;

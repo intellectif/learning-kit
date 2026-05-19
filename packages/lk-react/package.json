@@ -37,7 +37,8 @@
       "import": "./dist/theme/ThemeProvider.js",
       "require": "./dist/theme/ThemeProvider.cjs"
     },
-    "./theme/defaults.css": "./dist/theme/defaults.css"
+    "./theme/defaults.css": "./dist/theme/defaults.css",
+    "./theme/skin.css": "./dist/theme/skin.css"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

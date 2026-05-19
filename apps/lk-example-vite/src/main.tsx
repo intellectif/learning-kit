@@ -1,4 +1,5 @@
 import '@intellectif/lk-react/theme/defaults.css';
+import '@intellectif/lk-react/theme/skin.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';

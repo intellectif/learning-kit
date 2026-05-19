@@ -4,7 +4,7 @@ import { createTailwindTheme } from '../tailwind.js';
 describe('createTailwindTheme', () => {
   it('maps tokens to var() references with fallbacks across the 5 buckets', () => {
     const ext = createTailwindTheme({});
-    expect(ext.colors['lk-primary']).toBe('var(--lk-color-primary, #2563eb)');
+    expect(ext.colors['lk-primary']).toBe('var(--lk-color-primary, #18181b)');
     expect(ext.spacing['lk-md']).toBe('var(--lk-spacing-md, 16px)');
     expect(ext.borderRadius['lk-base']).toBe('var(--lk-radius-base, 0.5rem)');
     expect(ext.fontSize['lk-sm']).toBe('var(--lk-font-size-sm, 0.875rem)');

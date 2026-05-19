@@ -1,0 +1,192 @@
+/*
+ * learning-kit OPTIONAL default skin — a slick, neutral monochrome look
+ * (ElevenLabs-like). Entirely token-driven, so `ThemeProvider` / dark mode
+ * restyle it for free.
+ *
+ * Override contract: every rule lives in the `lk-skin` CSS cascade layer.
+ * Unlayered author styles ALWAYS win over layered styles, so a consumer can
+ * restyle any `.lk-*` hook with plain CSS and no `!important`. Import order:
+ *   import '@intellectif/lk-react/theme/defaults.css';  (tokens)
+ *   import '@intellectif/lk-react/theme/skin.css';      (this — optional)
+ * This file is NOT imported by the components; it is opt-in and is kept
+ * separate from the tokens-only `defaults.css` (Tailwind-safety contract).
+ */
+
+@layer lk-skin {
+  .lk-mc,
+  .lk-fib {
+    font-family: var(--lk-font-family-base);
+    font-size: var(--lk-font-size-base);
+    line-height: var(--lk-line-height-base);
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    padding: var(--lk-spacing-lg);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-lg);
+  }
+
+  .lk-mc *,
+  .lk-fib * {
+    box-sizing: border-box;
+  }
+
+  .lk-mc fieldset,
+  .lk-fib fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .lk-mc legend {
+    padding: 0;
+    margin-bottom: var(--lk-spacing-md);
+    font-size: var(--lk-font-size-lg);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  /* ── Multiple choice options ─────────────────────────────────────────── */
+  .lk-mc-option {
+    display: flex;
+    align-items: center;
+    gap: var(--lk-spacing-sm);
+    padding: var(--lk-spacing-md);
+    margin-bottom: var(--lk-spacing-sm);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    background: var(--lk-color-surface);
+    cursor: pointer;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-mc-option:hover {
+    border-color: var(--lk-color-primary);
+    background: var(--lk-color-surface-raised);
+  }
+
+  .lk-mc-option:has(input:checked) {
+    border-color: var(--lk-color-primary);
+    box-shadow: inset 0 0 0 1px var(--lk-color-primary);
+  }
+
+  .lk-mc-option:has(input:disabled) {
+    cursor: default;
+  }
+
+  .lk-mc-option[data-correct="true"] {
+    border-color: var(--lk-color-success);
+    box-shadow: inset 0 0 0 1px var(--lk-color-success);
+  }
+
+  .lk-mc-option[data-correct="false"]:has(input:checked) {
+    border-color: var(--lk-color-error);
+    box-shadow: inset 0 0 0 1px var(--lk-color-error);
+  }
+
+  .lk-mc-option input {
+    accent-color: var(--lk-color-primary);
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+  }
+
+  .lk-mc-option-feedback {
+    margin-left: auto;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  /* ── Fill-in-the-blanks passage ──────────────────────────────────────── */
+  .lk-fib-passage {
+    margin: 0 0 var(--lk-spacing-lg);
+    font-size: var(--lk-font-size-lg);
+  }
+
+  .lk-fib-blank {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--lk-spacing-xs);
+  }
+
+  .lk-fib-blank input {
+    font: inherit;
+    color: var(--lk-color-text);
+    padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    border: 0;
+    border-bottom: 2px solid var(--lk-color-border);
+    background: var(--lk-color-surface-raised);
+    border-radius: var(--lk-radius-sm) var(--lk-radius-sm) 0 0;
+    min-width: 7ch;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-fib-blank input:hover {
+    border-bottom-color: var(--lk-color-primary);
+  }
+
+  .lk-fib-blank input[data-correct="true"] {
+    border-bottom-color: var(--lk-color-success);
+  }
+
+  .lk-fib-blank input[data-correct="false"] {
+    border-bottom-color: var(--lk-color-error);
+  }
+
+  .lk-fib-blank button {
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+    background: none;
+    border: 0;
+    padding: 0 var(--lk-spacing-xs);
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .lk-fib-answer {
+    padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    border-radius: var(--lk-radius-sm);
+    background: color-mix(in srgb, var(--lk-color-success) 14%, var(--lk-color-surface));
+    color: var(--lk-color-text);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  /* ── Submit buttons ──────────────────────────────────────────────────── */
+  .lk-mc button[type="submit"],
+  .lk-fib button[type="submit"] {
+    margin-top: var(--lk-spacing-md);
+    padding: var(--lk-spacing-sm) var(--lk-spacing-lg);
+    font: inherit;
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-surface);
+    background: var(--lk-color-primary);
+    border: 0;
+    border-radius: var(--lk-radius-base);
+    cursor: pointer;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-mc button[type="submit"]:hover,
+  .lk-fib button[type="submit"]:hover {
+    background: var(--lk-color-primary-hover);
+  }
+
+  .lk-mc button[type="submit"]:disabled,
+  .lk-fib button[type="submit"]:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  /* ── Focus ring (keyboard) ───────────────────────────────────────────── */
+  .lk-mc :focus-visible,
+  .lk-fib :focus-visible {
+    outline: 2px solid var(--lk-color-focus-ring);
+    outline-offset: 2px;
+  }
+
+  /* ── Feedback / status region ────────────────────────────────────────── */
+  .lk-mc > [aria-live],
+  .lk-fib > [aria-live] {
+    margin-top: var(--lk-spacing-md);
+    color: var(--lk-color-text-muted);
+    font-size: var(--lk-font-size-sm);
+  }
+}
