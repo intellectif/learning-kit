@@ -2,11 +2,15 @@
   {
     "name": "MultipleChoice",
     "path": "packages/lk-react/dist/components/MultipleChoice.js",
+    "import": "{ MultipleChoice }",
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "50 kB"
   },
   {
     "name": "FillInTheBlanks",
     "path": "packages/lk-react/dist/components/FillInTheBlanks.js",
+    "import": "{ FillInTheBlanks }",
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "50 kB"
   }
 ]
