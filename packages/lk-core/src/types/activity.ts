@@ -98,6 +98,8 @@ export interface BlankConfig {
   trimWhitespace?: boolean;
   /** Optional hint text revealed on learner request. */
   hint?: string;
+  /** Optional feedback shown inline next to this blank after submission. */
+  feedback?: string;
 }
 
 /** Data contract for a Fill-in-the-Blanks activity. */

@@ -43,10 +43,23 @@ export const sampleFillInTheBlanks: FillInTheBlanksData = {
   passage:
     'Liquid water becomes vapour through {{evaporation}}, then returns to the ground as {{precipitation}}.',
   blanks: [
-    { id: 'evaporation', acceptedAnswers: ['evaporation'], hint: 'Starts with the letter E' },
-    { id: 'precipitation', acceptedAnswers: ['precipitation', 'rain'] },
+    {
+      id: 'evaporation',
+      acceptedAnswers: ['evaporation'],
+      hint: 'Starts with the letter E',
+      feedback: 'Heat turns liquid water into vapour.',
+    },
+    {
+      id: 'precipitation',
+      acceptedAnswers: ['precipitation', 'rain'],
+      feedback: 'Rain, snow and hail are all precipitation.',
+    },
   ],
   scoringStrategy: 'partial',
+  feedback: {
+    correct: 'You understand the water cycle!',
+    incorrect: 'Review the hints and retry.',
+  },
 };
 
 export const sampleFillInTheBlanks2: FillInTheBlanksData = {

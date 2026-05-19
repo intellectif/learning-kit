@@ -101,12 +101,20 @@ Optional `media` on either activity, rendered above the question/passage:
 
 ### Feedback
 
-Two independent, composable layers:
+Two composable layers, both authored by you (the scoring engine never synthesizes feedback — `ScoringResult.feedback` is `null` in V1):
 
-1. **Per-option** (Multiple Choice): `option.feedback` — shown next to the option after submit.
-2. **Activity-level overall**: `feedback: { correct?, incorrect? }` — after submit, the `correct` message shows if the learner passed (score ≥ pass threshold), else `incorrect`, in the activity's `aria-live` region.
+1. **Per-item, on the spot** — Multiple Choice `option.feedback`, and Fill-in-the-Blanks per-blank `blank.feedback`. Rendered **inline next to that item, immediately after submission**, colour-keyed by correctness. This is deliberate: immediate, item-localized feedback is the strongest formative-learning signal (vs. an end-of-activity summary).
+2. **Activity-level overall** — `feedback: { correct?, incorrect? }`. After submit, the `correct` message shows if the learner passed (score ≥ pass threshold), else `incorrect`, in the activity's `aria-live` region (h5p "Overall Feedback" parity).
 
-Feedback is **presentation** authored by you; the scoring engine never synthesizes it (`ScoringResult.feedback` is `null` in V1). **Phase 2 (not in V1):** per-blank FIB feedback and score-band ("0–49% / 50–100%") feedback.
+```jsonc
+// Fill-in-the-Blanks blank with hint + per-blank feedback
+{ "id": "evaporation", "acceptedAnswers": ["evaporation"],
+  "hint": "Starts with E", "feedback": "Liquid → gas when heated." }
+```
+
+**Display & control:** per-item feedback **defaults visible**; the component shows an accessible **"Hide feedback / Show feedback" toggle** (kept operable after submission) so the learner can declutter and restore it without losing results. An aggregate end-of-set summary is a consumer / Phase-2 `ActivitySequence` concern. **Phase 2 (not V1):** score-band ("0–49% / 50–100%") feedback.
+
+The Fill-in-the-Blanks **hint** control renders a default **icon** (the SDK owns the affordance) with a text accessible name (`aria-label` "Show hint"/"Hide hint", `aria-expanded`); restyle/replace the glyph via the `.lk-fib-hint-btn` class — see [styling](./styling.md).
 
 ## Question sets — `ActivitySequence`
 

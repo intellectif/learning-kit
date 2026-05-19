@@ -25,4 +25,17 @@ describe('FeedbackSchema', () => {
     });
     expect(r.success).toBe(true);
   });
+
+  it('allows optional per-blank feedback on Fill-in-the-Blanks', () => {
+    const r = validateActivity('fill-in-the-blanks', {
+      schemaVersion: '1.0',
+      type: 'fill-in-the-blanks',
+      id: 'f',
+      title: 'T',
+      passage: 'a {{x}} b',
+      blanks: [{ id: 'x', acceptedAnswers: ['y'], feedback: 'Think about the context.' }],
+      scoringStrategy: 'partial',
+    });
+    expect(r.success).toBe(true);
+  });
 });

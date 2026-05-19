@@ -86,7 +86,7 @@ export function Demo() {
 | Concern | V1 behavior |
 |---|---|
 | **Scoring** | Pure, deterministic, in `lk-core`; `all-or-nothing` & `partial` (weighted → Phase 2). |
-| **Feedback** | Per-option (MC) + activity-level overall. Per-blank FIB & score-band feedback → Phase 2. |
+| **Feedback** | Per-item (MC per-option, FIB per-blank) shown inline on submit with a Hide/Show toggle, + activity-level overall. Score-band feedback → Phase 2. |
 | **Retry** | Supported: pass a new `data` reference or change the React `key` → resets to idle (Req 3.7). The SDK ships no retry button; retry *policy* is yours. |
 | **Answer persistence / resume** | **Not** in the SDK. Components are uncontrolled; answers clear on `data` change. You persist via `onInteraction` / `onComplete`. No `initialResponse` prop → cannot re-hydrate a prior attempt (Phase-2 candidate). |
 | **Authoring / content storage / CDN / auth / learner DB** | Consumer responsibility. The SDK gives you typed schemas, `validateActivity`, and JSON Schema export to build authoring on. See [Authoring guide](./docs/authoring.md). |
@@ -98,6 +98,7 @@ Full detail: **[docs/authoring.md](./docs/authoring.md)** · **[docs/styling.md]
 
 - **[Authoring & content storage](./docs/authoring.md)** — data model, validation, the fetch → validate → render → xAPI flow, retry/persistence patterns, the shared-responsibility boundary.
 - **[Styling](./docs/styling.md)** — token system, the optional skin, overriding it, dark mode, Tailwind.
+- **[Releasing & publishing](./docs/releasing.md)** — npm token setup, GitHub Actions release, manual publish.
 - **Storybook** — `pnpm --filter @intellectif/lk-storybook dev` (or `pnpm dev`), then open `http://localhost:6006`.
 - **Runnable example** — [`apps/lk-example-vite`](./apps/lk-example-vite) (Vite + React 19 + MSW mock LRS).
 
@@ -132,7 +133,7 @@ pnpm version-packages   # bump versions from pending changesets
 pnpm release            # build + publish (CI handles this on merge to main)
 ```
 
-`CHANGELOG.md` files are generated per package by Changesets on version bump.
+`CHANGELOG.md` files are generated per package by Changesets on version bump. Full setup (npm token, CI vs. manual): **[docs/releasing.md](./docs/releasing.md)**.
 
 ## License
 

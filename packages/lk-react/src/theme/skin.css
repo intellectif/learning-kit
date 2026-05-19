@@ -214,21 +214,53 @@
     border-color: var(--lk-color-error);
   }
 
-  /* Compact pill button instead of underlined text. */
-  .lk-fib-blank button {
-    font-size: var(--lk-font-size-sm);
-    line-height: 1;
+  /* Icon hint button: a subtle circular affordance, not a text pill. */
+  .lk-fib-hint-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     color: var(--lk-color-text-muted);
     background: var(--lk-color-surface-raised);
     border: 1px solid var(--lk-color-border);
-    border-radius: var(--lk-radius-sm);
-    padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    border-radius: 50%;
+    padding: 3px;
+    line-height: 0;
     cursor: pointer;
-    white-space: nowrap;
   }
 
-  .lk-fib-blank button:hover {
+  .lk-fib-hint-btn:hover {
     border-color: var(--lk-color-primary);
+    color: var(--lk-color-text);
+  }
+
+  /* Inline per-blank feedback shown after submission. */
+  .lk-fib-blank-feedback {
+    margin-left: var(--lk-spacing-xs);
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-fib-blank-feedback[data-correct="true"] {
+    color: var(--lk-color-success);
+  }
+
+  .lk-fib-blank-feedback[data-correct="false"] {
+    color: var(--lk-color-error);
+  }
+
+  /* Learner control to declutter feedback after submission. */
+  .lk-fib-feedback-toggle {
+    margin-top: var(--lk-spacing-md);
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .lk-fib-feedback-toggle:hover {
     color: var(--lk-color-text);
   }
 

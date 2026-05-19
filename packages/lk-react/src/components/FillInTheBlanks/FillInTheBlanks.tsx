@@ -73,6 +73,7 @@ export function FillInTheBlanks({
   const [revealed, setRevealed] = useState<Set<string>>(() => new Set());
   const [result, setResult] = useState<ScoringResult | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
+  const [feedbackHidden, setFeedbackHidden] = useState(false);
 
   // `data` is an intentional reset trigger (Req 3.7), not read in the body.
   // biome-ignore lint/correctness/useExhaustiveDependencies: data is the reset trigger (Req 3.7)
@@ -81,6 +82,7 @@ export function FillInTheBlanks({
     setRevealed(new Set());
     setResult(null);
     setSummary(null);
+    setFeedbackHidden(false);
     reset();
   }, [data, reset]);
 
@@ -218,14 +220,33 @@ export function FillInTheBlanks({
                 />
                 {blank.hint ? (
                   <>
+                    {/*
+                      Default affordance is an icon; the accessible NAME stays
+                      text via aria-label (screen readers + tests rely on it).
+                      The glyph is restylable/replaceable via .lk-fib-hint-btn.
+                    */}
                     <button
                       type="button"
+                      className="lk-fib-hint-btn"
                       aria-controls={hintId}
                       aria-expanded={revealed.has(seg.id)}
+                      aria-label={revealed.has(seg.id) ? 'Hide hint' : 'Show hint'}
                       disabled={inactive}
                       onClick={() => toggleHint(seg.id)}
                     >
-                      {revealed.has(seg.id) ? 'Hide hint' : 'Show hint'}
+                      <svg
+                        className="lk-fib-hint-icon"
+                        viewBox="0 0 24 24"
+                        width="16"
+                        height="16"
+                        aria-hidden="true"
+                        focusable="false"
+                      >
+                        <path
+                          fill="currentColor"
+                          d="M9 21h6v-1H9v1Zm3-19a7 7 0 0 0-4 12.74V17h8v-2.26A7 7 0 0 0 12 2Z"
+                        />
+                      </svg>
                     </button>
                     {/*
                       Not role="tooltip": a real ARIA tooltip is a named
@@ -240,6 +261,15 @@ export function FillInTheBlanks({
                     </span>
                   </>
                 ) : null}
+                {submitted && !feedbackHidden && blank.feedback ? (
+                  <span
+                    className="lk-fib-blank-feedback"
+                    role="note"
+                    data-correct={String(isCorrect)}
+                  >
+                    {blank.feedback}
+                  </span>
+                ) : null}
               </span>
             );
           })}
@@ -248,6 +278,16 @@ export function FillInTheBlanks({
           Check answers
         </button>
       </fieldset>
+      {submitted && data.blanks.some((b) => b.feedback) ? (
+        <button
+          type="button"
+          className="lk-fib-feedback-toggle"
+          aria-expanded={!feedbackHidden}
+          onClick={() => setFeedbackHidden((h) => !h)}
+        >
+          {feedbackHidden ? 'Show feedback' : 'Hide feedback'}
+        </button>
+      ) : null}
       <FeedbackRegion id={`${data.id}-feedback`}>{summary}</FeedbackRegion>
     </form>
   );

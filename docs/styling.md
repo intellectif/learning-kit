@@ -36,6 +36,8 @@ Every skin rule is inside the named cascade layer **`@layer lk-skin`**. By CSS c
 |---|---|
 | `.lk-mc`, `.lk-mc-option`, `.lk-mc-option-feedback` | Multiple Choice container / option / per-option feedback |
 | `.lk-fib`, `.lk-fib-passage`, `.lk-fib-blank`, `.lk-fib-answer` | Fill-in-the-Blanks |
+| `.lk-fib-hint-btn`, `.lk-fib-hint-icon` | Hint button (default icon) — restyle/replace the glyph here; the accessible name is fixed by the SDK |
+| `.lk-fib-blank-feedback`, `.lk-fib-feedback-toggle` | Per-blank feedback note + the Hide/Show feedback toggle |
 | `.lk-media`, `.lk-media-el`, `.lk-media-embed` | Activity media (image/audio/video / iframe wrapper) |
 | `.lk-seq`, `.lk-seq-progress`, `.lk-seq-question`, `.lk-seq-nav` | ActivitySequence pager |
 | `[aria-live]` (within `.lk-mc` / `.lk-fib`) | Feedback / status region |

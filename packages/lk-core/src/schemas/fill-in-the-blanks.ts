@@ -12,6 +12,7 @@ export const BlankConfigSchema = z.object({
   caseSensitive: z.boolean().optional(),
   trimWhitespace: z.boolean().optional(),
   hint: z.string().optional(),
+  feedback: z.string().optional(),
 });
 
 /**

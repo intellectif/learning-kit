@@ -30,6 +30,41 @@ describe('FillInTheBlanks', () => {
     expect(screen.getByRole('img', { name: 'Map' })).toBeInTheDocument();
   });
 
+  it('shows per-blank feedback after submission and toggles it', async () => {
+    const user = userEvent.setup();
+    render(
+      <FillInTheBlanks
+        data={fib({
+          blanks: [
+            { id: 'a', acceptedAnswers: ['Paris'], feedback: 'Capital of France.' },
+            { id: 'b', acceptedAnswers: ['Madrid'] },
+          ],
+        })}
+        onComplete={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText('Capital of France.')).not.toBeInTheDocument();
+    await user.type(screen.getByRole('textbox', { name: 'Fill in blank 1' }), 'Paris');
+    await user.click(screen.getByRole('button', { name: 'Check answers' }));
+    expect(screen.getByText('Capital of France.')).toBeInTheDocument();
+
+    const toggle = screen.getByRole('button', { name: 'Hide feedback' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await user.click(toggle);
+    expect(screen.queryByText('Capital of France.')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Show feedback' }));
+    expect(screen.getByText('Capital of France.')).toBeInTheDocument();
+  });
+
+  it('renders the hint control as an icon with an accessible name', async () => {
+    const user = userEvent.setup();
+    render(<FillInTheBlanks data={fib()} onComplete={vi.fn()} />);
+    const hint = screen.getByRole('button', { name: 'Show hint' });
+    expect(hint.querySelector('svg')).toBeInTheDocument();
+    await user.click(hint);
+    expect(screen.getByRole('button', { name: 'Hide hint' })).toBeInTheDocument();
+  });
+
   it('shows authored overall feedback after submission', async () => {
     const user = userEvent.setup();
     render(
