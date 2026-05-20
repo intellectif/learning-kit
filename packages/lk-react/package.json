@@ -2,6 +2,11 @@
   "name": "@intellectif/lk-react",
   "version": "1.0.1",
   "description": "React 19 activity components, hooks, and theming for learning-kit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/intellectif/learning-kit.git",
+    "directory": "packages/lk-react"
+  },
   "type": "module",
   "sideEffects": [
     "**/*.css"
