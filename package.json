@@ -19,13 +19,6 @@
   "keywords": [],
   "author": "Intellectif LLC",
   "license": "MIT",
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "11.0.8",
-      "onFail": "download"
-    }
-  },
   "type": "module",
   "devDependencies": {
     "@biomejs/biome": "^2.4.15",
