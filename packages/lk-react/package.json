@@ -1,6 +1,6 @@
 {
   "name": "@intellectif/lk-react",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "React 19 activity components, hooks, and theming for learning-kit",
   "type": "module",
   "sideEffects": [
