@@ -36,8 +36,13 @@ jobs:
 
       # Trusted Publishing (OIDC) requires a recent npm. setup-node ships
       # npm 10 with Node 22; bump to npm >= 11.5.
-      - name: Use OIDC-capable npm
-        run: npm install -g npm@latest
+      # Trusted Publishing (OIDC) needs npm >= 11.5; Node 22 ships with npm 10.x.
+      # `--force` works around the npm self-upgrade `promise-retry` MODULE_NOT_FOUND
+      # bug (the upgrade overwrites its own bundled node_modules while running).
+      # Pinning the major (npm@11) avoids unrelated regressions from a future
+      # `latest` major.
+      - name: Use OIDC-capable npm (>= 11.5)
+        run: npm install -g npm@11 --force
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
