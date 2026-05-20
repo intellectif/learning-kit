@@ -30,19 +30,17 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          # Node 24 LTS ships with npm 11.5+, which supports OIDC Trusted
+          # Publishing natively — no self-upgrade step needed (the in-place
+          # `npm install -g npm@…` upgrade hit npm's known `promise-retry`
+          # MODULE_NOT_FOUND bug, where npm overwrites its own running
+          # node_modules mid-process; --force doesn't help because the race
+          # is in the require()s, not the integrity check).
+          # CI (.github/workflows/ci.yml) stays on Node 22 — that's the LTS
+          # most consumers will run, so that's what we test the SDK against.
+          node-version: 24
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
-
-      # Trusted Publishing (OIDC) requires a recent npm. setup-node ships
-      # npm 10 with Node 22; bump to npm >= 11.5.
-      # Trusted Publishing (OIDC) needs npm >= 11.5; Node 22 ships with npm 10.x.
-      # `--force` works around the npm self-upgrade `promise-retry` MODULE_NOT_FOUND
-      # bug (the upgrade overwrites its own bundled node_modules while running).
-      # Pinning the major (npm@11) avoids unrelated regressions from a future
-      # `latest` major.
-      - name: Use OIDC-capable npm (>= 11.5)
-        run: npm install -g npm@11 --force
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
