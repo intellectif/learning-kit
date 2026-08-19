@@ -41,6 +41,12 @@ export function ActivityMedia({ media }: { media: ActivityMediaData }): React.JS
             title={alt ?? 'Embedded media'}
             loading="lazy"
             referrerPolicy="strict-origin-when-cross-origin"
+            // The docblock always promised a sandboxed iframe; now it is one.
+            // allow-scripts + allow-same-origin are required by provider
+            // players (YouTube/Vimeo); top-navigation, forms, downloads and
+            // popups stay blocked. Scheme allow-listing in MediaSchema is the
+            // primary defense; this is depth.
+            sandbox="allow-scripts allow-same-origin allow-presentation"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
           />

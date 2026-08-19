@@ -23,7 +23,9 @@ test('load → select → submit fires onComplete and POSTs a valid xAPI stateme
   expect(statement.version).toBe('1.0.3');
   expect(statement.actor.objectType).toBe('Agent');
   expect(statement.verb.id).toMatch(/answered$/);
-  expect(statement.object.id).toMatch(/^urn:learning-kit:activity:/);
+  // useXAPI applies XAPIConfig.activityId over the component's URN placeholder
+  // (the documented identity-injection contract, wired in v1.1).
+  expect(statement.object.id).toBe('https://learning-kit.test/demo');
   // Tokyo is the only correct option → all-or-nothing scaled score 1.
   expect(statement.result.score.scaled).toBe(1);
 

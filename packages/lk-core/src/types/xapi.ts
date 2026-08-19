@@ -13,6 +13,12 @@ export interface XAPIObject {
     description?: Record<string, string>;
     /** IRI identifying the activity type. */
     type?: string;
+    /** xAPI 1.0.3 cmi.interaction type (e.g. `choice`, `fill-in`, `long-fill-in`). */
+    interactionType?: string;
+    /** Patterns describing the correct response(s), per the xAPI CRP format. */
+    correctResponsesPattern?: string[];
+    /** For `choice`-family interactions: the available components. */
+    choices?: Array<{ id: string; description?: Record<string, string> }>;
     extensions?: Record<string, unknown>;
   };
 }
@@ -70,12 +76,26 @@ export interface XAPIResult {
   extensions?: Record<string, unknown>;
 }
 
+/** Related-activity references attached to a statement's context. */
+export interface XAPIContextActivities {
+  /** Activities this statement's activity is directly part of (e.g. the exam section). */
+  parent?: XAPIObject[];
+  /** Broader groupings (e.g. the course). */
+  grouping?: XAPIObject[];
+  /** Categorisations (e.g. a profile IRI). */
+  category?: XAPIObject[];
+  /** Other contextually related activities. */
+  other?: XAPIObject[];
+}
+
 /** Context information attached to an xAPI Statement. */
 export interface XAPIContext {
   /** Name of the software used to record the statement. */
   platform?: string;
   /** BCP 47 language tag for the activity content. */
   language?: string;
+  /** Related activities (parent/grouping/category/other). */
+  contextActivities?: XAPIContextActivities;
   extensions?: Record<string, unknown>;
 }
 
@@ -102,8 +122,22 @@ export interface XAPIConfig {
   endpoint: string;
   /** Authentication credentials for the LRS. */
   auth: { type: 'basic'; username: string; password: string } | { type: 'bearer'; token: string };
-  /** IRI identifying the activity in all statements sent by this hook instance. */
-  activityId: string;
+  /**
+   * Replaces the SDK's placeholder object id (`urn:learning-kit:activity:*`)
+   * before a statement is sent.
+   *
+   * - `string` — the IRI for THE activity this hook instance serves. A hook
+   *   instance is per-activity by contract; with several activities sharing
+   *   one hook, a plain string would collapse their statements onto one IRI —
+   *   use the function form instead.
+   * - `(sdkObjectId) => string` — maps each placeholder id (which embeds the
+   *   activity's `data.id`) to its deployment IRI, for pages that send many
+   *   activities through one hook.
+   *
+   * Object ids the consumer already rewrote (non-`urn:learning-kit:` ids) are
+   * never touched.
+   */
+  activityId: string | ((sdkObjectId: string) => string);
   actor: XAPIActor;
   /** Called after all retry attempts are exhausted. */
   onError?: (err: XAPIError) => void;

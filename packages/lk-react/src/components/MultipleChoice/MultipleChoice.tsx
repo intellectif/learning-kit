@@ -8,9 +8,9 @@ import {
   validateActivity,
   xAPIBuilder,
 } from '@intellectif/lk-core';
-import { type CSSProperties, useEffect, useMemo, useState } from 'react';
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { useActivityState } from '../../hooks/useActivityState.js';
-import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
+import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor, randomSessionId } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import type { ActivityProps } from '../types.js';
@@ -37,6 +37,17 @@ function seededShuffle<T>(items: readonly T[], seed: number): T[] {
   return out;
 }
 
+export interface MultipleChoiceProps extends ActivityProps<MultipleChoiceData> {
+  /**
+   * Seed for the deterministic option shuffle. Supply one (e.g. the attempt
+   * id) to make the shuffled order reproducible server-side, stable across
+   * page reloads, and identical between SSR and hydration. When absent, a
+   * random per-mount session seed is used (order stable within the mount
+   * only — the v1 behaviour).
+   */
+  shuffleSeed?: string;
+}
+
 export function MultipleChoice({
   data,
   onComplete,
@@ -44,7 +55,8 @@ export function MultipleChoice({
   theme,
   locale,
   disabled,
-}: ActivityProps<MultipleChoiceData>) {
+  shuffleSeed,
+}: MultipleChoiceProps) {
   // Dev-only boundary validation (Req 2.3). Throwing during render lets
   // ActivityErrorBoundary catch it. Memoised so it only re-runs on data change.
   const devError = useMemo(() => {
@@ -55,7 +67,9 @@ export function MultipleChoice({
     return result.success ? null : new ActivitySchemaError('multiple-choice', result.errors);
   }, [data]);
 
-  const [sessionId] = useState(() => crypto.randomUUID());
+  // Lazily created only when shuffling without a caller seed: avoids calling
+  // crypto.randomUUID (absent on non-secure http origins) unless needed.
+  const sessionIdRef = useRef<string | null>(null);
   const { state, start, complete, getTimeSpent, reset } = useActivityState();
   const [selected, setSelected] = useState<string[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
@@ -69,13 +83,14 @@ export function MultipleChoice({
     reset();
   }, [data, reset]);
 
-  const displayedOptions = useMemo<MultipleChoiceOption[]>(
-    () =>
-      data.shuffle
-        ? seededShuffle(data.options, hashSeed(`${sessionId}:${data.id}`))
-        : [...data.options],
-    [data, sessionId],
-  );
+  const displayedOptions = useMemo<MultipleChoiceOption[]>(() => {
+    if (!data.shuffle) {
+      return [...data.options];
+    }
+    // biome-ignore lint/suspicious/noAssignInExpressions: sanctioned lazy ref initialization
+    const seedSource = shuffleSeed ?? (sessionIdRef.current ??= randomSessionId());
+    return seededShuffle(data.options, hashSeed(`${seedSource}:${data.id}`));
+  }, [data, shuffleSeed]);
 
   // All hooks are called before this throw, so hook order stays stable.
   if (devError) {
@@ -126,7 +141,22 @@ export function MultipleChoice({
     const timeSpent = getTimeSpent();
     const xapiStatement = xAPIBuilder.buildAnsweredStatement({
       actor: ANONYMOUS_ACTOR,
-      object: { id: objectIdFor(data.id), name: { 'en-US': data.title } },
+      object: {
+        id: objectIdFor(data.id),
+        name: { [data.locale ?? 'en-US']: data.title },
+        type: 'http://adlnet.gov/expapi/activities/cmi.interaction',
+        interactionType: 'choice',
+        correctResponsesPattern: [
+          data.options
+            .filter((option) => option.isCorrect)
+            .map((option) => option.id)
+            .join('[,]'),
+        ],
+        choices: data.options.map((option) => ({
+          id: option.id,
+          description: { [data.locale ?? 'en-US']: option.text },
+        })),
+      },
       scoringResult,
       timeSpentMs: timeSpent,
       response: selected.join(','),
@@ -138,7 +168,8 @@ export function MultipleChoice({
       timeSpent,
       xapiStatement,
     });
-    const overall = scoringResult.passed ? data.feedback?.correct : data.feedback?.incorrect;
+    // Core selects the authored overall feedback on `passed` (B3 fix).
+    const overall = scoringResult.feedback;
     setSummary(
       `Answer submitted. Score ${Math.round(scoringResult.score * 100)}%. ${
         scoringResult.passed ? 'Passed.' : 'Not passed.'

@@ -349,4 +349,89 @@
     color: var(--lk-color-text-muted);
     font-size: var(--lk-font-size-sm);
   }
+
+  /* ── Written Response ────────────────────────────────────────────────── */
+  .lk-wr {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-md);
+  }
+
+  .lk-wr-prompt {
+    margin: 0;
+    color: var(--lk-color-text);
+    font-family: var(--lk-font-family);
+    font-size: var(--lk-font-size-base);
+    line-height: 1.6;
+  }
+
+  .lk-wr-textarea {
+    width: 100%;
+    padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-border-radius-md);
+    background: var(--lk-color-surface);
+    color: var(--lk-color-text);
+    font-family: var(--lk-font-family);
+    font-size: var(--lk-font-size-base);
+    line-height: 1.5;
+    resize: vertical;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-wr-textarea:disabled {
+    opacity: 0.7;
+  }
+
+  .lk-wr-counter {
+    color: var(--lk-color-text-muted);
+    font-size: var(--lk-font-size-sm);
+  }
+
+  .lk-wr-counter[data-within-bounds="true"] {
+    color: var(--lk-color-success);
+  }
+
+  .lk-wr button[type="submit"] {
+    align-self: flex-start;
+    padding: var(--lk-spacing-sm) var(--lk-spacing-lg);
+    border: none;
+    border-radius: var(--lk-border-radius-md);
+    background: var(--lk-color-primary);
+    color: var(--lk-color-on-primary);
+    font-family: var(--lk-font-family);
+    font-size: var(--lk-font-size-base);
+    cursor: pointer;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-wr button[type="submit"]:hover:not(:disabled) {
+    background: var(--lk-color-primary-hover);
+  }
+
+  .lk-wr button[type="submit"]:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .lk-wr :focus-visible {
+    outline: 2px solid var(--lk-color-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .lk-wr > [aria-live] {
+    color: var(--lk-color-text-muted);
+    font-size: var(--lk-font-size-sm);
+  }
+
+  /* ── Reduced motion (WCAG 2.3.3) ─────────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    .lk-mc *,
+    .lk-fib *,
+    .lk-wr *,
+    .lk-seq * {
+      transition: none;
+      animation: none;
+    }
+  }
 }

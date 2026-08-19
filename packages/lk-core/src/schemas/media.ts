@@ -16,12 +16,29 @@ import { z } from 'zod/v4';
  *   (e.g. `https://www.youtube.com/embed/<id>`). `alt` is REQUIRED and used
  *   as the iframe's accessible `title` (WCAG 4.1.2 / 2.4.1).
  */
+/**
+ * Media URL policy (security-reviewed): absolute URLs must use `https:`,
+ * `http:`, `data:`, or `blob:`; root-relative paths (`/media/x.mp3`) are
+ * allowed for same-origin hosting. Everything else — notably `javascript:`,
+ * `file:`, `ftp:` — is rejected: these URLs land in `src` attributes
+ * (including an iframe for `embed`), so an unvetted scheme is a stored-XSS
+ * vector in every consuming app.
+ */
+export const MediaUrlSchema = z.union([
+  z.url().refine((value) => /^(https?|data|blob):/i.test(value), {
+    error: 'Absolute media URLs must use the https:, http:, data:, or blob: scheme.',
+  }),
+  z.string().regex(/^\/(?!\/)\S*$/, {
+    error: 'Relative media URLs must be root-relative (a single leading "/").',
+  }),
+]);
+
 export const MediaSchema = z
-  .object({
+  .looseObject({
     type: z.enum(['image', 'audio', 'video', 'embed']),
-    url: z.url(),
+    url: MediaUrlSchema,
     alt: z.string().min(1).optional(),
-    captionsUrl: z.url().optional(),
+    captionsUrl: MediaUrlSchema.optional(),
   })
   .refine(
     (m) =>
@@ -30,4 +47,9 @@ export const MediaSchema = z
       error: 'image and embed media require non-empty alt text (WCAG 1.1.1 / 4.1.2).',
       path: ['alt'],
     },
-  );
+  )
+  .refine((m) => m.type !== 'embed' || /^https?:\/\//i.test(m.url), {
+    error:
+      'embed media requires an absolute http(s) provider URL. data:, blob:, and relative URLs are not allowed for embeds — the embed iframe runs with allow-scripts, and a data:/same-origin document there is an XSS vector.',
+    path: ['url'],
+  });

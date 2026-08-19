@@ -7,6 +7,7 @@ export default defineConfig({
     'components/ActivitySequence': 'src/components/ActivitySequence/index.tsx',
     'components/MultipleChoice': 'src/components/MultipleChoice/index.tsx',
     'components/FillInTheBlanks': 'src/components/FillInTheBlanks/index.tsx',
+    'components/WrittenResponse': 'src/components/WrittenResponse/index.tsx',
     'hooks/useActivityState': 'src/hooks/useActivityState.ts',
     'hooks/useXAPI': 'src/hooks/useXAPI.ts',
     'theme/ThemeProvider': 'src/theme/ThemeProvider.tsx',

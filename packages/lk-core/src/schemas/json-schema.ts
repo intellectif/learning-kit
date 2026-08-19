@@ -1,6 +1,9 @@
 import { z } from 'zod/v4';
+import { UnknownActivityTypeError } from '../errors.js';
+import { getActivityTypeDescriptor } from '../registry/index.js';
 import { FillInTheBlanksDataSchema } from './fill-in-the-blanks.js';
 import { MultipleChoiceDataSchema } from './multiple-choice.js';
+import { WrittenResponseDataSchema } from './written-response.js';
 
 /**
  * JSON Schema (Draft 7) representation of the Multiple Choice activity data
@@ -8,6 +11,9 @@ import { MultipleChoiceDataSchema } from './multiple-choice.js';
  * 2.2 for the widest AI-prompt / OpenAPI tooling compatibility. The semantic
  * `.refine()` guards are not representable in JSON Schema and are
  * intentionally omitted — the export captures the *structural* contract only.
+ * Since v0.3 the source schemas are loose, so these no longer emit
+ * `additionalProperties: false` — the JSON Schema and `validateActivity` now
+ * agree on unknown-key handling.
  */
 export const multipleChoiceJsonSchema = z.toJSONSchema(MultipleChoiceDataSchema, {
   target: 'draft-7',
@@ -21,3 +27,30 @@ export const multipleChoiceJsonSchema = z.toJSONSchema(MultipleChoiceDataSchema,
 export const fillInTheBlanksJsonSchema = z.toJSONSchema(FillInTheBlanksDataSchema, {
   target: 'draft-7',
 });
+
+/**
+ * JSON Schema (Draft 7) representation of the Written Response activity data
+ * contract. Structural contract only.
+ */
+export const writtenResponseJsonSchema = z.toJSONSchema(WrittenResponseDataSchema, {
+  target: 'draft-7',
+});
+
+/**
+ * Derives the JSON Schema (Draft 7) for any REGISTERED activity type — the
+ * live, registry-backed replacement for the static per-type exports above,
+ * and the building block for AI generation pipelines (R6.1): pass the result
+ * as a structured-output schema so a model can only emit valid items.
+ *
+ * @throws UnknownActivityTypeError when `type` has no registered descriptor.
+ */
+export function jsonSchemaFor(type: string): Record<string, unknown> {
+  const descriptor = getActivityTypeDescriptor(type);
+  if (descriptor === undefined) {
+    throw new UnknownActivityTypeError(type);
+  }
+  return z.toJSONSchema(descriptor.schema as never, { target: 'draft-7' }) as Record<
+    string,
+    unknown
+  >;
+}

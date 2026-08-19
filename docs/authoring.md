@@ -82,7 +82,45 @@ Rules: 2–10 options; ≥1 correct; `mode: "single"` ⇒ **exactly one** correc
 }
 ```
 
-Rules: every `{{id}}` placeholder must have exactly one matching blank and vice-versa (bijection). Defaults: `caseSensitive: false`, `trimWhitespace: true`. `partial` = correctBlanks / totalBlanks. Hints have a Show/Hide toggle.
+Rules: every `{{id}}` placeholder must appear **exactly once** and have exactly one matching blank, and vice-versa; blank ids and option ids must be unique. Defaults: `caseSensitive: false`, `trimWhitespace: true`. `partial` = correctBlanks / totalBlanks. Hints have a Show/Hide toggle.
+
+**Matching tolerances (v0.3, opt-in).** A blank may carry a `match` policy; absent, matching is the exact v1 behaviour (trim + case-insensitive equality). Every field is opt-in because a new tolerance changes what "correct" means:
+
+```jsonc
+{ "id": "esta", "acceptedAnswers": ["está"],
+  "match": { "normalize": "NFC", "foldDiacritics": true, "levenshtein": 1 } }
+```
+
+`normalize: "NFC"` fixes composed-vs-decomposed accent input; `foldDiacritics` accepts `esta` for `está`; `levenshtein` allows small typos; also available: `collapseInnerWhitespace`, `ignorePunctuation`, `locale` (locale-aware case folding), `caseSensitive`, `trim`. The standalone `matchText()` export returns *how* a match happened (`exact` / `normalized` / `folded` / `fuzzy`) for graded-tolerance policies.
+
+### Written Response (v0.3)
+
+Free-text writing graded **asynchronously** — by your AI grader or a human. The SDK owns the contract, the word-count canon, and the deferred-outcome semantics; the grader is yours.
+
+```jsonc
+{
+  "schemaVersion": "1.0",
+  "type": "written-response",
+  "id": "daily-routine",
+  "title": "My Daily Routine",
+  "prompt": "Describe your daily routine in 80–120 words.",
+  "minWords": 80,
+  "maxWords": 120,
+  "languageTarget": "en-A2",
+  "rubric": {
+    "criteria": [
+      { "name": "Task achievement", "weight": 2 },
+      { "name": "Grammar range and accuracy", "weight": 1.5 },
+      { "name": "Vocabulary", "weight": 1.5 }
+    ]
+  }
+}
+```
+
+- **Scoring is deferred.** `score('written-response', …)` throws `DeferredScoringError`; use `evaluate(data, response)`, which returns `{ status: 'deferred', reason: 'requires_async_grading', partial: { withinWordBounds, wordCount } }`. `wordCount` is recomputed server-side-safe with the exported `countWords()` (split on `\s+`; hyphenated tokens count as one) — never trust a client-supplied count.
+- **The component** (`@intellectif/lk-react/components/WrittenResponse`) renders prompt + textarea + live word counter and completes via `onSubmitted({ text, wordCount, withinWordBounds, timeSpent, xapiStatement })` — no fake score is ever emitted for ungraded work. The xAPI statement uses the **`submitted`** verb (`http://activitystrea.ms/schema/1.0/submit`) with no `score`/`success`/`completion`.
+- **The rubric is a grader asset**: `redact()` classifies it `author-only`, so it never reaches the learner client.
+- **Unknown keys survive.** All v0.3 schemas are loose — sidecars like `promptHtml` or your own fields pass through `validateActivity` verbatim (no more merge workarounds).
 
 ### Media per question
 

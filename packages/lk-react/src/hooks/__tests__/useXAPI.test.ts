@@ -94,3 +94,48 @@ describe('useXAPI', () => {
     expect(headers.Authorization).toBe(`Basic ${Buffer.from('u:p@ß', 'utf8').toString('base64')}`);
   });
 });
+
+describe('useXAPI identity application (release-review fixes)', () => {
+  const sdkStatement = (id: string): XAPIStatement =>
+    ({
+      id: 's-x',
+      actor: {
+        objectType: 'Agent',
+        account: { homePage: 'https://github.com/intellectif/learning-kit', name: 'anonymous' },
+      },
+      verb: { id: 'http://adlnet.gov/expapi/verbs/answered', display: { 'en-US': 'answered' } },
+      object: { objectType: 'Activity', id },
+      timestamp: 'now',
+      version: '1.0.3',
+    }) as unknown as XAPIStatement;
+
+  it('maps each SDK URN through an activityId function (multi-activity pages)', async () => {
+    const fetchMock = mockFetch(() => ({ ok: true, status: 200 }));
+    const { result } = renderHook(() =>
+      useXAPI(cfg({ activityId: (urn) => `https://app.example/items/${urn.split(':').pop()}` })),
+    );
+    await result.current.sendStatement(sdkStatement('urn:learning-kit:activity:q1'));
+    await result.current.sendStatement(sdkStatement('urn:learning-kit:activity:q2'));
+    const bodies = fetchMock.mock.calls.map((c) =>
+      JSON.parse((c as unknown as [string, { body: string }])[1].body),
+    );
+    expect(bodies[0].object.id).toBe('https://app.example/items/q1');
+    expect(bodies[1].object.id).toBe('https://app.example/items/q2');
+    expect(bodies[0].actor.mbox).toBe('mailto:l@example.com');
+  });
+
+  it('leaves consumer-rewritten actors and object ids untouched', async () => {
+    const fetchMock = mockFetch(() => ({ ok: true, status: 200 }));
+    const { result } = renderHook(() => useXAPI(cfg({ activityId: 'https://app.example/one' })));
+    const custom = {
+      ...sdkStatement('https://consumer.example/already-set'),
+      actor: { objectType: 'Agent', mbox: 'mailto:real@example.com' },
+    } as unknown as XAPIStatement;
+    await result.current.sendStatement(custom);
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0] as unknown as [string, { body: string }])[1].body,
+    );
+    expect(body.object.id).toBe('https://consumer.example/already-set');
+    expect(body.actor.mbox).toBe('mailto:real@example.com');
+  });
+});
