@@ -58,6 +58,31 @@ The workflow (`.github/workflows/release.yml`) is already OIDC-ready: it declare
 - **Settings → Code security:** enable **Secret scanning** and **Push protection** (blocks accidental secret pushes).
 - **Settings → Branches:** protect `main` (see git flow below).
 
+## "I just merged something — what do I do now?"
+
+Answer the one question below and do only that line.
+
+**Which PR did you just merge?**
+
+| You merged… | Published to npm? | Do this next |
+| --- | --- | --- |
+| **Your own feature PR** (any branch you named) | ❌ No | **Nothing yet.** Wait ~1 min: a bot opens/updates a PR titled **“chore: version packages”**. Approve its checks if asked, then **merge that PR**. |
+| **The bot's “chore: version packages” PR** | ✅ Yes | Nothing. Wait ~1 min, then verify with `npm view @intellectif/lk-core version`. |
+
+**Still not sure whether anything is pending?** Run this — it is the whole diagnosis:
+
+```bash
+git fetch origin
+git ls-tree --name-only origin/main:.changeset/
+```
+
+- Output is **only `config.json`** → everything is released. Nothing to do.
+- Output lists **any `.md` files** → a release is waiting. Go merge the open
+  **“chore: version packages”** PR (Pull requests tab). That is the only step left.
+
+> Approving a PR's workflow checks does **not** merge it, and merging a feature PR does
+> **not** publish. The publish happens on the merge of the bot's version PR — always.
+
 ## Routine release flow (after setup)
 
 > **The one thing to remember: it takes TWO merges to publish.**

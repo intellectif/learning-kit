@@ -43,3 +43,14 @@ jobs:
       - name: Bundle size
         if: matrix.node-version == '22'
         run: pnpm size
+
+      # Package-correctness gate. Catches the class of defect that only shows
+      # up after publish: a broken exports map, a declaration that resolves as
+      # the wrong module format, missing files in the tarball. Both packages
+      # once shipped types that a CommonJS TypeScript consumer could not
+      # import at all (attw "Masquerading as ESM") — this stops that silently
+      # regressing. node10 resolution is ignored on purpose: it is TypeScript
+      # < 4.7, and this SDK requires React 19.
+      - name: Packaging (publint + are-the-types-wrong)
+        if: matrix.node-version == '22'
+        run: pnpm check-packaging
