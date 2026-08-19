@@ -11,6 +11,14 @@ export const XAPIVerb = {
   PASSED: 'http://adlnet.gov/expapi/verbs/passed',
   FAILED: 'http://adlnet.gov/expapi/verbs/failed',
   WATCHED: 'https://w3id.org/xapi/video/verbs/watched',
+  /**
+   * Emitted for deferred-grading submissions (e.g. written-response): the
+   * learner has submitted work whose grade does not exist yet, so `answered`
+   * (which implies a scored response) would be wrong. xAPI 1.0.3 defines no
+   * canonical "submit" verb; the Activity Streams 1.0 IRI is the established
+   * community choice (design decision recorded per Task 25.4).
+   */
+  SUBMITTED: 'http://activitystrea.ms/schema/1.0/submit',
 } as const;
 
 /** Union of the valid `XAPIVerb` keys. */
@@ -29,4 +37,5 @@ export const XAPI_VERB_DISPLAY: Record<XAPIVerbKey, Record<string, string>> = {
   PASSED: { 'en-US': 'passed' },
   FAILED: { 'en-US': 'failed' },
   WATCHED: { 'en-US': 'watched' },
+  SUBMITTED: { 'en-US': 'submitted' },
 };

@@ -39,6 +39,9 @@ const statementSchema = z.object({
         name: langMap.optional(),
         description: langMap.optional(),
         type: z.string().optional(),
+        interactionType: z.string().optional(),
+        correctResponsesPattern: z.array(z.string()).optional(),
+        choices: z.array(z.object({ id: z.string(), description: langMap.optional() })).optional(),
         extensions: extensions.optional(),
       })
       .optional(),
@@ -65,6 +68,22 @@ const statementSchema = z.object({
     .object({
       platform: z.string().optional(),
       language: z.string().optional(),
+      contextActivities: z
+        .object({
+          parent: z
+            .array(z.object({ objectType: z.literal('Activity'), id: z.string() }))
+            .optional(),
+          grouping: z
+            .array(z.object({ objectType: z.literal('Activity'), id: z.string() }))
+            .optional(),
+          category: z
+            .array(z.object({ objectType: z.literal('Activity'), id: z.string() }))
+            .optional(),
+          other: z
+            .array(z.object({ objectType: z.literal('Activity'), id: z.string() }))
+            .optional(),
+        })
+        .optional(),
       extensions: extensions.optional(),
     })
     .optional(),

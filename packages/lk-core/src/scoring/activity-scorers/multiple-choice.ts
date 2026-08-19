@@ -1,13 +1,12 @@
+import type { PartialScoringResult } from '../../registry/registry.js';
 import type {
   MultipleChoiceData,
   MultipleChoiceLearnerResponse,
   ScoringDetail,
-  ScoringResult,
 } from '../../types/activity.js';
 import { partialStrategy } from '../strategies/partial.js';
 
-/** ScoringResult without `passed` — the public `score()` fills that in. */
-export type PartialScoringResult = Omit<ScoringResult, 'passed'>;
+export type { PartialScoringResult } from '../../registry/registry.js';
 
 /**
  * Scores a Multiple Choice response. Pure; trusts its typed inputs (validation
@@ -54,11 +53,20 @@ export function scoreMultipleChoice(
 
   const details: ScoringDetail[] = data.options.map((option) => {
     const wasSelected = selected.has(option.id);
+    const outcome = wasSelected
+      ? option.isCorrect
+        ? 'correct'
+        : 'incorrect'
+      : option.isCorrect
+        ? 'incorrect-omission'
+        : 'correct-omission';
     return {
       itemId: option.id,
       correct: wasSelected === option.isCorrect,
+      outcome,
       learnerResponse: [wasSelected ? 'selected' : 'not-selected'],
       correctResponse: [option.isCorrect ? 'selected' : 'not-selected'],
+      weight: 1,
     };
   });
 

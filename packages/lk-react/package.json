@@ -32,6 +32,11 @@
       "import": "./dist/components/FillInTheBlanks.js",
       "require": "./dist/components/FillInTheBlanks.cjs"
     },
+    "./components/WrittenResponse": {
+      "types": "./dist/components/WrittenResponse.d.ts",
+      "import": "./dist/components/WrittenResponse.js",
+      "require": "./dist/components/WrittenResponse.cjs"
+    },
     "./hooks/useActivityState": {
       "types": "./dist/hooks/useActivityState.d.ts",
       "import": "./dist/hooks/useActivityState.js",
@@ -54,7 +59,8 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsup",
@@ -87,5 +93,8 @@
     "vitest": "^4.1.6",
     "vitest-axe": "^0.1.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
 }

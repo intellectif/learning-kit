@@ -147,7 +147,15 @@ export function FillInTheBlanks({
     const timeSpent = getTimeSpent();
     const xapiStatement = xAPIBuilder.buildAnsweredStatement({
       actor: ANONYMOUS_ACTOR,
-      object: { id: objectIdFor(data.id), name: { 'en-US': data.title } },
+      object: {
+        id: objectIdFor(data.id),
+        name: { [data.locale ?? 'en-US']: data.title },
+        type: 'http://adlnet.gov/expapi/activities/cmi.interaction',
+        interactionType: 'fill-in',
+        correctResponsesPattern: [
+          data.blanks.map((blank) => blank.acceptedAnswers[0] ?? '').join('[,]'),
+        ],
+      },
       scoringResult,
       timeSpentMs: timeSpent,
       response: JSON.stringify(answers),
@@ -160,7 +168,8 @@ export function FillInTheBlanks({
       timeSpent,
       xapiStatement,
     });
-    const overall = scoringResult.passed ? data.feedback?.correct : data.feedback?.incorrect;
+    // Core selects the authored overall feedback on `passed` (B3 fix).
+    const overall = scoringResult.feedback;
     setSummary(
       `Answer submitted. Score ${Math.round(scoringResult.score * 100)}%. ${
         scoringResult.passed ? 'Passed.' : 'Not passed.'

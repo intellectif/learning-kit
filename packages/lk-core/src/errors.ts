@@ -18,3 +18,20 @@ export class UnknownActivityTypeError extends Error {
     this.name = 'UnknownActivityTypeError';
   }
 }
+
+/**
+ * Thrown when `score()` is called for an activity type whose grading is
+ * deferred (asynchronous AI/human grading, e.g. `written-response`). A
+ * deferred submission has no synchronous score — treating it as 0 would show
+ * a learner a failing grade for work that simply has not been graded yet.
+ * Call `evaluate()` instead, which returns `{ status: 'deferred', ... }`.
+ */
+export class DeferredScoringError extends Error {
+  constructor(public readonly activityType: string) {
+    super(
+      `Activity type "${activityType}" is graded asynchronously and has no synchronous score. ` +
+        `Use evaluate() — it returns { status: 'deferred' } for this type.`,
+    );
+    this.name = 'DeferredScoringError';
+  }
+}

@@ -1,6 +1,7 @@
 export {
   type AnsweredStatementParams,
   type CompletedStatementParams,
+  type SubmittedStatementParams,
   type XAPIObjectParams,
   type XAPIStatementParams,
   xAPIBuilder,

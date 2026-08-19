@@ -18,7 +18,9 @@ test('fill blanks → submit fires onComplete and POSTs a valid xAPI statement',
 
   expect(statement.version).toBe('1.0.3');
   expect(statement.verb.id).toMatch(/answered$/);
-  expect(statement.object.id).toMatch(/^urn:learning-kit:activity:/);
+  // useXAPI applies XAPIConfig.activityId over the component's URN placeholder
+  // (the documented identity-injection contract, wired in v1.1).
+  expect(statement.object.id).toBe('https://learning-kit.test/demo');
   // Both blanks correct → partial strategy 2/2 = 1.
   expect(statement.result.score.scaled).toBe(1);
 

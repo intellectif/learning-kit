@@ -50,7 +50,7 @@ describe('xAPIBuilder', () => {
     expect(s.result?.score).toEqual({ scaled: 0.75, raw: 0.75, min: 0, max: 1 });
     expect(s.result?.success).toBe(true);
     expect(s.result?.completion).toBe(true);
-    expect(s.result?.duration).toBe('PT5S');
+    expect(s.result?.duration).toBe('PT5.40S');
     expect(s.result?.response).toBe('a,b');
     expect(s.result?.extensions).toEqual({ k: 1 });
   });
@@ -64,7 +64,7 @@ describe('xAPIBuilder', () => {
     });
     expect(withScore.verb.id).toBe(XAPIVerb.COMPLETED);
     expect(withScore.result?.score?.scaled).toBe(1);
-    expect(withScore.result?.duration).toBe('PT0S');
+    expect(withScore.result?.duration).toBe('PT0.00S');
 
     const noScore = xAPIBuilder.buildCompletedStatement({
       actor,
@@ -74,7 +74,7 @@ describe('xAPIBuilder', () => {
     });
     expect('score' in (noScore.result ?? {})).toBe(false);
     expect(noScore.result?.completion).toBe(true);
-    expect(noScore.result?.duration).toBe('PT3S');
+    expect(noScore.result?.duration).toBe('PT2.60S');
     expect(noScore.result?.extensions).toEqual({ e: true });
   });
 

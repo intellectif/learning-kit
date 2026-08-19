@@ -6,27 +6,27 @@ import type {
 } from '../../types/activity.js';
 import { allOrNothingStrategy } from '../strategies/all-or-nothing.js';
 import { partialBlankStrategy } from '../strategies/partial.js';
+import { matchText, type TextMatchPolicy } from '../text-match.js';
 import type { PartialScoringResult } from './multiple-choice.js';
 
 /**
- * Normalises a value for comparison per the blank's rules.
- * Defaults: `trimWhitespace` true, `caseSensitive` false (case-insensitive
- * unless the author explicitly opts in).
+ * Resolves the effective match policy for a blank. The legacy
+ * `caseSensitive` / `trimWhitespace` flags map onto the baseline policy
+ * fields; an explicit `blank.match` policy takes precedence field-by-field.
+ * With neither present, the result is the v1 semantics exactly.
  */
-function normalize(value: string, blank: BlankConfig): string {
-  let result = value;
-  if (blank.trimWhitespace !== false) {
-    result = result.trim();
-  }
-  if (blank.caseSensitive !== true) {
-    result = result.toLowerCase();
-  }
-  return result;
+function policyFor(blank: BlankConfig): TextMatchPolicy {
+  return {
+    ...(blank.caseSensitive !== undefined ? { caseSensitive: blank.caseSensitive } : {}),
+    ...(blank.trimWhitespace !== undefined ? { trim: blank.trimWhitespace } : {}),
+    ...blank.match,
+  };
 }
 
 /**
- * Scores a Fill-in-the-Blanks response. Each blank is evaluated independently;
- * a missing answer key is treated as empty input and scored incorrect.
+ * Scores a Fill-in-the-Blanks response. Each blank is evaluated independently
+ * via {@link matchText} under the blank's resolved policy; a missing answer
+ * key is treated as empty input and scored incorrect.
  */
 export function scoreFillInTheBlanks(
   data: FillInTheBlanksData,
@@ -38,17 +38,16 @@ export function scoreFillInTheBlanks(
   for (const blank of data.blanks) {
     const rawInput = response.answers[blank.id];
     const input = typeof rawInput === 'string' ? rawInput : '';
-    const normalizedInput = normalize(input, blank);
-    const matched = blank.acceptedAnswers.some(
-      (accepted) => normalize(accepted, blank) === normalizedInput,
-    );
+    const matched = matchText(input, blank.acceptedAnswers, policyFor(blank)).matched;
 
     perBlankCorrect.push(matched);
     details.push({
       itemId: blank.id,
       correct: matched,
+      outcome: matched ? 'correct' : 'incorrect',
       learnerResponse: [input],
       correctResponse: [...blank.acceptedAnswers],
+      weight: 1,
     });
   }
 

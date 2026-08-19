@@ -20,3 +20,17 @@ export const ANONYMOUS_ACTOR: XAPIActor = {
 export function objectIdFor(id: string): string {
   return `urn:learning-kit:activity:${encodeURIComponent(id)}`;
 }
+
+/**
+ * Random per-mount session id for the shuffle seed. `crypto.randomUUID` is
+ * unavailable outside secure contexts (plain-http LAN/staging hosts), so a
+ * Math.random fallback keeps the component from crashing there — the seed
+ * only randomises presentation order, so cryptographic strength is not needed.
+ */
+export function randomSessionId(): string {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  if (c?.randomUUID) {
+    return c.randomUUID();
+  }
+  return `s-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+}
