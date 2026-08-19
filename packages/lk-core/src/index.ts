@@ -1,5 +1,6 @@
 export * from './count-words.js';
 export * from './errors.js';
+export * from './grading.js';
 export * from './redact.js';
 export * from './registry/index.js';
 export * from './schemas/index.js';

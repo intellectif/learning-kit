@@ -27,6 +27,15 @@ export type {
   WrittenResponseRubric,
   WrittenResponseRubricCriterion,
 } from './activity.js';
+export type {
+  CriterionScore,
+  Grader,
+  GraderKind,
+  GraderUsage,
+  GradeRecord,
+  GradingState,
+  InlineCorrection,
+} from './grading.js';
 export type { ThemeTokens } from './theme.js';
 export type {
   XAPIActor,

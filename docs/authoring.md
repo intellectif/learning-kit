@@ -119,10 +119,54 @@ Free-text writing graded **asynchronously** — by your AI grader or a human. Th
 
 - **Scoring is deferred.** `score('written-response', …)` throws `DeferredScoringError`; use `evaluate(data, response)`, which returns `{ status: 'deferred', reason: 'requires_async_grading', partial: { withinWordBounds, wordCount } }`. `wordCount` is recomputed server-side-safe with the exported `countWords()` (split on `\s+`; hyphenated tokens count as one) — never trust a client-supplied count.
 - **The component** (`@intellectif/lk-react/components/WrittenResponse`) renders prompt + textarea + live word counter and completes via `onSubmitted({ text, wordCount, withinWordBounds, timeSpent, xapiStatement })` — no fake score is ever emitted for ungraded work. The xAPI statement uses the **`submitted`** verb (`http://activitystrea.ms/schema/1.0/submit`) with no `score`/`success`/`completion`.
-- **The rubric is a grader asset**: `redact()` classifies it `author-only`, so it never reaches the learner client.
+- **The rubric reaches the learner.** `redact()` classifies it `public`: a rubric tells the learner what they are being graded on, which is the point of publishing one. A deployment that wants it hidden can tighten it per call with `redact(data, { policy: { rubric: 'author-only' } })`.
 - **Unknown keys survive.** All v0.3 schemas are loose — sidecars like `promptHtml` or your own fields pass through `validateActivity` verbatim (no more merge workarounds).
 
+### Getting a deferred grade back (v0.4)
+
+`evaluate()` returns `{ status: 'deferred' }` for a written response, because the
+grade does not exist yet. When your grader finishes, hand the result back as a
+`GradeRecord` and lift it into an outcome:
+
+```ts
+import { gradeFromRubric, outcomeFromGrade, hasGrade } from '@intellectif/lk-core';
+
+// Your grader returns judgements per criterion; the SDK does the arithmetic.
+const grade = gradeFromRubric(
+  [
+    { name: 'Task achievement', score: 0.8, weight: 2, comment: 'Covers all prompts.' },
+    { name: 'Grammar',          score: 0.6, weight: 1.5, comment: 'Tense slips in paragraph 2.' },
+    { name: 'Vocabulary',       score: 0.7, weight: 1.5 },
+  ],
+  activity,                       // supplies passThreshold
+  { feedback: 'Solid answer — watch past tense.' },
+);
+
+if ('unscorable' in grade) {
+  // No criterion carried a numeric score. Never a zero.
+} else {
+  const outcome = outcomeFromGrade({ ...grade, requiresHumanReview: false });
+  // Render it read-only, with the grade visible:
+  // <WrittenResponse data={a} renderMode="review" value={submitted} outcome={outcome} />
+}
+```
+
+**Why the SDK computes the total.** A grader is asked for judgement, not mental
+arithmetic. If the model also returns the weighted total, the grade becomes
+unverifiable and irreproducible — two runs can disagree for identical criterion
+scores. `gradeFromRubric` makes the total a pure function of the judgements, so
+a grade can be recomputed and audited years later. Weights are normalised by
+their sum (they need not add to 1), and criteria that are `notApplicable` or
+carry only a `band` are excluded from both numerator and denominator.
+
+`GradeRecord` also carries `corrections` (anchored in the learner's text),
+`evidence`, `rationale`, `confidence`, `requiresHumanReview`, `grader`
+provenance and token/cost `usage` — the SDK stores and renders them; what they
+mean is yours. Use `hasGrade(outcome)` rather than `status === 'scored'`, or you
+will silently miss asynchronously graded work.
+
 ### Media per question
+
 
 Optional `media` on either activity, rendered above the question/passage:
 
