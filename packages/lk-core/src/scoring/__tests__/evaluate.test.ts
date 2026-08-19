@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod/v4';
-import { DeferredScoringError, UnknownActivityTypeError } from '../../errors.js';
+import {
+  DeferredScoringError,
+  RedactedScoringError,
+  UnknownActivityTypeError,
+} from '../../errors.js';
 import { defineActivityType, registerActivityType } from '../../registry/index.js';
 import type {
   ActivityData,
@@ -441,5 +445,36 @@ describe('consumer-registered types', () => {
     expect(outcome.reason).toBe('requires_async_grading');
     expect(outcome.maxScore).toBe(1);
     expect('partial' in outcome).toBe(false);
+  });
+});
+
+describe('non-finite score guard (pre-merge review fix)', () => {
+  // A scorer CAN return a non-finite score from structurally incomplete data
+  // (division by zero when there are no correct options). That used to escape
+  // as a real grade of NaN. These register a type whose scorer returns NaN
+  // directly, to pin the guard independently of the redaction check.
+  const NAN_TYPE = 'test-nan-scorer';
+  registerActivityType(
+    defineActivityType<{ type: string; id: string }, { type: string }>({
+      type: NAN_TYPE,
+      schema: z.looseObject({ type: z.literal(NAN_TYPE), id: z.string() }) as never,
+      scoring: {
+        kind: 'sync',
+        score: () => ({ score: Number.NaN, maxScore: 1, feedback: null, details: [] }),
+      },
+    }),
+  );
+
+  const data = { type: NAN_TYPE, id: 'x' } as unknown as ActivityData;
+  const response = { type: NAN_TYPE } as unknown as LearnerResponse;
+
+  it('evaluate() reports unscorable instead of a NaN score', () => {
+    const out = evaluate(data, response);
+    expect(out.status).toBe('unscorable');
+    expect(out.status === 'unscorable' && out.reason).toContain('non-finite');
+  });
+
+  it('score() throws rather than returning NaN', () => {
+    expect(() => score(NAN_TYPE as ActivityType, data, response)).toThrow(RedactedScoringError);
   });
 });

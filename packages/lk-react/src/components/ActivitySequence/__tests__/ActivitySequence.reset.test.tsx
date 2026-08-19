@@ -116,3 +116,21 @@ describe('ActivitySequence survives structurally identical fresh arrays (release
     expect(onComplete.mock.calls[0]?.[0]).toHaveLength(2);
   });
 });
+
+describe('set-identity key cannot collide across different sets (pre-merge review fix)', () => {
+  it('treats ["a","bc"] and ["ab","c"] as DIFFERENT sets', async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
+    const first = [mc('a', 'Q a?'), mc('bc', 'Q bc?')];
+    const second = [mc('ab', 'Q ab?'), mc('c', 'Q c?')];
+    const { rerender } = render(<ActivitySequence activities={first} onComplete={onComplete} />);
+    await answerCurrentQuestion(user);
+    // A naive join('') key would render these two sets identical and NOT
+    // reset, leaking the answer above into the new set.
+    rerender(<ActivitySequence activities={second} onComplete={onComplete} />);
+    expect(screen.getByText('Question 1 of 2')).toBeInTheDocument();
+    expect(screen.getByText('Q ab?')).toBeInTheDocument();
+    await answerCurrentQuestion(user);
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+});

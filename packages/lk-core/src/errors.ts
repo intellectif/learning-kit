@@ -20,6 +20,24 @@ export class UnknownActivityTypeError extends Error {
 }
 
 /**
+ * Thrown when `score()` is asked to grade a `redact()` projection (or any
+ * activity data whose answer key is missing, yielding a non-finite score).
+ * Redacted data is learner-safe precisely because the key was removed, so a
+ * score derived from it is meaningless — previously this produced a silent
+ * `NaN` that serialized to `null` in a grade column. `evaluate()` returns
+ * `{ status: 'unscorable' }` for the same input instead of throwing.
+ */
+export class RedactedScoringError extends Error {
+  constructor(public readonly activityType: string) {
+    super(
+      `Activity data for "${activityType}" carries no answer key (it looks redacted), so it cannot be scored. ` +
+        'Score against the full activity data server-side, or use evaluate() which returns { status: "unscorable" }.',
+    );
+    this.name = 'RedactedScoringError';
+  }
+}
+
+/**
  * Thrown when `score()` is called for an activity type whose grading is
  * deferred (asynchronous AI/human grading, e.g. `written-response`). A
  * deferred submission has no synchronous score — treating it as 0 would show

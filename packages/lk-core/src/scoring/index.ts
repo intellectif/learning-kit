@@ -1,4 +1,4 @@
-import { DeferredScoringError, UnknownActivityTypeError } from '../errors.js';
+import { DeferredScoringError, RedactedScoringError, UnknownActivityTypeError } from '../errors.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
 import type {
   ActivityData,
@@ -21,6 +21,17 @@ export const DEFAULT_PASS_THRESHOLD = 0.7;
  */
 export function computePassThreshold(activityData: ActivityData, score: number): boolean {
   return score >= (activityData.passThreshold ?? DEFAULT_PASS_THRESHOLD);
+}
+
+/**
+ * True when `data` is a `redact()` projection rather than full activity data.
+ * Scoring a redacted item is always a bug: the answer key is gone by design,
+ * so any "score" computed from it is meaningless (it used to come out `NaN`).
+ */
+function isRedacted(data: unknown): boolean {
+  return (
+    typeof data === 'object' && data !== null && (data as { redacted?: unknown }).redacted === true
+  );
 }
 
 /**
@@ -62,8 +73,14 @@ export function score(
   if (descriptor.scoring.kind === 'deferred') {
     throw new DeferredScoringError(descriptor.type);
   }
+  if (isRedacted(activityData)) {
+    throw new RedactedScoringError(descriptor.type);
+  }
 
   const result = descriptor.scoring.score(activityData, learnerResponse);
+  if (!Number.isFinite(result.score)) {
+    throw new RedactedScoringError(descriptor.type);
+  }
   const passed = computePassThreshold(activityData, result.score);
   return { ...result, passed, feedback: result.feedback ?? selectFeedback(activityData, passed) };
 }
@@ -107,7 +124,26 @@ export function evaluate(data: ActivityData, response: LearnerResponse): ItemOut
     };
   }
 
+  if (isRedacted(data)) {
+    return {
+      status: 'unscorable',
+      reason:
+        'Activity data is redacted (no answer key), so it cannot be scored on the client. Score against the full data server-side.',
+      maxScore: 1,
+    };
+  }
+
   const result = descriptor.scoring.score(data, response);
+  if (!Number.isFinite(result.score)) {
+    // Defence in depth: incomplete data (a missing answer key, an empty
+    // options array) used to divide by zero and surface as a real score of
+    // NaN, which JSON-serializes to null in a grade column.
+    return {
+      status: 'unscorable',
+      reason: `Scoring "${descriptor.type}" produced a non-finite score; the activity data is incomplete.`,
+      maxScore: result.maxScore,
+    };
+  }
   const passed = computePassThreshold(data, result.score);
   return {
     status: 'scored',

@@ -43,6 +43,7 @@ const SHARED_PUBLIC_FIELDS: FieldPolicy = {
 const MULTIPLE_CHOICE_FIELD_POLICY: FieldPolicy = {
   ...SHARED_PUBLIC_FIELDS,
   question: 'public',
+  questionHtml: 'public',
   mode: 'public',
   shuffle: 'public',
   scoringStrategy: 'answer-key',
@@ -58,6 +59,7 @@ const MULTIPLE_CHOICE_FIELD_POLICY: FieldPolicy = {
 const FILL_IN_THE_BLANKS_FIELD_POLICY: FieldPolicy = {
   ...SHARED_PUBLIC_FIELDS,
   passage: 'public',
+  passageHtml: 'public',
   scoringStrategy: 'answer-key',
   feedback: 'answer-key',
   blanks: {
@@ -79,7 +81,12 @@ const WRITTEN_RESPONSE_FIELD_POLICY: FieldPolicy = {
   maxWords: 'public',
   languageTarget: 'public',
   feedback: 'answer-key',
-  rubric: 'author-only',
+  // A rubric is a LEARNER affordance, not a grader secret: it tells the
+  // learner what they are being graded on, which is pedagogically the point
+  // of publishing one. (Classifying it author-only broke real deployments
+  // that render a rubric panel during the attempt.) A deployment that wants
+  // it hidden can tighten this per call via `redact(data, { policy })`.
+  rubric: 'public',
 };
 
 /** Built-in Multiple Choice descriptor. */
