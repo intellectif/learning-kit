@@ -35,6 +35,7 @@ export const MultipleChoiceDataSchema = z
     id: z.string().min(1),
     title: z.string().min(1),
     question: z.string().min(1),
+    questionHtml: z.string().optional(),
     mode: z.enum(['single', 'multi']),
     options: z.array(MultipleChoiceOptionSchema).min(2).max(26),
     scoringStrategy: z.enum(['all-or-nothing', 'partial']),

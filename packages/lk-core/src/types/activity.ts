@@ -81,8 +81,15 @@ export interface MultipleChoiceData {
   id: string;
   /** Human-readable title used in xAPI statements and error boundaries. */
   title: string;
-  /** The question stem presented to the learner. */
+  /** The question stem presented to the learner, as plain text. */
   question: string;
+  /**
+   * Optional sanitised rich-HTML rendering of the question, parallel to
+   * `WrittenResponseData.promptHtml`. The SDK carries and redacts it as
+   * learner-visible content but does not render it yet (components escape
+   * text); sanitisation is the application's responsibility.
+   */
+  questionHtml?: string;
   /** `single` allows one selection; `multi` allows multiple. */
   mode: 'single' | 'multi';
   /** Ordered list of answer options. */
@@ -139,6 +146,12 @@ export interface FillInTheBlanksData {
   title: string;
   /** Passage text containing `{{blank_id}}` placeholders. */
   passage: string;
+  /**
+   * Optional sanitised rich-HTML rendering of the passage, parallel to
+   * `WrittenResponseData.promptHtml`. Carried and redacted as learner-visible
+   * content; not rendered by the SDK yet. Sanitisation is the application's.
+   */
+  passageHtml?: string;
   /** Configuration for each blank in the passage. */
   blanks: BlankConfig[];
   /** Scoring algorithm applied when the learner submits. */

@@ -29,6 +29,42 @@ export interface RedactOptions {
    *   STILL removed; the output will NOT pass `assertRedacted`.
    */
   reveal?: 'none' | 'after-submit';
+  /**
+   * Per-call sensitivity overrides, merged over the type's registered
+   * `fieldPolicy` (top-level keys replace; nested objects merge one level).
+   *
+   * Sensitivity is partly a PEDAGOGICAL decision, not purely a security one —
+   * whether a rubric or a hint is learner-visible differs legitimately between
+   * deployments — and the SDK must not freeze that choice. Use this to tighten
+   * a field the SDK ships as `public`:
+   *
+   * ```ts
+   * redact(essay, { policy: { rubric: 'author-only' } });
+   * ```
+   *
+   * Overrides can only be applied to fields; they cannot re-open a field the
+   * caller has not classified, because unclassified still means removed.
+   * Note that tightening below what the type's `redactedSchema` requires is
+   * allowed — the schema check only rejects payloads that reveal MORE than
+   * the learner-safe shape.
+   */
+  policy?: FieldPolicy;
+}
+
+/** Merges per-call overrides over a registered policy, one level deep. */
+function mergePolicy(base: FieldPolicy, overrides: FieldPolicy | undefined): FieldPolicy {
+  if (overrides === undefined) {
+    return base;
+  }
+  const merged: Record<string, Sensitivity | FieldPolicy> = { ...base };
+  for (const [key, override] of Object.entries(overrides)) {
+    const current = merged[key];
+    merged[key] =
+      typeof override === 'object' && typeof current === 'object'
+        ? { ...current, ...override }
+        : override;
+  }
+  return merged;
 }
 
 function isSensitivity(value: Sensitivity | FieldPolicy): value is Sensitivity {
@@ -98,8 +134,8 @@ function redactValue(
  * @throws Error when the registered descriptor declares no `fieldPolicy`
  *         (redaction cannot guess sensitivities).
  */
-export function redact(
-  data: { type: string; [key: string]: unknown },
+export function redact<T extends { type: string }>(
+  data: T,
   options: RedactOptions = {},
 ): RedactedActivityData {
   const reveal = options.reveal ?? 'none';
@@ -113,7 +149,8 @@ export function redact(
     );
   }
 
-  const projected = redactValue(data, descriptor.fieldPolicy, reveal) as Record<string, unknown>;
+  const effectivePolicy = mergePolicy(descriptor.fieldPolicy, options.policy);
+  const projected = redactValue(data, effectivePolicy, reveal) as Record<string, unknown>;
   const result = { ...projected, redacted: true as const } as RedactedActivityData;
 
   if (reveal === 'none' && descriptor.redactedSchema !== undefined) {

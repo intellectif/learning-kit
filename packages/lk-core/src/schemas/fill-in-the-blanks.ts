@@ -62,6 +62,7 @@ export const FillInTheBlanksDataSchema = z
     id: z.string().min(1),
     title: z.string().min(1),
     passage: z.string().min(1),
+    passageHtml: z.string().optional(),
     blanks: z.array(BlankConfigSchema).min(1),
     scoringStrategy: z.enum(['all-or-nothing', 'partial']),
     media: MediaSchema.optional(),

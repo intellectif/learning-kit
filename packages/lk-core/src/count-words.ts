@@ -6,6 +6,11 @@
  * client previews, SDK scoring, and stored `wordCount` values always agree.
  */
 export function countWords(text: string): number {
+  // Tolerate non-strings: this runs on client-supplied submission payloads,
+  // where a malformed value must score 0 rather than throw mid-grading.
+  if (typeof text !== 'string') {
+    return 0;
+  }
   const trimmed = text.trim();
   if (trimmed === '') {
     return 0;

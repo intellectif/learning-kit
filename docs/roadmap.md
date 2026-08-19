@@ -1,23 +1,17 @@
 # learning-kit — SDK Roadmap
 
-**Status:** living document. Supersedes the "Future Work (Phase 2 and Phase 3)" section of
-[`.kiro/specs/learning-kit-sdk/tasks.md`](../.kiro/specs/learning-kit-sdk/tasks.md) as the roadmap of record.
+**Status:** living document — the roadmap of record for `@intellectif/lk-core` and `@intellectif/lk-react`.
 **Last updated:** 2026-08-19
-**Inputs reconciled here:**
 
-1. The original V1 spec and task list (`.kiro/specs/learning-kit-sdk/` — requirements, design, tasks). Next
-   scheduled item there was **Task 25 / Req 22: Written Response** (`[Phase 2 — Next]`), followed by Phase 2/3
-   candidates (drag-and-drop, true/false, interactive video, plugin architecture, lk-ai, lk-server, i18n,
-   offline, weighted scoring).
-2. [`docs/lk-sdk-update-requirements.md`](./lk-sdk-update-requirements.md) — an external audit written from the
-   published `dist/` of `lk-core@0.2.1` / `lk-react@1.0.1` and from the only consumer (`academic-platform-ocw`).
-3. A line-by-line **verification of that audit against current source** (2026-08-19, 14 independent
-   verification passes). Verdicts below. Claims about consumer-side code could not be verified in this repo and
-   are marked accordingly.
-4. Direct consumer feedback: (a) a **written-response section graded by AI had to be built from scratch**
-   outside the SDK; (b) **reading-comprehension assessment is under-served** by two activity types compared to
-   Moodle; (c) the SDK powers **real mid-term and final tests**, not just formative practice — so anything that
-   can change a historical grade is treated as breaking, always.
+This plan is grounded in a defect audit of the published `lk-core@0.2.1` / `lk-react@1.0.1` packages and in
+production feedback from an integrating application: a CEFR-aligned EN/ES/PT language school running real
+mid-term and final exams, reading-comprehension assessment, and AI-graded writing. Every audit claim below was
+re-verified against source before being acted on; the verdicts are recorded so the reasoning behind each API
+decision stays auditable.
+
+> **Binding rule:** this SDK is used for summative assessment. **No change that can alter a historical grade
+> ships outside a package major.** Every new matching tolerance, scoring policy, or threshold behaviour is
+> opt-in; absent configuration reproduces the previous semantics exactly.
 
 ---
 
@@ -40,7 +34,7 @@ Every B-claim was adversarially re-verified against `packages/*/src` (not dist).
 | B11 zero i18n / RTL / reduced-motion / JS-only dark mode | **Confirmed** | Full hardcoded-string inventory captured. Nuance: "cannot follow a host theme toggle" is overstated — a host *not* using `ThemeProvider` can override `--lk-*` tokens in CSS today; the limitation binds when `ThemeProvider`/`theme` inline styles are in play. Reduced-motion exposure is minor (150 ms transitions only). |
 | §8.1 uncontrolled / self-scoring / key-on-client / escaped text / no mode | **Confirmed** | Precision: the only render-time `isCorrect` read is post-submit — the binding constraint on redacted rendering is **client-side `score()`**, not the render path. `MultipleChoiceData.mode` (single/multi) name-collides with any future practice/exam/review `mode` prop — the new prop must pick another name or namespace. |
 | §15 packaging (sideEffects, zod hard dep, React 19-only, engines) | **Partially confirmed** | All confirmed except: npm **provenance is already present** on 0.2.1/1.0.1 via OIDC trusted publishing (audit wrong). Extra: published tarballs contain no LICENSE file; CI tests Node 22 only while release builds on Node 24; no publint/attw/api-extractor semver gate. |
-| "Zero call sites" table, three-renderer divergence, consumer line counts | **Unverifiable here** | Consumer repo not present. Treated as credible directional evidence, not fact. |
+| "Zero call sites" table, three-renderer divergence, consumer line counts | **Unverifiable here** | Integrating application not part of this repo. Treated as credible directional evidence, not fact. |
 
 **Where the audit is right and it matters most:** the strip-mode/JSON-schema disagreement, the deferred-grading
 gap (an ungraded written response is indistinguishable from a 0), the redaction gap, and the closed type system
@@ -51,7 +45,7 @@ are all real and all verified. **Where we deviate from the audit:** see §3.
 ## 2. What was next on the original roadmap — and what this analysis adds
 
 **Originally next (unchanged in spirit):** Task 25 / Req 22 — promote `written-response` into the SDK. The
-audit and the consumer feedback independently confirm this was the right next item; it ships in v0.3.0.
+audit and the integrating application feedback independently confirm this was the right next item; it ships in v0.3.0.
 
 **What the verified audit adds on top of the original Phase 2/3 list:**
 
@@ -95,12 +89,12 @@ audit and the consumer feedback independently confirm this was the right next it
    (`/...`) URLs, and rejects everything else (`javascript:`, `file:`, `ftp:`). Strictly this invalidates
    previously-"valid" data, but only data that was an XSS payload — shipped as a security fix.
 5. **Rounding (R3.4):** deferred to v0.4 with the audit's own warning honored — no `half-up` default; the
-   consumer's signed-off round-down band policy must not be silently inverted.
+   an integrator's deliberate rounding policy must never be silently inverted by an SDK default.
 6. **`AttemptPolicy` enforcement, delivery, timers, persistence, identity:** stay consumer-side (agreeing with
    the audit against over-building).
-7. **License/moat (§15.1):** keep MIT for `lk-core`/`lk-react`; keep every calibrated prompt, item bank, and
-   graded corpus consumer-side. `lk-ai` ships **ports only** (no model client, no key, no provider dep).
-   Revisit only if `lk-ai` starts carrying prompt IP.
+7. **AI posture:** `lk-ai` ships **ports only** — no model client, no API key, no provider dependency in any
+   `lk-*` package. The SDK defines the interface; the application supplies the adapter, keeps its own prompts,
+   and chooses its own model. This keeps the SDK provider-neutral and keeps model cost/policy where it belongs.
 
 ---
 
@@ -194,9 +188,21 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   (weight normalization, per-section thresholds, `pass_failure_reason`) — mirrors consumer's
   `final-test-scoring.service.ts` so client and server share one formula.
 - `AssessmentBlueprint` + `planAttempt(bp, seed, resolve)` → `AttemptPlan` with **`slotId`** identity, frozen
-  `maxPoints`, `contentHash` per slot (re-grade reproducibility). Sections gain an optional **shared
-  `stimulus`** (passage/media rendered once for N items) — the reading-comprehension/testlet primitive.
-  Sequencing note honored: the platform ships its pin first; the SDK freezes the learned shape.
+  `maxPoints`, `contentHash` per slot (re-grade reproducibility). **Deferred — see below.**
+- **Shared stimulus + `ItemGroup` — promoted to the top of v0.4, and modelled as CONTENT rather than as a
+  blueprint field.** This is what "reading comprehension is almost impossible" actually means: the gap is a
+  missing *container*, not a missing item type. A real corpus is one passage/audio serving N questions
+  (mean ~6, up to 20). Ship `Stimulus { id, kind: 'text'|'audio'|'video'|'image'|'mixed', body?, bodyHtml?,
+  media?, locale, attribution? }` plus `ItemGroup { stimulus, items[], shuffle: 'none' | 'within-group' }`,
+  usable in a sequence, a lesson quiz, and later a blueprint section alike. Two constraints taken from
+  observed failures: groups are **shuffle-atomic** (shuffling a section otherwise interleaves two passages),
+  and stimulus presentation defaults to **persistent, not collapsible** (hiding the passage behind a toggle
+  the learner must reopen per question is the defect, not the design). Because this is content, it does NOT
+  depend on the deferred blueprint work.
+- **Media playback policy** on `ActivityMedia`: `{ maxPlays?, allowSeek?, allowDownload?, allowRateChange?,
+  autoplayOnce? }` plus a plays-remaining interaction event. Listening assessment is unrunnable without it
+  (an integrator replaced the SDK's audio rendering wholesale to stop downloads and rate changes), and it is
+  a prerequisite for `dictation`.
 - `serializeAttemptState` / `restoreAttemptState` / `diffResponses`.
 - lk-react: **controlled components** (`value`/`defaultValue`/`onChange` + `renderMode: 'practice' | 'exam' |
   'review'` — named to avoid the `MultipleChoiceData.mode` collision), redacted-data rendering (deletes the
@@ -215,15 +221,24 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
 
 ### v0.5 — "types and content acquisition"
 
-- New types in ELT-gap order (P0): `matching`, `gap-select` (with schema-level `presentation: 'dropdown' |
-  'drag'` — WCAG 2.5.7), `mark-the-words`, `speaking-response` (the highest value-to-effort item: a production
-  CEFR speaking grader already exists consumer-side). Then (P1): `ordering` (adjacency-pair partial credit, not
-  exact-position), `short-answer` (`matchMode: exact | contains | regex | ai-lenient`), `dictation`. (P2):
-  drag-the-words presentation variant, flashcards, interactive video.
-- `@intellectif/lk-interop`: H5P import (~8 mapped types) + Moodle XML import, each with a `ConversionReport`;
-  **Word/PDF/CSV/paste import first** (highest real-user value). QTI: keep `correctResponsesPattern` on
-  descriptors, build nothing more. SCORM/LTI: skip (delivery concern).
-- xAPI completeness pass: per-item results, attempt numbers, `contextActivities.parent` wiring from components.
+> **Reordered 2026-08-19 from evidence in a production corpus**, not from a theoretical gap analysis. The
+> earlier ordering (matching first, true/false retired as "a UI variant of MC") did not survive contact with
+> real content: in a 76-container / 408-item legacy corpus, `matching` appears **zero** times, while
+> true/false carries an entire reading testlet and 41% of authored stems are gap-fill sentences faked as
+> multiple-choice. Frequency in real item banks beats taxonomy completeness.
+
+- **`gap-select` (dropdown cloze) — P0.** The single most-faked type: authors write `___` gap sentences and
+  encode them as multiple-choice because nothing better exists. Keep `presentation: 'dropdown' | 'drag'` at the
+  schema level (WCAG 2.5.7 requires a non-drag path), and support a **shared word bank at group level**.
+- **`true-false` — P0 (reinstated).** Previously retired as an MC variant; it is the backbone of real reading
+  testlets, and collapsing it into MC loses the authoring ergonomics and the interop mapping that make a
+  20-item testlet tractable.
+- **`dictation` — P1**, and it depends on the media playback policy below.
+- **`mark-the-words`, `ordering`, `short-answer` — P1/P2**, on evidence of demand.
+- **`matching` — demoted to P2.** No production evidence of use; build it when an item bank asks for it.
+- `speaking-response` remains high value-to-effort where a CEFR speaking grader already exists.
+- `@intellectif/lk-interop`: H5P import is worth more than first estimated — a real corpus is dominated by
+  `H5P.QuestionSet` containers, which map onto the item-group primitive below. Word/PDF/CSV/paste import first.
 
 ### v1.0 — "schema 2.0 and the stability promise"
 
@@ -240,7 +255,7 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
 | Decision | Ruling |
 | --- | --- |
 | Anything that can change a historical grade | Package **major**, always. New tolerances opt-in. |
-| Model clients / API keys / provider deps in `lk-*` | Never. SDK defines ports; consumer supplies adapters; calibrated prompts and corpora stay consumer-side. |
-| License | MIT for core/react (adoption); moat lives in consumer assets. |
+| Model clients / API keys / provider deps in `lk-*` | Never. The SDK defines ports; the application supplies adapters and owns its prompts and content. |
+| License | MIT for `lk-core` / `lk-react`. |
 | Authoring UI, storage, taxonomy, identity, delivery, timers, proctoring | Consumer-side, permanently. SDK ships contracts (`validateDraft`, descriptors, preview) only. |
 | Generality without a second consumer | Rejected (no registry instances, no version negotiator, no plugin loader). Add when consumer #2 exists. |

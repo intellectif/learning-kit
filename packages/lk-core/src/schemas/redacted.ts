@@ -1,5 +1,6 @@
 import { z } from 'zod/v4';
 import { MediaSchema } from './media.js';
+import { WrittenResponseRubricSchema } from './written-response.js';
 
 /**
  * Schemas for REDACTED activity data — the learner-safe projection `redact()`
@@ -40,6 +41,7 @@ export const RedactedMultipleChoiceDataSchema = z.strictObject({
   ...redactedBase,
   type: z.literal('multiple-choice'),
   question: z.string().min(1),
+  questionHtml: z.string().optional(),
   mode: z.enum(['single', 'multi']),
   options: z.array(RedactedMultipleChoiceOptionSchema).min(2).max(26),
   shuffle: z.boolean().optional(),
@@ -56,12 +58,14 @@ export const RedactedFillInTheBlanksDataSchema = z.strictObject({
   ...redactedBase,
   type: z.literal('fill-in-the-blanks'),
   passage: z.string().min(1),
+  passageHtml: z.string().optional(),
   blanks: z.array(RedactedBlankConfigSchema).min(1),
 });
 
 /**
- * Redacted Written Response data: the prompt and word bounds are public;
- * the rubric (author/grader asset) and authored feedback are removed.
+ * Redacted Written Response data: the prompt, word bounds and rubric are
+ * learner-visible (a rubric tells the learner what they are graded on);
+ * authored pass/fail feedback is removed until the grade exists.
  */
 export const RedactedWrittenResponseDataSchema = z.strictObject({
   ...redactedBase,
@@ -70,5 +74,6 @@ export const RedactedWrittenResponseDataSchema = z.strictObject({
   promptHtml: z.string().optional(),
   minWords: z.number().int().min(0),
   maxWords: z.number().int().min(1),
+  rubric: WrittenResponseRubricSchema.optional(),
   languageTarget: z.string().optional(),
 });
