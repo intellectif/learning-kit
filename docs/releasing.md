@@ -60,13 +60,78 @@ The workflow (`.github/workflows/release.yml`) is already OIDC-ready: it declare
 
 ## Routine release flow (after setup)
 
+> **The one thing to remember: it takes TWO merges to publish.**
+> Merging your feature PR does **not** publish. It only makes a bot open a second
+> PR called **“chore: version packages”**. **Merging that second PR is what publishes to npm.**
+
+### Why two merges?
+
+The Release workflow runs on every push to `main` and looks at whether any
+`.changeset/*.md` files are present:
+
+| State of `main` | What Release does | Published? |
+| --- | --- | --- |
+| Changeset files present | Opens/updates the **“chore: version packages”** PR (bumps versions, writes CHANGELOGs, deletes the changeset files) | ❌ No |
+| No changeset files | Runs `pnpm release` → `changeset publish` | ✅ Yes |
+
+So the version PR is the thing that *consumes* the changesets. Until you merge it,
+`main` still has them, and every push just regenerates that PR. A green Release run
+that finishes in ~30s did **not** publish — it opened/updated the version PR.
+
+### Step by step
+
+**1. On your feature branch — describe the change.**
+
 ```bash
-# on a feature branch, for every change:
-pnpm changeset            # choose packages + bump type + summary
-git add .changeset && git commit -m "chore: changeset"
+pnpm changeset
 ```
 
-Open a PR → CI gate runs → review → merge to `main`. Changesets then opens a **"chore: version packages"** PR; merging *that* triggers the Release workflow, which publishes via OIDC. No human handles any credential.
+Pick the packages and bump type, write the summary. This creates `.changeset/<name>.md`.
+Remember it becomes the **public CHANGELOG on npm and GitHub** — write it for strangers,
+never name a private consumer or its internal files.
+
+**2. Commit, push, open a PR, merge it to `main`.** CI + E2E must be green.
+
+**3. A bot opens (or updates) a PR titled “chore: version packages”** from branch
+`changeset-release/main`. Its checks may show **“Action required”** — GitHub gates
+workflow runs on bot-authored PRs. Click **Approve and run**.
+
+**4. Review that PR — this is your last chance to check the version numbers.**
+Open its diff and confirm the bumps in `packages/*/package.json` are what you intend.
+
+> ⚠️ **`lk-react` bumps to a MAJOR whenever `lk-core` bumps**, because it declares
+> `"@intellectif/lk-core": "workspace:^"` in `peerDependencies`. A `minor` changeset for
+> lk-react can still emit a major. Decide *before* merging — npm versions are immutable.
+
+**5. Merge the “chore: version packages” PR.** Release runs again, finds no changesets,
+and publishes both packages to npm with provenance.
+
+**6. Verify it actually landed:**
+
+```bash
+npm view @intellectif/lk-core version && npm view @intellectif/lk-react version
+```
+
+### Checklist
+
+- [ ] `pnpm changeset` written, and the text is safe to publish publicly
+- [ ] Feature PR green and merged to `main`
+- [ ] “chore: version packages” PR checks approved (**Approve and run**) and green
+- [ ] Version numbers in that PR reviewed — especially the `lk-react` major
+- [ ] **That PR merged** ← this is the step that publishes
+- [ ] `npm view …` shows the new versions
+
+### If npm still shows the old version
+
+Work through these in order:
+
+1. **Is the “chore: version packages” PR still open?** If yes, that is the answer — merge it.
+2. **Are changeset files still on `main`?** `git ls-tree --name-only origin/main:.changeset/` —
+   anything besides `config.json` means the version PR has not been merged yet.
+3. **Did the Release run on the merge of the version PR succeed?** Actions → Release. A ~30s
+   green run that opened a PR is *not* a publish; look for the run that executed `pnpm release`.
+4. **Trusted Publishing configured for the package?** A brand-new package name must be published
+   manually once first (see One-time setup above).
 
 ## Recommended git flow & pre-push security
 
@@ -95,6 +160,18 @@ Do **not** `git push origin main` directly. Use:
    # open a PR on GitHub → let CI run → review → merge to main
    ```
    Configure branch protection and secret-scanning on the new repo *before* merging anything to `main`.
+
+## Known limitation: Release is not gated on CI
+
+`ci.yml` and `release.yml` both trigger independently on `push: main`, and the release job has no
+dependency on the CI job. GitHub's `needs:` only orders jobs **within one workflow**, so gating across
+workflows requires restructuring Release to trigger on `workflow_run` (completed + conclusion == success)
+instead of `push`. Until that is done:
+
+- A red test suite does **not** block a publish. The safety net is the required status check on the PR —
+  keep `main` protected and never push to it directly.
+- Practically this is low risk, because the two merges that matter (feature PR and the version PR) both
+  run the full CI + E2E gate before you can merge them. Do not skip approving those checks on the bot PR.
 
 ## Notes & troubleshooting
 

@@ -88,8 +88,13 @@ audit and the integrating application feedback independently confirm this was th
    opposite — dangerous schemes pass. v0.3 allows `https:`/`http:`/`data:`/`blob:` **and** root-relative
    (`/...`) URLs, and rejects everything else (`javascript:`, `file:`, `ftp:`). Strictly this invalidates
    previously-"valid" data, but only data that was an XSS payload — shipped as a security fix.
-5. **Rounding (R3.4):** deferred to v0.4 with the audit's own warning honored — no `half-up` default; the
-   an integrator's deliberate rounding policy must never be silently inverted by an SDK default.
+5. **Rounding (R3.4):** deferred, and the design constraint is sharper than "pick a good default". Integrator
+   feedback shows rounding is **two different operations that must not share one policy**: *grade* rounding
+   (in production: half-up to 2 decimal places with an epsilon nudge, because a learner shown "70%" must not
+   be recorded as a fail at 69.6) and *band / level classification*, which deliberately **floors**, because
+   over-placement drives dropout. One shared default would silently invert one of them. Therefore: `dp` is
+   required with no default, grade rounding and band classification are separate entry points, and `gte()`
+   compares rounded values with an epsilon on both sides.
 6. **`AttemptPolicy` enforcement, delivery, timers, persistence, identity:** stay consumer-side (agreeing with
    the audit against over-building).
 7. **AI posture:** `lk-ai` ships **ports only** — no model client, no API key, no provider dependency in any
@@ -257,5 +262,6 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
 | Anything that can change a historical grade | Package **major**, always. New tolerances opt-in. |
 | Model clients / API keys / provider deps in `lk-*` | Never. The SDK defines ports; the application supplies adapters and owns its prompts and content. |
 | License | MIT for `lk-core` / `lk-react`. |
+| `react`/`react-dom` as peers; `lk-react` ships no runtime `dependencies` | Keep. Confirmed correct by an integrator — React duplication incidents trace to consumer-side nested workspaces, not to this packaging. |
 | Authoring UI, storage, taxonomy, identity, delivery, timers, proctoring | Consumer-side, permanently. SDK ships contracts (`validateDraft`, descriptors, preview) only. |
 | Generality without a second consumer | Rejected (no registry instances, no version negotiator, no plugin loader). Add when consumer #2 exists. |

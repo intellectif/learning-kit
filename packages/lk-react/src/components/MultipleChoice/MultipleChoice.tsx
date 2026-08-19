@@ -2,8 +2,12 @@
 
 import {
   ActivitySchemaError,
+  type ItemOutcome,
+  type LearnerResponse,
   type MultipleChoiceData,
+  type MultipleChoiceLearnerResponse,
   type MultipleChoiceOption,
+  type ScoringDetail,
   score,
   validateActivity,
   xAPIBuilder,
@@ -37,6 +41,55 @@ function seededShuffle<T>(items: readonly T[], seed: number): T[] {
   return out;
 }
 
+/**
+ * Selected option ids carried by a learner response. Any other response shape
+ * (a caller wiring the wrong item's state through `value`) reads as "nothing
+ * selected" rather than throwing mid-exam.
+ */
+function selectionOf(response: LearnerResponse | undefined): string[] {
+  return response?.type === 'multiple-choice' ? response.selectedOptionIds : [];
+}
+
+/**
+ * Whether an option is part of the correct answer, derived from the SERVER's
+ * outcome — review mode never holds an answer key of its own.
+ * {@link ScoringDetail.outcome} states this unambiguously. For 0.2-era details
+ * that carry only the deprecated `correct` flag (which means "the learner
+ * ACTED correctly on this option", not "this option is the answer") the fact
+ * is still recoverable, because we know whether the learner selected it:
+ * `isCorrect = wasSelected ? correct : !correct`.
+ */
+function isAnswerOption(detail: ScoringDetail, wasSelected: boolean): boolean {
+  switch (detail.outcome) {
+    case 'correct':
+    case 'incorrect-omission':
+      return true;
+    case 'incorrect':
+    case 'correct-omission':
+      return false;
+    default:
+      return wasSelected ? detail.correct : !detail.correct;
+  }
+}
+
+/** Announcement for `review` mode, built only from the server-supplied outcome. */
+function reviewAnnouncement(outcome: ItemOutcome | undefined): string | null {
+  if (outcome === undefined) {
+    return null;
+  }
+  if (outcome.status === 'scored') {
+    const overall = outcome.feedback;
+    return `Score ${Math.round(outcome.score * 100)}%. ${
+      outcome.passed ? 'Passed.' : 'Not passed.'
+    }${overall ? ` ${overall}` : ''}`;
+  }
+  if (outcome.status === 'deferred') {
+    // Never "0%": ungraded is not the same as wrong.
+    return 'Not graded yet.';
+  }
+  return null;
+}
+
 export interface MultipleChoiceProps extends ActivityProps<MultipleChoiceData> {
   /**
    * Seed for the deterministic option shuffle. Supply one (e.g. the attempt
@@ -51,6 +104,13 @@ export interface MultipleChoiceProps extends ActivityProps<MultipleChoiceData> {
 export function MultipleChoice({
   data,
   onComplete,
+  onSubmit,
+  value,
+  defaultValue,
+  onChange,
+  renderMode = 'practice',
+  outcome,
+  sanitizeHtml,
   onInteraction,
   theme,
   locale,
@@ -63,6 +123,13 @@ export function MultipleChoice({
     if (!isDevelopment()) {
       return null;
     }
+    // A `redact()` projection cannot satisfy the full content schema — the
+    // answer key is gone by design — and must not be checked against the
+    // strict redacted schema either, since a `reveal: 'after-submit'`
+    // projection legitimately carries answer-key fields for review renders.
+    if (data.redacted === true) {
+      return null;
+    }
     const result = validateActivity('multiple-choice', data);
     return result.success ? null : new ActivitySchemaError('multiple-choice', result.errors);
   }, [data]);
@@ -71,14 +138,28 @@ export function MultipleChoice({
   // crypto.randomUUID (absent on non-secure http origins) unless needed.
   const sessionIdRef = useRef<string | null>(null);
   const { state, start, complete, getTimeSpent, reset } = useActivityState();
-  const [selected, setSelected] = useState<string[]>([]);
+  // Uncontrolled state. `defaultValue` seeds the mount only (React convention);
+  // to re-seed later, remount with a `key` or drive the component with `value`.
+  const [internalSelection, setInternalSelection] = useState<string[]>(() =>
+    selectionOf(defaultValue),
+  );
   const [summary, setSummary] = useState<string | null>(null);
 
-  // Reset on data-prop change (Req 3.7). `data` is an intentional change
-  // trigger (not read in the body); dropping it would break the reset.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: data is the reset trigger (Req 3.7)
+  // Reset on data-prop CHANGE (Req 3.7). The identity guard makes the mount
+  // run a no-op, which it always was before `defaultValue` existed — without
+  // it this effect would wipe the seed immediately after the first render.
+  // (It also makes the reset StrictMode-safe: a remount with unchanged data
+  // no longer discards the learner's selection.)
+  // Clears to empty rather than back to `defaultValue`: carrying a stale
+  // answer into a different question is the one failure mode a summative
+  // component must never have.
+  const lastDataRef = useRef(data);
   useEffect(() => {
-    setSelected([]);
+    if (lastDataRef.current === data) {
+      return;
+    }
+    lastDataRef.current = data;
+    setInternalSelection([]);
     setSummary(null);
     reset();
   }, [data, reset]);
@@ -92,20 +173,59 @@ export function MultipleChoice({
     return seededShuffle(data.options, hashSeed(`${seedSource}:${data.id}`));
   }, [data, shuffleSeed]);
 
-  // All hooks are called before this throw, so hook order stays stable.
+  // Per-option correctness for `review`, indexed by option id. Null unless the
+  // caller supplied a SCORED outcome — the only source of truth this mode has.
+  const reviewDetails = useMemo(() => {
+    if (renderMode !== 'review' || outcome === undefined || outcome.status !== 'scored') {
+      return null;
+    }
+    return new Map(outcome.details.map((detail) => [detail.itemId, detail]));
+  }, [renderMode, outcome]);
+
+  // All hooks are called before these throws, so hook order stays stable.
   if (devError) {
     throw devError;
   }
+  // Practice grades locally, which a redacted projection cannot support:
+  // `score()` would throw from the submit handler — where no error boundary
+  // can catch it — AFTER the learner has answered. Fail loudly at render
+  // instead, in production too. Wiring an exam item into the self-grading
+  // mode is precisely the accident `renderMode` exists to prevent.
+  if (data.redacted === true && renderMode === 'practice') {
+    throw new Error(
+      `Multiple Choice "${data.id}" received redacted activity data in renderMode "practice", ` +
+        'which grades locally and has no answer key to grade against. ' +
+        'Render redacted data with renderMode="exam" (server grades) or "review" (pass `outcome`).',
+    );
+  }
 
   const isSingle = data.mode === 'single';
+  const isExam = renderMode === 'exam';
+  const isReview = renderMode === 'review';
   const submitted = state === 'completed';
-  const inactive = disabled === true || submitted;
+  const inactive = disabled === true || submitted || isReview;
+  const isControlled = value !== undefined;
+  const selected = isControlled ? selectionOf(value) : internalSelection;
+  /**
+   * Whether correctness and authored feedback may be shown. Practice earns it
+   * by grading locally after submit; review shows what the server already
+   * graded. Exam never reveals anything — not before, not after submit.
+   */
+  const reveal = isReview || (renderMode === 'practice' && submitted);
 
   const fireInteraction = (
     type: 'option-selected' | 'option-deselected' | 'submitted',
     payload: Record<string, unknown>,
   ): void => {
     onInteraction?.({ type, activityId: data.id, timestamp: Date.now(), payload });
+  };
+
+  /** Single funnel for every response change: owns state only when uncontrolled. */
+  const emitChange = (selectedOptionIds: string[]): void => {
+    if (!isControlled) {
+      setInternalSelection(selectedOptionIds);
+    }
+    onChange?.({ type: 'multiple-choice', selectedOptionIds });
   };
 
   const selectSingle = (optionId: string): void => {
@@ -115,7 +235,7 @@ export function MultipleChoice({
     if (state === 'idle') {
       start();
     }
-    setSelected([optionId]);
+    emitChange([optionId]);
     fireInteraction('option-selected', { optionId });
   };
 
@@ -126,7 +246,7 @@ export function MultipleChoice({
     if (state === 'idle') {
       start();
     }
-    setSelected((prev) => (checked ? [...prev, optionId] : prev.filter((id) => id !== optionId)));
+    emitChange(checked ? [...selected, optionId] : selected.filter((id) => id !== optionId));
     fireInteraction(checked ? 'option-selected' : 'option-deselected', { optionId });
   };
 
@@ -135,8 +255,24 @@ export function MultipleChoice({
     if (inactive) {
       return;
     }
-    const response = { type: 'multiple-choice', selectedOptionIds: selected } as const;
-    const scoringResult = score('multiple-choice', data, response);
+    const response: MultipleChoiceLearnerResponse = {
+      type: 'multiple-choice',
+      selectedOptionIds: selected,
+    };
+    // Always first, and before anything that can throw: an exam runner must be
+    // able to persist the raw response no matter what happens after.
+    onSubmit?.(response);
+
+    if (isExam) {
+      // No score(), no answer key read, no onComplete, no xAPI — the server
+      // grades. The announcement deliberately carries no correctness signal.
+      complete();
+      setSummary('Answer submitted.');
+      fireInteraction('submitted', { selectedOptionIds: selected });
+      return;
+    }
+
+    const scoringResult = score('multiple-choice', data as MultipleChoiceData, response);
     complete();
     const timeSpent = getTimeSpent();
     const xapiStatement = xAPIBuilder.buildAnsweredStatement({
@@ -161,7 +297,7 @@ export function MultipleChoice({
       timeSpentMs: timeSpent,
       response: selected.join(','),
     });
-    onComplete({
+    onComplete?.({
       score: scoringResult.score,
       maxScore: scoringResult.maxScore,
       passed: scoringResult.passed,
@@ -182,15 +318,25 @@ export function MultipleChoice({
   };
 
   const questionId = `${data.id}-question`;
+  // Rich text renders ONLY through a caller-supplied sanitiser; without one we
+  // fall back to the plain-text field, escaped by React (types.ts HtmlSanitizer).
+  const questionHtml =
+    sanitizeHtml !== undefined && data.questionHtml !== undefined
+      ? sanitizeHtml(data.questionHtml)
+      : null;
 
   const optionList = displayedOptions.map((option) => {
     const checked = selected.includes(option.id);
+    // `data-correct` means "this option is part of the correct answer".
+    let correctness: string | undefined;
+    if (isReview) {
+      const detail = reviewDetails?.get(option.id);
+      correctness = detail === undefined ? undefined : String(isAnswerOption(detail, checked));
+    } else if (reveal) {
+      correctness = String(option.isCorrect);
+    }
     return (
-      <label
-        key={option.id}
-        className="lk-mc-option"
-        data-correct={submitted ? String(option.isCorrect) : undefined}
-      >
+      <label key={option.id} className="lk-mc-option" data-correct={correctness}>
         <input
           type={isSingle ? 'radio' : 'checkbox'}
           name={isSingle ? `${data.id}-options` : undefined}
@@ -203,7 +349,7 @@ export function MultipleChoice({
           }
         />
         <span>{option.text}</span>
-        {submitted && option.feedback ? (
+        {reveal && option.feedback ? (
           <span className="lk-mc-option-feedback" role="note">
             {option.feedback}
           </span>
@@ -217,7 +363,15 @@ export function MultipleChoice({
       {data.media ? <ActivityMedia media={data.media} /> : null}
       <form onSubmit={handleSubmit}>
         <fieldset disabled={inactive}>
-          <legend id={questionId}>{data.question}</legend>
+          {questionHtml === null ? (
+            <legend id={questionId}>{data.question}</legend>
+          ) : (
+            <legend
+              id={questionId}
+              // biome-ignore lint/security/noDangerouslySetInnerHtml: HTML is the output of the caller-supplied sanitizeHtml (types.ts HtmlSanitizer contract)
+              dangerouslySetInnerHTML={{ __html: questionHtml }}
+            />
+          )}
           {/*
             single: an explicit radiogroup is meaningful (fieldset's implicit
             role is `group`, not `radiogroup`). multi: the fieldset + legend
@@ -232,12 +386,17 @@ export function MultipleChoice({
           ) : (
             <div>{optionList}</div>
           )}
-          <button type="submit" disabled={inactive}>
-            Submit
-          </button>
+          {/* review is read-only: there is nothing left to submit. */}
+          {isReview ? null : (
+            <button type="submit" disabled={inactive}>
+              Submit
+            </button>
+          )}
         </fieldset>
       </form>
-      <FeedbackRegion id={`${data.id}-feedback`}>{summary}</FeedbackRegion>
+      <FeedbackRegion id={`${data.id}-feedback`}>
+        {isReview ? reviewAnnouncement(outcome) : summary}
+      </FeedbackRegion>
     </div>
   );
 }

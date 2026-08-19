@@ -6,6 +6,7 @@ import {
   type WrittenResponseProps,
 } from './WrittenResponse.js';
 
+export type { HtmlSanitizer, Renderable, RenderMode } from '../types.js';
 export type { WrittenResponseProps, WrittenResponseSubmission } from './WrittenResponse.js';
 
 /**
