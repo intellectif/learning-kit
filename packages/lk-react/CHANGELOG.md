@@ -1,5 +1,88 @@
 # @intellectif/lk-react
 
+## 3.0.0
+
+### Minor Changes
+
+- d08a518: The return trip for deferred grading: a grade that arrives later is now a first-class SDK value.
+
+  `evaluate()` could already say a submission was `deferred` — graded later by an AI or a human — but there was no type for the grade that comes **back**, so every consumer invented one and mirrored it by hand into their frontend. That gap is closed.
+
+  **New in `lk-core`:**
+
+  - **`GradeRecord`** — a scaled score, pass state and narrative feedback, plus the parts a rubric grader actually produces: `criteria` (per-criterion score or ordinal `band`, with comments and the weight applied), `corrections` (anchored in the learner's own text, with optional character offsets), `evidence`, `rationale`, `confidence`, `requiresHumanReview`, `grader` provenance (`kind`, `model`, `promptHash`) and token/cost `usage`. The shapes are the intersection of two independent production graders that converged on the same envelope.
+  - **`ItemOutcome` gains a `graded` arm** carrying the record, with `score` / `maxScore` / `passed` / `feedback` mirrored onto the outcome for uniform reads. `scored` continues to mean "the SDK computed this deterministically"; `graded` means "a grader returned it".
+  - **`gradeFromRubric(criteria, activity?, options?)`** — the weighted total as a **pure function of the grader's judgements**. A grader is asked for judgement, not mental arithmetic: if the model also returns the total, the grade becomes unverifiable and irreproducible, since two runs can disagree for identical criterion scores. Weights are normalised by their sum, so they need not add to 1. Criteria marked `notApplicable`, and band-only criteria with no numeric score, are excluded from **both** numerator and denominator. When nothing scoreable remains it returns `{ unscorable: true, reason }` — never a zero.
+
+    It also refuses out-of-contract input rather than turning it into a grade: a criterion whose score is `NaN` or infinite is **rejected, not silently dropped** (dropping it would regrade the learner on fewer criteria, with different effective weights, and nobody would know), and a score outside the scaled `[0,1]` range — a grader reporting raw points such as 4-out-of-5 — is rejected by name instead of being clamped, because silently rescaling someone's grader is worse than telling them it is out of contract. Float noise a hair outside the range is clamped.
+
+  - **`outcomeFromGrade(grade)`** and **`hasGrade(outcome)`**. Use `hasGrade` instead of testing `status === 'scored'`, which silently misses asynchronously graded work.
+  - **`XAPIVerb.SCORED`** for "a grade now exists", distinct from `answered` (which asserts the grade existed at submission time — here the learner acted earlier and the grade arrived later, often from a different actor).
+
+  **New in `lk-react`:** `<WrittenResponse renderMode="review" outcome={…} />` renders a returned grade — the percentage and pass state, narrative feedback, every criterion with its score or band and comment, inline corrections shown as `<del>`/`<ins>` pairs with explanations, and an awaiting-review affordance when `requiresHumanReview` is set. `notApplicable` criteria render as such rather than as zeros, and a `deferred` outcome still renders "not graded yet" rather than 0%.
+
+  Additive: `ItemOutcome` gained a union member, so an exhaustive `switch` over outcome statuses will need the new `graded` case.
+
+- 2b1acbf: `ActivitySequence` gains a renderer registry and can finally run mixed sets containing a written response.
+
+  **Fixes a real defect:** a set mixing graded activities with a written response could **never complete**. The essay slot rendered a dead-end "not supported" note, so `onComplete` never fired — and any "section submitted / persist attempt / award XP" logic hanging off it silently never ran. Written responses are now dispatched to the real `<WrittenResponse>`.
+
+  **New `onFinished(items)`** — the general completion signal, reporting a `SequenceItemOutcome` per slot:
+
+  ```ts
+  type SequenceItemOutcome =
+    | {
+        kind: "scored";
+        index: number;
+        activityId: string;
+        result: ActivityResult;
+      }
+    | {
+        kind: "submitted";
+        index: number;
+        activityId: string;
+        submission: WrittenResponseSubmission;
+      };
+  ```
+
+  Two kinds, because two kinds of activity exist: those the SDK scores at submit time, and those a grader scores later. Collapsing them would mean inventing a score for ungraded work.
+
+  `onComplete` is unchanged and still promises `ActivityResult[]`, so it now fires **only when every slot was scored** — it cannot fire for a set containing a written response, because there is no honest `ActivityResult` to supply. Existing all-graded sequences behave exactly as before; use `onFinished` for mixed sets.
+
+  **New `renderers` prop — the React half of the activity-type registry.** `registerActivityType` already let a consumer define a custom type in `lk-core`; there was no way to put it on screen, so the type system was open in core and closed in React (original Requirement 15.4–15.6). Now:
+
+  ```tsx
+  <ActivitySequence activities={items} renderers={{ matching: MatchingItem }} />
+  ```
+
+  Renderers are keyed by `data.type` and receive the standard `ActivityProps`. A key matching a built-in **overrides** it, so a consumer can replace the bundled multiple-choice renderer without forking the sequencer. An unknown type with no registered renderer still degrades to an accessible note rather than crashing.
+
+  **New `renderMode` prop** on the sequence, forwarded to every child, so a whole set can be rendered in `exam` or `review` mode in one place.
+
+### Patch Changes
+
+- 0d62bca: Fix package resolution for CommonJS TypeScript consumers, and gate it in CI so it cannot regress.
+
+  **A CommonJS TypeScript project could not import these packages at all.** Both `exports` maps declared a single `types` condition pointing at the ESM `.d.ts`, which was then served to `require` as well. TypeScript under `node16`/`nodenext` resolution reported the declaration as ESM and failed the import with `TS1479` ("the current file is a CommonJS module whose imports will produce require calls"). `are-the-types-wrong` flagged every entrypoint as "Masquerading as ESM". The `types` condition is now nested inside each format, so `require` resolves the `.d.cts` declaration that was always being built:
+
+  ```jsonc
+  ".": {
+    "import":  { "types": "./dist/index.d.ts",  "default": "./dist/index.js"  },
+    "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+  }
+  ```
+
+  This is a resolution fix only — no build change, no runtime change, no API change. ESM and bundler resolution were already correct and are unaffected. It matters most for server-side use: a Node grading service or queue worker compiled as CommonJS can now `import { evaluate, redact } from '@intellectif/lk-core'` directly, instead of working around it with `await import()` or switching `moduleResolution`.
+
+  **Raised the `zod` floor to `^3.25.1` (lk-core).** The previous range allowed `zod@3.25.0`, which declares a `./v4` export whose target files are absent from the published tarball. Since the schema layer imports `zod/v4`, any install that resolved exactly 3.25.0 failed with `MODULE_NOT_FOUND` in both ESM and CJS. No supported version is dropped — 3.25.0 was never functional here.
+
+  **New CI gate:** `publint` and `are-the-types-wrong` now run on every build (`pnpm check-packaging`). `node10` resolution is deliberately ignored — that is TypeScript before 4.7, and this SDK requires React 19.
+
+- Updated dependencies [b96969b]
+- Updated dependencies [d08a518]
+- Updated dependencies [0d62bca]
+  - @intellectif/lk-core@0.4.0
+
 ## 2.1.0
 
 ### Minor Changes
