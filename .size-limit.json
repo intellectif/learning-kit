@@ -1,5 +1,16 @@
 [
   {
+    "name": "ActivitySequence",
+    "path": "packages/lk-react/dist/components/ActivitySequence.js",
+    "import": "{ ActivitySequence }",
+    "ignore": [
+      "react",
+      "react-dom",
+      "@intellectif/lk-core"
+    ],
+    "limit": "50 kB"
+  },
+  {
     "name": "MultipleChoice",
     "path": "packages/lk-react/dist/components/MultipleChoice.js",
     "import": "{ MultipleChoice }",

@@ -9,6 +9,17 @@ import type {
   ScoringResult,
 } from '../types/activity.js';
 
+export type {
+  AssessmentScore,
+  AssessmentSectionInput,
+  CompositionPolicy,
+  PassFailureReason,
+  ScoredItem,
+  SectionScore,
+} from './compose.js';
+export { composeAssessmentScore } from './compose.js';
+export type { Band, RoundingMode, RoundingPolicy } from './rounding.js';
+export { classifyBand, gte, roundGrade } from './rounding.js';
 export type { TextMatchPolicy, TextMatchResult } from './text-match.js';
 export { levenshteinDistance, matchText } from './text-match.js';
 
