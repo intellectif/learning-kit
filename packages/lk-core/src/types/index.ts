@@ -29,10 +29,10 @@ export type {
 } from './activity.js';
 export type {
   CriterionScore,
+  GradeRecord,
   Grader,
   GraderKind,
   GraderUsage,
-  GradeRecord,
   GradingState,
   InlineCorrection,
 } from './grading.js';

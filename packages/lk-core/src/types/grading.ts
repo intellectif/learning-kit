@@ -18,12 +18,7 @@
  * every other state means "no grade, and here is why" — which is precisely the
  * distinction that stops an ungraded submission being rendered as a zero.
  */
-export type GradingState =
-  | 'queued'
-  | 'running'
-  | 'graded'
-  | 'failed'
-  | 'skipped';
+export type GradingState = 'queued' | 'running' | 'graded' | 'failed' | 'skipped';
 
 /** Who produced a grade. */
 export type GraderKind = 'ai' | 'human' | 'auto';

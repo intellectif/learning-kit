@@ -4,8 +4,8 @@ import {
   ActivitySchemaError,
   countWords,
   evaluate,
-  type InteractionEvent,
   type GradeRecord,
+  type InteractionEvent,
   type ItemOutcome,
   type LearnerResponse,
   type ThemeTokens,
@@ -129,13 +129,20 @@ function GradeBody({ grade }: { grade: GradeRecord }) {
       {grade.criteria && grade.criteria.length > 0 ? (
         <ul className="lk-wr-criteria">
           {grade.criteria.map((criterion) => (
-            <li className="lk-wr-criterion" key={criterion.name} data-na={String(criterion.notApplicable === true)}>
+            <li
+              className="lk-wr-criterion"
+              key={criterion.name}
+              data-na={String(criterion.notApplicable === true)}
+            >
               <span className="lk-wr-criterion-name">{criterion.name}</span>
               {criterion.notApplicable === true ? (
                 <span className="lk-wr-criterion-score">Not applicable</span>
               ) : (
                 <span className="lk-wr-criterion-score">
-                  {criterion.band ?? (typeof criterion.score === 'number' ? `${Math.round(criterion.score * 100)}%` : '')}
+                  {criterion.band ??
+                    (typeof criterion.score === 'number'
+                      ? `${Math.round(criterion.score * 100)}%`
+                      : '')}
                 </span>
               )}
               {criterion.comment ? (
