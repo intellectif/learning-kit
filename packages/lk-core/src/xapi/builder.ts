@@ -1,3 +1,4 @@
+import { getActivityTypeDescriptor } from '../registry/index.js';
 import type { ScoringResult } from '../types/activity.js';
 import type {
   XAPIActor,
@@ -236,3 +237,33 @@ export const xAPIBuilder = {
     });
   },
 };
+
+/**
+ * Builds the xAPI `object.definition` interop fields for an activity from its
+ * REGISTERED descriptor, rather than having every renderer hand-roll them.
+ *
+ * `ActivityTypeDescriptor.interop` declares the activity-type IRI, the
+ * cmi.interaction type and how to derive `correctResponsesPattern`; before
+ * this, those fields had no reader anywhere and each component rebuilt the
+ * same strings inline — the same "declared but never used" defect the SDK
+ * fixed elsewhere. Reading them here also means a consumer-registered type
+ * gets correct interop for free.
+ *
+ * Returns an empty object for an unregistered type or one that declares no
+ * interop, so it is always safe to spread.
+ */
+export function xapiDefinitionFor(data: { type: string }): Partial<XAPIObjectParams> {
+  const descriptor = getActivityTypeDescriptor(data.type);
+  const interop = descriptor?.interop;
+  if (interop === undefined) {
+    return {};
+  }
+  const pattern = interop.correctResponsesPattern?.(data);
+  return {
+    ...(interop.xapiActivityTypeIri !== undefined ? { type: interop.xapiActivityTypeIri } : {}),
+    ...(interop.xapiInteractionType !== undefined
+      ? { interactionType: interop.xapiInteractionType }
+      : {}),
+    ...(pattern !== undefined && pattern.length > 0 ? { correctResponsesPattern: pattern } : {}),
+  };
+}

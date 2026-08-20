@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { XAPIActor, XAPIContext } from '../../types/index.js';
-import { validateXAPIStatement, XAPI_VERB_DISPLAY, XAPIVerb, xAPIBuilder } from '../index.js';
+import {
+  validateXAPIStatement,
+  XAPI_VERB_DISPLAY,
+  XAPIVerb,
+  xAPIBuilder,
+  xapiDefinitionFor,
+} from '../index.js';
 
 const actor: XAPIActor = { objectType: 'Agent', mbox: 'mailto:l@example.com' };
 const object = { id: 'https://example.com/act/written-1' };
@@ -184,7 +190,9 @@ describe('statement ids without crypto.randomUUID (non-secure origins)', () => {
   it('builds a valid v4-formatted id via the getRandomValues fallback', () => {
     const original = globalThis.crypto;
     vi.stubGlobal('crypto', {
-      getRandomValues: (a: Uint8Array) => original.getRandomValues(a),
+      // Delegate to the real implementation, matching its overloaded generic
+      // signature via the bound method rather than re-declaring it.
+      getRandomValues: original.getRandomValues.bind(original),
     });
     try {
       const s = xAPIBuilder.buildSubmittedStatement({ actor, object, timeSpentMs: 10 });
@@ -200,5 +208,44 @@ describe('statement ids without crypto.randomUUID (non-secure origins)', () => {
   it('clamps negative durations to PT0.00S', () => {
     const s = xAPIBuilder.buildSubmittedStatement({ actor, object, timeSpentMs: -500 });
     expect(s.result?.duration).toBe('PT0.00S');
+  });
+});
+
+describe('xapiDefinitionFor — interop read from the registered descriptor', () => {
+  it('derives type, interactionType and correctResponsesPattern for built-ins', () => {
+    // These descriptor fields previously had NO reader anywhere: each renderer
+    // rebuilt the same strings inline, which is the "declared but never used"
+    // defect the SDK fixed elsewhere.
+    expect(
+      xapiDefinitionFor({
+        type: 'multiple-choice',
+        options: [
+          { id: 'a', text: 'A', isCorrect: true },
+          { id: 'b', text: 'B', isCorrect: false },
+        ],
+      } as never),
+    ).toEqual({
+      type: 'http://adlnet.gov/expapi/activities/cmi.interaction',
+      interactionType: 'choice',
+      correctResponsesPattern: ['a'],
+    });
+
+    expect(
+      xapiDefinitionFor({
+        type: 'fill-in-the-blanks',
+        blanks: [{ id: 'b1', acceptedAnswers: ['cat'] }],
+      } as never),
+    ).toMatchObject({ interactionType: 'fill-in', correctResponsesPattern: ['cat'] });
+  });
+
+  it('omits an empty correctResponsesPattern rather than emitting a blank one', () => {
+    // written-response has no correct answer to publish.
+    const definition = xapiDefinitionFor({ type: 'written-response' } as never);
+    expect(definition.interactionType).toBe('long-fill-in');
+    expect('correctResponsesPattern' in definition).toBe(false);
+  });
+
+  it('returns an empty object for an unregistered type, so it is always spreadable', () => {
+    expect(xapiDefinitionFor({ type: 'not-registered' })).toEqual({});
   });
 });

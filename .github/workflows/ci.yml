@@ -36,6 +36,14 @@ jobs:
       - name: Build, test, and lint
         run: pnpm turbo run build test lint
 
+      # Typecheck the FULL program, tests included. The build only compiles
+      # src/, so type errors in test files went unnoticed for months — and a
+      # released defect (redact() being uncallable with the SDK's own exported
+      # interfaces) survived precisely because the suite that should have
+      # caught it did not compile.
+      - name: Typecheck (including tests)
+        run: pnpm turbo run typecheck
+
       - name: Coverage
         if: matrix.node-version == '22'
         run: pnpm turbo run coverage
