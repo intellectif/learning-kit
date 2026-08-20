@@ -201,6 +201,11 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   arithmetic), `outcomeFromGrade()`, `hasGrade()`, `XAPIVerb.SCORED`, and `<WrittenResponse>` rendering a
   returned grade with per-criterion scores and inline corrections.
 
+- ✅ **`ActivitySequence` renderer registry + written-response dispatch** (Req 15.4–15.6 closed). A set
+  mixing graded items with an essay could never complete; `onFinished` now reports a
+  `SequenceItemOutcome` per slot (`scored` or `submitted`), and `renderers` puts a consumer-registered
+  activity type on screen. The type system is now open in core AND in React.
+
 **Remaining in v0.4, in order:**
 
 

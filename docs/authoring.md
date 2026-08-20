@@ -214,7 +214,37 @@ import { ActivitySequence } from '@intellectif/lk-react/components/ActivitySeque
 
 It renders one question at a time with **Previous / Next**, a "Question X of N" `aria-live` indicator, and moves focus to the new question (keyboard/SR friendly). Navigation is **linear and free** (back/forward, learner-controlled). **Not in V1:** auto-advance, submit-gating, randomization, aggregate-score UI (compute from the `onComplete` results array yourself). These are non-breaking Phase-2 candidates.
 
+## Custom activity types end to end
+
+`registerActivityType` (lk-core) makes a custom type validate, score, redact and
+export JSON Schema. To put it on screen, register a renderer with the sequence:
+
+```tsx
+import { defineActivityType, registerActivityType } from '@intellectif/lk-core';
+import { ActivitySequence } from '@intellectif/lk-react';
+
+registerActivityType(defineActivityType<MatchingData, MatchingResponse>({
+  type: 'matching',
+  schema: MatchingSchema,
+  scoring: { kind: 'sync', score: scoreMatching },
+  fieldPolicy: { /* … */ },
+}));
+
+<ActivitySequence activities={items} renderers={{ matching: MatchingItem }} />
+```
+
+A renderer receives the standard `ActivityProps`. Keys match `data.type`, and a
+key matching a built-in overrides it — so you can replace the bundled renderer
+for a type without forking the sequencer.
+
+**Mixed sets and completion.** `onComplete` promises `ActivityResult[]`, so it
+fires only when every slot was scored at submit time. A set containing a
+written response (graded later) can never satisfy that; use `onFinished`, which
+reports a `SequenceItemOutcome` per slot — `kind: 'scored'` with a result, or
+`kind: 'submitted'` with the ungraded submission.
+
 ## xAPI tracking
+
 
 Components emit a structurally-valid statement with an **anonymous actor** and a `urn:learning-kit:activity:<id>` object — they cannot know the learner. Apply real identity at the LRS layer via `useXAPI`:
 

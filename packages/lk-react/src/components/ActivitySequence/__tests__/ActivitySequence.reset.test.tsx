@@ -69,7 +69,9 @@ describe('ActivitySequence reset on activity-set change (B8)', () => {
     expect(screen.getByText('B only?')).toBeInTheDocument();
   });
 
-  it('renders the unsupported-type note for a written-response activity', () => {
+  it('renders a written-response activity properly inside a sequence', () => {
+    // Previously this rendered a dead-end "not supported" note, so a mixed
+    // exam section containing an essay could never complete.
     const writtenResponse: WrittenResponseData = {
       schemaVersion: '1.0',
       type: 'written-response',
@@ -80,9 +82,9 @@ describe('ActivitySequence reset on activity-set change (B8)', () => {
       maxWords: 10,
     };
     render(<ActivitySequence activities={[writtenResponse]} />);
-    expect(screen.getByRole('note')).toHaveTextContent(
-      'This activity type is not supported inside a question set yet.',
-    );
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+    expect(screen.getByText('Write something.')).toBeInTheDocument();
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
   });
 });
 
