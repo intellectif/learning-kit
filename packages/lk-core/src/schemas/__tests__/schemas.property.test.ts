@@ -54,7 +54,7 @@ describe('Activity schema properties', () => {
             return false;
           }
           const key = keys[n % keys.length] as string;
-          const corrupted = { ...(d as Record<string, unknown>) };
+          const corrupted = { ...(d as unknown as Record<string, unknown>) };
           delete corrupted[key];
           const invalid = validateActivity(d.type, corrupted);
           return invalid.success === false && invalid.errors.length > 0;

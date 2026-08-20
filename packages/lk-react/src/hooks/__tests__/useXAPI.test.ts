@@ -23,7 +23,10 @@ afterEach(() => {
 
 function mockFetch(impl: (call: number) => { ok: boolean; status: number }) {
   let n = 0;
-  const fn = vi.fn(async () => {
+  // Params are declared so `mock.calls[i][1]` is typed as the request init
+  // rather than an empty tuple — otherwise the header assertions below only
+  // compile behind a cast that hides real mistakes.
+  const fn = vi.fn(async (_url: string, _init?: RequestInit) => {
     n += 1;
     return impl(n) as Response;
   });
@@ -38,8 +41,7 @@ describe('useXAPI', () => {
     const { result } = renderHook(() => useXAPI(cfg({ onError })));
     await result.current.sendStatement(statement);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    const headers = init.headers as Record<string, string>;
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
     expect(headers['Content-Type']).toBe('application/json');
     expect(headers['X-Experience-API-Version']).toBe('1.0.3');
     expect(headers.Authorization).toBe('Bearer TKN');
@@ -89,9 +91,11 @@ describe('useXAPI', () => {
       useXAPI(cfg({ auth: { type: 'basic', username: 'u', password: 'p@ß' } })),
     );
     await result.current.sendStatement(statement);
-    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    const headers = init.headers as Record<string, string>;
-    expect(headers.Authorization).toBe(`Basic ${Buffer.from('u:p@ß', 'utf8').toString('base64')}`);
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
+    // Literal, not Buffer.from(...): lk-react is a browser package, and
+    // recomputing the expectation the same way the implementation does would
+    // make this assertion tautological. 'u:p@ß' is UTF-8 75 3A 70 40 C3 9F.
+    expect(headers.Authorization).toBe('Basic dTpwQMOf');
   });
 });
 

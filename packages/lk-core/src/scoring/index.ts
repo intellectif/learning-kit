@@ -8,6 +8,7 @@ import type {
   LearnerResponse,
   ScoringResult,
 } from '../types/activity.js';
+import { gte, type RoundingPolicy } from './rounding.js';
 
 export type {
   AssessmentScore,
@@ -29,9 +30,22 @@ export const DEFAULT_PASS_THRESHOLD = 0.7;
 /**
  * Returns `true` iff `score` meets or exceeds the activity's `passThreshold`,
  * defaulting to {@link DEFAULT_PASS_THRESHOLD} (0.7) when the field is absent.
+ *
+ * Pass a {@link RoundingPolicy} to compare the way an assessment total is
+ * compared — both sides rounded, via {@link gte} — so an item shown as "70%"
+ * cannot be recorded as a fail at 69.6. It is **opt-in** rather than the
+ * default because switching it on changes item-level pass/fail for scores in
+ * the rounding band, and this SDK does not alter historical grades without an
+ * explicit decision. Absent, the comparison is the exact raw `>=` it has
+ * always been.
  */
-export function computePassThreshold(activityData: ActivityData, score: number): boolean {
-  return score >= (activityData.passThreshold ?? DEFAULT_PASS_THRESHOLD);
+export function computePassThreshold(
+  activityData: ActivityData,
+  score: number,
+  rounding?: RoundingPolicy,
+): boolean {
+  const threshold = activityData.passThreshold ?? DEFAULT_PASS_THRESHOLD;
+  return rounding === undefined ? score >= threshold : gte(score, threshold, rounding);
 }
 
 /**

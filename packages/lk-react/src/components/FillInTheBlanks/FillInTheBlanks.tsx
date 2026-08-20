@@ -11,6 +11,7 @@ import {
   score,
   validateActivity,
   xAPIBuilder,
+  xapiDefinitionFor,
 } from '@intellectif/lk-core';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { useActivityState } from '../../hooks/useActivityState.js';
@@ -301,11 +302,7 @@ export function FillInTheBlanks({
       object: {
         id: objectIdFor(data.id),
         name: { [data.locale ?? 'en-US']: data.title },
-        type: 'http://adlnet.gov/expapi/activities/cmi.interaction',
-        interactionType: 'fill-in',
-        correctResponsesPattern: [
-          data.blanks.map((blank) => blank.acceptedAnswers[0] ?? '').join('[,]'),
-        ],
+        ...xapiDefinitionFor(data),
       },
       scoringResult,
       timeSpentMs: timeSpent,

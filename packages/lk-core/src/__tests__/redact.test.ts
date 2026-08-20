@@ -4,7 +4,11 @@ import { ActivitySchemaError, RedactedScoringError, UnknownActivityTypeError } f
 import { assertRedacted, redact } from '../redact.js';
 import { defineActivityType, registerActivityType } from '../registry/index.js';
 import { evaluate, score } from '../scoring/index.js';
-import type { MultipleChoiceData, WrittenResponseData } from '../types/activity.js';
+import type {
+  LearnerResponse,
+  MultipleChoiceData,
+  WrittenResponseData,
+} from '../types/activity.js';
 
 const mcData = {
   schemaVersion: '1.0',
@@ -269,7 +273,7 @@ describe('scoring refuses redacted data instead of inventing a grade (pre-merge 
       { id: 'b', text: 'B', isCorrect: false },
     ],
   };
-  const response = { type: 'multiple-choice', selectedOptionIds: ['a'] } as const;
+  const response: LearnerResponse = { type: 'multiple-choice', selectedOptionIds: ['a'] };
 
   it('evaluate() returns unscorable — never a NaN score', () => {
     const out = evaluate(redact(full) as never, response);

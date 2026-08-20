@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import type { ActivityData } from '../../types/activity.js';
+import { computePassThreshold } from '../index.js';
 import {
   type Band,
   classifyBand,
@@ -341,5 +343,35 @@ describe('classifyBand', () => {
     expect(classifyBand(0.7, unordered)).toEqual({ name: 'B1', min: 0.6 });
     expect(classifyBand(0.45, unordered)).toEqual({ name: 'A2', min: 0.4 });
     expect(classifyBand(0.2, unordered)).toEqual({ name: 'A1', min: 0.2 });
+  });
+});
+
+describe('computePassThreshold — opt-in rounded comparison', () => {
+  const activity = {
+    schemaVersion: '1.0',
+    type: 'multiple-choice',
+    id: 'x',
+    title: 't',
+    question: 'q',
+    mode: 'single',
+    scoringStrategy: 'all-or-nothing',
+    options: [],
+    passThreshold: 0.7,
+  } as unknown as ActivityData;
+
+  it('defaults to the exact raw comparison, unchanged', () => {
+    // 0.696 displays as 70% but is below 0.7 raw. Historical behaviour is
+    // preserved unless a policy is passed, because switching this on changes
+    // item-level pass/fail for scores inside the rounding band.
+    expect(computePassThreshold(activity, 0.696)).toBe(false);
+    expect(computePassThreshold(activity, 0.7)).toBe(true);
+  });
+
+  it('compares both sides rounded when a policy is supplied', () => {
+    expect(computePassThreshold(activity, 0.696, { mode: 'half-up', dp: 2 })).toBe(true);
+  });
+
+  it('still fails a score genuinely below the threshold', () => {
+    expect(computePassThreshold(activity, 0.68, { mode: 'half-up', dp: 2 })).toBe(false);
   });
 });

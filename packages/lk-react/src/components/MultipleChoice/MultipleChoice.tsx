@@ -11,6 +11,7 @@ import {
   score,
   validateActivity,
   xAPIBuilder,
+  xapiDefinitionFor,
 } from '@intellectif/lk-core';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { useActivityState } from '../../hooks/useActivityState.js';
@@ -280,14 +281,10 @@ export function MultipleChoice({
       object: {
         id: objectIdFor(data.id),
         name: { [data.locale ?? 'en-US']: data.title },
-        type: 'http://adlnet.gov/expapi/activities/cmi.interaction',
-        interactionType: 'choice',
-        correctResponsesPattern: [
-          data.options
-            .filter((option) => option.isCorrect)
-            .map((option) => option.id)
-            .join('[,]'),
-        ],
+        // Activity-type IRI, interaction type and correct-responses pattern
+        // come from the REGISTERED descriptor, so a consumer-registered type
+        // gets correct interop without touching this component.
+        ...xapiDefinitionFor(data),
         choices: data.options.map((option) => ({
           id: option.id,
           description: { [data.locale ?? 'en-US']: option.text },
