@@ -19,6 +19,13 @@ export const XAPIVerb = {
    * community choice (design decision recorded per Task 25.4).
    */
   SUBMITTED: 'http://activitystrea.ms/schema/1.0/submit',
+  /**
+   * Emitted when an asynchronous grader produces a grade for work that was
+   * previously only SUBMITTED. Distinct from `answered`, which asserts the
+   * grade existed at submission time — here the learner acted earlier and the
+   * grade arrived later, often from a different actor (an AI or a teacher).
+   */
+  SCORED: 'http://adlnet.gov/expapi/verbs/scored',
 } as const;
 
 /** Union of the valid `XAPIVerb` keys. */
@@ -38,4 +45,5 @@ export const XAPI_VERB_DISPLAY: Record<XAPIVerbKey, Record<string, string>> = {
   FAILED: { 'en-US': 'failed' },
   WATCHED: { 'en-US': 'watched' },
   SUBMITTED: { 'en-US': 'submitted' },
+  SCORED: { 'en-US': 'scored' },
 };

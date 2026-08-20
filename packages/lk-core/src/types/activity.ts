@@ -1,4 +1,5 @@
 import type { TextMatchPolicy } from '../scoring/text-match.js';
+import type { GradeRecord } from './grading.js';
 import type { XAPIStatement } from './xapi.js';
 
 /**
@@ -367,6 +368,21 @@ export type ItemOutcome =
       maxScore: number;
       /** Synchronously computable progress facts (word bounds, counts). */
       partial?: DeferredScoringPartial;
+    }
+  | {
+      status: 'graded';
+      /**
+       * A grade produced by an asynchronous grader (AI or human) and handed
+       * back to the SDK. This is the state a `deferred` outcome transitions
+       * to once grading completes; nothing in the SDK ever manufactures it.
+       */
+      grade: GradeRecord;
+      /** Scaled score in the range [0, 1], mirrored from `grade` for uniform reads. */
+      score: number;
+      maxScore: number;
+      passed: boolean;
+      /** Narrative feedback from the grader, mirrored from `grade`. */
+      feedback: string | null;
     }
   | {
       status: 'unscorable';

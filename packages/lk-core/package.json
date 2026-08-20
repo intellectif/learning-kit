@@ -10,24 +10,44 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./scoring": {
-      "types": "./dist/scoring.d.ts",
-      "import": "./dist/scoring.js",
-      "require": "./dist/scoring.cjs"
+      "import": {
+        "types": "./dist/scoring.d.ts",
+        "default": "./dist/scoring.js"
+      },
+      "require": {
+        "types": "./dist/scoring.d.cts",
+        "default": "./dist/scoring.cjs"
+      }
     },
     "./xapi": {
-      "types": "./dist/xapi.d.ts",
-      "import": "./dist/xapi.js",
-      "require": "./dist/xapi.cjs"
+      "import": {
+        "types": "./dist/xapi.d.ts",
+        "default": "./dist/xapi.js"
+      },
+      "require": {
+        "types": "./dist/xapi.d.cts",
+        "default": "./dist/xapi.cjs"
+      }
     },
     "./schemas": {
-      "types": "./dist/schemas.d.ts",
-      "import": "./dist/schemas.js",
-      "require": "./dist/schemas.cjs"
+      "import": {
+        "types": "./dist/schemas.d.ts",
+        "default": "./dist/schemas.js"
+      },
+      "require": {
+        "types": "./dist/schemas.d.cts",
+        "default": "./dist/schemas.cjs"
+      }
     }
   },
   "main": "./dist/index.cjs",
@@ -41,10 +61,12 @@
     "build": "tsup",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
-    "lint": "biome check ."
+    "lint": "biome check .",
+    "publint": "publint",
+    "attw": "attw --pack . --ignore-rules no-resolution"
   },
   "dependencies": {
-    "zod": "^3.25.0"
+    "zod": "^3.25.1"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.6",

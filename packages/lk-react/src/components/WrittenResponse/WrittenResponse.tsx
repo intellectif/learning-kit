@@ -4,6 +4,7 @@ import {
   ActivitySchemaError,
   countWords,
   evaluate,
+  type GradeRecord,
   type InteractionEvent,
   type ItemOutcome,
   type LearnerResponse,
@@ -121,8 +122,63 @@ function textOf(response: LearnerResponse | undefined): string {
  * per-item `details` (there are no options or blanks to mark), so the render
  * is the scaled score, the pass state, and the grader's feedback.
  */
+function GradeBody({ grade }: { grade: GradeRecord }) {
+  return (
+    <>
+      {grade.feedback ? <p className="lk-wr-grade-feedback">{grade.feedback}</p> : null}
+      {grade.criteria && grade.criteria.length > 0 ? (
+        <ul className="lk-wr-criteria">
+          {grade.criteria.map((criterion) => (
+            <li
+              className="lk-wr-criterion"
+              key={criterion.name}
+              data-na={String(criterion.notApplicable === true)}
+            >
+              <span className="lk-wr-criterion-name">{criterion.name}</span>
+              {criterion.notApplicable === true ? (
+                <span className="lk-wr-criterion-score">Not applicable</span>
+              ) : (
+                <span className="lk-wr-criterion-score">
+                  {criterion.band ??
+                    (typeof criterion.score === 'number'
+                      ? `${Math.round(criterion.score * 100)}%`
+                      : '')}
+                </span>
+              )}
+              {criterion.comment ? (
+                <span className="lk-wr-criterion-comment">{criterion.comment}</span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {grade.corrections && grade.corrections.length > 0 ? (
+        <ul className="lk-wr-corrections">
+          {grade.corrections.map((correction) => (
+            <li className="lk-wr-correction" key={`${correction.original}:${correction.corrected}`}>
+              <del className="lk-wr-correction-original">{correction.original}</del>{' '}
+              <ins className="lk-wr-correction-corrected">{correction.corrected}</ins>
+              {correction.explanation ? (
+                <span className="lk-wr-correction-explanation">{correction.explanation}</span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {grade.requiresHumanReview === true ? (
+        <p className="lk-wr-review-flag">This grade is awaiting review by a teacher.</p>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Renders the server-computed outcome in `review` mode. The grade shown here
+ * always came back from the grader — nothing on this path scores, infers, or
+ * defaults a grade.
+ */
 function OutcomeSummary({ outcome }: { outcome: ItemOutcome }) {
-  if (outcome.status === 'scored') {
+  if (outcome.status === 'scored' || outcome.status === 'graded') {
     // `score` is scaled [0–1] against `maxScore`; normalising by `maxScore`
     // is a no-op for the canonical maxScore of 1 and keeps an unscaled
     // grader payload (8.5 / 10) from rendering as 850%.
@@ -131,11 +187,19 @@ function OutcomeSummary({ outcome }: { outcome: ItemOutcome }) {
         ? Math.round((outcome.score / outcome.maxScore) * 100)
         : Math.round(outcome.score * 100);
     return (
-      <div className="lk-wr-outcome" data-status="scored" data-passed={String(outcome.passed)}>
+      <div
+        className="lk-wr-outcome"
+        data-status={outcome.status}
+        data-passed={String(outcome.passed)}
+      >
         <p className="lk-wr-grade">
           Score {percent}%. {outcome.passed ? 'Passed.' : 'Not passed.'}
         </p>
-        {outcome.feedback ? <p className="lk-wr-grade-feedback">{outcome.feedback}</p> : null}
+        {outcome.status === 'graded' ? (
+          <GradeBody grade={outcome.grade} />
+        ) : outcome.feedback ? (
+          <p className="lk-wr-grade-feedback">{outcome.feedback}</p>
+        ) : null}
       </div>
     );
   }

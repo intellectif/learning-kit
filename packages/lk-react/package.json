@@ -13,44 +13,84 @@
   ],
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./components/ActivitySequence": {
-      "types": "./dist/components/ActivitySequence.d.ts",
-      "import": "./dist/components/ActivitySequence.js",
-      "require": "./dist/components/ActivitySequence.cjs"
+      "import": {
+        "types": "./dist/components/ActivitySequence.d.ts",
+        "default": "./dist/components/ActivitySequence.js"
+      },
+      "require": {
+        "types": "./dist/components/ActivitySequence.d.cts",
+        "default": "./dist/components/ActivitySequence.cjs"
+      }
     },
     "./components/MultipleChoice": {
-      "types": "./dist/components/MultipleChoice.d.ts",
-      "import": "./dist/components/MultipleChoice.js",
-      "require": "./dist/components/MultipleChoice.cjs"
+      "import": {
+        "types": "./dist/components/MultipleChoice.d.ts",
+        "default": "./dist/components/MultipleChoice.js"
+      },
+      "require": {
+        "types": "./dist/components/MultipleChoice.d.cts",
+        "default": "./dist/components/MultipleChoice.cjs"
+      }
     },
     "./components/FillInTheBlanks": {
-      "types": "./dist/components/FillInTheBlanks.d.ts",
-      "import": "./dist/components/FillInTheBlanks.js",
-      "require": "./dist/components/FillInTheBlanks.cjs"
+      "import": {
+        "types": "./dist/components/FillInTheBlanks.d.ts",
+        "default": "./dist/components/FillInTheBlanks.js"
+      },
+      "require": {
+        "types": "./dist/components/FillInTheBlanks.d.cts",
+        "default": "./dist/components/FillInTheBlanks.cjs"
+      }
     },
     "./components/WrittenResponse": {
-      "types": "./dist/components/WrittenResponse.d.ts",
-      "import": "./dist/components/WrittenResponse.js",
-      "require": "./dist/components/WrittenResponse.cjs"
+      "import": {
+        "types": "./dist/components/WrittenResponse.d.ts",
+        "default": "./dist/components/WrittenResponse.js"
+      },
+      "require": {
+        "types": "./dist/components/WrittenResponse.d.cts",
+        "default": "./dist/components/WrittenResponse.cjs"
+      }
     },
     "./hooks/useActivityState": {
-      "types": "./dist/hooks/useActivityState.d.ts",
-      "import": "./dist/hooks/useActivityState.js",
-      "require": "./dist/hooks/useActivityState.cjs"
+      "import": {
+        "types": "./dist/hooks/useActivityState.d.ts",
+        "default": "./dist/hooks/useActivityState.js"
+      },
+      "require": {
+        "types": "./dist/hooks/useActivityState.d.cts",
+        "default": "./dist/hooks/useActivityState.cjs"
+      }
     },
     "./hooks/useXAPI": {
-      "types": "./dist/hooks/useXAPI.d.ts",
-      "import": "./dist/hooks/useXAPI.js",
-      "require": "./dist/hooks/useXAPI.cjs"
+      "import": {
+        "types": "./dist/hooks/useXAPI.d.ts",
+        "default": "./dist/hooks/useXAPI.js"
+      },
+      "require": {
+        "types": "./dist/hooks/useXAPI.d.cts",
+        "default": "./dist/hooks/useXAPI.cjs"
+      }
     },
     "./theme/ThemeProvider": {
-      "types": "./dist/theme/ThemeProvider.d.ts",
-      "import": "./dist/theme/ThemeProvider.js",
-      "require": "./dist/theme/ThemeProvider.cjs"
+      "import": {
+        "types": "./dist/theme/ThemeProvider.d.ts",
+        "default": "./dist/theme/ThemeProvider.js"
+      },
+      "require": {
+        "types": "./dist/theme/ThemeProvider.d.cts",
+        "default": "./dist/theme/ThemeProvider.cjs"
+      }
     },
     "./theme/defaults.css": "./dist/theme/defaults.css",
     "./theme/skin.css": "./dist/theme/skin.css"
@@ -67,7 +107,9 @@
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "lint": "biome check .",
-    "e2e": "playwright test -c ../../playwright.config.ts"
+    "e2e": "playwright test -c ../../playwright.config.ts",
+    "publint": "publint",
+    "attw": "attw --pack . --ignore-rules no-resolution --exclude-entrypoints \"theme/defaults.css\" \"theme/skin.css\""
   },
   "peerDependencies": {
     "@intellectif/lk-core": "workspace:^",

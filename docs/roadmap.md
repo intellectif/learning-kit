@@ -188,6 +188,23 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
 
 ### v0.4 — "scoring, assessment, rendering for exams"
 
+**Shipped so far in the v0.4 line:**
+
+- ✅ **Controlled components + `renderMode` + redacted rendering + rich text** (lk-react 2.1.0).
+  `value`/`defaultValue`/`onChange`, `practice | exam | review`, components accept `redact()` output,
+  opt-in `sanitizeHtml`. FIB `passageHtml` deliberately deferred — see the changeset for why slicing
+  sanitised HTML at `{{id}}` placeholders is both lossy and unsafe.
+- ✅ **Packaging: CommonJS type resolution + CI gate** (0.3.2 / 2.1.1). `exports` now nests `types` per
+  format so a CJS TypeScript service can import the SDK at all; `publint` + `attw` gate every build.
+- ✅ **The deferred-grading return trip**: `GradeRecord`, a `graded` arm on `ItemOutcome`,
+  `gradeFromRubric()` (weighted total as a pure function of the grader's judgements — never the model's
+  arithmetic), `outcomeFromGrade()`, `hasGrade()`, `XAPIVerb.SCORED`, and `<WrittenResponse>` rendering a
+  returned grade with per-criterion scores and inline corrections.
+
+**Remaining in v0.4, in order:**
+
+
+
 - Scoring v2: `ItemScoringPolicy` (per-item points, partial-credit config, optional negative marking),
   `RoundingPolicy` (**no silent default** — see §3.5) + `gte()` epsilon helper, `composeAssessmentScore()`
   (weight normalization, per-section thresholds, `pass_failure_reason`) — mirrors consumer's
