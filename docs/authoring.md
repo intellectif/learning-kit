@@ -214,7 +214,62 @@ import { ActivitySequence } from '@intellectif/lk-react/components/ActivitySeque
 
 It renders one question at a time with **Previous / Next**, a "Question X of N" `aria-live` indicator, and moves focus to the new question (keyboard/SR friendly). Navigation is **linear and free** (back/forward, learner-controlled). **Not in V1:** auto-advance, submit-gating, randomization, aggregate-score UI (compute from the `onComplete` results array yourself). These are non-breaking Phase-2 candidates.
 
+## Scoring a whole assessment (v0.4)
+
+`composeAssessmentScore` turns per-item outcomes into a weighted, sectioned
+grade, so the client that shows a breakdown and the server that records it run
+the same formula:
+
+```ts
+import { composeAssessmentScore, type RoundingPolicy } from '@intellectif/lk-core';
+
+const rounding: RoundingPolicy = { mode: 'half-up', dp: 2 }; // no default — you choose
+
+const result = composeAssessmentScore(
+  [
+    { id: 'reading', weight: 2, items: [
+      { slotId: 's1', points: 1, outcome: readingOutcome1 },
+      { slotId: 's2', points: 3, outcome: readingOutcome2 },
+    ]},
+    { id: 'writing', weight: 1, passThresholdOverride: 0.5, items: [
+      { slotId: 's3', points: 1, outcome: essayOutcome },
+    ]},
+  ],
+  { passThreshold: 0.7, sectionThreshold: 0.6, rounding },
+);
+
+result.status;            // 'final' | 'provisional'
+result.score;             // weighted total, scaled [0,1], rounded once
+result.passFailureReason; // 'overall_below_threshold' | 'section_below_threshold' | 'both' | null
+result.pendingSlotIds;    // items still awaiting a grade
+```
+
+**Ungraded work is never a zero.** `deferred` and `unscorable` items are left
+out of the denominator and listed in `pendingSlotIds`, and the whole result is
+`provisional` until every item has a grade. A section with nothing graded is
+excluded from the weighted total entirely (remaining weights are renormalised)
+rather than contributing zero — otherwise a midterm with an unmarked essay
+reads as a failing 50%, and a learner sees a fail for work nobody has marked.
+**Do not record a `provisional` score as final.**
+
+**Use `slotId`, not the activity id.** The same activity can appear in two
+sections; keying on the activity collapses them and scores the second one zero.
+
+### Rounding is two operations
+
+- `roundGrade(value, policy)` — the number a learner is shown and recorded
+  against. `dp` is required and load-bearing: at 2 places, "70%" on screen is
+  not a fail at 69.6 in the gradebook.
+- `classifyBand(value, bands)` — level placement, which deliberately **floors**.
+  Over-placement is the more harmful error, so a boundary is never reached by
+  rounding up.
+
+A single shared default would silently invert one of them, so the SDK ships no
+default for either. `gte(value, threshold, policy)` rounds **both** sides before
+comparing, so the displayed number and the pass decision cannot disagree.
+
 ## Custom activity types end to end
+
 
 `registerActivityType` (lk-core) makes a custom type validate, score, redact and
 export JSON Schema. To put it on screen, register a renderer with the sequence:

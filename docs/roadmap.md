@@ -206,14 +206,21 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   `SequenceItemOutcome` per slot (`scored` or `submitted`), and `renderers` puts a consumer-registered
   activity type on screen. The type system is now open in core AND in React.
 
+- ✅ **Sectioned scoring**: `composeAssessmentScore`, per-item `points`, `RoundingPolicy` with `dp`
+  required and grade-rounding kept separate from band classification, `gte()` comparing rounded values on
+  both sides, and a `provisional` status so an unmarked essay never deflates a total.
+
 **Remaining in v0.4, in order:**
 
 
 
-- Scoring v2: `ItemScoringPolicy` (per-item points, partial-credit config, optional negative marking),
-  `RoundingPolicy` (**no silent default** — see §3.5) + `gte()` epsilon helper, `composeAssessmentScore()`
-  (weight normalization, per-section thresholds, `pass_failure_reason`) — mirrors consumer's
-  `final-test-scoring.service.ts` so client and server share one formula.
+- Scoring v2 remainder: `ItemScoringPolicy` (partial-credit configuration, optional negative marking).
+  Per-item `points`, `RoundingPolicy`, `gte()` and `composeAssessmentScore()` have shipped — see above.
+- **Follow-up:** `computePassThreshold` still compares a raw float with `>=` against a default of 0.7, so
+  *item-level* pass/fail keeps the 69.6-vs-70 disagreement the rounding work exists to eliminate. Routing it
+  through `gte()` needs a `RoundingPolicy` at the item level, which means deciding where that policy lives
+  (activity data? a scoring option?) — and it changes historical item-level pass results, so it is a **major**
+  under the grade-stability rule. Scheduled for v1.0 with the `ItemOutcome` unification.
 - `AssessmentBlueprint` + `planAttempt(bp, seed, resolve)` → `AttemptPlan` with **`slotId`** identity, frozen
   `maxPoints`, `contentHash` per slot (re-grade reproducibility). **Deferred — see below.**
 - **Shared stimulus + `ItemGroup` — promoted to the top of v0.4, and modelled as CONTENT rather than as a
