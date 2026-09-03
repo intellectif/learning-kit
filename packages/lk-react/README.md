@@ -64,7 +64,8 @@ export function Demo() {
 
 - **`<MultipleChoice>`** — single / multi select, all-or-nothing or partial scoring, deterministic per-session shuffle, per-option `feedback`.
 - **`<FillInTheBlanks>`** — `{{id}}` placeholders, case/whitespace options, per-blank `hint` (Show/Hide toggle as an icon), per-blank `feedback` shown inline on submit with a learner-controlled **Hide/Show feedback** toggle, optional `showCorrectAnswers`.
-- **`<ActivitySequence>`** — in-place "question set" pager (Previous/Next, "Question X of N", no scrolling, focus-managed).
+- **`<ActivitySequence>`** — in-place "question set" pager (Previous/Next, "Question X of N", no scrolling, focus-managed). Accepts item groups and keeps their stimulus beside every question; `onSubmit` reports every raw answer with its `slotId`, which is the only response channel an `exam` sequence has.
+- **`<StimulusPanel>`** — a shared passage / recording / image (an item group's stimulus) as a landmark region; the sequence uses it, and a custom runner can too.
 - **Media per question** — optional `image` / `audio` / `video` / `embed` (YouTube/Vimeo iframe) above the question; alt-text required for `image`/`embed` (WCAG).
 - **Activity-level overall feedback** — `{ correct, incorrect }` shown after submit (h5p "Overall Feedback" parity).
 - **`useXAPI(config)`** — fire-and-forget LRS delivery with retry/backoff for 5xx/network (1 s / 2 s / 4 s), immediate fail on 4xx, never throws.
@@ -82,6 +83,7 @@ export function Demo() {
 | `@intellectif/lk-react/components/MultipleChoice` | `<MultipleChoice>` (boundary-wrapped) |
 | `@intellectif/lk-react/components/FillInTheBlanks` | `<FillInTheBlanks>` (boundary-wrapped) |
 | `@intellectif/lk-react/components/ActivitySequence` | `<ActivitySequence>` question-set pager |
+| `@intellectif/lk-react/components/StimulusPanel` | `<StimulusPanel>` shared-stimulus region |
 | `@intellectif/lk-react/hooks/useActivityState` | Lifecycle + timing |
 | `@intellectif/lk-react/hooks/useXAPI` | LRS delivery (retry, never-throws) |
 | `@intellectif/lk-react/theme/ThemeProvider` | `<ThemeProvider>`, `darkTheme`, `useTheme`, `createTailwindTheme` |

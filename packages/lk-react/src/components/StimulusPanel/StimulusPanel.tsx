@@ -1,0 +1,104 @@
+'use client';
+
+import type { Stimulus } from '@intellectif/lk-core';
+import { useId, useMemo } from 'react';
+import { ActivityMedia } from '../shared/ActivityMedia.js';
+import type { HtmlSanitizer } from '../types.js';
+
+export interface StimulusPanelProps {
+  stimulus: Stimulus;
+  /**
+   * 1-based presented positions of the first and last question this material
+   * serves, rendered as "Questions 3–8" so a learner knows how far the
+   * passage carries.
+   */
+  range?: { first: number; last: number };
+  /** Renders `stimulus.bodyHtml` when provided. See `HtmlSanitizer`. */
+  sanitizeHtml?: HtmlSanitizer;
+  locale?: string;
+}
+
+/** Accessible name of the region when the stimulus has no title of its own. */
+const KIND_LABEL: Record<Stimulus['kind'], string> = {
+  text: 'Passage',
+  audio: 'Recording',
+  video: 'Video',
+  image: 'Image',
+  mixed: 'Material',
+};
+
+/**
+ * Presents a shared stimulus — the passage, recording or image an item group's
+ * questions refer to. A landmark region named by its title (or by its kind),
+ * so a screen-reader user can jump back to the material from any question.
+ *
+ * Rich text follows the SDK-wide rule: `bodyHtml` is rendered only through a
+ * caller-supplied sanitiser, and the plain `body` is the fallback — which the
+ * schema guarantees exists whenever `bodyHtml` does.
+ */
+export function StimulusPanel({
+  stimulus,
+  range,
+  sanitizeHtml,
+  locale,
+}: StimulusPanelProps): React.JSX.Element {
+  const titleId = useId();
+
+  const bodyHtml = useMemo(() => {
+    if (sanitizeHtml === undefined || typeof stimulus.bodyHtml !== 'string') {
+      return null;
+    }
+    return sanitizeHtml(stimulus.bodyHtml);
+  }, [stimulus.bodyHtml, sanitizeHtml]);
+
+  const rangeText =
+    range === undefined
+      ? null
+      : range.first === range.last
+        ? `Question ${range.first}`
+        : `Questions ${range.first}–${range.last}`;
+
+  const naming =
+    stimulus.title !== undefined
+      ? { 'aria-labelledby': titleId }
+      : { 'aria-label': KIND_LABEL[stimulus.kind] };
+
+  // The AUTHORED parts carry the stimulus language; the SDK's own chrome does
+  // not. Declaring `stimulus.locale` on the whole region made a screen reader
+  // read "Recording" and "Questions 3–5" — English strings this package ships
+  // — in the passage's voice, so a Spanish listening panel announced its own
+  // name and the only orientation text in it with Spanish phonetics
+  // (WCAG 3.1.2 Language of Parts). Scope the declaration to the content it
+  // actually describes.
+  const contentLang = stimulus.locale !== undefined ? { lang: stimulus.locale } : {};
+
+  return (
+    <section className="lk-stimulus" data-kind={stimulus.kind} lang={locale} {...naming}>
+      {stimulus.title !== undefined ? (
+        <p className="lk-stimulus-title" id={titleId} {...contentLang}>
+          {stimulus.title}
+        </p>
+      ) : null}
+      {rangeText !== null ? <p className="lk-stimulus-range">{rangeText}</p> : null}
+      {stimulus.media !== undefined ? <ActivityMedia media={stimulus.media} /> : null}
+      {bodyHtml !== null ? (
+        <div
+          className="lk-stimulus-body"
+          data-format="html"
+          {...contentLang}
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: rendered only through the caller-supplied HtmlSanitizer — the SDK never injects unsanitised markup
+          dangerouslySetInnerHTML={{ __html: bodyHtml }}
+        />
+      ) : stimulus.body !== undefined ? (
+        <div className="lk-stimulus-body" data-format="text" {...contentLang}>
+          {stimulus.body}
+        </div>
+      ) : null}
+      {stimulus.attribution !== undefined ? (
+        <p className="lk-stimulus-attribution" {...contentLang}>
+          <cite>{stimulus.attribution}</cite>
+        </p>
+      ) : null}
+    </section>
+  );
+}

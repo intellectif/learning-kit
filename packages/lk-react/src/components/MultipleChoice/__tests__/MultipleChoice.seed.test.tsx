@@ -1,4 +1,4 @@
-import type { MultipleChoiceData } from '@intellectif/lk-core';
+import { type MultipleChoiceData, seededShuffle } from '@intellectif/lk-core';
 import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MultipleChoice } from '../index.js';
@@ -50,6 +50,17 @@ describe('MultipleChoice shuffleSeed', () => {
     // A different seed must still render a full permutation. Its order MAY
     // coincide with seed-1's, so no inequality assertion here.
     expect([...otherSeedOrder].sort()).toEqual([...OPTION_IDS]);
+  });
+
+  it('renders exactly the order lk-core derives from the documented `${seed}:${id}` string', () => {
+    // The shuffle algorithm moved to lk-core; this pins that the component
+    // still composes the same seed string, so an option order a consumer
+    // recorded against a seed keeps reproducing.
+    const data = shuffled();
+    render(<MultipleChoice data={data} onComplete={vi.fn()} shuffleSeed="seed-1" />);
+    expect(optionOrder()).toEqual(
+      seededShuffle(data.options, `seed-1:${data.id}`).map((option) => option.id),
+    );
   });
 
   it('still renders when shuffling without a seed and crypto.randomUUID is unavailable', () => {

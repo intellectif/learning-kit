@@ -501,3 +501,36 @@ describe('FillInTheBlanks — rich text', () => {
     warn.mockRestore();
   });
 });
+
+describe('FillInTheBlanks redacted data in practice mode', () => {
+  // The submit handler calls score(), which throws RedactedScoringError on a
+  // projection with no answer key. React error boundaries do NOT catch errors
+  // thrown from event handlers, so without a render-time guard the failure
+  // escapes to the host AFTER the learner has typed their answers. Fail at
+  // render instead, exactly as MultipleChoice does.
+  it('fails loudly when redacted data is wired into the self-grading practice mode', () => {
+    render(<FillInTheBlanks data={asRenderable(redact(fib()))} />);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Check answers' })).not.toBeInTheDocument();
+  });
+
+  it('names the activity and both safe modes in the message', () => {
+    render(<FillInTheBlanks data={asRenderable(redact(fib()))} />);
+    const message = screen.getByRole('alert').textContent ?? '';
+    expect(message).toMatch(/Fill-in-the-Blanks "f1"/);
+    expect(message).toMatch(/renderMode="exam"/);
+    expect(message).toMatch(/review/);
+  });
+
+  it.each(['exam', 'review'] as const)('renders the same projection in %s mode', (renderMode) => {
+    render(
+      <FillInTheBlanks
+        data={asRenderable(redact(fib()))}
+        renderMode={renderMode}
+        onSubmit={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText(/France =/)).toBeInTheDocument();
+  });
+});

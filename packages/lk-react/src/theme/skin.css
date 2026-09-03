@@ -111,6 +111,55 @@
     cursor: default;
   }
 
+  /* ── Shared stimulus (an item group's passage / recording / image) ──── */
+  .lk-stimulus {
+    margin: 0 0 var(--lk-spacing-lg);
+    padding: var(--lk-spacing-md) var(--lk-spacing-lg);
+    background: var(--lk-color-surface-raised);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+  }
+
+  .lk-stimulus-title {
+    margin: 0 0 var(--lk-spacing-xs);
+    font-size: var(--lk-font-size-lg);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-stimulus-range {
+    margin: 0 0 var(--lk-spacing-md);
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-stimulus .lk-media {
+    margin-bottom: var(--lk-spacing-md);
+  }
+
+  .lk-stimulus-body {
+    margin: 0;
+    line-height: var(--lk-line-height-base);
+  }
+
+  /* A plain-text passage keeps its authored paragraph breaks. */
+  .lk-stimulus-body[data-format="text"] {
+    white-space: pre-wrap;
+  }
+
+  .lk-stimulus-body[data-format="html"] > :first-child {
+    margin-top: 0;
+  }
+
+  .lk-stimulus-body[data-format="html"] > :last-child {
+    margin-bottom: 0;
+  }
+
+  .lk-stimulus-attribution {
+    margin: var(--lk-spacing-sm) 0 0;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
   /* ── Multiple choice options ─────────────────────────────────────────── */
   .lk-mc-option {
     display: flex;

@@ -2,9 +2,11 @@ import type {
   ActivityData,
   ActivityResult,
   InteractionEvent,
+  ItemGroup,
   ItemOutcome,
   LearnerResponse,
   RedactedActivityData,
+  SequenceEntry,
   ThemeTokens,
 } from '@intellectif/lk-core';
 
@@ -38,6 +40,26 @@ export type Renderable<TData> = Omit<TData, 'scoringStrategy'> & {
 };
 
 /**
+ * {@link Renderable} DISTRIBUTED over a union of activity types.
+ *
+ * This distinction is load-bearing, not cosmetic. `Renderable<T>` is built on
+ * `Omit`, and `Omit` does not distribute: `Omit<A | B, K>` collapses to the
+ * keys A and B have IN COMMON, so `Renderable<ActivityData>` is a single
+ * object type carrying only the fields every activity shares. Narrowing it
+ * dies with it — after `if (data.type === 'multiple-choice')` the compiler
+ * still refuses `data.options`, because the union it would narrow to no
+ * longer exists.
+ *
+ * The conditional below re-distributes, so `RenderableActivity` is a real
+ * union of per-type renderables and `.type` narrows again. Anything that
+ * accepts "some renderable activity, I don't know which" — a custom renderer,
+ * a sequence entry — must use THIS, not `Renderable<ActivityData>`.
+ */
+export type RenderableActivity<TData extends ActivityData = ActivityData> = TData extends unknown
+  ? Renderable<TData>
+  : never;
+
+/**
  * Sanitiser for author-supplied rich text (`questionHtml`, `passageHtml`,
  * `promptHtml`). The SDK deliberately ships NO sanitiser — that would add a
  * dependency and, worse, a false promise. Rich text is rendered only when you
@@ -58,7 +80,7 @@ export type HtmlSanitizer = (html: string) => string;
  */
 export interface ActivityProps<TData extends ActivityData = ActivityData> {
   /** Activity content. Accepts a `redact()` projection in `exam` mode. */
-  data: Renderable<TData>;
+  data: RenderableActivity<TData>;
   /**
    * Called when the component scored the attempt itself. Only ever fires in
    * `practice` mode — in `exam` mode the client does not grade, so there is
@@ -120,3 +142,38 @@ export function asRenderable<TData extends ActivityData>(
 ): Renderable<TData> {
   return redacted as unknown as Renderable<TData>;
 }
+
+/**
+ * The same bridge as {@link asRenderable}, for a whole sequence: activities
+ * and item groups as a server hands them over, ready for `<ActivitySequence>`.
+ *
+ * Needed for the same reason and no other. `redactItemGroup` returns
+ * `ItemGroup<RedactedActivityData>`, and `RedactedActivityData` is an
+ * index-signature type whose fields are all `unknown` — so its `question` is
+ * not a `string` and it satisfies no per-type renderable, however the prop is
+ * widened. Widening alone cannot fix this; a crossing point is required, and
+ * having exactly one keeps `as unknown as` out of consumer code.
+ *
+ * ```tsx
+ * const entries = await fetchExam();            // redacted, server-side
+ * <ActivitySequence
+ *   activities={asRenderableSequence(entries)}
+ *   renderMode="exam"                           // REQUIRED: see below
+ *   shuffleSeed={attemptId}
+ *   onSubmit={persist}
+ * />
+ * ```
+ *
+ * Pass `renderMode="exam"` (or `"review"`). Redacted data has no answer key,
+ * and the default `practice` mode grades locally — the built-in components
+ * throw at render rather than fail at submit time, so a mis-wired exam item is
+ * loud, not silent.
+ */
+export function asRenderableSequence(
+  entries: readonly (RedactedActivityData | RedactedItemGroupData)[],
+): readonly SequenceEntry<RenderableActivity>[] {
+  return entries as unknown as readonly SequenceEntry<RenderableActivity>[];
+}
+
+/** Structural shape of a `redactItemGroup()` projection, as it arrives from a server. */
+type RedactedItemGroupData = ItemGroup<RedactedActivityData> & { redacted: true };

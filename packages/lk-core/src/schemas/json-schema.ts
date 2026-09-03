@@ -2,8 +2,24 @@ import { z } from 'zod/v4';
 import { UnknownActivityTypeError } from '../errors.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
 import { FillInTheBlanksDataSchema } from './fill-in-the-blanks.js';
+import { ItemGroupSchema, StimulusSchema } from './item-group.js';
 import { MultipleChoiceDataSchema } from './multiple-choice.js';
 import { WrittenResponseDataSchema } from './written-response.js';
+
+/**
+ * JSON Schema (Draft 7) for a `Stimulus`. Structural contract only — the
+ * kind/media/body consistency guards are Zod-only.
+ */
+export const stimulusJsonSchema = z.toJSONSchema(StimulusSchema, { target: 'draft-7' });
+
+/**
+ * JSON Schema (Draft 7) for an `ItemGroup` CONTAINER. Items appear as objects
+ * with `type` and `id` only; each item's own contract is `jsonSchemaFor(type)`.
+ * For an AI generation pipeline, ask for the group and each item separately
+ * rather than a single nested schema — that keeps the per-type schema the
+ * registry's, not a copy.
+ */
+export const itemGroupJsonSchema = z.toJSONSchema(ItemGroupSchema, { target: 'draft-7' });
 
 /**
  * JSON Schema (Draft 7) representation of the Multiple Choice activity data

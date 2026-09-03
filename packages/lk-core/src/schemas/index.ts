@@ -9,9 +9,18 @@ export {
   TextMatchPolicySchema,
 } from './fill-in-the-blanks.js';
 export {
+  ItemGroupSchema,
+  RedactedItemGroupSchema,
+  RedactedStimulusSchema,
+  StimulusSchema,
+  validateItemGroup,
+} from './item-group.js';
+export {
   fillInTheBlanksJsonSchema,
+  itemGroupJsonSchema,
   jsonSchemaFor,
   multipleChoiceJsonSchema,
+  stimulusJsonSchema,
   writtenResponseJsonSchema,
 } from './json-schema.js';
 export { MediaSchema, MediaUrlSchema } from './media.js';

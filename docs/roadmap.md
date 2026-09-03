@@ -210,9 +210,15 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   required and grade-rounding kept separate from band classification, `gte()` comparing rounded values on
   both sides, and a `provisional` status so an unmarked essay never deflates a total.
 
+- ✅ **Shared stimulus + `ItemGroup`** — the reading/listening-comprehension container, modelled as CONTENT.
+  `Stimulus` (`text | audio | video | image | mixed`, kind-enforced; `transcript` author-only), `ItemGroup`
+  (non-empty, unique ids, no nesting), `validateItemGroup`, `flattenSequence` (seeded, shuffle-atomic,
+  authored-position `slotId`s that the server and the client both derive), `redactItemGroup` /
+  `assertRedactedItemGroup`, `seededShuffle` promoted to lk-core behind a pinned-permutation drift guard,
+  `<StimulusPanel>`, and `ActivitySequence` accepting groups with the stimulus mounted once and kept beside
+  every question. `item-group` is reserved in the registry.
+
 **Remaining in v0.4, in order:**
-
-
 
 - Scoring v2 remainder: `ItemScoringPolicy` (partial-credit configuration, optional negative marking).
   Per-item `points`, `RoundingPolicy`, `gte()` and `composeAssessmentScore()` have shipped — see above.
@@ -223,16 +229,6 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   under the grade-stability rule. Scheduled for v1.0 with the `ItemOutcome` unification.
 - `AssessmentBlueprint` + `planAttempt(bp, seed, resolve)` → `AttemptPlan` with **`slotId`** identity, frozen
   `maxPoints`, `contentHash` per slot (re-grade reproducibility). **Deferred — see below.**
-- **Shared stimulus + `ItemGroup` — promoted to the top of v0.4, and modelled as CONTENT rather than as a
-  blueprint field.** This is what "reading comprehension is almost impossible" actually means: the gap is a
-  missing *container*, not a missing item type. A real corpus is one passage/audio serving N questions
-  (mean ~6, up to 20). Ship `Stimulus { id, kind: 'text'|'audio'|'video'|'image'|'mixed', body?, bodyHtml?,
-  media?, locale, attribution? }` plus `ItemGroup { stimulus, items[], shuffle: 'none' | 'within-group' }`,
-  usable in a sequence, a lesson quiz, and later a blueprint section alike. Two constraints taken from
-  observed failures: groups are **shuffle-atomic** (shuffling a section otherwise interleaves two passages),
-  and stimulus presentation defaults to **persistent, not collapsible** (hiding the passage behind a toggle
-  the learner must reopen per question is the defect, not the design). Because this is content, it does NOT
-  depend on the deferred blueprint work.
 - **Media playback policy** on `ActivityMedia`: `{ maxPlays?, allowSeek?, allowDownload?, allowRateChange?,
   autoplayOnce? }` plus a plays-remaining interaction event. Listening assessment is unrunnable without it
   (an integrator replaced the SDK's audio rendering wholesale to stop downloads and rate changes), and it is

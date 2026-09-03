@@ -9,6 +9,7 @@ import {
   type MultipleChoiceOption,
   type ScoringDetail,
   score,
+  seededShuffle,
   validateActivity,
   xAPIBuilder,
   xapiDefinitionFor,
@@ -19,28 +20,6 @@ import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor, randomSessionId } from '..
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import type { ActivityProps } from '../types.js';
-
-/** FNV-1a hash → 32-bit seed. */
-function hashSeed(input: string): number {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < input.length; i += 1) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 16777619) >>> 0;
-  }
-  return h;
-}
-
-/** Deterministic LCG Fisher–Yates; returns a permutation (no loss/dupe). */
-function seededShuffle<T>(items: readonly T[], seed: number): T[] {
-  const out = [...items];
-  let s = seed >>> 0 || 1;
-  for (let i = out.length - 1; i > 0; i -= 1) {
-    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
-    const j = s % (i + 1);
-    [out[i], out[j]] = [out[j] as T, out[i] as T];
-  }
-  return out;
-}
 
 /**
  * Selected option ids carried by a learner response. Any other response shape
@@ -171,7 +150,9 @@ export function MultipleChoice({
     }
     // biome-ignore lint/suspicious/noAssignInExpressions: sanctioned lazy ref initialization
     const seedSource = shuffleSeed ?? (sessionIdRef.current ??= randomSessionId());
-    return seededShuffle(data.options, hashSeed(`${seedSource}:${data.id}`));
+    // The seed string is unchanged from when the algorithm lived in this file,
+    // so an order a consumer recorded against a seed still reproduces.
+    return seededShuffle(data.options, `${seedSource}:${data.id}`);
   }, [data, shuffleSeed]);
 
   // Per-option correctness for `review`, indexed by option id. Null unless the

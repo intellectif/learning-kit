@@ -214,6 +214,21 @@ export function FillInTheBlanks({
   if (devError) {
     throw devError;
   }
+  // Practice grades locally, which a redacted projection cannot support: the
+  // submit handler below calls `score()`, which throws RedactedScoringError —
+  // from an event handler, where no error boundary can catch it, AFTER the
+  // learner has typed their answers. Fail loudly at render instead, in
+  // production too. This mirrors the identical guard in MultipleChoice;
+  // without it the two built-ins disagreed about the same accident, and
+  // wiring an exam item into the self-grading mode is precisely what
+  // `renderMode` exists to prevent.
+  if (data.redacted === true && renderMode === 'practice') {
+    throw new Error(
+      `Fill-in-the-Blanks "${data.id}" received redacted activity data in renderMode "practice", ` +
+        'which grades locally and has no answer key to grade against. ' +
+        'Render redacted data with renderMode="exam" (server grades) or "review" (pass `outcome`).',
+    );
+  }
 
   const submitted = state === 'completed';
   const inactive = disabled === true || submitted || isReview;
