@@ -1,5 +1,14 @@
 # @intellectif/lk-storybook
 
+## 0.0.6
+
+### Patch Changes
+
+- Updated dependencies [339a5e0]
+- Updated dependencies [2d962aa]
+  - @intellectif/lk-core@0.5.0
+  - @intellectif/lk-react@4.0.0
+
 ## 0.0.5
 
 ### Patch Changes
