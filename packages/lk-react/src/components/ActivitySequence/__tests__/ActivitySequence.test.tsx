@@ -62,14 +62,14 @@ describe('ActivitySequence', () => {
 
     await user.click(screen.getByRole('radio', { name: 'Four' }));
     await user.click(screen.getByRole('button', { name: 'Submit' }));
-    expect(onActivityComplete).toHaveBeenCalledWith(expect.objectContaining({ score: 1 }), 0);
+    expect(onActivityComplete).toHaveBeenCalledWith(expect.objectContaining({ score: 1 }), 0, '0');
     expect(onComplete).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: 'Next' }));
     await user.type(screen.getByRole('textbox', { name: 'Fill in blank 1' }), 'blue');
     await user.click(screen.getByRole('button', { name: 'Check answers' }));
 
-    expect(onActivityComplete).toHaveBeenCalledWith(expect.objectContaining({ score: 1 }), 1);
+    expect(onActivityComplete).toHaveBeenCalledWith(expect.objectContaining({ score: 1 }), 1, '1');
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onComplete.mock.calls[0]?.[0]).toHaveLength(2);
   });

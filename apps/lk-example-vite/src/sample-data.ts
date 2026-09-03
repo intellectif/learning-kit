@@ -1,4 +1,9 @@
-import type { FillInTheBlanksData, MultipleChoiceData } from '@intellectif/lk-core';
+import type {
+  FillInTheBlanksData,
+  ItemGroup,
+  MultipleChoiceData,
+  SequenceEntry,
+} from '@intellectif/lk-core';
 
 // Inline SVG data URI so the demo needs no network/asset hosting.
 const sampleImage =
@@ -78,3 +83,67 @@ export const sampleFillInTheBlanks2: FillInTheBlanksData = {
 
 /** A set of same-kind questions, shown via the in-place ActivitySequence pager. */
 export const sampleFibSet: FillInTheBlanksData[] = [sampleFillInTheBlanks, sampleFillInTheBlanks2];
+
+/**
+ * A reading-comprehension testlet: one passage serving three questions. The
+ * group is a CONTAINER, not an activity — the pager flattens it into
+ * consecutive questions and keeps the passage on screen beside each of them.
+ */
+export const sampleReadingGroup: ItemGroup = {
+  schemaVersion: '1.0',
+  type: 'item-group',
+  id: 'demo-reading-tides',
+  title: 'Reading — Tides',
+  stimulus: {
+    id: 'demo-passage-tides',
+    kind: 'text',
+    title: 'Tides',
+    body:
+      'Along most coasts the tide comes in twice a day. It is pulled by the moon: as the Earth turns, ' +
+      'the ocean nearest the moon bulges towards it, and so does the ocean on the far side.\n\n' +
+      'The highest tides, called spring tides, happen when the sun and the moon line up.',
+    attribution: 'Adapted from a public-domain primer on ocean tides',
+  },
+  items: [
+    {
+      schemaVersion: '1.0',
+      type: 'multiple-choice',
+      id: 'demo-tides-q1',
+      title: 'Tides — frequency',
+      question: 'According to the passage, how often does the tide come in?',
+      mode: 'single',
+      scoringStrategy: 'all-or-nothing',
+      options: [
+        { id: 'twice', text: 'Twice a day', isCorrect: true },
+        { id: 'once', text: 'Once a day', isCorrect: false },
+        { id: 'weekly', text: 'Once a week', isCorrect: false },
+      ],
+    },
+    {
+      schemaVersion: '1.0',
+      type: 'multiple-choice',
+      id: 'demo-tides-q2',
+      title: 'Tides — spring tides',
+      question: 'When do spring tides happen?',
+      mode: 'single',
+      scoringStrategy: 'all-or-nothing',
+      options: [
+        { id: 'aligned', text: 'When the sun and the moon line up', isCorrect: true },
+        { id: 'season', text: 'Only in spring', isCorrect: false },
+        { id: 'storm', text: 'During storms', isCorrect: false },
+      ],
+    },
+    {
+      schemaVersion: '1.0',
+      type: 'fill-in-the-blanks',
+      id: 'demo-tides-q3',
+      title: 'Tides — cause',
+      passage: 'The tide is pulled by the {{moon}}.',
+      blanks: [{ id: 'moon', acceptedAnswers: ['moon'] }],
+      scoringStrategy: 'all-or-nothing',
+    },
+  ],
+};
+
+/** Two loose questions followed by a reading group — what the pager presents. */
+export const sampleQuestionSet: SequenceEntry[] = [...sampleFibSet, sampleReadingGroup];

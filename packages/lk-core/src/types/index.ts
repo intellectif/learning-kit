@@ -36,6 +36,14 @@ export type {
   GradingState,
   InlineCorrection,
 } from './grading.js';
+export type {
+  ItemGroup,
+  SequenceEntry,
+  SequenceSlot,
+  SequenceSlotGroup,
+  Stimulus,
+  StimulusKind,
+} from './item-group.js';
 export type { ThemeTokens } from './theme.js';
 export type {
   XAPIActor,

@@ -77,7 +77,7 @@ export function Demo() {
 - **Written Response** *(v0.3)* — free-text writing with word-count bounds and an optional rubric, graded **asynchronously** (your AI or human grader): `evaluate()` returns `{ status: 'deferred' }`, the component emits a SUBMITTED-verb xAPI statement with no score, and your app grades out-of-band. Never conflates "ungraded" with 0.
 - **Custom types** *(v0.3)* — `defineActivityType` + `registerActivityType` make `validateActivity` / `score` / `evaluate` / `redact` / `jsonSchemaFor` work for your own activity types without an SDK release (TypeScript module augmentation for typing).
 - **Server-side redaction** *(v0.3)* — `redact()` produces a learner-safe, fail-closed projection (answer keys, scoring rules, rubrics stripped); `assertRedacted()` proves a payload is safe to ship to an exam client.
-- **`ActivitySequence`** — in-place "question set" pager (Previous / Next, "Question X of N", no scrolling, focus-managed). Resets safely when the activity set changes. (Written-response inside a sequence lands in v0.4.)
+- **`ActivitySequence`** — in-place "question set" pager (Previous / Next, "Question X of N", no scrolling, focus-managed). Resets safely when the activity set changes. Accepts **item groups** — a shared passage or recording kept beside each of its questions.
 - **Media per question** — optional `image` / `audio` / `video` / `embed` (YouTube/Vimeo iframe) above the question.
 - **Feedback** — per-option (Multiple Choice) and activity-level overall (`{ correct, incorrect }`).
 - **xAPI 1.0.3** — well-formed statements via `xAPIBuilder`; `useXAPI` delivers them (retry/backoff, never throws).

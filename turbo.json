@@ -32,7 +32,8 @@
     },
     "e2e": {
       "dependsOn": [
-        "^build"
+        "^build",
+        "@intellectif/lk-example-vite#build"
       ],
       "outputs": [
         "playwright-report/**"

@@ -150,6 +150,15 @@ export function defineActivityType<TData extends { type: string }, TResponse>(
 export function registerActivityType<TData extends { type: string }, TResponse>(
   descriptor: ActivityTypeDescriptor<TData, TResponse>,
 ): void {
+  if (descriptor.type === 'item-group') {
+    // The container that holds several items around one stimulus. It has no
+    // learner response and no score of its own, so it can never satisfy this
+    // contract — and letting a consumer register one would make `isItemGroup`
+    // and `flattenSequence` misread their own container.
+    throw new Error(
+      '"item-group" is reserved for the SDK\'s item-group container (see ItemGroup) and cannot be registered as an activity type.',
+    );
+  }
   const existing = registry.get(descriptor.type);
   if (existing !== undefined) {
     if ((existing as unknown) === (descriptor as unknown)) {

@@ -5,7 +5,7 @@ import { useXAPI } from '@intellectif/lk-react/hooks/useXAPI';
 import { ThemeProvider } from '@intellectif/lk-react/theme/ThemeProvider';
 import { useState } from 'react';
 import { LRS_ENDPOINT } from './config';
-import { sampleFibSet, sampleMultipleChoice } from './sample-data';
+import { sampleMultipleChoice, sampleQuestionSet } from './sample-data';
 
 export function App(): React.JSX.Element {
   const [log, setLog] = useState<{ id: string; text: string }[]>([]);
@@ -40,12 +40,16 @@ export function App(): React.JSX.Element {
       <main style={{ maxWidth: 680, margin: '0 auto', padding: 24 }}>
         <h1>learning-kit — Vite + React 19 example</h1>
         <p>
-          A single Multiple Choice activity, plus a Fill-in-the-Blanks question set shown via the
-          in-place pager (Previous / Next, no scrolling). Submitting scores locally and POSTs an
-          xAPI statement to the mock LRS (MSW).
+          A single Multiple Choice activity, plus a question set shown via the in-place pager
+          (Previous / Next, no scrolling): two Fill-in-the-Blanks questions, then a reading
+          comprehension group whose passage stays on screen beside each of its questions. Submitting
+          scores locally and POSTs an xAPI statement to the mock LRS (MSW).
         </p>
         <h3>Answer key:</h3>
-        <p>Tokyo, evaporation, precipitation, condensation, groundwater</p>
+        <p>
+          Tokyo, evaporation, precipitation, condensation, groundwater; twice a day, when the sun
+          and the moon line up, moon
+        </p>
 
         <section aria-labelledby="mc-heading">
           <h2 id="mc-heading">Multiple Choice</h2>
@@ -55,11 +59,17 @@ export function App(): React.JSX.Element {
           />
         </section>
 
-        <section aria-labelledby="fib-heading">
-          <h2 id="fib-heading">Fill in the Blanks — question set</h2>
+        <section aria-labelledby="set-heading">
+          <h2 id="set-heading">Question set — with a reading group</h2>
           <ActivitySequence
-            activities={sampleFibSet}
-            onActivityComplete={(result, i) => handleComplete(`FIB question ${i + 1}`)(result)}
+            activities={sampleQuestionSet}
+            // Persist against `slotId`, not the presented index: the index moves
+            // under shuffling and already differs from the slot identity once a
+            // group is involved (question 3 below is slot "2.0"). It is the id
+            // composeAssessmentScore scores by.
+            onActivityComplete={(result, i, slotId) =>
+              handleComplete(`Question ${i + 1} [slot ${slotId}]`)(result)
+            }
           />
         </section>
 

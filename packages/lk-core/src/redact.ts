@@ -1,6 +1,8 @@
 import { ActivitySchemaError, UnknownActivityTypeError } from './errors.js';
 import { getActivityTypeDescriptor } from './registry/index.js';
 import type { FieldPolicy, Sensitivity } from './registry/registry.js';
+import { RedactedItemGroupSchema } from './schemas/item-group.js';
+import type { ItemGroup } from './types/item-group.js';
 
 /**
  * A learner-safe projection of activity data produced by {@link redact}:
@@ -221,4 +223,130 @@ export function assertRedacted(data: unknown): asserts data is RedactedActivityD
       })),
     );
   }
+}
+
+/**
+ * Sensitivity of a stimulus. Everything is learner-visible — that is what a
+ * stimulus IS — except the author transcript. Fail-closed like every other
+ * policy: a field added to `Stimulus` without a classification here is
+ * dropped, never leaked.
+ */
+const STIMULUS_FIELD_POLICY: FieldPolicy = {
+  id: 'public',
+  kind: 'public',
+  title: 'public',
+  body: 'public',
+  bodyHtml: 'public',
+  media: 'public',
+  locale: 'public',
+  attribution: 'public',
+  transcript: 'author-only',
+};
+
+/** The group container's own fields. `items` is handled separately, per item type. */
+const ITEM_GROUP_FIELD_POLICY: FieldPolicy = {
+  schemaVersion: 'public',
+  type: 'public',
+  id: 'public',
+  title: 'public',
+  shuffle: 'public',
+  stimulus: STIMULUS_FIELD_POLICY,
+};
+
+/** A learner-safe item group: the container with its marker, holding `redact()` projections. */
+export type RedactedItemGroup = ItemGroup<RedactedActivityData> & { redacted: true };
+
+/**
+ * Produces the learner-safe projection of an item group: the container and
+ * stimulus under their own fail-closed policy (the author transcript goes;
+ * the passage, media and attribution stay — the learner is meant to see
+ * them), and every item through {@link redact} with the same `options`, so
+ * a per-call `policy` tightens each item exactly as it would alone.
+ *
+ * With the default `reveal: 'none'` the container is verified against the
+ * strict redacted schema; each item was already verified by `redact`.
+ */
+export function redactItemGroup<TItem extends { type: string }>(
+  group: ItemGroup<TItem>,
+  options: RedactOptions = {},
+): RedactedItemGroup {
+  const reveal = options.reveal ?? 'none';
+  const { items, ...container } = group;
+  const projected = redactValue(container, ITEM_GROUP_FIELD_POLICY, reveal) as Record<
+    string,
+    unknown
+  >;
+  const result = {
+    ...projected,
+    items: items.map((item) => redact(item, options)),
+    redacted: true as const,
+  } as RedactedItemGroup;
+
+  if (reveal === 'none') {
+    const parsed = RedactedItemGroupSchema.safeParse(result);
+    if (!parsed.success) {
+      throw new ActivitySchemaError(
+        'item-group',
+        parsed.error.issues.map((issue) => ({
+          path: issue.path.map(String),
+          message: issue.message,
+          code: issue.code,
+        })),
+      );
+    }
+  }
+  return result;
+}
+
+/**
+ * Asserts that `data` is a learner-safe item group: it carries the marker,
+ * its container and stimulus satisfy the strict redacted schema (so no
+ * transcript, no unclassified field), and EVERY item passes
+ * {@link assertRedacted} against its own type's redacted schema. Item
+ * failures are reported at `items.<index>.…`. Use it at the server boundary
+ * before sending a group to a client that must not hold the key.
+ */
+export function assertRedactedItemGroup(data: unknown): asserts data is RedactedItemGroup {
+  if (typeof data !== 'object' || data === null) {
+    throw new ActivitySchemaError('item-group', [
+      { path: [], message: 'Redacted item group must be an object.', code: 'invalid_type' },
+    ]);
+  }
+  const candidate = data as Record<string, unknown>;
+  if (candidate.redacted !== true) {
+    throw new ActivitySchemaError('item-group', [
+      {
+        path: ['redacted'],
+        message: 'Missing redacted marker — this payload is not a redactItemGroup() projection.',
+        code: 'custom',
+      },
+    ]);
+  }
+  const parsed = RedactedItemGroupSchema.safeParse(candidate);
+  if (!parsed.success) {
+    throw new ActivitySchemaError(
+      'item-group',
+      parsed.error.issues.map((issue) => ({
+        path: issue.path.map(String),
+        message: issue.message,
+        code: issue.code,
+      })),
+    );
+  }
+  parsed.data.items.forEach((item, index) => {
+    try {
+      assertRedacted(item);
+    } catch (error) {
+      if (error instanceof ActivitySchemaError) {
+        throw new ActivitySchemaError(
+          'item-group',
+          error.errors.map((issue) => ({
+            ...issue,
+            path: ['items', String(index), ...issue.path],
+          })),
+        );
+      }
+      throw error;
+    }
+  });
 }

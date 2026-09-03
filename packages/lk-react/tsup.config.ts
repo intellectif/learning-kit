@@ -8,6 +8,7 @@ export default defineConfig({
     'components/MultipleChoice': 'src/components/MultipleChoice/index.tsx',
     'components/FillInTheBlanks': 'src/components/FillInTheBlanks/index.tsx',
     'components/WrittenResponse': 'src/components/WrittenResponse/index.tsx',
+    'components/StimulusPanel': 'src/components/StimulusPanel/index.tsx',
     'hooks/useActivityState': 'src/hooks/useActivityState.ts',
     'hooks/useXAPI': 'src/hooks/useXAPI.ts',
     'theme/ThemeProvider': 'src/theme/ThemeProvider.tsx',
