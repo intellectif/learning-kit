@@ -8,6 +8,7 @@ export {
   FillInTheBlanksDataSchema,
   TextMatchPolicySchema,
 } from './fill-in-the-blanks.js';
+export type { RedactedStimulus } from './item-group.js';
 export {
   ItemGroupSchema,
   RedactedItemGroupSchema,
@@ -25,6 +26,14 @@ export {
 } from './json-schema.js';
 export { MediaSchema, MediaUrlSchema } from './media.js';
 export { MultipleChoiceDataSchema, MultipleChoiceOptionSchema } from './multiple-choice.js';
+export type {
+  RedactedActivity,
+  RedactedBlankConfig,
+  RedactedFillInTheBlanksData,
+  RedactedMultipleChoiceData,
+  RedactedMultipleChoiceOption,
+  RedactedWrittenResponseData,
+} from './redacted.js';
 export {
   RedactedBlankConfigSchema,
   RedactedFillInTheBlanksDataSchema,

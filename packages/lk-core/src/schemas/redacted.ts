@@ -77,3 +77,45 @@ export const RedactedWrittenResponseDataSchema = z.strictObject({
   rubric: WrittenResponseRubricSchema.optional(),
   languageTarget: z.string().optional(),
 });
+
+/**
+ * The learner-safe SHAPE of each built-in type, derived from the strict schema
+ * above rather than hand-written beside it.
+ *
+ * `redact()` returns {@link RedactedActivityData}, which proves a payload is
+ * learner-safe but is index-signature typed — it deliberately says nothing
+ * about what the payload still CONTAINS. That is right for the assertion and
+ * useless for anything that has to render or transport the result, so every
+ * integrator ends up re-declaring these interfaces by hand and they drift the
+ * moment a schema changes. Deriving them with `z.infer` means the type and the
+ * validator can never disagree.
+ *
+ * Use them for the payload a server sends an exam client, and for the props of
+ * a renderer that must never see an answer key.
+ */
+export type RedactedMultipleChoiceOption = z.infer<typeof RedactedMultipleChoiceOptionSchema>;
+/** A Multiple Choice item with the answer key, feedback and strategy removed. */
+export type RedactedMultipleChoiceData = z.infer<typeof RedactedMultipleChoiceDataSchema>;
+/** A blank with its accepted answers and matching rules removed; the hint survives. */
+export type RedactedBlankConfig = z.infer<typeof RedactedBlankConfigSchema>;
+/** A Fill-in-the-Blanks item with every accepted answer removed. */
+export type RedactedFillInTheBlanksData = z.infer<typeof RedactedFillInTheBlanksDataSchema>;
+/** A Written Response item; the rubric survives, because it tells the learner what is assessed. */
+export type RedactedWrittenResponseData = z.infer<typeof RedactedWrittenResponseDataSchema>;
+
+/**
+ * Discriminated union of every built-in redacted activity. Narrow it on
+ * `type`, exactly as you would {@link ActivityData}:
+ *
+ * ```ts
+ * function render(item: RedactedActivity) {
+ *   if (item.type === 'multiple-choice') {
+ *     return item.options.map((option) => option.text); // no `isCorrect` to leak
+ *   }
+ * }
+ * ```
+ */
+export type RedactedActivity =
+  | RedactedMultipleChoiceData
+  | RedactedFillInTheBlanksData
+  | RedactedWrittenResponseData;

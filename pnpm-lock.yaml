@@ -381,8 +381,6 @@ importers:
         specifier: ^0.1.0
         version: 0.1.0(vitest@4.1.6)
 
-  packages/lk-server: {}
-
 packages:
 
   '@adobe/css-tools@4.4.4':

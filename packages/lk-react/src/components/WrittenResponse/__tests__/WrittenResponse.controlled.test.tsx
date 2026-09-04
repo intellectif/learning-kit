@@ -1,5 +1,5 @@
 import type { ItemOutcome, LearnerResponse, WrittenResponseData } from '@intellectif/lk-core';
-import { redact } from '@intellectif/lk-core';
+import { gradeFromRubric, outcomeFromGrade, redact } from '@intellectif/lk-core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
@@ -410,6 +410,51 @@ describe('WrittenResponse — review mode', () => {
     };
     render(<WrittenResponse data={wr()} renderMode="review" value={reviewed} outcome={outcome} />);
     expect(document.getElementById('w1-feedback')).toHaveTextContent('Score 85%.');
+  });
+
+  it('normalises each CRITERION against its own maxScore, end to end', () => {
+    // The real path: a grader working in its native units, through the SDK's
+    // own arithmetic, into the review render. `gradeFromRubric` stores the
+    // judgements verbatim so the grade stays auditable in the grader's units,
+    // which means anything DISPLAYING one has to normalise too.
+    const result = gradeFromRubric([
+      { name: 'Task achievement', score: 82, maxScore: 100, weight: 1 },
+      { name: 'Range', score: 7, maxScore: 9, weight: 1 },
+    ]);
+    if ('unscorable' in result) {
+      throw new Error(`expected a grade: ${result.reason}`);
+    }
+
+    render(
+      <WrittenResponse
+        data={wr()}
+        renderMode="review"
+        value={reviewed}
+        outcome={outcomeFromGrade(result)}
+      />,
+    );
+
+    const rows = [...document.querySelectorAll('.lk-wr-criterion-score')].map(
+      (node) => node.textContent,
+    );
+    // 82/100 and 7/9 — not 8200% and 700%.
+    expect(rows).toEqual(['82%', '78%']);
+  });
+
+  it('still renders a scaled [0,1] criterion unchanged when maxScore is omitted', () => {
+    const result = gradeFromRubric([{ name: 'Task', score: 0.75, weight: 1 }]);
+    if ('unscorable' in result) {
+      throw new Error('expected a grade');
+    }
+    render(
+      <WrittenResponse
+        data={wr()}
+        renderMode="review"
+        value={reviewed}
+        outcome={outcomeFromGrade(result)}
+      />,
+    );
+    expect(document.querySelector('.lk-wr-criterion-score')).toHaveTextContent('75%');
   });
 
   it('states plainly when an outcome is unscorable', () => {

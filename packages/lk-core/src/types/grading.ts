@@ -45,8 +45,28 @@ export interface GraderUsage {
 export interface CriterionScore {
   /** Matches a `WrittenResponseRubricCriterion.name` when a rubric is known. */
   name: string;
-  /** Scaled [0,1]. Absent when the criterion is judged on an ordinal `band`. */
+  /**
+   * The grader's score for this criterion, out of {@link CriterionScore.maxScore}
+   * (which defaults to 1, the SDK's scaled convention). Absent when the
+   * criterion is judged on an ordinal `band`.
+   */
   score?: number;
+  /**
+   * What `score` is out of. Defaults to `1`.
+   *
+   * Real graders rarely work in [0,1]: rubrics come back out of 100, out of 9
+   * (CEFR/IELTS bands), or out of a points total that differs between
+   * criteria. Before this field the only way to use {@link gradeFromRubric}
+   * was to normalise by hand first — and a grader that skipped that step got
+   * its scores REJECTED, which pushed integrators back to letting the model
+   * compute the weighted total itself. That is precisely the arithmetic this
+   * SDK exists to take away from a language model.
+   *
+   * Set it per criterion, so a rubric mixing a /100 criterion with a /9 band
+   * score still composes. `gradeFromRubric` normalises `score / maxScore`
+   * before weighting; the resulting ratio must land in [0,1].
+   */
+  maxScore?: number;
   /** Ordinal verdict when the rubric is banded rather than numeric (e.g. `"B1"`). */
   band?: string;
   /** The grader's comment for this criterion, addressed to the learner. */
@@ -72,9 +92,10 @@ export interface InlineCorrection {
 
 /**
  * A grade that came back from an asynchronous grader. `score` is scaled
- * [0,1] against `maxScore`, matching every other score in the SDK, so a
- * grader that works in points must normalise before handing one over
- * (or set `maxScore` accordingly).
+ * [0,1] against `maxScore`, matching every other score in the SDK. A grader
+ * that works in points does not have to normalise by hand: declare
+ * `maxScore` on each {@link CriterionScore} and let `gradeFromRubric` do the
+ * arithmetic, which is the whole point of handing it the judgements.
  */
 export interface GradeRecord {
   score: number;

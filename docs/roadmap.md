@@ -65,7 +65,9 @@ audit and the integrating application feedback independently confirm this was th
 
 **Original items retired or re-scoped:** True/False (a UI variant of MC, per gap analysis), Interactive Video
 (P2, low value for ELT), Learner Profile/Adaptive hooks (out — consumer-side), IndexedDB offline buffering
-(re-scoped to `serializeAttemptState`/`restoreAttemptState` in v0.4), lk-server LRS proxy (unchanged, later).
+(re-scoped to `serializeAttemptState`/`restoreAttemptState` in v0.4). The `lk-server` LRS-proxy package was
+**deleted** in the v0.5 line: it sat empty for its whole life with no thesis anyone could state, and an empty
+package with no purpose is a liability, not an option held open.
 
 ---
 
@@ -218,15 +220,27 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   `<StimulusPanel>`, and `ActivitySequence` accepting groups with the stimulus mounted once and kept beside
   every question. `item-group` is reserved in the registry.
 
+- ✅ **Adoption pass — making the v0.4 grading surface reachable.** An evidence sweep of the integrating
+  application found it still pinned to `lk-core@^0.3.0`, so none of the above was callable there — while two
+  defects the v0.4 work exists to prevent were live in its gradebook (a language model computing the weighted
+  total of record, and an ungraded essay recorded as a hard zero). The obstacles were on OUR side, and are now
+  closed: `CriterionScore.maxScore` so `gradeFromRubric` accepts a 0–100 or banded grader instead of rejecting
+  it; per-type redacted TypeScript types derived from the strict schemas with `z.infer`
+  (`RedactedMultipleChoiceData`, …, `RedactedActivity`, `RedactedStimulus`); a `docs/upgrading.md` leading with
+  the two grade defects; and a documentation-truth pass, treated as correctness rather than housekeeping — the
+  root README claimed `redact()` strips rubrics when the policy deliberately classifies them `public`, both
+  READMEs denied a resume capability shipped in 2.1.0, and the published `.d.ts` told every IDE that
+  `questionHtml`/`promptHtml` were "not rendered by the SDK yet" while both render.
+
 **Remaining in v0.4, in order:**
 
 - Scoring v2 remainder: `ItemScoringPolicy` (partial-credit configuration, optional negative marking).
   Per-item `points`, `RoundingPolicy`, `gte()` and `composeAssessmentScore()` have shipped — see above.
-- **Follow-up:** `computePassThreshold` still compares a raw float with `>=` against a default of 0.7, so
-  *item-level* pass/fail keeps the 69.6-vs-70 disagreement the rounding work exists to eliminate. Routing it
-  through `gte()` needs a `RoundingPolicy` at the item level, which means deciding where that policy lives
-  (activity data? a scoring option?) — and it changes historical item-level pass results, so it is a **major**
-  under the grade-stability rule. Scheduled for v1.0 with the `ItemOutcome` unification.
+- **Follow-up (partly shipped):** `computePassThreshold(data, score, rounding?)` now takes an optional
+  `RoundingPolicy` and compares through `gte()`, so an item shown as "70%" need not be recorded as a fail at
+  69.6. Only the **default** remains open: switching it on unconditionally changes item-level pass/fail for
+  every score inside the rounding band, which is a **major** under the grade-stability rule. Scheduled for
+  v1.0 with the `ItemOutcome` unification.
 - `AssessmentBlueprint` + `planAttempt(bp, seed, resolve)` → `AttemptPlan` with **`slotId`** identity, frozen
   `maxPoints`, `contentHash` per slot (re-grade reproducibility). **Deferred — see below.**
 - **Media playback policy** on `ActivityMedia`: `{ maxPlays?, allowSeek?, allowDownload?, allowRateChange?,

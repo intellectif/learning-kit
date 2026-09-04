@@ -38,6 +38,20 @@ export interface GradeFromRubricOptions {
  * marked `notApplicable`, and those carrying no numeric `score` (a purely
  * banded judgement), are excluded from both numerator and denominator. When
  * nothing scoreable remains the result is `unscorable`, never a zero.
+ *
+ * Scores need not be in [0,1]: set `maxScore` on a criterion to declare what
+ * its score is out of, and each is normalised before weighting. A grader
+ * working out of 100 says so and is done:
+ *
+ * ```ts
+ * gradeFromRubric([
+ *   { name: 'Task achievement', score: 82, maxScore: 100, weight: 2 },
+ *   { name: 'Range',            score: 7,  maxScore: 9,   weight: 1 },
+ * ]);
+ * ```
+ *
+ * The returned `GradeRecord.score` is always scaled [0,1] against
+ * `maxScore: 1`, like every other score in the SDK.
  */
 export function gradeFromRubric(
   criteria: readonly CriterionScore[],
@@ -62,24 +76,46 @@ export function gradeFromRubric(
     };
   }
 
+  // A `maxScore` that is absent means 1 (the scaled convention). One that is
+  // present must be a positive finite number: dividing by 0, a negative, or a
+  // NaN would produce a grade nobody can defend.
+  const badMax = criteria.find(
+    (criterion) =>
+      criterion.notApplicable !== true &&
+      criterion.maxScore !== undefined &&
+      !(Number.isFinite(criterion.maxScore) && criterion.maxScore > 0),
+  );
+  if (badMax !== undefined) {
+    return {
+      unscorable: true,
+      reason: `Criterion "${badMax.name}" declares maxScore ${String(badMax.maxScore)}; it must be a positive, finite number.`,
+    };
+  }
+
   const scoreable = criteria.filter(
     (criterion) => criterion.notApplicable !== true && typeof criterion.score === 'number',
   );
 
-  // `score` is documented as scaled [0,1]. A grader that returns raw points
-  // (4 out of 5) would otherwise yield `{ score: 4, maxScore: 1 }` and pass
+  /** The criterion's score as a ratio in [0,1]. `maxScore` defaults to 1. */
+  const ratioOf = (criterion: CriterionScore): number =>
+    (criterion.score as number) / (criterion.maxScore ?? 1);
+
+  // A grader that returns raw points (4 out of 5) without declaring
+  // `maxScore: 5` would otherwise yield `{ score: 4, maxScore: 1 }` and pass
   // every threshold. Reject rather than clamp: silently rescaling someone's
   // grader is worse than telling them it is out of contract. A hair outside
-  // the range is float noise and is clamped.
+  // the range is float noise and is clamped further down.
   const EPSILON = 1e-9;
   const outOfRange = scoreable.find(
-    (criterion) =>
-      (criterion.score as number) < -EPSILON || (criterion.score as number) > 1 + EPSILON,
+    (criterion) => ratioOf(criterion) < -EPSILON || ratioOf(criterion) > 1 + EPSILON,
   );
   if (outOfRange !== undefined) {
     return {
       unscorable: true,
-      reason: `Criterion "${outOfRange.name}" has score ${outOfRange.score}, outside the scaled [0,1] range. Normalise grader output before building a GradeRecord.`,
+      reason:
+        `Criterion "${outOfRange.name}" has score ${outOfRange.score} out of ${outOfRange.maxScore ?? 1}, ` +
+        'which is outside the [0,1] range once scaled. Set `maxScore` on the criterion to declare what the ' +
+        'score is out of (e.g. `maxScore: 100` for a 0–100 grader).',
     };
   }
 
@@ -100,7 +136,7 @@ export function gradeFromRubric(
   }
 
   const weighted = scoreable.reduce(
-    (sum, criterion) => sum + (criterion.score as number) * (criterion.weight ?? 1),
+    (sum, criterion) => sum + ratioOf(criterion) * (criterion.weight ?? 1),
     0,
   );
   const rawScore = weighted / totalWeight;

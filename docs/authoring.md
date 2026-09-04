@@ -62,7 +62,7 @@ Shared optional fields on **every** activity: `passThreshold` (0–1, default 0.
 }
 ```
 
-Rules: 2–10 options; ≥1 correct; `mode: "single"` ⇒ **exactly one** correct. `partial` scoring: `max(0, correctSelected/totalCorrect − incorrectSelected/totalIncorrect)`.
+Rules: 2–26 options; ≥1 correct; `mode: "single"` ⇒ **exactly one** correct. `partial` scoring: `max(0, correctSelected/totalCorrect − incorrectSelected/totalIncorrect)`.
 
 ### Fill-in-the-Blanks
 
@@ -183,7 +183,7 @@ Optional `media` on either activity, rendered above the question/passage:
 
 ### Feedback
 
-Two composable layers, both authored by you (the scoring engine never synthesizes feedback — `ScoringResult.feedback` is `null` in V1):
+Two composable layers, both authored by you. The SDK never *writes* feedback, but it does **select** it: since 0.3.0 `score()` and `evaluate()` set `ScoringResult.feedback` to `feedback.correct` or `feedback.incorrect` according to `passed`, so a server scoring headlessly gets the same message the component shows and does not have to reimplement the choice.
 
 1. **Per-item, on the spot** — Multiple Choice `option.feedback`, and Fill-in-the-Blanks per-blank `blank.feedback`. Rendered **inline next to that item, immediately after submission**, colour-keyed by correctness. This is deliberate: immediate, item-localized feedback is the strongest formative-learning signal (vs. an end-of-activity summary).
 2. **Activity-level overall** — `feedback: { correct?, incorrect? }`. After submit, the `correct` message shows if the learner passed (score ≥ pass threshold), else `incorrect`, in the activity's `aria-live` region (h5p "Overall Feedback" parity).

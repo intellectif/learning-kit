@@ -25,8 +25,10 @@ import { defineActivityType, type FieldPolicy, registerActivityType } from './re
  * anything not listed here is dropped by `redact()`. `scoringStrategy` is
  * answer-key everywhere — MC `partial` penalises wrong selections while
  * `all-or-nothing` does not, so the strategy reveals whether guessing is
- * free. Authored feedback is answer-key (it may quote or hint the answer);
- * rubrics are author-only (grader assets).
+ * free. Authored feedback is answer-key (it may quote or hint the answer).
+ * Rubrics are PUBLIC: a rubric tells the learner what they are assessed on,
+ * and a deployment that wants it hidden tightens it per call — see the
+ * `rubric` entry in the written-response policy below.
  */
 const SHARED_PUBLIC_FIELDS: FieldPolicy = {
   schemaVersion: 'public',
