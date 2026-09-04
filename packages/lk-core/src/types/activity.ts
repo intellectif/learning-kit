@@ -86,9 +86,10 @@ export interface MultipleChoiceData {
   question: string;
   /**
    * Optional sanitised rich-HTML rendering of the question, parallel to
-   * `WrittenResponseData.promptHtml`. The SDK carries and redacts it as
-   * learner-visible content but does not render it yet (components escape
-   * text); sanitisation is the application's responsibility.
+   * `WrittenResponseData.promptHtml`. `<MultipleChoice>` renders it in place
+   * of `question` when — and only when — a `sanitizeHtml` function is
+   * supplied; without one the plain `question` is rendered and escaped.
+   * Sanitisation is the application's responsibility: the SDK ships none.
    */
   questionHtml?: string;
   /** `single` allows one selection; `multi` allows multiple. */
@@ -208,7 +209,11 @@ export interface WrittenResponseData {
   title: string;
   /** The writing prompt, as plain text. */
   prompt: string;
-  /** Optional sanitised rich-HTML sidecar of the prompt (not rendered by the SDK yet). */
+  /**
+   * Optional sanitised rich-HTML sidecar of the prompt. `<WrittenResponse>`
+   * renders it in place of `prompt` when a `sanitizeHtml` function is
+   * supplied; without one the plain `prompt` is rendered and escaped.
+   */
   promptHtml?: string;
   /** Minimum acceptable word count (≥ 0). */
   minWords: number;

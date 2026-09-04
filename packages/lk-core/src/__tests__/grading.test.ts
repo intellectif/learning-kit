@@ -597,12 +597,12 @@ describe('gradeFromRubric() out-of-contract criterion scores', () => {
     // otherwise yield { score: 4, maxScore: 1 } and pass every threshold.
     const result = unscorableOf([{ name: 'Task achievement', score: 4, weight: 1 }]);
     expect(result.reason).toContain('Task achievement');
-    expect(result.reason).toContain('outside the scaled [0,1] range');
+    expect(result.reason).toContain('outside the [0,1] range once scaled');
   });
 
   it('rejects a negative criterion score', () => {
     const result = unscorableOf([{ name: 'A', score: -1, weight: 1 }]);
-    expect(result.reason).toContain('outside the scaled [0,1] range');
+    expect(result.reason).toContain('outside the [0,1] range once scaled');
   });
 
   it('rejects a NaN criterion score instead of producing a NaN grade', () => {
@@ -637,6 +637,83 @@ describe('gradeFromRubric() out-of-contract criterion scores', () => {
     expect(record.score).toBe(1);
     const low = grade([{ name: 'A', score: -1e-12, weight: 1 }]);
     expect(low.score).toBe(0);
+  });
+
+  it('points at maxScore as the remedy, rather than telling a grader to normalise by hand', () => {
+    // Rejecting a 0–100 grader with no way forward is what pushed integrators
+    // back to letting the model compute the weighted total itself.
+    const result = unscorableOf([{ name: 'Task achievement', score: 82, weight: 1 }]);
+    expect(result.reason).toContain('maxScore');
+    expect(result.reason).toContain('maxScore: 100');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CriterionScore.maxScore — the scale bridge
+// ---------------------------------------------------------------------------
+
+describe('gradeFromRubric() criterion scales', () => {
+  it('accepts a 0–100 grader and returns a scaled [0,1] record', () => {
+    const record = grade([
+      { name: 'Task achievement', score: 80, maxScore: 100, weight: 1 },
+      { name: 'Grammar', score: 60, maxScore: 100, weight: 1 },
+    ]);
+    expect(record.score).toBeCloseTo(0.7, 10);
+    expect(record.maxScore).toBe(1);
+  });
+
+  it('normalises each criterion against its OWN maximum', () => {
+    // A rubric mixing a percentage with a 9-band CEFR score.
+    const record = grade([
+      { name: 'Task', score: 50, maxScore: 100, weight: 1 },
+      { name: 'Range', score: 9, maxScore: 9, weight: 1 },
+    ]);
+    expect(record.score).toBeCloseTo(0.75, 10);
+  });
+
+  it('honours weights across mixed scales', () => {
+    const record = grade([
+      { name: 'Task', score: 100, maxScore: 100, weight: 3 },
+      { name: 'Range', score: 0, maxScore: 9, weight: 1 },
+    ]);
+    expect(record.score).toBeCloseTo(0.75, 10);
+  });
+
+  it('defaults maxScore to 1, so existing [0,1] callers are byte-identical', () => {
+    const criteria: CriterionScore[] = [
+      { name: 'A', score: 0.8, weight: 2 },
+      { name: 'B', score: 0.5, weight: 1 },
+    ];
+    const withDefault = grade(criteria);
+    const explicit = grade(criteria.map((c) => ({ ...c, maxScore: 1 })));
+    expect(withDefault.score).toBe(explicit.score);
+    expect(withDefault.score).toBeCloseTo(0.7, 10);
+  });
+
+  it('still rejects a score above its declared maximum', () => {
+    const result = gradeFromRubric([{ name: 'A', score: 101, maxScore: 100, weight: 1 }]);
+    expect('unscorable' in result).toBe(true);
+  });
+
+  it.each([
+    0,
+    -100,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+  ])('rejects a maxScore of %s rather than dividing by it', (maxScore) => {
+    const result = gradeFromRubric([{ name: 'A', score: 1, maxScore, weight: 1 }]);
+    expect('unscorable' in result).toBe(true);
+    if ('unscorable' in result) {
+      expect(result.reason).toContain('positive, finite');
+    }
+  });
+
+  it('ignores maxScore on a criterion that is not applicable', () => {
+    const record = grade([
+      { name: 'A', score: 90, maxScore: 100, weight: 1 },
+      { name: 'Interaction', notApplicable: true, maxScore: 0, weight: 1 },
+    ]);
+    expect(record.score).toBeCloseTo(0.9, 10);
   });
 });
 

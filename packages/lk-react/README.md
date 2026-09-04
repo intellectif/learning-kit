@@ -64,6 +64,7 @@ export function Demo() {
 
 - **`<MultipleChoice>`** — single / multi select, all-or-nothing or partial scoring, deterministic per-session shuffle, per-option `feedback`.
 - **`<FillInTheBlanks>`** — `{{id}}` placeholders, case/whitespace options, per-blank `hint` (Show/Hide toggle as an icon), per-blank `feedback` shown inline on submit with a learner-controlled **Hide/Show feedback** toggle, optional `showCorrectAnswers`.
+- **`<WrittenResponse>`** — free-text writing with a live word counter and bounds messaging, graded **asynchronously**: it emits an ungraded submission (never a fake zero) and a SUBMITTED-verb xAPI statement, and renders a returned `GradeRecord` in `review` mode with per-criterion scores and inline corrections.
 - **`<ActivitySequence>`** — in-place "question set" pager (Previous/Next, "Question X of N", no scrolling, focus-managed). Accepts item groups and keeps their stimulus beside every question; `onSubmit` reports every raw answer with its `slotId`, which is the only response channel an `exam` sequence has.
 - **`<StimulusPanel>`** — a shared passage / recording / image (an item group's stimulus) as a landmark region; the sequence uses it, and a custom runner can too.
 - **Media per question** — optional `image` / `audio` / `video` / `embed` (YouTube/Vimeo iframe) above the question; alt-text required for `image`/`embed` (WCAG).
@@ -82,6 +83,7 @@ export function Demo() {
 | `@intellectif/lk-react` | Everything (barrel) |
 | `@intellectif/lk-react/components/MultipleChoice` | `<MultipleChoice>` (boundary-wrapped) |
 | `@intellectif/lk-react/components/FillInTheBlanks` | `<FillInTheBlanks>` (boundary-wrapped) |
+| `@intellectif/lk-react/components/WrittenResponse` | `<WrittenResponse>` (boundary-wrapped) |
 | `@intellectif/lk-react/components/ActivitySequence` | `<ActivitySequence>` question-set pager |
 | `@intellectif/lk-react/components/StimulusPanel` | `<StimulusPanel>` shared-stimulus region |
 | `@intellectif/lk-react/hooks/useActivityState` | Lifecycle + timing |
@@ -99,12 +101,13 @@ ESM + CJS + `.d.ts` for every entry. Tree-shakeable.
 | **Scoring** | Pure & deterministic; `all-or-nothing` and `partial`. |
 | **Feedback** | Per-item (MC per-option, FIB per-blank) shown inline on submit with Hide/Show toggle, + activity-level overall. |
 | **Retry** | Pass a new `data` reference or change the React `key` → activity resets (no built-in button — retry *policy* is yours). |
-| **Persistence / resume** | Not in the SDK — capture `onInteraction` / `onComplete` and persist as you wish. No `initialResponse` prop in V1 (cannot re-hydrate a partial attempt). |
+| **Persistence / resume** | Storage is yours — capture `onSubmit` / `onChange` / `onInteraction` and persist as you wish. Re-hydration **is** supported: pass `defaultValue` to seed a component, or `value` + `onChange` to control it outright (since 2.1.0). |
 | **Authoring / content storage / CDN / auth** | Consumer responsibility — typed schemas + `validateActivity` + JSON Schema export are provided for you to build authoring on. |
 | **SSR / RSC** | Fully supported. |
 
 ## Documentation
 
+- [Upgrading](https://github.com/intellectif/learning-kit/blob/main/docs/upgrading.md) — start here if you are on 2.x.
 - [Authoring & content storage](https://github.com/intellectif/learning-kit/blob/main/docs/authoring.md)
 - [Styling](https://github.com/intellectif/learning-kit/blob/main/docs/styling.md) — tokens, the skin, overrides, dark mode, Tailwind.
 - [Project README](https://github.com/intellectif/learning-kit#readme) — full picture & monorepo layout.

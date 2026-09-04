@@ -2,6 +2,7 @@
 
 import {
   ActivitySchemaError,
+  type CriterionScore,
   countWords,
   evaluate,
   type GradeRecord,
@@ -116,6 +117,22 @@ function textOf(response: LearnerResponse | undefined): string {
 }
 
 /**
+ * One criterion's score as a percentage of its OWN maximum.
+ *
+ * `CriterionScore.maxScore` defaults to 1 — the SDK's scaled convention — but
+ * a grader may work out of 100, or out of 9 for a CEFR band, and
+ * `gradeFromRubric` deliberately stores those judgements verbatim so a grade
+ * stays auditable in the units the grader actually used. It normalises when it
+ * computes the total; anything DISPLAYING a criterion has to normalise too, or
+ * a perfectly ordinary 82/100 renders as "8200%". This is the same guard the
+ * overall score already applies against `outcome.maxScore`.
+ */
+function criterionPercent(criterion: CriterionScore): string {
+  const max = criterion.maxScore !== undefined && criterion.maxScore > 0 ? criterion.maxScore : 1;
+  return `${Math.round(((criterion.score as number) / max) * 100)}%`;
+}
+
+/**
  * Renders the server-computed outcome in `review` mode. The grade shown here
  * always came back from the asynchronous grader — nothing on this path scores,
  * infers, or defaults a grade. A `written-response` outcome carries no
@@ -140,9 +157,7 @@ function GradeBody({ grade }: { grade: GradeRecord }) {
               ) : (
                 <span className="lk-wr-criterion-score">
                   {criterion.band ??
-                    (typeof criterion.score === 'number'
-                      ? `${Math.round(criterion.score * 100)}%`
-                      : '')}
+                    (typeof criterion.score === 'number' ? criterionPercent(criterion) : '')}
                 </span>
               )}
               {criterion.comment ? (

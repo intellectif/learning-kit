@@ -104,6 +104,9 @@ export const ItemGroupSchema = z
     path: ['items'],
   });
 
+/** The learner-safe shape of a stimulus, derived from the strict schema below. */
+export type RedactedStimulus = z.infer<typeof RedactedStimulusSchema>;
+
 /** Strict learner-safe stimulus: everything but the author-only `transcript`. */
 export const RedactedStimulusSchema = z.strictObject({
   id: z.string().min(1),
