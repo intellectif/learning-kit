@@ -357,6 +357,65 @@ Drift is not automatically a problem — a fixed typo changes a fingerprint with
 
 **On `contentHash`.** It is a deterministic, dependency-free fingerprint for *change detection*, not a tamper-evident signature: someone who can edit content could, with effort, preserve it. It catches honest edits, which is what actually happens. If you need the stronger property, sign the plan with a key the content author does not hold.
 
+## Resuming and reviewing an attempt (v0.6)
+
+The plan says what the learner was asked. `AttemptState` says how far they got — and it is bound to the plan, because restoring answers onto a *different* paper is exactly what slot ids alone will happily let you do.
+
+```ts
+import {
+  serializeAttemptState, restoreAttemptState, diffResponses,
+} from '@intellectif/lk-core';
+
+// Autosave.
+const snapshot = serializeAttemptState(plan, {
+  responses,               // { [slotId]: LearnerResponse }
+  submittedSlotIds,
+  index,                   // where the learner is standing
+  savedAt: new Date().toISOString(),   // the SDK never reads a clock
+});
+
+// Resume, later.
+const restored = restoreAttemptState(plan, snapshot);   // throws if it is not this paper
+```
+
+`serializeAttemptState` validates on the way **in**: a response stored against a slot the paper does not contain is a bug at the moment it is written, and discovering it when a learner tries to resume is discovering it far too late. `restoreAttemptState` re-validates, because a snapshot is storage and storage gets migrated and hand-fixed.
+
+`diffResponses(before, after)` reports what moved between two snapshots — including an answer the learner **cleared**, which comparing the later snapshot alone cannot see. Use it for a delta autosave or an audit trail.
+
+### Putting a learner back where they were
+
+```tsx
+<ActivitySequence
+  activities={entries}
+  shuffleSeed={attemptId}
+  defaultIndex={restored.index}                 // reopen on the right question
+  responses={restored.responses}                // seed each slot's saved answer
+  submittedSlotIds={restored.submittedSlotIds}  // keep committed work committed
+  onIndexChange={(index) => save({ index })}
+  onSubmit={(response, slot) => save({ [slot.slotId]: response })}
+/>
+```
+
+The three seed props are read at **mount only** — to show a *different* attempt, remount with a `key`. That is enforced, not merely advised: slot ids are short and repeat across papers (`"0"`, `"1.0"`), so re-applying them after the entries changed would drop one paper's answers under another paper's questions. Seeding stops at the first set change.
+
+`submittedSlotIds` matters on a summative paper. Without it a resumed attempt reopens every question the learner had already committed as answerable, and they can change and re-submit it.
+
+Restored answers stay editable: resume is not a freeze. A stored position the paper no longer has — or one that is not a number at all, which `Number(row.last_index)` produces from a NULL column — is clamped rather than obeyed. `onIndexChange` reports **every** position the pager lands on, including a clamp it had to apply and the reset a set change performs, so what you store never disagrees with what the learner sees.
+
+### Rendering a review
+
+```tsx
+<ActivitySequence
+  activities={entries}
+  renderMode="review"
+  shuffleSeed={attemptId}
+  responses={attempt.responses}
+  outcomes={outcomesBySlotId}   // what the SERVER decided
+/>
+```
+
+`review` is read-only and never scores: `outcomes` is the only thing that marks correctness, so a review render without it shows the answers and no verdict — which is right, rather than inventing one client-side.
+
 ## Scoring a whole assessment (v0.4)
 
 `composeAssessmentScore` turns per-item outcomes into a weighted, sectioned

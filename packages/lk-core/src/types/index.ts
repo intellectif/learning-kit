@@ -28,6 +28,7 @@ export type {
   WrittenResponseRubricCriterion,
 } from './activity.js';
 export type { AttemptPlan, AttemptPlanDrift, AttemptPlanSlot } from './attempt-plan.js';
+export type { AttemptState, ResponseDiffEntry } from './attempt-state.js';
 export type {
   CriterionScore,
   GradeRecord,

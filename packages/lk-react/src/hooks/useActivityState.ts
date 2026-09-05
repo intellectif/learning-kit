@@ -13,8 +13,15 @@ export interface UseActivityStateResult {
   complete: () => void;
   /** → reviewing (e.g. when showing correct answers). */
   review: () => void;
-  /** → idle and clears timing. Call when the activity `data` prop changes. */
-  reset: () => void;
+  /**
+   * Clears timing and returns to `to`, defaulting to `idle`. Call when the
+   * activity `data` prop changes.
+   *
+   * The target is a parameter because "reset" for a RESTORED item does not
+   * mean idle: an item the learner had already submitted must come back
+   * submitted, or a data-prop change quietly unlocks committed work.
+   */
+  reset: (to?: ActivityState) => void;
   /** Elapsed ms since `start()`; 0 when not started (or after `reset()`). */
   getTimeSpent: () => number;
 }
@@ -23,8 +30,13 @@ export interface UseActivityStateResult {
  * Tracks an activity's lifecycle state and elapsed time. Timing is held in a
  * ref (no re-render) and `getTimeSpent()` is read imperatively at submission.
  */
-export function useActivityState(): UseActivityStateResult {
-  const [state, setState] = useState<ActivityState>('idle');
+export function useActivityState(initialState: ActivityState = 'idle'): UseActivityStateResult {
+  // `initialState` seeds the MOUNT only, like any `default*` value. It exists
+  // so a resumed attempt can reopen a question the learner had already
+  // submitted as submitted — without it, an exam that locks each question on
+  // submit silently unlocks every one of them after a crash, and the learner
+  // can answer and submit the same question twice.
+  const [state, setState] = useState<ActivityState>(initialState);
   const startTimeRef = useRef<number | null>(null);
 
   const start = useCallback(() => {
@@ -40,9 +52,9 @@ export function useActivityState(): UseActivityStateResult {
 
   const review = useCallback(() => setState('reviewing'), []);
 
-  const reset = useCallback(() => {
+  const reset = useCallback((to: ActivityState = 'idle') => {
     startTimeRef.current = null;
-    setState('idle');
+    setState(to);
   }, []);
 
   const getTimeSpent = useCallback(

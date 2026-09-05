@@ -97,6 +97,15 @@ export interface ActivityProps<TData extends ActivityData = ActivityData> {
   value?: LearnerResponse;
   /** Initial response for an uncontrolled component (ignored when `value` is set). */
   defaultValue?: LearnerResponse;
+  /**
+   * Mount the component as already submitted — read at mount only, like any
+   * `default*` prop.
+   *
+   * Restoring an attempt without it reopens a question the learner had already
+   * submitted as answerable, so on a summative paper they can change and
+   * re-submit it. `AttemptState.submittedSlotIds` is what this consumes.
+   */
+  defaultSubmitted?: boolean;
   /** Fires on every change to the learner's response. Required for a controlled component. */
   onChange?: (response: LearnerResponse) => void;
   /** Presentation mode. Defaults to `practice`. */

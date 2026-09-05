@@ -4,6 +4,7 @@ import {
   type ActivityResult,
   flattenSequence,
   type InteractionEvent,
+  type ItemOutcome,
   isItemGroup,
   type LearnerResponse,
   type SequenceEntry,
@@ -42,6 +43,18 @@ export type SequenceItemOutcome =
       activityId: string;
       /** Ungraded submission; the grade arrives asynchronously. */
       submission: WrittenResponseSubmission;
+    }
+  | {
+      kind: 'restored';
+      index: number;
+      slotId: string;
+      activityId: string;
+      /**
+       * The answer as restored, when one was. A slot can be submitted with no
+       * stored response (a blank the learner committed), so this is optional —
+       * inventing one would be worse than admitting it is absent.
+       */
+      response?: LearnerResponse;
     }
   | {
       kind: 'responded';
@@ -148,6 +161,41 @@ export interface ActivitySequenceProps {
    * for any server-rendered sequence regardless of mode.
    */
   shuffleSeed?: string;
+  /**
+   * Where to open. Defaults to the first question; pass a stored
+   * `AttemptState.index` to reopen an interrupted attempt where it was left.
+   * Read at mount only, like any `default*` prop.
+   */
+  defaultIndex?: number;
+  /**
+   * Fires whenever the learner moves. Persist it and the next resume reopens
+   * on the right question — without it, the pager's position is the one piece
+   * of an attempt a consumer cannot recover.
+   */
+  onIndexChange?: (index: number) => void;
+  /**
+   * Answers to restore, keyed by `slotId`, seeded into each slot as its
+   * `defaultValue`. This is the other half of resume: `AttemptState.responses`
+   * goes straight in.
+   *
+   * Read at mount only. To restore a different attempt, remount with a `key`.
+   */
+  responses?: Readonly<Record<string, LearnerResponse>>;
+  /**
+   * Slots the learner had already submitted, from `AttemptState.submittedSlotIds`.
+   * Each is mounted already submitted, so a resumed paper does not reopen a
+   * locked question as answerable — without this a learner can change and
+   * re-submit work they had already committed.
+   *
+   * Read at mount only, alongside `responses`.
+   */
+  submittedSlotIds?: readonly string[];
+  /**
+   * Server-computed outcomes keyed by `slotId`, forwarded to each slot. In
+   * `review` mode this is what marks correctness — the client never scores, so
+   * without it a review render has nothing to show.
+   */
+  outcomes?: Readonly<Record<string, ItemOutcome>>;
   /** Renders author-supplied rich text; forwarded to the stimulus panel and every activity. */
   sanitizeHtml?: HtmlSanitizer;
   theme?: Partial<ThemeTokens>;
@@ -248,6 +296,11 @@ export function ActivitySequence({
   renderMode = 'practice',
   shuffle,
   shuffleSeed,
+  defaultIndex,
+  onIndexChange,
+  responses,
+  submittedSlotIds,
+  outcomes,
   sanitizeHtml,
   theme,
   locale,
@@ -286,7 +339,21 @@ export function ActivitySequence({
     [activities, shuffleEntries, seed],
   );
 
-  const [index, setIndex] = useState(0);
+  // Clamped rather than trusted: a stored position from a paper that has since
+  // lost its last question would open the pager on a slot that is not there,
+  // which renders as an empty shell with no way forward.
+  const [index, setIndex] = useState(() => {
+    // NaN passes through Math.min/Math.max unchanged, so it survived every
+    // clamp and indexed the slots with NaN — the pager then rendered the empty
+    // shell this clamp exists to prevent. `NaN` is a `number`, so the prop type
+    // gives no protection, and `Number(row.last_index)` on a NULL column
+    // produces exactly that.
+    const requested = Math.trunc(defaultIndex ?? 0);
+    if (!Number.isFinite(requested)) {
+      return 0;
+    }
+    return Math.min(Math.max(0, requested), Math.max(0, slots.length - 1));
+  });
   // Outcomes live in a ref, not state: nothing renders from them, and a ref is
   // written SYNCHRONOUSLY. Reading them from a `useState` closure meant two
   // slots completing in the same tick both saw the pre-update array — the
@@ -295,7 +362,26 @@ export function ActivitySequence({
   // reachable (a custom renderer that completes from a mount effect).
   const outcomesRef = useRef<(SequenceItemOutcome | null)[] | null>(null);
   if (outcomesRef.current === null) {
-    outcomesRef.current = slots.map(() => null);
+    // Slots the learner had already submitted are seeded as `restored`. They
+    // will not submit again — they mount locked — so leaving them null meant
+    // `onFinished` waited forever on outcomes that could never arrive, and a
+    // resumed attempt could never signal completion however many of the
+    // remaining questions the learner answered. Seeding fires no callback: the
+    // attempt was already this far along before this mount existed.
+    const submittedAtMount = new Set(submittedSlotIds ?? []);
+    outcomesRef.current = slots.map((slot) =>
+      submittedAtMount.has(slot.slotId)
+        ? {
+            kind: 'restored' as const,
+            index: slot.index,
+            slotId: slot.slotId,
+            activityId: slot.activity.id,
+            ...(responses !== undefined && Object.hasOwn(responses, slot.slotId)
+              ? { response: responses[slot.slotId] as LearnerResponse }
+              : {}),
+          }
+        : null,
+    );
   }
   const regionRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(false);
@@ -309,6 +395,15 @@ export function ActivitySequence({
   // JSON.stringify (not join) so ids containing the separator cannot collide.
   const setKey = JSON.stringify(slots.map((slot) => [slot.slotId, slot.activity.id]));
   const [prevSetKey, setPrevSetKey] = useState(setKey);
+  // The set this component mounted with. `responses` seeds slots BY slotId,
+  // and slot ids are short and repeat across papers ("0", "1.0"), so applying
+  // them after the set changed would drop one paper's answers under another
+  // paper's questions — a review modal stepping to the next attempt did
+  // exactly that. Seeding stops at the first set change; to show a different
+  // attempt, remount with a `key`, which is what "read at mount only" means.
+  const mountSetKeyRef = useRef(setKey);
+  const seedsApply = mountSetKeyRef.current === setKey;
+  const submitted = useMemo(() => new Set(submittedSlotIds ?? []), [submittedSlotIds]);
   if (prevSetKey !== setKey) {
     setPrevSetKey(setKey);
     setIndex(0);
@@ -325,6 +420,26 @@ export function ActivitySequence({
       mountedRef.current = true;
     }
   }, [index]);
+
+  // Report where the pager actually IS, from an effect rather than from the
+  // navigation handler. Two positions the learner never chose are still
+  // positions a consumer has to persist: a `defaultIndex` that was clamped
+  // (stored 99, showing 2) and the reset a set change performs. Reporting only
+  // clicks left storage disagreeing with the screen, and the next autosave
+  // then wrote a position the plan does not have.
+  const reportedIndexRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (reportedIndexRef.current === index) {
+      return;
+    }
+    const first = reportedIndexRef.current === null;
+    reportedIndexRef.current = index;
+    // On mount, stay silent unless the requested position was corrected.
+    if (first && index === Math.trunc(defaultIndex ?? 0)) {
+      return;
+    }
+    onIndexChange?.(index);
+  }, [index, defaultIndex, onIndexChange]);
 
   // One panel per group, spanning the presented positions of its questions.
   const stimulusMounts = useMemo<StimulusMount[]>(() => {
@@ -407,7 +522,19 @@ export function ActivitySequence({
     const activity = slot.activity;
     const { slotId, index: slotIndex } = slot;
     const activityId = activity.id;
+    const restored =
+      seedsApply && responses !== undefined && Object.hasOwn(responses, slotId)
+        ? responses[slotId]
+        : undefined;
+    const slotOutcome =
+      outcomes !== undefined && Object.hasOwn(outcomes, slotId) ? outcomes[slotId] : undefined;
     const childProps = {
+      // `defaultValue`, not `value`: the learner must be able to keep editing
+      // a restored answer. A controlled `value` would freeze it unless the
+      // consumer also threaded state back, which is not what resume means.
+      ...(restored !== undefined ? { defaultValue: restored } : {}),
+      ...(seedsApply && submitted.has(slotId) ? { defaultSubmitted: true } : {}),
+      ...(slotOutcome !== undefined ? { outcome: slotOutcome } : {}),
       onComplete: (result: ActivityResult) =>
         record({ kind: 'scored', index: slotIndex, slotId, activityId, result }),
       onSubmit: (response: LearnerResponse) => {
@@ -429,7 +556,17 @@ export function ActivitySequence({
       return <CustomRenderer data={activity} {...childProps} />;
     }
     if (activity.type === 'multiple-choice') {
-      return <MultipleChoice data={activity} {...childProps} />;
+      return (
+        <MultipleChoice
+          data={activity}
+          // The sequence seed reaches the OPTION shuffle too. Without it a
+          // resumed or reviewed item invented a fresh per-mount order, so the
+          // learner saw their answers against a different arrangement than the
+          // one they sat — the exact reproducibility the attempt id is for.
+          {...(shuffleSeed !== undefined ? { shuffleSeed } : {})}
+          {...childProps}
+        />
+      );
     }
     if (activity.type === 'fill-in-the-blanks') {
       return <FillInTheBlanks data={activity} {...childProps} />;
@@ -443,8 +580,12 @@ export function ActivitySequence({
           }
           // Explicit rather than spread: WrittenResponse has no `onComplete`
           // (it never grades), so `childProps` does not fit it — but it must
-          // still report the raw response like every other slot.
+          // still report the raw response, restore a saved draft, and show a
+          // returned grade like every other slot.
           onSubmit={childProps.onSubmit}
+          {...(restored !== undefined ? { defaultValue: restored } : {})}
+          {...(seedsApply && submitted.has(slotId) ? { defaultSubmitted: true } : {})}
+          {...(slotOutcome !== undefined ? { outcome: slotOutcome } : {})}
           {...forwarded}
         />
       );

@@ -1,4 +1,5 @@
 export * from './attempt-plan.js';
+export * from './attempt-state.js';
 export * from './content-hash.js';
 export * from './count-words.js';
 export * from './errors.js';
