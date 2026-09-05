@@ -1,5 +1,57 @@
 # @intellectif/lk-core
 
+## 0.6.0
+
+### Minor Changes
+
+- 07672b3: Make the grading surface reachable, and correct what the docs promise.
+
+  An evidence sweep of a production integration found it pinned to `lk-core@^0.3.0` — so none of the v0.4 grading work was callable there — while two of the exact defects that work exists to prevent were live in its gradebook: a language model computing the weighted total of record for every essay, and an ungraded essay recorded as a hard zero that flowed into the learner's pass/fail. The features were shipped and correct. The obstacles were on this side.
+
+  **`CriterionScore.maxScore` (new).** `gradeFromRubric` required every criterion score to be pre-scaled to `[0,1]` and _rejected_ anything else. Real graders work out of 100, or out of 9 for a CEFR band, or out of a per-criterion points total — so the rejection sent integrators back to letting the model produce the weighted total itself, which is precisely the arithmetic this function exists to take away from it. Declare what each score is out of and the SDK normalises before weighting; a rubric may mix scales. Omitted, it defaults to `1` and the previous arithmetic is byte-identical. A `maxScore` that is zero, negative or non-finite is reported `unscorable` rather than divided by, and the out-of-range message now names `maxScore` as the remedy instead of telling the caller to normalise by hand.
+
+  **Per-type redacted types (new).** `redact()` returns `RedactedActivityData`, which proves a payload is learner-safe but is index-signature typed and says nothing about its shape — right for the assertion, useless for anything that has to render or transport the result. Every integrator re-declared those interfaces by hand and they drifted. `RedactedMultipleChoiceData`, `RedactedFillInTheBlanksData`, `RedactedWrittenResponseData`, the `RedactedActivity` union, `RedactedStimulus` and the option/blank shapes are now derived from the strict schemas with `z.infer`, so the type and the validator cannot disagree, with tests pinning them to what `redact()` actually produces.
+
+  **`<WrittenResponse>` normalises each criterion it displays.** `gradeFromRubric` stores the grader's judgements verbatim, in the units the grader used, so a grade stays auditable years later — which means anything _displaying_ a criterion has to normalise it, exactly as the overall score is already normalised against its own `maxScore`. The review renderer printed `score * 100`, so the moment a criterion could legitimately be `82 / 100` it would have read "8200%". Caught before release; the same review path is now tested end to end through `gradeFromRubric` with mixed native scales rather than pre-scaled `[0,1]` fixtures.
+
+  **`docs/upgrading.md` (new)**, leading with the two grade defects and what to call instead, and covering the `passed: boolean | null` and list-vs-count adjustments that adopting `composeAssessmentScore` requires.
+
+  **A documentation-truth pass**, treated as a correctness deliverable:
+
+  - The root README stated `redact()` strips **rubrics**. It does not, deliberately — a rubric tells the learner what they are assessed on — so an integrator trusting the README would ship rubrics to an exam client believing they were stripped. An in-source docblock contradicted the policy three lines below it.
+  - Both READMEs denied any resume capability ("no `initialResponse` prop → cannot re-hydrate a prior attempt") months after `value`/`defaultValue`/`onChange` shipped in lk-react 2.1.0.
+  - The published `.d.ts` told every IDE that `questionHtml` and `promptHtml` are "not rendered by the SDK yet". Both render, through a caller-supplied sanitiser. (`passageHtml` genuinely is not rendered; that JSDoc was correct and stands.)
+  - The authoring guide said the scoring engine never returns feedback and capped multiple choice at 10 options; `score()` has selected feedback on `passed` since 0.3.0 and the schema allows 26.
+  - `lk-react`'s README omitted `<WrittenResponse>` entirely, and `lk-core`'s advertised roughly its 0.2.x surface on a package published at 0.4.0 — no `evaluate`, registry, `redact`, `GradeRecord` or composition.
+
+  **`@intellectif/lk-server` is deleted.** It was a private, empty placeholder for its whole life, with no thesis anyone could state. An empty package with no purpose is a liability, not an option held open.
+
+- e5857b2: `planAttempt` — freeze what an attempt was served, so a grade stays defensible.
+
+  A sequence definition is live content: it gets edited, re-ordered, corrected. An attempt is a historical fact. Until now nothing pinned the two together, and three separately-found defects all traced back to the same missing primitive — `composeAssessmentScore` **required** a stable `slotId` while the only producer of one was positional.
+
+  **`planAttempt(entries, { seed, shuffleEntries, points })` → `AttemptPlan`.** Called once when the attempt starts and stored beside the responses. It freezes the presented order, each slot's identity and worth, and a fingerprint of the content behind it. Ordering comes from `flattenSequence`, so a plan and a live render with the same seed agree slot for slot.
+
+  **Points belong to the paper, not the item.** The same question is worth 1 in a practice quiz and 3 in a final, so they are resolved once by a `points` callback and frozen — never read back out of content. A slot resolving to a negative or non-finite value is refused rather than allowed to poison the total.
+
+  **`slotKey` — identity that survives editing.** A positional slot id is only valid against one version of the entries array: insert a question at the top of a published paper and every id beneath it shifts, so rows stored as `"3"` silently start naming a different question. An entry (or an item inside a group) may now declare `slotKey`, used verbatim in place of the positional path. Two entries colliding on one is an error, not a merge — responses stored against a shared identity could not be told apart. A key containing `.` is refused, since that separates a group from its item.
+
+  **`verifyAttemptPlan(stored, current)`.** Ids survive an edit unchanged, so they cannot answer the question a remark or an appeal actually asks: _is this the paper the learner sat?_ Re-plan the current entries with the options the stored plan recorded — its `seed`, its `shuffleEntries`, the same `points` function — and this reports which items were edited, which stimuli were corrected, which were reweighted, what is missing, what was added, and what moved. Drift is not automatically a problem — a fixed typo changes a fingerprint without changing what was asked — but it is a fact somebody has to be able to see.
+
+  **`scoredItemsFromPlan(plan, outcomesBySlotId, { missing })`.** Builds `composeAssessmentScore`'s input from the plan, so the denominator is the paper rather than whatever happened to be answered — building that list from the answers instead is how a paper silently shrinks and the remaining questions become worth more than the exam says. How an unanswered slot is filled is a decision with teeth; see below.
+
+  **`contentHash` / `canonicalJson` / `fingerprint`** are exported for content fingerprinting generally. Canonical JSON sorts object keys (so a round-trip through a different serializer is not a false alarm), keeps array order, and distinguishes the non-finite numbers `JSON.stringify` collapses to `null`. The hash is deterministic and dependency-free, and is documented for what it is: change detection, not a tamper-evident signature.
+
+  **A missing outcome is `deferred`, never `unscorable`.** The two are not interchangeable: `unscorable` means "a grade is never coming", so `composeAssessmentScore` drops the slot from the denominator _and_ lets the result go `final`. A three-question paper with one answer therefore composed to a final, passing 100% — the exact failure this helper exists to prevent. It now defaults to `deferred`, which holds the result `provisional` so nothing can be recorded, with `{ missing: 'zero' }` for a submitted paper whose blanks are genuinely blanks and a callback for anything else. `ItemOutcome`'s deferred `reason` gains `no_response_recorded`, because reusing `requires_async_grading` for an unanswered question would have been a lie.
+
+  **`slotKey` survives redaction.** `redact()` is fail-closed, so an unclassified field is dropped — which silently stripped the very identity a plan and a live render must share. An exam client rendering a redacted paper derived positional ids while the server's stored plan held keyed ones, and the responses could not be matched back. It is now classified `public` assembly metadata on every built-in policy and on the group, and accepted by the strict redacted schemas.
+
+  **`flattenSequence` refuses two entries sharing an entry key**, not just two sharing a full slot id. A loose activity keyed `"reading"` and a group keyed `"reading"` produce `"reading"` and `"reading.0"`, which never collide — while everything that reads the entry a slot belongs to, including the pager's stimulus grouping, treats them as one entry and shows the group's passage above the unrelated question.
+
+  **`verifyAttemptPlan` reports a reweight** (`changedPointsSlotIds`). Points decide the grade, so changing them changes the paper without touching a question; leaving it out meant `matches: true` while `planHash` disagreed. **`AttemptPlan` records `shuffleEntries`** so a shuffled attempt can actually be rebuilt — the documented re-plan omitted it, returned authored order, and reported unchanged content as fully re-ordered. And **`slotKey` is excluded from `contentHash`**, so annotating an item with the key that pins its identity is no longer reported as "this question was edited".
+
+  `flattenSequence` also now refuses duplicate slot ids, which were previously impossible by construction and become possible the moment keys are authored.
+
 ## 0.5.0
 
 ### Minor Changes
