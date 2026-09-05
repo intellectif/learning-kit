@@ -5,5 +5,5 @@
     "noEmit": true,
     "rootDir": "."
   },
-  "include": ["src", "vitest.setup.ts", "vitest-axe.d.ts", "e2e"]
+  "include": ["src", "vitest.setup.ts", "vitest-axe.d.ts", "css-raw.d.ts", "e2e"]
 }

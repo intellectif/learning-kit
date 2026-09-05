@@ -59,7 +59,7 @@ export interface WrittenResponseProps {
    * count, bounds flag, timing, xAPI statement). Fires in `practice` and
    * `exam` mode, after `onSubmit`; never in `review`.
    *
-   * Optional since v0.4 so a `review`-mode render (which has no submit
+   * Optional since lk-react 2.1.0 so a `review`-mode render (which has no submit
    * control) and an exam runner that only wants the raw response through
    * `onSubmit` do not have to pass a no-op. Supply it in `practice`/`exam`
    * unless `onSubmit` already captures everything you persist.

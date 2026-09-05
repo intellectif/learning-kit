@@ -28,7 +28,9 @@ author/store JSON  ──►  fetch (your API / S3 / CDN)  ──►  validateAc
 import { validateActivity } from '@intellectif/lk-core';
 
 const raw = await fetch(`/api/activities/${id}`).then((r) => r.json());
-const result = validateActivity(raw.type, raw); // 'multiple-choice' | 'fill-in-the-blanks'
+// raw.type: 'multiple-choice' | 'fill-in-the-blanks' | 'written-response',
+// or any type you registered with registerActivityType().
+const result = validateActivity(raw.type, raw);
 if (!result.success) {
   // result.errors: { path, message, code }[]  — reject at your boundary
   throw new Error(`Invalid activity: ${JSON.stringify(result.errors)}`);
@@ -36,7 +38,7 @@ if (!result.success) {
 render(<MultipleChoice data={result.data} onComplete={persistAndSend} />);
 ```
 
-`validateActivity` is the **authoritative** validator. The exported JSON Schemas (`multipleChoiceJsonSchema`, `fillInTheBlanksJsonSchema`, Draft-7) are a **structural** aid for form generators / AI prompts only — semantic rules (≥1 correct option, single-select exactly-one-correct, passage↔blank bijection, image/embed needs `alt`) are Zod `.refine()`s and are **not** in the JSON Schema. JSON-Schema-valid is *not* guaranteed Zod-valid; always run `validateActivity`.
+`validateActivity` is the **authoritative** validator. The exported JSON Schemas (`multipleChoiceJsonSchema`, `fillInTheBlanksJsonSchema`, `writtenResponseJsonSchema`, `stimulusJsonSchema`, `itemGroupJsonSchema` — all Draft-7 — plus `jsonSchemaFor(type)` for any registered type) are a **structural** aid for form generators / AI prompts only — semantic rules (≥1 correct option, single-select exactly-one-correct, passage↔blank bijection, image/embed needs `alt`) are Zod `.refine()`s and are **not** in the JSON Schema. JSON-Schema-valid is *not* guaranteed Zod-valid; always run `validateActivity`.
 
 ## Activity data model
 
@@ -53,7 +55,7 @@ Shared optional fields on **every** activity: `passThreshold` (0–1, default 0.
   "question": "Which city is the capital of Japan?",
   "mode": "single",                 // "single" | "multi"
   "scoringStrategy": "all-or-nothing", // | "partial"
-  "shuffle": true,                   // optional, deterministic per session
+  "shuffle": true,                   // optional; seeded by `shuffleSeed`, else per mount
   "options": [
     { "id": "tokyo", "text": "Tokyo", "isCorrect": true,  "feedback": "Correct!" },
     { "id": "seoul", "text": "Seoul", "isCorrect": false, "feedback": "That's South Korea." }
@@ -161,8 +163,13 @@ carry only a `band` are excluded from both numerator and denominator.
 
 `GradeRecord` also carries `corrections` (anchored in the learner's text),
 `evidence`, `rationale`, `confidence`, `requiresHumanReview`, `grader`
-provenance and token/cost `usage` — the SDK stores and renders them; what they
-mean is yours. Use `hasGrade(outcome)` rather than `status === 'scored'`, or you
+provenance and token/cost `usage`. The SDK **stores** all of them; in `review`
+mode `<WrittenResponse>` renders four: the per-criterion `criteria` scores, the
+inline `corrections`, the grade `feedback`, and — when `requiresHumanReview` is
+true — a **learner-visible** notice that the grade is awaiting a teacher. If your
+deployment treats "awaiting review" as internal, that last one is not internal.
+`evidence`, `rationale`, `confidence`, `grader` and `usage` are never rendered;
+they are carried for your own UI, audit trail and review queue. Use `hasGrade(outcome)` rather than `status === 'scored'`, or you
 will silently miss asynchronously graded work.
 
 ### Media per question
@@ -221,11 +228,13 @@ It renders one question at a time with **Previous / Next**, a "Question X of N" 
 
 **Shuffling** is opt-in and seeded. `shuffle="entries"` reorders the top-level entries — an item group moves as **one block** — and a group reorders its own questions only when it declares `shuffle: 'within-group'`. Pass `shuffleSeed` (the attempt id) so the server's `flattenSequence(entries, { seed })` derives the same order the learner sees.
 
-`shuffleSeed` is **required in `exam` and `review` mode**: shuffling without one throws at render, because an order nobody can reproduce cannot be reconciled with the attempt the server recorded, and render time is the last moment that mistake is cheap. In `practice` it stays optional — the pager falls back to a random per-mount seed, stable within the mount and deliberately not reproducible. That fallback is the *only* place anything in the SDK invents a seed, and it is not SSR-safe (server and client would invent different orders and hydration would mismatch), so pass a seed for any server-rendered sequence whatever the mode.
+`shuffleSeed` is **required in `exam` and `review` mode**: shuffling without one throws at render, because an order nobody can reproduce cannot be reconciled with the attempt the server recorded, and render time is the last moment that mistake is cheap. In `practice` it stays optional — the pager falls back to a random per-mount seed, stable within the mount and deliberately not reproducible. That fallback is not SSR-safe (server and client would invent different orders and hydration would mismatch), so pass a seed for any server-rendered sequence whatever the mode.
+
+**One gap to know about.** The seed requirement is enforced for *sequence-level* shuffling — `shuffle="entries"`, and a group's `shuffle: 'within-group'`. It is **not** enforced for an activity's own `data.shuffle`: `<MultipleChoice>` invents a per-mount seed whenever `data.shuffle` is set and no `shuffleSeed` reaches it, in **every** render mode including `exam`. That renders without complaint and produces a different option order on each mount, which the server cannot rebuild. Until the guard covers it, pass `shuffleSeed` on any sequence whose items set `data.shuffle` — do not rely on the throw.
 
 **Not in V1:** auto-advance, submit-gating, aggregate-score UI (compute it with `composeAssessmentScore` from the `onFinished` items).
 
-## Shared stimulus & item groups (v0.4)
+## Shared stimulus & item groups (v0.5)
 
 Reading and listening comprehension is one passage or recording serving several questions. The SDK models that as **content**, not as a layout trick: an `ItemGroup` carries a `Stimulus` and the items that refer to it, and it drops into a sequence, a lesson quiz or an exam section like any activity.
 
@@ -265,9 +274,11 @@ const slots = flattenSequence(entries, { shuffleEntries: true, seed: attemptId }
 // slots[i] = { slotId, index, activity, group?: { id, title?, stimulus, position, size } }
 ```
 
-**Shuffle fairness — `version`.** `seededShuffle(items, seed, { version })` selects the draw. Version 1 (the default) takes the Fisher–Yates index from the low bits of its generator, and those bits are strongly correlated: on a four-option item only 12 of the 24 orders are reachable *for any seed*, and the last authored option lands first 8% of the time against 42% second. Version 2 draws from the high bits and reaches every order uniformly. Version 1 stays the default because these permutations are a wire contract — an attempt may be stored with only its seed, and a review render has to reproduce what the learner saw — so switching it is a package major. Pass `{ version: 2 }` for new content where no attempt has been recorded yet.
+**Shuffle fairness — `version`.** `seededShuffle(items, seed, { version })` selects the draw. Version 1 (the default) takes the Fisher–Yates index from the low bits of its generator, and those bits are strongly correlated: on a four-option item only 12 of the 24 orders are reachable *for any seed*, and the last authored option lands first 8% of the time against 42% second. Version 2 draws from the high bits and reaches every order uniformly. Version 1 stays the default because these permutations are a wire contract — an attempt may be stored with only its seed, and a review render has to reproduce what the learner saw — so switching it is a package major.
 
-`slotId` is derived from the **authored** position (`"2"` for the third entry, `"2.1"` for the second item of a group in that entry), so it is unique and stable under shuffling — the same activity in two entries is two slots. Record `slots` on the server when the attempt starts, and feed `slotId` to `composeAssessmentScore`. The pager reports the same `slotId` on every `SequenceItemOutcome` and on `onActivityComplete`. `flattenSequence` **requires** a seed whenever anything shuffles and never invents one; the only fallback anywhere is the pager's practice-mode seed described above. It also **refuses an empty group**: contributing no slots would delete a whole section — stimulus and questions — from a sequence that still looked well-formed, and `composeAssessmentScore` would then report a `final` grade over whatever survived.
+**`version` is only reachable on a direct call.** `flattenSequence`, `planAttempt`, within-group shuffling and `<MultipleChoice>`'s option order all call `seededShuffle` without it and therefore always use version 1, and none of their option bags exposes the setting. So version 2 applies today only to content you order yourself, before handing it to the SDK — passing it to `flattenSequence` is not possible rather than merely ineffective. Threading it through is tracked in the [roadmap](./roadmap.md).
+
+`slotId` is derived from the **authored** position (`"2"` for the third entry, `"2.1"` for the second item of a group in that entry), so it is unique and stable under shuffling — the same activity in two entries is two slots. Record `slots` on the server when the attempt starts, and feed `slotId` to `composeAssessmentScore`. The pager reports the same `slotId` on every `SequenceItemOutcome` and on `onActivityComplete`. `flattenSequence` **requires** a seed whenever anything shuffles and never invents one; the pager's practice-mode fallback and `<MultipleChoice>`'s own option shuffle are the two places a seed is invented (see the shuffling section above). It also **refuses an empty group**: contributing no slots would delete a whole section — stimulus and questions — from a sequence that still looked well-formed, and `composeAssessmentScore` would then report a `final` grade over whatever survived.
 
 > **`slotId` is positional by default — declare `slotKey` for anything you persist.** A `slotKey` is assembly metadata, not content: it survives `redact()`, so an exam client rendering a redacted paper derives the same slot ids the server's plan recorded, and it is excluded from `contentHash` so annotating an item with one is not reported as a content edit. A positional id is stable under shuffling but is an index into *one particular* entries array: insert a question at the top of a published exam and every id below it shifts, so rows stored as `"3"` silently start naming a different question. Give each entry (and each item in a group) an explicit `slotKey` and it is used verbatim, surviving insertion, deletion and re-ordering. Two entries sharing a key is an error, not a merge.
 
@@ -286,7 +297,9 @@ import { asRenderableSequence } from '@intellectif/lk-react';
 />;
 ```
 
-`renderMode` is not optional here in practice: the default `practice` mode grades locally, and every built-in component throws at **render** when handed redacted data in it, rather than failing inside the submit handler after the learner has answered — where React error boundaries cannot reach.
+`renderMode` is not optional here in practice: the default `practice` mode grades locally, so `<MultipleChoice>` and `<FillInTheBlanks>` throw at **render** when handed redacted data in it, rather than failing inside the submit handler after the learner has answered — where React error boundaries cannot reach.
+
+**`<WrittenResponse>` is the exception, and it is silent.** It never grades on the client, so it carries no such guard: a redacted essay renders and stays answerable in `practice`, and `evaluate()` returns `deferred` rather than throwing. An all-essay redacted paper mounted without `renderMode` therefore looks entirely healthy while running the practice submit path — including a client-side xAPI statement. Set `renderMode` explicitly; do not rely on a mis-wired exam being loud.
 
 **Media in a group stops when the learner leaves it.** The pager keeps every question and every stimulus mounted, so answers survive back-navigation; hidden panes are `display: none`, which does **not** stop playback on its own. So the pager pauses any `<audio>`/`<video>` in a pane as that pane hides, preserving `currentTime` — a recording keeps its position between questions of its own group, stops when the learner navigates out of the group, and never auto-resumes. A provider `embed` cannot be controlled this way (that needs the provider's own JS API, and the author supplies the URL), so use `audio`/`video` media for anything that must stop.
 
@@ -294,7 +307,7 @@ import { asRenderableSequence } from '@intellectif/lk-react';
 
 **JSON Schema.** `stimulusJsonSchema` and `itemGroupJsonSchema` describe the container; items appear only as `{ type, id }` there. Each item's contract stays `jsonSchemaFor(type)`, so a generation pipeline asks for the group and its items separately instead of from a copied nested schema.
 
-## Freezing an attempt (v0.5)
+## Freezing an attempt (v0.6)
 
 A sequence definition is live content — it gets edited, re-ordered, corrected. An attempt is a historical fact. Everything that decides a grade has to be pinned when the attempt *starts*, or a re-grade six months later quietly answers a different question than the learner was asked.
 
@@ -357,7 +370,7 @@ Drift is not automatically a problem — a fixed typo changes a fingerprint with
 
 **On `contentHash`.** It is a deterministic, dependency-free fingerprint for *change detection*, not a tamper-evident signature: someone who can edit content could, with effort, preserve it. It catches honest edits, which is what actually happens. If you need the stronger property, sign the plan with a key the content author does not hold.
 
-## Resuming and reviewing an attempt (v0.6)
+## Resuming and reviewing an attempt (v0.7)
 
 The plan says what the learner was asked. `AttemptState` says how far they got — and it is bound to the plan, because restoring answers onto a *different* paper is exactly what slot ids alone will happily let you do.
 
@@ -446,9 +459,15 @@ result.passFailureReason; // 'overall_below_threshold' | 'section_below_threshol
 result.pendingSlotIds;    // items still awaiting a grade
 ```
 
-**Ungraded work is never a zero.** `deferred` and `unscorable` items are left
-out of the denominator and listed in `pendingSlotIds`, and the whole result is
-`provisional` until every item has a grade. A section with nothing graded is
+**Ungraded work is never a zero.** A `deferred` item is left out of the
+denominator and listed in `pendingSlotIds`, and the whole result stays
+`provisional` until every item has a grade.
+
+`unscorable` is **not** the same and must not be used for "not answered yet":
+it means a grade is never coming, so the slot leaves the denominator *and* the
+result is allowed to go `final` — a three-question paper with one answer and
+two `unscorable` slots composes to a final, passing 100%. Use `deferred` (or
+let [`scoredItemsFromPlan`](#freezing-an-attempt-v06) default to it). A section with nothing graded is
 excluded from the weighted total entirely (remaining weights are renormalised)
 rather than contributing zero — otherwise a midterm with an unmarked essay
 reads as a failing 50%, and a learner sees a fail for work nobody has marked.
@@ -480,6 +499,19 @@ export JSON Schema. To put it on screen, register a renderer with the sequence:
 import { defineActivityType, registerActivityType } from '@intellectif/lk-core';
 import { ActivitySequence } from '@intellectif/lk-react';
 
+// Registration is a RUNTIME act. On its own the compiler still knows nothing
+// about `'matching'`, so `validateActivity('matching', …)` and
+// `activities={items}` both fail to type-check. The module augmentation is what
+// closes that gap — without it you get TS2345 / TS2322, not a runtime error.
+declare module '@intellectif/lk-core' {
+  interface ActivityDataMap {
+    matching: MatchingData;
+  }
+  interface LearnerResponseMap {
+    matching: MatchingResponse;
+  }
+}
+
 registerActivityType(defineActivityType<MatchingData, MatchingResponse>({
   type: 'matching',
   schema: MatchingSchema,
@@ -489,6 +521,10 @@ registerActivityType(defineActivityType<MatchingData, MatchingResponse>({
 
 <ActivitySequence activities={items} renderers={{ matching: MatchingItem }} />
 ```
+
+Both halves are required, and they fail differently: skip `registerActivityType`
+and validation/scoring throw `UnknownActivityTypeError` at runtime; skip the
+augmentation and the code above does not compile.
 
 A renderer receives the standard `ActivityProps`. Keys match `data.type`, and a
 key matching a built-in overrides it — so you can replace the bundled renderer
@@ -538,7 +574,7 @@ The SDK ships **no** retry button — *retry policy* (how many attempts, when, w
 - Components are **uncontrolled by default**: with no `value` or `defaultValue`, in-progress answers live only in component state and are **cleared** when `data` changes (the retry mechanism above).
 - **You persist** by capturing `onInteraction` (every selection / blank-fill / hint / submit), `onChange` (every response change), and the `onComplete` `ActivityResult`, and writing them to your store (DB, `localStorage`, …). The SDK never reads or writes any store — it is store-agnostic and SSR/RSC-safe.
 - **Resume is supported** (since lk-react 2.1.0). Every activity component follows the React controlled/uncontrolled convention:
-  - `defaultValue` seeds an uncontrolled component at mount — the one-line way to re-hydrate a partially-answered activity. It is read at mount only; to re-seed later, remount with a new `key`.
+  - `defaultValue` seeds an uncontrolled component — the one-line way to re-hydrate a partially-answered activity. It is read at mount **and again whenever `data` changes identity**, because that is the retry/reset trigger and resetting to blank would wipe a restored answer the first time a parent re-rendered `activities={raw.map(redact)}`. So a new `data` reference returns the learner to the seeded answer, not to an empty one — and a new React `key` does exactly the same while `defaultValue` / `defaultSubmitted` are still being passed, because the seeds are simply re-read on the fresh mount. A genuinely fresh attempt needs the new `key` **and** the seed props dropped.
   - `value` + `onChange` make the component fully controlled: the rendered answer is *always* yours, so you can autosave a delta, restore an interrupted attempt, or drive a review render.
 
   ```tsx
@@ -550,7 +586,7 @@ The SDK ships **no** retry button — *retry policy* (how many attempts, when, w
   />
   ```
 
-  In a sequence, seed each slot from your store keyed by its `slotId` (see the item-group section). What the pager itself does **not** persist is the learner's position and which slots are already submitted — that state is per-mount, so a resumed attempt reopens at question 1 with every slot re-answerable. Persist the position yourself and render the set you still want answered.
+  In a sequence you do not have to wire the slots up one by one. `<ActivitySequence>` takes `responses`, `submittedSlotIds` and `defaultIndex` (since lk-react 6.0.0): the saved answers are seeded per slot, questions the learner already committed stay committed, and the pager reopens on the question they left. Pair it with `serializeAttemptState` / `restoreAttemptState` and the whole attempt round-trips — see **[Resuming and reviewing an attempt](#resuming-and-reviewing-an-attempt-v07)** above for the full flow.
 
 ## SSR / React Server Components
 

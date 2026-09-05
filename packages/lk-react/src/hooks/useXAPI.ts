@@ -70,6 +70,37 @@ export interface UseXAPIResult {
   sendStatement: (statement: XAPIStatement) => Promise<void>;
 }
 
+/**
+ * Delivers xAPI statements to a Learning Record Store, fire-and-forget.
+ *
+ * Telemetry must never break the learner's attempt, so
+ * {@link UseXAPIResult.sendStatement} **never rejects**: network errors and 5xx
+ * responses are retried (backoff 1s / 2s / 4s, up to 3 retries), a 4xx fails
+ * immediately, and any final failure is reported to `config.onError` instead of
+ * throwing. See `XAPIConfig` in `@intellectif/lk-core` for the options.
+ *
+ * The hook is also where learner identity is applied. Activity components
+ * cannot know who the learner is, so they emit an anonymous placeholder actor
+ * and a `urn:learning-kit:activity:*` object id; this hook substitutes
+ * `config.actor` and `config.activityId` on the way out — and only while those
+ * placeholders are still in place, so a statement you rewrote yourself is left
+ * alone.
+ *
+ * `sendStatement` keeps a stable identity across renders even when `config` is
+ * an inline object, so it is safe in a dependency array.
+ *
+ * ```tsx
+ * const { sendStatement } = useXAPI({
+ *   endpoint: 'https://your-lrs.example/xapi/statements',
+ *   auth: { type: 'bearer', token: 'YOUR_TOKEN' },
+ *   activityId: 'https://your-app.example/quiz/capital-jp',
+ *   actor: { objectType: 'Agent', mbox: 'mailto:learner@example.com' },
+ *   onError: (e) => console.error('xAPI send failed', e),
+ * });
+ *
+ * <MultipleChoice data={quiz} onComplete={(r) => void sendStatement(r.xapiStatement)} />
+ * ```
+ */
 export function useXAPI(config: XAPIConfig): UseXAPIResult {
   // Keep the latest config without changing `sendStatement`'s identity when
   // callers pass an inline config object.

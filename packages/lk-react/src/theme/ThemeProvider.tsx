@@ -13,6 +13,7 @@ import { darkTheme } from './dark-theme.js';
 import { defaultTheme } from './tokens.js';
 
 export { darkTheme } from './dark-theme.js';
+export { createTailwindTheme, type TailwindThemeExtension } from './tailwind.js';
 export { defaultTheme } from './tokens.js';
 
 const ThemeContext = createContext<ThemeTokens>(defaultTheme);

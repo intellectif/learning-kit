@@ -39,10 +39,16 @@ Every skin rule is inside the named cascade layer **`@layer lk-skin`**. By CSS c
 | `.lk-fib-hint-btn`, `.lk-fib-hint-icon` | Hint button (default icon) — restyle/replace the glyph here; the accessible name is fixed by the SDK |
 | `.lk-fib-blank-feedback`, `.lk-fib-feedback-toggle` | Per-blank feedback note + the Hide/Show feedback toggle |
 | `.lk-media`, `.lk-media-el`, `.lk-media-embed` | Activity media (image/audio/video / iframe wrapper) |
+| `.lk-wr`, `.lk-wr-prompt`, `.lk-wr-textarea`, `.lk-wr-counter`, `.lk-wr-submit` | Written Response container / prompt / input / word counter / submit |
+| `.lk-wr-outcome`, `.lk-wr-grade`, `.lk-wr-grade-feedback`, `.lk-wr-review-flag` | Submitted-but-ungraded notice, and the returned grade block |
+| `.lk-wr-criteria`, `.lk-wr-criterion`, `.lk-wr-criterion-name`, `.lk-wr-criterion-score`, `.lk-wr-criterion-comment` | Per-criterion rubric breakdown in `review` mode |
+| `.lk-wr-corrections`, `.lk-wr-correction`, `.lk-wr-correction-original`, `.lk-wr-correction-corrected`, `.lk-wr-correction-explanation` | Inline corrections anchored in the learner's text |
+| `.lk-stimulus`, `.lk-stimulus-title`, `.lk-stimulus-body`, `.lk-stimulus-range`, `.lk-stimulus-attribution` | Shared stimulus panel (an item group's passage / recording) |
 | `.lk-seq`, `.lk-seq-progress`, `.lk-seq-question`, `.lk-seq-nav` | ActivitySequence pager |
+| `.lk-seq-prev`, `.lk-seq-next`, `.lk-seq-slot`, `.lk-seq-stimulus`, `.lk-seq-unsupported` | Pager buttons, the per-question pane, its stimulus wrapper, and the fallback for an unregistered activity type |
 | `[aria-live]` (within `.lk-mc` / `.lk-fib`) | Feedback / status region |
 
-State is exposed via `data-correct="true|false"` on options/blanks after submission, and `:has(input:checked)` for selection — style these as needed.
+State is exposed via `data-correct="true|false"` after submission, but **not at the same level for both types**: on Multiple Choice it lands on `.lk-mc-option` itself, while on Fill-in-the-Blanks it lands on the `input` *inside* `.lk-fib-blank`. So target `.lk-mc-option[data-correct="false"]` but `.lk-fib-blank input[data-correct="false"]` — a rule written against `.lk-fib-blank[data-correct]` silently never matches. (The bundled skin does exactly this; compare its `.lk-mc-option` and `.lk-fib-blank input` rules.) `:has(input:checked)` is for Multiple Choice selection.
 
 ## Theming with `ThemeProvider`
 

@@ -1,14 +1,35 @@
 {
   "name": "@intellectif/lk-core",
   "version": "0.7.0",
-  "description": "Schemas, scoring engine, and xAPI builder for learning-kit",
+  "description": "Framework-free assessment core: Zod activity schemas, pure scoring, rubric & deferred grading, weighted assessment composition, exam attempt plans, and xAPI 1.0.3.",
+  "keywords": [
+    "assessment",
+    "exam",
+    "quiz",
+    "grading",
+    "rubric",
+    "scoring",
+    "xapi",
+    "tin-can",
+    "elearning",
+    "edtech",
+    "lms",
+    "h5p",
+    "zod",
+    "typescript"
+  ],
+  "homepage": "https://github.com/intellectif/learning-kit/tree/main/packages/lk-core#readme",
+  "bugs": {
+    "url": "https://github.com/intellectif/learning-kit/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/intellectif/learning-kit.git",
+    "url": "git+https://github.com/intellectif/learning-kit.git",
     "directory": "packages/lk-core"
   },
   "type": "module",
   "exports": {
+    "./package.json": "./package.json",
     ".": {
       "import": {
         "types": "./dist/index.d.ts",
@@ -55,6 +76,7 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {

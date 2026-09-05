@@ -1,10 +1,30 @@
 {
   "name": "@intellectif/lk-react",
   "version": "6.0.0",
-  "description": "React 19 activity components, hooks, and theming for learning-kit",
+  "description": "Accessible React 19 assessment components — multiple choice, fill-in-the-blanks, written response — with a resumable exam/review pager, theming, and xAPI delivery.",
+  "keywords": [
+    "react",
+    "react19",
+    "assessment",
+    "exam",
+    "quiz",
+    "accessibility",
+    "wcag",
+    "xapi",
+    "elearning",
+    "edtech",
+    "lms",
+    "h5p",
+    "components",
+    "typescript"
+  ],
+  "homepage": "https://github.com/intellectif/learning-kit/tree/main/packages/lk-react#readme",
+  "bugs": {
+    "url": "https://github.com/intellectif/learning-kit/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/intellectif/learning-kit.git",
+    "url": "git+https://github.com/intellectif/learning-kit.git",
     "directory": "packages/lk-react"
   },
   "type": "module",
@@ -12,6 +32,7 @@
     "**/*.css"
   ],
   "exports": {
+    "./package.json": "./package.json",
     ".": {
       "import": {
         "types": "./dist/index.d.ts",
@@ -110,6 +131,7 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
@@ -119,6 +141,7 @@
     "lint": "biome check .",
     "e2e": "playwright test -c ../../playwright.config.ts",
     "publint": "publint",
+    "verify-dist": "node scripts/verify-dist.mjs",
     "attw": "attw --pack . --ignore-rules no-resolution --exclude-entrypoints \"theme/defaults.css\" \"theme/skin.css\"",
     "typecheck": "tsc -p tsconfig.typecheck.json"
   },
