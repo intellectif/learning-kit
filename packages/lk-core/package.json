@@ -1,6 +1,6 @@
 {
   "name": "@intellectif/lk-core",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Framework-free assessment core: Zod activity schemas, pure scoring, rubric & deferred grading, weighted assessment composition, exam attempt plans, and xAPI 1.0.3.",
   "keywords": [
     "assessment",
