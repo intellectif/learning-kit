@@ -77,6 +77,7 @@ export const StimulusSchema = z
 const ItemShapeSchema = z.looseObject({
   type: z.string().min(1),
   id: z.string().min(1),
+  slotKey: z.string().min(1).optional(),
 });
 
 /**
@@ -91,6 +92,7 @@ export const ItemGroupSchema = z
     type: z.literal('item-group'),
     id: z.string().min(1),
     title: z.string().optional(),
+    slotKey: z.string().min(1).optional(),
     stimulus: StimulusSchema,
     items: z.array(ItemShapeSchema).min(1),
     shuffle: z.enum(['none', 'within-group']).optional(),
@@ -130,6 +132,7 @@ export const RedactedItemGroupSchema = z.strictObject({
   type: z.literal('item-group'),
   id: z.string().min(1),
   title: z.string().optional(),
+  slotKey: z.string().min(1).optional(),
   stimulus: RedactedStimulusSchema,
   items: z.array(z.unknown()).min(1),
   shuffle: z.enum(['none', 'within-group']).optional(),

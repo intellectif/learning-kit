@@ -241,8 +241,15 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   69.6. Only the **default** remains open: switching it on unconditionally changes item-level pass/fail for
   every score inside the rounding band, which is a **major** under the grade-stability rule. Scheduled for
   v1.0 with the `ItemOutcome` unification.
-- `AssessmentBlueprint` + `planAttempt(bp, seed, resolve)` → `AttemptPlan` with **`slotId`** identity, frozen
-  `maxPoints`, `contentHash` per slot (re-grade reproducibility). **Deferred — see below.**
+- ✅ **`planAttempt` → `AttemptPlan`** — shipped, without the `AssessmentBlueprint` half. The evidence said the
+  blueprint was the wrong half to build first: `composeAssessmentScore` already REQUIRED stable `slotId`
+  identity while the only producer of one was positional, so three separately-found defects all traced back to
+  the missing primitive. `planAttempt` freezes presented order, slot identity, per-slot `points` and a
+  `contentHash` per item and stimulus; `verifyAttemptPlan` reports drift between a stored plan and current
+  content; `scoredItemsFromPlan` feeds `composeAssessmentScore` from the plan so the denominator comes from
+  the paper rather than from whatever was answered. An authored `slotKey` on an entry now overrides the
+  positional path, so a stored id survives an insert. Selection/assembly (pick 20 of 60, blueprint sections)
+  stays out — it is authoring, and no evidence asks for it yet.
 - **Media playback policy** on `ActivityMedia`: `{ maxPlays?, allowSeek?, allowDownload?, allowRateChange?,
   autoplayOnce? }` plus a plays-remaining interaction event. Listening assessment is unrunnable without it
   (an integrator replaced the SDK's audio rendering wholesale to stop downloads and rate changes), and it is

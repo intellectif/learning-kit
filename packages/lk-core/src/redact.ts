@@ -249,6 +249,9 @@ const ITEM_GROUP_FIELD_POLICY: FieldPolicy = {
   type: 'public',
   id: 'public',
   title: 'public',
+  // See the note on the built-in activity policies: a slot key is identity,
+  // and identity has to cross the redaction boundary intact.
+  slotKey: 'public',
   shuffle: 'public',
   stimulus: STIMULUS_FIELD_POLICY,
 };
