@@ -1,5 +1,35 @@
 # @intellectif/lk-core
 
+## 0.7.0
+
+### Minor Changes
+
+- 4d0bd5a: Resume and review — an interrupted attempt can be reopened where it was left.
+
+  An integrating application maintains a ~500-line exam renderer and a ~425-line review modal, and the reason is not styling: `ActivitySequence` could not resume an interrupted attempt and could not render a finished one. A learner at question 18 of 20 whose tab crashed came back to question 1 with all twenty blank, however faithfully the responses had been persisted — the pager's position and per-slot answers were the one part of an attempt a consumer could not restore.
+
+  **`AttemptState`, bound to its plan.** `serializeAttemptState(plan, { responses, submittedSlotIds, index, savedAt })` captures an attempt in progress; `restoreAttemptState(plan, state)` reopens it. The `planHash` check is the point: slot ids are short and stable by design, so a snapshot from a _different_ paper — last term's midterm, a sibling version, a copy-pasted attempt row — lines its answers up against the wrong questions and looks entirely plausible doing it. Comparing the paper's fingerprint makes that impossible rather than unlikely.
+
+  Validation happens on the way **in**, not on the way out: a response recorded against a slot the paper does not contain is a bug at the moment it is written, and finding it when a learner tries to resume is finding it far too late. An `index` that is not a position the plan has is refused for the same reason, and `restoreAttemptState` refuses an envelope `stateVersion` it does not understand rather than reinterpreting it under this version's rules and re-stamping it — which would destroy the evidence it had ever been anything else.
+
+  Snapshots are copied **deeply**. A one-level copy hands back the caller's same response objects, and every `LearnerResponse` shape is an object: a consumer whose reducer edits an answer in place — an Immer draft, a push onto a multi-select, `answers[blankId] = text` — would mutate every snapshot ever taken, so the stored answer retroactively became the new one, `diffResponses` saw nothing, and a delta autosave silently wrote nothing for a change the learner really made.
+
+  The SDK reads no clock — pass `savedAt` — so the function stays pure and reproducible in a test.
+
+  **`diffResponses(before, after)`** reports what moved between two snapshots, including an answer the learner **cleared**, which comparing the later snapshot alone cannot see. It compares through the canonical form, so a response that survived a JSON round-trip with its keys reordered is not reported as a change the learner never made — while a reordered _selection_ is, because that is what they picked.
+
+  **`ActivitySequence` gains five props.** `defaultIndex` reopens on the stored question, clamped to one the paper actually has — including when the value is not a number at all, which `Number(row.last_index)` produces from a NULL column and which previously survived every clamp and rendered an empty page. `onIndexChange` reports every position the pager lands on, not only learner clicks: a clamp it had to apply and the reset a set change performs are positions a consumer must persist too, and reporting only clicks left storage disagreeing with the screen. `responses` seeds each slot's saved answer by `slotId` — as `defaultValue`, so a restored answer stays editable, since resume is not a freeze. `submittedSlotIds` reopens already-committed questions as committed; without it a summative resume unlocks everything the learner had submitted, and they can change and re-submit it. `outcomes` forwards the server's verdict per slot, which in `review` mode is the only thing that marks correctness; the client never scores, so a review render without it shows the answers and no verdict rather than inventing one.
+
+  The three seed props (`responses`, `submittedSlotIds`, `outcomes`) are keyed lookups guarded with `Object.hasOwn`, so a slot keyed `constructor` cannot resolve a function off the prototype chain into a question. They apply at mount and stop at the first set change — slot ids repeat across papers, so re-applying them after the entries changed dropped one paper's answers under another's questions.
+
+  **`defaultSubmitted` on every activity component**, and an optional initial state on `useActivityState`, are what make the submitted half restorable. `reset()` now takes the state to return to, because "reset" for a restored item does not mean idle: the Req-3.7 data-change effect reset unconditionally, and in `FillInTheBlanks` and `WrittenResponse` — which had no mount identity guard — it ran right after the first paint and undid the seed it had just been given, so `defaultSubmitted` was a no-op for those types entirely. All three now guard the mount and reset to the _current_ seed.
+
+  **`SequenceItemOutcome` gains a `restored` arm.** A slot the learner had already submitted mounts locked and will not submit again, so leaving its outcome null meant `onFinished` waited forever on something that could never arrive — a resumed attempt could never signal completion, however many of the remaining questions were answered. Restored slots are seeded at mount, firing no callback, so a later submit of the last outstanding slot completes the set. An attempt that was already complete announces nothing.
+
+  **The sequence's `shuffleSeed` now reaches the option shuffle.** It was forwarded to `flattenSequence` for question order but never to `MultipleChoice`, which invented a fresh per-mount order — so a resumed or reviewed item showed the learner's answers against a different arrangement than the one they sat. An appeal about "the second option" was about a different option.
+
+  **`MultipleChoice` now resets to `defaultValue` rather than to empty** when its `data` prop changes identity, matching what `FillInTheBlanks` already did. Clearing looked safer, but `data` identity is a poor proxy for "different question": a parent building entries in render — `activities={raw.map(redact)}`, the documented exam pattern — hands over new objects every render, and clearing wiped every _restored_ answer on the first unrelated re-render.
+
 ## 0.6.0
 
 ### Minor Changes
