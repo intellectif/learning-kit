@@ -57,9 +57,24 @@ export interface ItemGroup<TItem = ActivityData> {
   type: 'item-group';
   id: string;
   title?: string;
+  /**
+   * Stable identity for this entry's slots, independent of where it sits in
+   * the array. See {@link SequenceSlot.slotId}: without one, inserting a
+   * question above this group re-maps every slot id beneath it, and stored
+   * grades quietly start naming different questions.
+   */
+  slotKey?: string;
   stimulus: Stimulus;
-  /** The items, in authored order. Non-empty; ids unique within the group; no nested groups. */
-  items: TItem[];
+  /**
+   * The items, in authored order. Non-empty; ids unique within the group; no
+   * nested groups.
+   *
+   * An item may declare its own `slotKey`, for the same reason an entry can:
+   * it pins the item's identity within the group (`"reading.q1"` rather than
+   * `"reading.0"`), so inserting a question into a published group does not
+   * re-map the ones after it.
+   */
+  items: (TItem & { slotKey?: string })[];
   /**
    * `none` (default) keeps authored order; `within-group` shuffles the items
    * among themselves under the sequence seed. Either way the group stays one
@@ -68,8 +83,18 @@ export interface ItemGroup<TItem = ActivityData> {
   shuffle?: 'none' | 'within-group';
 }
 
-/** What a sequence is made of: loose activities and item groups, in authored order. */
-export type SequenceEntry<TItem = ActivityData> = TItem | ItemGroup<TItem>;
+/**
+ * What a sequence is made of: loose activities and item groups, in authored
+ * order.
+ *
+ * A plain activity may carry `slotKey` here even though no activity SCHEMA
+ * declares one, because a slot key describes an item's PLACE in a paper, not
+ * its content — the same question keeps its own id in every paper it appears
+ * in. Putting it on the entry rather than on the activity is what lets it be
+ * authored without every activity type having to know about assessment
+ * assembly. See {@link SequenceSlot.slotId}.
+ */
+export type SequenceEntry<TItem = ActivityData> = (TItem & { slotKey?: string }) | ItemGroup<TItem>;
 
 /** The group a presented slot belongs to. */
 export interface SequenceSlotGroup {
@@ -86,10 +111,20 @@ export interface SequenceSlotGroup {
 export interface SequenceSlot<TItem = ActivityData> {
   /**
    * Identity of the slot within the sequence definition — unique, and stable
-   * under shuffling. Derived from the AUTHORED position (`"2"` for the third
+   * under shuffling. Feed it to `composeAssessmentScore` as `slotId`.
+   *
+   * By default it is derived from the AUTHORED position (`"2"` for the third
    * top-level entry; `"2.1"` for the second item of that entry when it is a
    * group), so the same activity can appear in two entries and still be two
-   * slots. Feed it to `composeAssessmentScore` as `slotId`.
+   * slots.
+   *
+   * **A positional id is only valid against one version of the entries
+   * array.** Insert a question at the top of a published paper and every id
+   * below it shifts: rows stored as `"3"` now name what used to be entry 2,
+   * and a re-grade or a review render pairs each response with the wrong
+   * question — silently, because the ids still look valid. For any content
+   * whose slot ids you persist, give the entries an explicit `slotKey`; it is
+   * used verbatim here and survives insertion, deletion and re-ordering.
    */
   slotId: string;
   /** 0-based PRESENTED position, after shuffling. */

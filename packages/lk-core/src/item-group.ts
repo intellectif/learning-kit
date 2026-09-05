@@ -8,6 +8,35 @@ export function isItemGroup<TItem extends { type: string }>(
   return entry.type === 'item-group';
 }
 
+/**
+ * An entry's declared `slotKey`, if it has one. Read structurally rather than
+ * from the type, because a plain activity may carry one too — `slotKey` is a
+ * property of an item's PLACE in a paper, so any entry can declare it without
+ * every activity schema having to know about assessment assembly.
+ *
+ * A key containing `.` is rejected: `.` separates a group from its item in a
+ * slot id, so `"a.b"` as a group key would be indistinguishable from item `b`
+ * of group `a`.
+ */
+function keyOf(entry: unknown): string | undefined {
+  const key = (entry as { slotKey?: unknown }).slotKey;
+  if (key === undefined) {
+    return undefined;
+  }
+  if (typeof key !== 'string' || key.length === 0) {
+    throw new Error(
+      `flattenSequence: slotKey must be a non-empty string, received ${String(key)}.`,
+    );
+  }
+  if (key.includes('.')) {
+    throw new Error(
+      `flattenSequence: slotKey "${key}" contains a "." , which separates a group from its item ` +
+        'in a slot id. Choose a key without it, or the two become indistinguishable.',
+    );
+  }
+  return key;
+}
+
 /** Options for {@link flattenSequence}. */
 export interface FlattenSequenceOptions {
   /**
@@ -63,8 +92,13 @@ export function flattenSequence<TItem extends { id: string; type: string }>(
 
   const slots: SequenceSlot<TItem>[] = [];
   for (const { entry, entryIndex } of ordered) {
+    // An authored `slotKey` wins over the positional path. A positional id is
+    // only valid against ONE version of the entries array; a declared key
+    // survives insertion, deletion and re-ordering, which is what makes a
+    // stored slot id safe to re-grade against later.
+    const entryKey = keyOf(entry) ?? String(entryIndex);
     if (!isItemGroup(entry)) {
-      slots.push({ slotId: String(entryIndex), index: slots.length, activity: entry });
+      slots.push({ slotId: entryKey, index: slots.length, activity: entry });
       continue;
     }
     // An empty group contributes no slots, so it would DISAPPEAR — stimulus,
@@ -86,7 +120,7 @@ export function flattenSequence<TItem extends { id: string; type: string }>(
     const size = presented.length;
     presented.forEach(({ item, itemIndex }, position) => {
       slots.push({
-        slotId: `${entryIndex}.${itemIndex}`,
+        slotId: `${entryKey}.${keyOf(item) ?? String(itemIndex)}`,
         index: slots.length,
         activity: item,
         group: {
@@ -98,6 +132,40 @@ export function flattenSequence<TItem extends { id: string; type: string }>(
         },
       });
     });
+  }
+
+  // Positional ids are unique by construction; authored keys are not. Two
+  // entries sharing a key would collapse into one identity, so every response
+  // stored against it would overwrite the other's — and `composeAssessmentScore`
+  // would score one question twice and the other never.
+  const seenSlotIds = new Set<string>();
+  // ENTRY keys are checked separately, because a loose entry keyed "reading"
+  // and a group keyed "reading" produce slot ids "reading" and "reading.0"
+  // that never collide — while everything reading the entry prefix (the
+  // pager's stimulus grouping, for one) treats them as the same entry, and
+  // shows the group's passage above the unrelated loose question. Positional
+  // ids could not express this: an index is a loose item or a group, never
+  // both.
+  const seenEntryKeys = new Set<string>();
+  for (const slot of slots) {
+    if (seenSlotIds.has(slot.slotId)) {
+      throw new Error(
+        `flattenSequence: duplicate slot id "${slot.slotId}". Two entries declare the same ` +
+          'slotKey, so responses stored against them could not be told apart.',
+      );
+    }
+    seenSlotIds.add(slot.slotId);
+  }
+  for (const { entry, entryIndex } of ordered) {
+    const entryKey = keyOf(entry) ?? String(entryIndex);
+    if (seenEntryKeys.has(entryKey)) {
+      throw new Error(
+        `flattenSequence: duplicate entry key "${entryKey}". A loose activity and an item group ` +
+          'cannot share a slotKey — their slot ids would not collide, but everything that reads ' +
+          'the entry they belong to would treat them as one entry.',
+      );
+    }
+    seenEntryKeys.add(entryKey);
   }
   return slots;
 }

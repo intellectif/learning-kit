@@ -346,6 +346,20 @@ export interface DeferredScoringPartial {
 }
 
 /**
+ * Why an item has no grade *yet* — a state that is explicitly not final, and
+ * so keeps a composed assessment `provisional`.
+ *
+ * - `requires_async_grading` — the type is graded later by an AI or a human.
+ * - `no_response_recorded` — nothing was stored against this slot at all. It
+ *   is NOT the same as a zero: a learner who left a question blank on a
+ *   submitted paper has earned zero, but a slot missing because a save failed,
+ *   a grade has not landed, or the attempt is still open has earned nothing
+ *   yet, and recording it as zero is how an incomplete attempt becomes a
+ *   plausible-looking fail.
+ */
+export type DeferredReason = 'requires_async_grading' | 'no_response_recorded';
+
+/**
  * The outcome of evaluating a learner response against an activity — the
  * union `evaluate()` returns. Unlike {@link ScoringResult}, it can express
  * "not gradable yet" (`deferred`) and "not gradable at all" (`unscorable`),
@@ -367,8 +381,8 @@ export type ItemOutcome =
     }
   | {
       status: 'deferred';
-      /** Why the grade is deferred (asynchronous AI/human grading). */
-      reason: 'requires_async_grading';
+      /** Why no grade exists yet. See {@link DeferredReason}. */
+      reason: DeferredReason;
       /** Maximum possible scaled score once graded. */
       maxScore: number;
       /** Synchronously computable progress facts (word bounds, counts). */

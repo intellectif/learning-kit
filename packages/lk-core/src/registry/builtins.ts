@@ -34,6 +34,11 @@ const SHARED_PUBLIC_FIELDS: FieldPolicy = {
   schemaVersion: 'public',
   type: 'public',
   id: 'public',
+  // Assembly metadata, not content: it names the slot this item occupies in a
+  // paper. It has to survive redaction, or the exam client derives positional
+  // slot ids while the server's stored plan holds keyed ones, and the
+  // responses cannot be matched back to the attempt.
+  slotKey: 'public',
   title: 'public',
   media: 'public',
   passThreshold: 'public',

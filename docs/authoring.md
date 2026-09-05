@@ -269,7 +269,7 @@ const slots = flattenSequence(entries, { shuffleEntries: true, seed: attemptId }
 
 `slotId` is derived from the **authored** position (`"2"` for the third entry, `"2.1"` for the second item of a group in that entry), so it is unique and stable under shuffling — the same activity in two entries is two slots. Record `slots` on the server when the attempt starts, and feed `slotId` to `composeAssessmentScore`. The pager reports the same `slotId` on every `SequenceItemOutcome` and on `onActivityComplete`. `flattenSequence` **requires** a seed whenever anything shuffles and never invents one; the only fallback anywhere is the pager's practice-mode seed described above. It also **refuses an empty group**: contributing no slots would delete a whole section — stimulus and questions — from a sequence that still looked well-formed, and `composeAssessmentScore` would then report a `final` grade over whatever survived.
 
-> **`slotId` is positional, so version your entries.** It is stable under shuffling, but it is an index into *one particular* entries array: inserting a question at the top of a published exam shifts every id below it, and stored rows keyed `"3"` silently start denoting a different question. Persist a version or content hash of the entries array alongside the slot ids, and treat any insert, delete or re-order of a published paper as a new version rather than an edit.
+> **`slotId` is positional by default — declare `slotKey` for anything you persist.** A `slotKey` is assembly metadata, not content: it survives `redact()`, so an exam client rendering a redacted paper derives the same slot ids the server's plan recorded, and it is excluded from `contentHash` so annotating an item with one is not reported as a content edit. A positional id is stable under shuffling but is an index into *one particular* entries array: insert a question at the top of a published exam and every id below it shifts, so rows stored as `"3"` silently start naming a different question. Give each entry (and each item in a group) an explicit `slotKey` and it is used verbatim, surviving insertion, deletion and re-ordering. Two entries sharing a key is an error, not a merge.
 
 **Redaction.** `redactItemGroup(group)` redacts every item through `redact()` and the stimulus through its own fail-closed policy (the transcript goes; the passage, media and attribution stay). `assertRedactedItemGroup` proves the result learner-safe — each item against its own type's redacted schema, failures reported at `items.<index>` — before it leaves the server. Per-call `policy` overrides reach every item, so `redactItemGroup(group, { policy: { rubric: 'author-only' } })` tightens an essay inside a group exactly as it would alone.
 
@@ -293,6 +293,69 @@ import { asRenderableSequence } from '@intellectif/lk-react';
 **Rendering a stimulus on its own.** `<StimulusPanel stimulus={…} range={{ first: 3, last: 8 }} sanitizeHtml={…} />` is the panel the sequence uses — a landmark region named by the stimulus title (or its kind), showing media, body and attribution. In a sequence it is rendered as a **sibling** of the question region, not inside it, so navigation puts focus on the question while the passage stays a landmark the learner can jump back to. Reach for it in a custom runner that lays out passage and question side by side.
 
 **JSON Schema.** `stimulusJsonSchema` and `itemGroupJsonSchema` describe the container; items appear only as `{ type, id }` there. Each item's contract stays `jsonSchemaFor(type)`, so a generation pipeline asks for the group and its items separately instead of from a copied nested schema.
+
+## Freezing an attempt (v0.5)
+
+A sequence definition is live content — it gets edited, re-ordered, corrected. An attempt is a historical fact. Everything that decides a grade has to be pinned when the attempt *starts*, or a re-grade six months later quietly answers a different question than the learner was asked.
+
+```ts
+import { planAttempt, scoredItemsFromPlan, verifyAttemptPlan } from '@intellectif/lk-core';
+
+// When the attempt starts — store this next to the responses.
+const plan = planAttempt(entries, {
+  seed: attemptId,                 // required if anything shuffles
+  shuffleEntries: true,
+  points: (slot) => pointsFor(slot.slotId),   // defaults to 1 per slot
+});
+
+plan.slots[0];    // { slotId, index, activityId, activityType, points, contentHash, group? }
+plan.totalPoints; // the paper's denominator, frozen
+plan.planHash;    // one value identifying this exact paper
+```
+
+**Points belong to the paper, not to the item.** The same question is worth 1 in a practice quiz and 3 in a final, so `planAttempt` resolves them once and freezes them. Nothing reads points back out of content afterwards.
+
+**Scoring reads the plan, not the answers.**
+
+```ts
+const items = scoredItemsFromPlan(plan, outcomesBySlotId);
+const result = composeAssessmentScore([{ id: 'reading', weight: 2, items }], policy);
+```
+
+The plan is the source of the denominator: building the item list from the *answers* instead is how a paper silently shrinks and the remaining questions become worth more than the exam says.
+
+A slot with no recorded outcome defaults to **`deferred`**, never `unscorable`. The distinction decides a grade — `unscorable` means "a grade is never coming", so the slot leaves the denominator *and* the result is allowed to go `final`, which turns a three-question paper with one answer into a final, passing 100%. `deferred` holds the result `provisional`, so nothing can be recorded. Once you know the attempt was submitted and the blanks are genuinely blanks, say so:
+
+```ts
+scoredItemsFromPlan(plan, outcomes, { missing: 'zero' });   // real zeros, result is final
+scoredItemsFromPlan(plan, outcomes, { missing: (slot) => … }); // or decide per slot
+```
+
+**Ask whether the paper still is the paper.** Ids survive an edit unchanged, so they cannot answer this on their own. Re-plan the current entries with the stored seed and compare:
+
+```ts
+// Rebuild with the options the stored plan RECORDED, or the differences you
+// see will be your own: omit `shuffleEntries` and a shuffled attempt rebuilds
+// in authored order, so every slot reports as re-ordered; omit `points` and
+// every slot silently reweights to 1.
+const now = planAttempt(currentEntries, {
+  seed: storedPlan.seed,
+  shuffleEntries: storedPlan.shuffleEntries,
+  points: pointsFor,
+});
+const drift = verifyAttemptPlan(storedPlan, now);
+
+drift.matches;                 // false if anything moved
+drift.changedSlotIds;          // this question was edited since
+drift.changedStimulusSlotIds;  // the passage under these questions was corrected
+drift.changedPointsSlotIds;    // reweighted — moves the grade without touching a question
+drift.missingSlotIds;          // questions that no longer exist
+drift.reorderedSlotIds;
+```
+
+Drift is not automatically a problem — a fixed typo changes a fingerprint without changing what was asked. It is a fact somebody handling a remark or an appeal has to be able to see.
+
+**On `contentHash`.** It is a deterministic, dependency-free fingerprint for *change detection*, not a tamper-evident signature: someone who can edit content could, with effort, preserve it. It catches honest edits, which is what actually happens. If you need the stronger property, sign the plan with a key the content author does not hold.
 
 ## Scoring a whole assessment (v0.4)
 

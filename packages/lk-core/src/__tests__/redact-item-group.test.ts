@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { planAttempt } from '../attempt-plan.js';
 import { ActivitySchemaError } from '../errors.js';
-import { assertRedactedItemGroup, redactItemGroup } from '../redact.js';
+import { flattenSequence } from '../item-group.js';
+import { assertRedacted, assertRedactedItemGroup, redact, redactItemGroup } from '../redact.js';
 import type {
   FillInTheBlanksData,
   MultipleChoiceData,
@@ -128,6 +130,51 @@ describe('redactItemGroup', () => {
     const tightened = redactItemGroup(group, { policy: { rubric: 'author-only' } });
     expect(tightened.items[2]).not.toHaveProperty('rubric');
     expect(() => assertRedactedItemGroup(tightened)).not.toThrow();
+  });
+});
+
+describe('slot identity across the exam boundary', () => {
+  // The whole plan/render agreement rests on this. redact() is fail-closed:
+  // anything its policy does not classify is dropped — so an unclassified
+  // slotKey vanished, the client derived positional ids from the redacted
+  // payload while the server's stored plan held keyed ones, and the responses
+  // could not be matched back to the attempt.
+  const keyedGroup: ItemGroup = {
+    ...group,
+    slotKey: 'reading',
+    items: [
+      { ...mc, slotKey: 'q1' },
+      { ...fib, slotKey: 'q2' },
+    ],
+  };
+
+  it('a group keeps its slotKey through redaction', () => {
+    const redacted = redactItemGroup(keyedGroup);
+    expect(redacted.slotKey).toBe('reading');
+    expect((redacted.items[0] as { slotKey?: string }).slotKey).toBe('q1');
+  });
+
+  it('the client derives the SAME slot ids the server planned', () => {
+    // The group shuffles within itself, so both sides need the attempt's seed —
+    // which is exactly the contract the exam path relies on.
+    const seed = 'attempt-42';
+    const planned = planAttempt([keyedGroup], { seed }).slots.map((slot) => slot.slotId);
+    const rendered = flattenSequence([redactItemGroup(keyedGroup)], { seed }).map(
+      (slot) => slot.slotId,
+    );
+    expect([...planned].sort()).toEqual(['reading.q1', 'reading.q2']);
+    expect(rendered).toEqual(planned);
+  });
+
+  it('a loose activity keeps its slotKey too, and stays learner-safe', () => {
+    const redacted = redact({ ...mc, slotKey: 'intro' });
+    expect(redacted.slotKey).toBe('intro');
+    expect(redacted).not.toHaveProperty('scoringStrategy');
+    expect(() => assertRedacted(redacted)).not.toThrow();
+  });
+
+  it('assertRedactedItemGroup still accepts the keyed projection', () => {
+    expect(() => assertRedactedItemGroup(redactItemGroup(keyedGroup))).not.toThrow();
   });
 });
 

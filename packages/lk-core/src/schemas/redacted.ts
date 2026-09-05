@@ -14,6 +14,8 @@ import { WrittenResponseRubricSchema } from './written-response.js';
 const redactedBase = {
   /** Marker distinguishing a redacted projection from full activity data. */
   redacted: z.literal(true),
+  /** Slot identity, carried through redaction so the client and the plan agree. */
+  slotKey: z.string().min(1).optional(),
   schemaVersion: z.literal('1.0'),
   id: z.string().min(1),
   title: z.string().min(1),
