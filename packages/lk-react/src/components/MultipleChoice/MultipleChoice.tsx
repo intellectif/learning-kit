@@ -76,7 +76,7 @@ export interface MultipleChoiceProps extends ActivityProps<MultipleChoiceData> {
    * id) to make the shuffled order reproducible server-side, stable across
    * page reloads, and identical between SSR and hydration. When absent, a
    * random per-mount session seed is used (order stable within the mount
-   * only — the v1 behaviour).
+   * only — the behaviour before `shuffleSeed` existed).
    */
   shuffleSeed?: string;
 }

@@ -1,8 +1,11 @@
 # @intellectif/lk-react
 
-React 19 components, hooks, and theming for [learning-kit](https://github.com/intellectif/learning-kit): accessible interactive activity components (Multiple Choice, Fill-in-the-Blanks), an in-place question-set pager, a CSS-variable theming system with an optional skin, and an xAPI delivery hook.
+React 19 components, hooks, and theming for [learning-kit](https://github.com/intellectif/learning-kit): accessible activity components (Multiple Choice, Fill-in-the-Blanks, Written Response), a resumable in-place question-set pager with **exam** and **review** modes, a CSS-variable theming system with an optional skin, and an xAPI delivery hook.
 
-A lightweight, composable, bring-your-own-backend alternative to H5P.
+A lightweight, composable, bring-your-own-backend alternative to H5P — and unlike a
+practice-quiz widget, it is built to render a **summative** paper: in `exam` mode the
+components never score, never reveal correctness, and are safe to hand a `redact()`
+projection that carries no answer key.
 
 ```bash
 pnpm add @intellectif/lk-react @intellectif/lk-core react react-dom
@@ -62,11 +65,18 @@ export function Demo() {
 
 ## Activities & features
 
-- **`<MultipleChoice>`** — single / multi select, all-or-nothing or partial scoring, deterministic per-session shuffle, per-option `feedback`.
+- **`<MultipleChoice>`** — single / multi select, all-or-nothing or partial scoring, per-option `feedback`, and a deterministic option shuffle seeded by `shuffleSeed` (without one the order is stable for the life of the mount only, and is not reproducible afterwards).
 - **`<FillInTheBlanks>`** — `{{id}}` placeholders, case/whitespace options, per-blank `hint` (Show/Hide toggle as an icon), per-blank `feedback` shown inline on submit with a learner-controlled **Hide/Show feedback** toggle, optional `showCorrectAnswers`.
 - **`<WrittenResponse>`** — free-text writing with a live word counter and bounds messaging, graded **asynchronously**: it emits an ungraded submission (never a fake zero) and a SUBMITTED-verb xAPI statement, and renders a returned `GradeRecord` in `review` mode with per-criterion scores and inline corrections.
-- **`<ActivitySequence>`** — in-place "question set" pager (Previous/Next, "Question X of N", no scrolling, focus-managed). Accepts item groups and keeps their stimulus beside every question; `onSubmit` reports every raw answer with its `slotId`, which is the only response channel an `exam` sequence has.
+- **`<ActivitySequence>`** — in-place "question set" pager (Previous/Next, "Question X of N", no scrolling, focus-managed). Accepts item groups and keeps their stimulus beside every question; `onSubmit` reports every raw answer with its `slotId`, which is the only response channel an `exam` sequence has. `onFinished` is the completion signal for a set that mixes scored and deferred-graded items, where `onComplete` can never fire.
+- **Resume and review a whole attempt** — `<ActivitySequence>` takes `defaultIndex`, `responses` and `submittedSlotIds` (read at mount; remount with a `key` to show a different attempt), so an interrupted paper reopens on the right question with the right answers and already-committed questions still committed. `onIndexChange` reports every position the pager lands on, including a clamp it had to apply. Pass `renderMode="review"` plus server-computed `outcomes` to render a finished attempt read-only. Pairs with `serializeAttemptState` / `restoreAttemptState` in `lk-core`.
+- **`renderMode`** — `practice` (default: the component scores locally and reveals correctness), `exam` (never scores, never reveals; submit emits the raw response for the server to grade), `review` (read-only, marks correctness only from an `outcome` you supply). This is the single switch that takes grading off the client.
+- **Controlled or uncontrolled** — every activity component follows the React convention: `defaultValue` to seed, `value` + `onChange` to own the answer outright, `defaultSubmitted` to mount an already-committed question as committed.
+- **`asRenderable()` / `asRenderableSequence()`** — the one documented bridge from a server's `redact()` projection to the `data` prop, so `as unknown as` stays out of your code.
+- **`shuffleSeed`** — one seed drives question order *and* each item's option order, so a review render reproduces exactly the arrangement the learner sat. Shuffling in `exam` / `review` mode **requires** it.
 - **`<StimulusPanel>`** — a shared passage / recording / image (an item group's stimulus) as a landmark region; the sequence uses it, and a custom runner can too.
+- **Custom activity types** — `renderers={{ 'my-type': MyRenderer }}` on the sequence; a key matching a built-in overrides it, so you can replace a bundled renderer without forking the sequencer.
+- **Rich text, opt-in** — `sanitizeHtml` renders author-supplied `questionHtml` / `promptHtml`. The SDK ships **no** sanitiser and injects no HTML without one; without it the escaped plain-text field is used. (`FillInTheBlanks` ignores `passageHtml` by design — its passage hosts the answer inputs.)
 - **Media per question** — optional `image` / `audio` / `video` / `embed` (YouTube/Vimeo iframe) above the question; alt-text required for `image`/`embed` (WCAG).
 - **Activity-level overall feedback** — `{ correct, incorrect }` shown after submit (h5p "Overall Feedback" parity).
 - **`useXAPI(config)`** — fire-and-forget LRS delivery with retry/backoff for 5xx/network (1 s / 2 s / 4 s), immediate fail on 4xx, never throws.
@@ -92,22 +102,43 @@ export function Demo() {
 | `@intellectif/lk-react/theme/defaults.css` | Tokens (required) |
 | `@intellectif/lk-react/theme/skin.css` | Optional polished skin |
 
-ESM + CJS + `.d.ts` for every entry. Tree-shakeable.
+ESM + CJS + `.d.ts` for every JS entry (the two `.css` entries are plain stylesheets).
+Tree-shakeable. Node >= 20, React `^19`.
 
-## Capabilities & limitations (V1)
+`asRenderable`, `asRenderableSequence`, `RenderMode`, `ActivityProps` and the other
+shared types are exported from the **barrel** (`@intellectif/lk-react`); they have no
+subpath of their own.
+
+## Capabilities & limitations
 
 | Concern | Behavior |
 |---|---|
-| **Scoring** | Pure & deterministic; `all-or-nothing` and `partial`. |
-| **Feedback** | Per-item (MC per-option, FIB per-blank) shown inline on submit with Hide/Show toggle, + activity-level overall. |
-| **Retry** | Pass a new `data` reference or change the React `key` → activity resets (no built-in button — retry *policy* is yours). |
-| **Persistence / resume** | Storage is yours — capture `onSubmit` / `onChange` / `onInteraction` and persist as you wish. Re-hydration **is** supported: pass `defaultValue` to seed a component, or `value` + `onChange` to control it outright (since 2.1.0). |
+| **Scoring** | Pure & deterministic, in `lk-core`; per-activity `all-or-nothing` and `partial`. Weighted totals across items and sections are `composeAssessmentScore`; per-option weighting inside one activity is not implemented. |
+| **Grading on the client** | `practice` only. `exam` and `review` never score and never reveal correctness — pass a `redact()` projection and grade server-side. |
+| **Feedback** | Per-item (MC per-option, FIB per-blank) shown inline on submit with Hide/Show toggle, + activity-level overall. Score-band feedback is not implemented. |
+| **Retry** | Pass a new `data` reference or change the React `key` → the activity resets to **its seeded state**, not to blank. With `defaultValue` / `defaultSubmitted` set, a new `key` and a new `data` reference are indistinguishable: both return the restored answer, still locked as submitted. For a genuinely fresh attempt, change the `key` **and stop passing the seeds**. No built-in button — retry *policy* is yours. |
+| **Persistence / resume** | Storage is yours — capture `onSubmit` / `onChange` / `onInteraction` / `onIndexChange` and persist as you wish. Re-hydration is supported at **both** levels: `defaultValue` / `value` + `onChange` on a component (since 2.1.0), and `defaultIndex` / `responses` / `submittedSlotIds` on `<ActivitySequence>` (since 6.0.0). |
+| **Rich text** | Rendered only when you pass `sanitizeHtml`; the SDK bundles no sanitiser and injects no HTML without one. `FillInTheBlanks` deliberately **ignores** `passageHtml` — the passage hosts the answer inputs, so it is built from `passage` plus the blanks (dev-mode warning if you pass it). |
+| **i18n** | `locale` sets the `lang` attribute on the rendered region and names xAPI statements. UI strings are English and not yet overridable, and there is no RTL-specific styling. |
+| **Media** | `<audio>` / `<video>` are paused when the pager navigates away, preserving `currentTime` so a group resumes where the learner left it; nothing ever auto-plays. A provider `embed` (iframe) **cannot** be paused this way — controlling a third-party player needs its own JS API. Use `audio` / `video` for anything that must stop when the learner navigates. |
 | **Authoring / content storage / CDN / auth** | Consumer responsibility — typed schemas + `validateActivity` + JSON Schema export are provided for you to build authoring on. |
-| **SSR / RSC** | Fully supported. |
+| **SSR / RSC** | Fully supported; every component carries `'use client'`. |
+
+### Versioning note
+
+`@intellectif/lk-core` is a **peer** dependency, so widening its range is a breaking
+change for installs and forces a `lk-react` major. Some majors here — **5.0.0**
+is the clearest — are exactly that and change no React API. Others do: 6.0.0
+added five `<ActivitySequence>` props, a `restored` arm to `SequenceItemOutcome`
+that an exhaustive `switch` must handle, and a changed reset target for
+`<MultipleChoice>`. Always read the
+[CHANGELOG](https://github.com/intellectif/learning-kit/blob/main/packages/lk-react/CHANGELOG.md)
+before assuming a migration is needed.
 
 ## Documentation
 
-- [Upgrading](https://github.com/intellectif/learning-kit/blob/main/docs/upgrading.md) — start here if you are on 2.x.
+- [Upgrading](https://github.com/intellectif/learning-kit/blob/main/docs/upgrading.md) — start here on any upgrade from 2.x, 3.x, 4.x or 5.x.
+- [Changelog](https://github.com/intellectif/learning-kit/blob/main/packages/lk-react/CHANGELOG.md) — every release, with the reasoning.
 - [Authoring & content storage](https://github.com/intellectif/learning-kit/blob/main/docs/authoring.md)
 - [Styling](https://github.com/intellectif/learning-kit/blob/main/docs/styling.md) — tokens, the skin, overrides, dark mode, Tailwind.
 - [Project README](https://github.com/intellectif/learning-kit#readme) — full picture & monorepo layout.

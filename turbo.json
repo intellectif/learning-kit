@@ -50,6 +50,11 @@
         "build"
       ]
     },
+    "verify-dist": {
+      "dependsOn": [
+        "build"
+      ]
+    },
     "typecheck": {
       "dependsOn": [
         "^build"

@@ -151,14 +151,22 @@ export interface ActivitySequenceProps {
    * server's `flattenSequence(entries, { seed })` derives the same order this
    * pager shows.
    *
-   * **Required in `exam` and `review` mode** — omitting it throws. An order
-   * nobody can reproduce cannot be reconciled with a recorded attempt, and
-   * failing at render is the only way that mistake surfaces before a learner
-   * sits the paper. In `practice` mode it stays optional: a random per-mount
-   * seed is used, which is stable within the mount and deliberately not
-   * reproducible. That fallback is also not SSR-safe (server and client would
-   * invent different orders and hydration would mismatch), so supply a seed
-   * for any server-rendered sequence regardless of mode.
+   * **Required whenever this sequence shuffles** — `shuffle: 'entries'`, or any
+   * group with `shuffle: 'within-group'` — in `exam` or `review` mode; omitting
+   * it then throws. An order nobody can reproduce cannot be reconciled with a
+   * recorded attempt, and failing at render is the only way that mistake
+   * surfaces before a learner sits the paper. A sequence that does not shuffle
+   * needs no seed in any mode.
+   *
+   * Note the guard does NOT cover an activity's own `data.shuffle`:
+   * `<MultipleChoice>` falls back to a per-mount seed there in every mode, so
+   * pass this whenever any item shuffles its options.
+   *
+   * In `practice` mode it stays optional: a random per-mount seed is used,
+   * stable within the mount and deliberately not reproducible. That fallback is
+   * also not SSR-safe (server and client would invent different orders and
+   * hydration would mismatch), so supply a seed for any server-rendered
+   * sequence regardless of mode.
    */
   shuffleSeed?: string;
   /**

@@ -3,15 +3,17 @@
 A modern, TypeScript-first SDK for building interactive educational activities with xAPI tracking. A lightweight, composable, **bring-your-own-backend** alternative to H5P, built for React 19.
 
 > **What it is:** a runtime + data contract — schemas, a pure scoring engine, an xAPI builder, and accessible React components.
-> **What it is not:** a CMS. Authoring UI, content storage (S3), delivery (CDN), auth, and a learner database are the consuming application's responsibility. See **[Capabilities & limitations](#capabilities--limitations-v1)** and the [Authoring guide](./docs/authoring.md).
+> **What it is not:** a CMS. Authoring UI, content storage (S3), delivery (CDN), auth, and a learner database are the consuming application's responsibility. See **[Capabilities & limitations](#capabilities--limitations)** and the [Authoring guide](./docs/authoring.md).
 
 ## Packages
 
-| Package | Description | Status |
-|---------|-------------|--------|
-| [`@intellectif/lk-core`](./packages/lk-core) | Schemas, scoring engine, xAPI builder (zero runtime deps beyond Zod) | V1 |
-| [`@intellectif/lk-react`](./packages/lk-react) | React 19 components, hooks, theming, optional skin | V1 |
-| `@intellectif/lk-ai` | AI content generation | Phase 3 stub |
+| Package | Description | Version |
+|---------|-------------|---------|
+| [`@intellectif/lk-core`](./packages/lk-core) | Schemas, scoring, rubric & deferred grading, assessment composition, attempt plans, redaction, xAPI (zero runtime deps beyond Zod) | [![npm](https://img.shields.io/npm/v/@intellectif/lk-core.svg?label=%20)](https://www.npmjs.com/package/@intellectif/lk-core) |
+| [`@intellectif/lk-react`](./packages/lk-react) | React 19 components, the resumable exam/review pager, hooks, theming, optional skin | [![npm](https://img.shields.io/npm/v/@intellectif/lk-react.svg?label=%20)](https://www.npmjs.com/package/@intellectif/lk-react) |
+| `@intellectif/lk-ai` | AI content generation | Phase 3 stub — not published |
+
+`lk-react` declares `lk-core` as a **peer** dependency, so a `lk-core` minor bump forces a `lk-react` major. A `lk-react` major is therefore not by itself evidence of a breaking React API — check its [CHANGELOG](./packages/lk-react/CHANGELOG.md).
 
 ## Install (in your app)
 
@@ -77,20 +79,25 @@ export function Demo() {
 - **Custom types** *(v0.3)* — `defineActivityType` + `registerActivityType` make `validateActivity` / `score` / `evaluate` / `redact` / `jsonSchemaFor` work for your own activity types without an SDK release (TypeScript module augmentation for typing).
 - **Server-side redaction** *(v0.3)* — `redact()` produces a learner-safe, fail-closed projection: answer keys, scoring rules and authored feedback are removed, and any field a type's policy does not classify is removed too. **Rubrics are kept by default** — a rubric tells the learner what they are being assessed on, which is the point of publishing one; tighten that per call with `redact(data, { policy: { rubric: 'author-only' } })`. `assertRedacted()` proves a payload is safe to ship to an exam client.
 - **`ActivitySequence`** — in-place "question set" pager (Previous / Next, "Question X of N", no scrolling, focus-managed). Resets safely when the activity set changes. Accepts **item groups** — a shared passage or recording kept beside each of its questions.
+- **Exam, practice and review modes** *(lk-react 2.1.0; through `ActivitySequence` since 4.0.0)* — `renderMode` is the single switch that takes grading off the client: `exam` never scores and never reveals correctness, `review` renders a finished attempt read-only and marks it only from a server-computed outcome, `practice` (the default) keeps the v1 self-scoring behaviour.
+- **Resume an interrupted attempt** *(v0.7)* — `serializeAttemptState` / `restoreAttemptState` round-trip responses, submitted slots and position, bound by a `planHash` so answers can never be restored onto a paper the learner never sat; `ActivitySequence` consumes them through `defaultIndex` / `responses` / `submittedSlotIds`. `diffResponses` reports what moved, including an answer the learner cleared.
+- **Attempt plans** *(v0.6)* — `planAttempt()` freezes what a learner was actually served — slot order, per-slot points, a content hash per item — and `verifyAttemptPlan()` reports the drift when the content is edited afterwards. This is what makes a grade defensible at a remark or an appeal.
+- **Assessment composition** *(v0.4)* — `composeAssessmentScore()` for weighted, sectioned totals with an explicit `RoundingPolicy`, plus rubric and deferred grading (`gradeFromRubric`, `GradeRecord`, `outcomeFromGrade`). An unmarked essay reports the whole result `provisional` instead of deflating the grade to a zero nobody awarded.
 - **Media per question** — optional `image` / `audio` / `video` / `embed` (YouTube/Vimeo iframe) above the question.
 - **Feedback** — per-option (Multiple Choice) and activity-level overall (`{ correct, incorrect }`).
 - **xAPI 1.0.3** — well-formed statements via `xAPIBuilder`; `useXAPI` delivers them (retry/backoff, never throws).
 - **Theming** — `--lk-*` CSS variables + `ThemeProvider` (light/dark), optional skin, `createTailwindTheme`.
 - **Accessibility** — WCAG 2.2 AA, axe-clean, keyboard-operable, verified by unit + Playwright e2e.
 
-## Capabilities & limitations (V1)
+## Capabilities & limitations
 
-| Concern | V1 behavior |
+| Concern | Behavior |
 |---|---|
-| **Scoring** | Pure, deterministic, in `lk-core`; `all-or-nothing` & `partial` (weighted → Phase 2). |
+| **Scoring** | Pure, deterministic, in `lk-core`. Per-activity: `all-or-nothing` & `partial`. Across items and sections: `composeAssessmentScore` with per-item weights and an explicit rounding policy. Per-*option* weighting inside one activity is not implemented. |
+| **Grading on the client** | `practice` mode only. `exam` and `review` never score and never reveal correctness — ship a `redact()` projection and grade server-side. |
 | **Feedback** | Per-item (MC per-option, FIB per-blank) shown inline on submit with a Hide/Show toggle, + activity-level overall. Score-band feedback → Phase 2. |
-| **Retry** | Supported: pass a new `data` reference or change the React `key` → resets to idle (Req 3.7). The SDK ships no retry button; retry *policy* is yours. |
-| **Answer persistence / resume** | Storage is yours; **re-hydration is supported**. Every component takes `value` / `defaultValue` / `onChange` (lk-react 2.1.0), so a saved response restores an in-progress attempt. Persist via `onSubmit` / `onChange` / `onInteraction`. What the SDK does not restore is the sequence's own position — see the [authoring guide](./docs/authoring.md). |
+| **Retry** | Supported: pass a new `data` reference or change the React `key` → the activity resets (Req 3.7). It resets to **its seeded state**, not to blank — so on the resume path, with `defaultValue` / `defaultSubmitted` set, a new `key` and a new `data` reference behave identically and both restore the previous, already-submitted answer. A genuinely fresh attempt needs a new `key` **and** the seed props dropped. The SDK ships no retry button; retry *policy* is yours. |
+| **Answer persistence / resume** | Storage is yours; **re-hydration is supported end to end**. Every component takes `value` / `defaultValue` / `onChange` (lk-react 2.1.0), and `<ActivitySequence>` takes `responses` / `submittedSlotIds` / `defaultIndex` (lk-react 6.0.0) — so an interrupted attempt reopens on the right question with the right answers, and already-committed questions stay committed. `serializeAttemptState` / `restoreAttemptState` (lk-core 0.7.0) bind that snapshot to the paper it was taken on. Persist via `onSubmit` / `onChange` / `onIndexChange`. See the [authoring guide](./docs/authoring.md#resuming-and-reviewing-an-attempt-v07). |
 | **Authoring / content storage / CDN / auth / learner DB** | Consumer responsibility. The SDK gives you typed schemas, `validateActivity`, and JSON Schema export to build authoring on. See [Authoring guide](./docs/authoring.md). |
 | **SSR / RSC** | Components are `'use client'`; render correctly inside an RSC tree (hydrate on the client). |
 
@@ -98,7 +105,7 @@ Full detail: **[docs/authoring.md](./docs/authoring.md)** · **[docs/styling.md]
 
 ## Documentation
 
-- **[Upgrading](./docs/upgrading.md)** — **read this first if you are on `lk-core@0.3.x`**: two of the changes close paths that put a wrong number in front of a learner.
+- **[Upgrading](./docs/upgrading.md)** — the `lk-core` ↔ `lk-react` release map, and **read it first if you are below `lk-core@0.6`**: two of the changes there close paths that put a wrong number in front of a learner.
 - **[Authoring & content storage](./docs/authoring.md)** — data model, validation, the fetch → validate → render → xAPI flow, retry/persistence patterns, the shared-responsibility boundary.
 - **[Styling](./docs/styling.md)** — token system, the optional skin, overriding it, dark mode, Tailwind.
 - **[Releasing & publishing](./docs/releasing.md)** — npm token setup, GitHub Actions release, manual publish.

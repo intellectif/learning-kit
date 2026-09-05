@@ -104,7 +104,15 @@ export interface MultipleChoiceData {
   feedback?: ActivityFeedback;
   /** Minimum scaled score [0–1] required to pass. Defaults to {@link DEFAULT_PASS_THRESHOLD} (0.7) when absent. */
   passThreshold?: number;
-  /** When true, options are shuffled deterministically per session. */
+  /**
+   * When true, option order is shuffled deterministically.
+   *
+   * The order is derived from the renderer's `shuffleSeed` when one is given —
+   * pass the attempt id, and a review render reproduces exactly the order the
+   * learner sat. Without a seed the order is stable for the life of the mount
+   * only, and is NOT reproducible afterwards, so never grade or appeal against
+   * a remembered position.
+   */
   shuffle?: boolean;
   /** BCP 47 language tag for the activity content. */
   locale?: string;

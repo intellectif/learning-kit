@@ -15,7 +15,7 @@
     "release": "turbo run build && changeset publish",
     "size": "size-limit",
     "e2e": "turbo run e2e",
-    "check-packaging": "turbo run publint attw"
+    "check-packaging": "turbo run publint attw verify-dist"
   },
   "keywords": [],
   "author": "Intellectif LLC",

@@ -15,7 +15,8 @@ import type {
  * whether the component may grade, reveal, or submit — the three things a
  * summative exam must take away from the client.
  *
- * - `practice` (default, v1 behaviour): the component owns the attempt. It
+ * - `practice` (default, and the only behaviour before `renderMode` existed):
+ *   the component owns the attempt. It
  *   scores locally on submit, reveals correctness and feedback, and calls
  *   `onComplete` with a full {@link ActivityResult}.
  * - `exam`: the component NEVER scores and NEVER reveals correctness. Submit
@@ -60,12 +61,17 @@ export type RenderableActivity<TData extends ActivityData = ActivityData> = TDat
   : never;
 
 /**
- * Sanitiser for author-supplied rich text (`questionHtml`, `passageHtml`,
- * `promptHtml`). The SDK deliberately ships NO sanitiser — that would add a
- * dependency and, worse, a false promise. Rich text is rendered only when you
- * supply this function; without it the component falls back to the plain-text
- * field, which is always escaped. Fail-safe by construction: the SDK never
- * injects HTML it was not explicitly given a sanitiser for.
+ * Sanitiser for author-supplied rich text (`questionHtml`, `promptHtml`, and a
+ * stimulus's `bodyHtml`). The SDK deliberately ships NO sanitiser — that would
+ * add a dependency and, worse, a false promise. Rich text is rendered only when
+ * you supply this function; without it the component falls back to the
+ * plain-text field, which is always escaped. Fail-safe by construction: the SDK
+ * never injects HTML it was not explicitly given a sanitiser for.
+ *
+ * `FillInTheBlanks.passageHtml` is the one exception, and is **never**
+ * rendered: the passage hosts the answer inputs, so it cannot be split at the
+ * `{{blank}}` placeholders without voiding the sanitiser. The plain `passage`
+ * is always used, and passing `passageHtml` warns in development.
  */
 export type HtmlSanitizer = (html: string) => string;
 
@@ -76,7 +82,8 @@ export type HtmlSanitizer = (html: string) => string;
  * Controlled / uncontrolled follows the React convention: pass `value` +
  * `onChange` to own the learner's answer (restore an in-progress attempt,
  * autosave a delta, drive a review); pass `defaultValue` to seed an
- * uncontrolled component; pass neither for the v1 behaviour.
+ * uncontrolled component; pass neither to keep the pre-2.1.0 behaviour, where
+ * the component owns the answer outright.
  */
 export interface ActivityProps<TData extends ActivityData = ActivityData> {
   /** Activity content. Accepts a `redact()` projection in `exam` mode. */
@@ -143,8 +150,13 @@ export interface ActivityProps<TData extends ActivityData = ActivityData> {
  *
  * Safe because `exam` mode reads only public fields; the answer-key fields the
  * type claims are exactly the ones the component is forbidden to touch there.
- * A future release will derive per-type redacted interfaces so this becomes
- * unnecessary.
+ *
+ * Per-type redacted interfaces (`RedactedMultipleChoiceData`, …) ship from
+ * lk-core since 0.6.0, but they are not yet *assignable* to `data`:
+ * {@link Renderable} widens `scoringStrategy` and leaves nested answer-key
+ * fields (`options[].isCorrect`, `blanks[].acceptedAnswers`) required, so a
+ * real redacted payload still needs this bridge. Closing that gap is tracked
+ * in the roadmap.
  */
 export function asRenderable<TData extends ActivityData>(
   redacted: RedactedActivityData,
@@ -174,9 +186,13 @@ export function asRenderable<TData extends ActivityData>(
  * ```
  *
  * Pass `renderMode="exam"` (or `"review"`). Redacted data has no answer key,
- * and the default `practice` mode grades locally — the built-in components
- * throw at render rather than fail at submit time, so a mis-wired exam item is
- * loud, not silent.
+ * and the default `practice` mode grades locally — so `<MultipleChoice>` and
+ * `<FillInTheBlanks>` throw at render rather than fail at submit time.
+ *
+ * `<WrittenResponse>` is the exception: it never grades on the client and has
+ * no such guard, so a redacted essay renders and stays answerable in
+ * `practice`. A mis-wired essay item is therefore SILENT — set `renderMode`
+ * explicitly rather than relying on the throw.
  */
 export function asRenderableSequence(
   entries: readonly (RedactedActivityData | RedactedItemGroupData)[],
