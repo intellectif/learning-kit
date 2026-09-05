@@ -80,6 +80,12 @@ export interface WrittenResponseProps {
   value?: LearnerResponse;
   /** Initial response for an uncontrolled component (ignored when `value` is set). */
   defaultValue?: LearnerResponse;
+  /**
+   * Mount as already submitted — read at mount only. Without it a resumed
+   * attempt reopens an essay the learner had already submitted as editable
+   * and re-submittable.
+   */
+  defaultSubmitted?: boolean;
   /** Fires on every change to the learner's response. Required for a controlled component. */
   onChange?: (response: LearnerResponse) => void;
   /**
@@ -240,6 +246,7 @@ export function WrittenResponse({
   onSubmit,
   value,
   defaultValue,
+  defaultSubmitted,
   onChange,
   renderMode = 'practice',
   outcome,
@@ -259,7 +266,9 @@ export function WrittenResponse({
     return result.success ? null : new ActivitySchemaError('written-response', result.errors);
   }, [data]);
 
-  const { state, start, complete, getTimeSpent, reset } = useActivityState();
+  const { state, start, complete, getTimeSpent, reset } = useActivityState(
+    defaultSubmitted === true ? 'completed' : 'idle',
+  );
   const isControlled = value !== undefined;
   const [innerText, setInnerText] = useState<string>(() => textOf(defaultValue));
   const [summary, setSummary] = useState<string | null>(null);
@@ -286,10 +295,30 @@ export function WrittenResponse({
   // Reset on data-prop change (Req 3.7): back to the seed (empty when there
   // is none — the v1 behaviour), never the previous activity's draft.
   // biome-ignore lint/correctness/useExhaustiveDependencies: data is the reset trigger (Req 3.7)
+  // Mirror `defaultSubmitted` so the reset below returns to the SEEDED state.
+  // Resetting unconditionally to idle unlocked an item the learner had already
+  // committed — which made `defaultSubmitted` a no-op here, since this effect
+  // runs right after the first paint.
+  const defaultSubmittedRef = useRef(defaultSubmitted);
   useEffect(() => {
+    defaultSubmittedRef.current = defaultSubmitted;
+  }, [defaultSubmitted]);
+
+  // Identity guard so the MOUNT run is a no-op. Without it this effect fires
+  // after the first paint and undoes every seed it was just given; with it,
+  // only a real `data` change resets. A parent that rebuilds structurally
+  // identical entries in render (`activities={raw.map(redact)}`) must not
+  // unlock or revert a restored answer — the pager already remounts a slot
+  // whose activity actually changed, via its key.
+  const lastDataRef = useRef(data);
+  useEffect(() => {
+    if (lastDataRef.current === data) {
+      return;
+    }
+    lastDataRef.current = data;
     setInnerText(defaultTextRef.current);
     setSummary(null);
-    reset();
+    reset(defaultSubmittedRef.current === true ? 'completed' : 'idle');
   }, [data, reset]);
 
   if (devError) {

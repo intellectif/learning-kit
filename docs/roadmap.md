@@ -254,7 +254,10 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   autoplayOnce? }` plus a plays-remaining interaction event. Listening assessment is unrunnable without it
   (an integrator replaced the SDK's audio rendering wholesale to stop downloads and rate changes), and it is
   a prerequisite for `dictation`.
-- `serializeAttemptState` / `restoreAttemptState` / `diffResponses`.
+- ✅ **`serializeAttemptState` / `restoreAttemptState` / `diffResponses`** — plus the pager props that make
+  them usable (`defaultIndex`, `onIndexChange`, `responses`, `outcomes`). A snapshot is bound to its plan by
+  `planHash`, so answers can never be restored onto a paper the learner never sat, and the position and
+  per-slot answers — the one part of an attempt a consumer could not previously recover — round-trip.
 - lk-react: **controlled components** (`value`/`defaultValue`/`onChange` + `renderMode: 'practice' | 'exam' |
   'review'` — named to avoid the `MultipleChoiceData.mode` collision), redacted-data rendering (deletes the
   consumer's exam renderer + redactor), headless `useActivity` layer, `LkIntlProvider` (`en`/`es`/`pt`/`ar`) +

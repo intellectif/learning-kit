@@ -100,6 +100,7 @@ export function FillInTheBlanks({
   onInteraction,
   value,
   defaultValue,
+  defaultSubmitted,
   renderMode = 'practice',
   outcome,
   sanitizeHtml,
@@ -132,7 +133,9 @@ export function FillInTheBlanks({
     return result.success ? null : new ActivitySchemaError('fill-in-the-blanks', result.errors);
   }, [data]);
 
-  const { state, start, complete, getTimeSpent, reset } = useActivityState();
+  const { state, start, complete, getTimeSpent, reset } = useActivityState(
+    defaultSubmitted === true ? 'completed' : 'idle',
+  );
   // Controlled when `value` is supplied: the answers rendered are ALWAYS the
   // caller's, and internal state is never read. Uncontrolled otherwise,
   // seeded from `defaultValue`.
@@ -156,15 +159,35 @@ export function FillInTheBlanks({
     defaultValueRef.current = defaultValue;
   }, [defaultValue]);
 
+  // Mirror `defaultSubmitted` so the reset below returns to the SEEDED state.
+  // Resetting unconditionally to idle unlocked an item the learner had already
+  // committed — which made `defaultSubmitted` a no-op here, since this effect
+  // runs right after the first paint.
+  const defaultSubmittedRef = useRef(defaultSubmitted);
+  useEffect(() => {
+    defaultSubmittedRef.current = defaultSubmitted;
+  }, [defaultSubmitted]);
+
+  // Identity guard so the MOUNT run is a no-op. Without it this effect fires
+  // after the first paint and undoes every seed it was just given; with it,
+  // only a real `data` change resets. A parent that rebuilds structurally
+  // identical entries in render (`activities={raw.map(redact)}`) must not
+  // unlock or revert a restored answer — the pager already remounts a slot
+  // whose activity actually changed, via its key.
+  const lastDataRef = useRef(data);
   // `data` is an intentional reset trigger (Req 3.7), not read in the body.
   // biome-ignore lint/correctness/useExhaustiveDependencies: data is the reset trigger (Req 3.7)
   useEffect(() => {
+    if (lastDataRef.current === data) {
+      return;
+    }
+    lastDataRef.current = data;
     setInternalAnswers(answersOf(defaultValueRef.current));
     setRevealed(new Set());
     setResult(null);
     setSummary(null);
     setFeedbackHidden(false);
-    reset();
+    reset(defaultSubmittedRef.current === true ? 'completed' : 'idle');
   }, [data, reset]);
 
   /*

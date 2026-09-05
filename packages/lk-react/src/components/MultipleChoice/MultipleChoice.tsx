@@ -87,6 +87,7 @@ export function MultipleChoice({
   onSubmit,
   value,
   defaultValue,
+  defaultSubmitted,
   onChange,
   renderMode = 'practice',
   outcome,
@@ -117,7 +118,9 @@ export function MultipleChoice({
   // Lazily created only when shuffling without a caller seed: avoids calling
   // crypto.randomUUID (absent on non-secure http origins) unless needed.
   const sessionIdRef = useRef<string | null>(null);
-  const { state, start, complete, getTimeSpent, reset } = useActivityState();
+  const { state, start, complete, getTimeSpent, reset } = useActivityState(
+    defaultSubmitted === true ? 'completed' : 'idle',
+  );
   // Uncontrolled state. `defaultValue` seeds the mount only (React convention);
   // to re-seed later, remount with a `key` or drive the component with `value`.
   const [internalSelection, setInternalSelection] = useState<string[]>(() =>
@@ -130,18 +133,33 @@ export function MultipleChoice({
   // it this effect would wipe the seed immediately after the first render.
   // (It also makes the reset StrictMode-safe: a remount with unchanged data
   // no longer discards the learner's selection.)
-  // Clears to empty rather than back to `defaultValue`: carrying a stale
-  // answer into a different question is the one failure mode a summative
-  // component must never have.
+  // Resets back to `defaultValue`, not to empty. Clearing looked safer — it
+  // cannot carry a stale answer into a different question — but `data`
+  // identity is a poor proxy for "different question": a parent that builds
+  // entries in render (`activities={raw.map(redact)}`, the documented exam
+  // pattern) hands over a new object every render, and clearing wiped every
+  // RESTORED answer on the first unrelated re-render, silently. `defaultValue`
+  // is by definition the caller's seed for the CURRENT data, which is what
+  // FillInTheBlanks already reset to; the two now agree.
+  const defaultValueRef = useRef(defaultValue);
+  useEffect(() => {
+    defaultValueRef.current = defaultValue;
+  }, [defaultValue]);
+  // A data change must return the item to its SEED, submitted state included —
+  // resetting to idle unlocked work the learner had already committed.
+  const defaultSubmittedRef = useRef(defaultSubmitted);
+  useEffect(() => {
+    defaultSubmittedRef.current = defaultSubmitted;
+  }, [defaultSubmitted]);
   const lastDataRef = useRef(data);
   useEffect(() => {
     if (lastDataRef.current === data) {
       return;
     }
     lastDataRef.current = data;
-    setInternalSelection([]);
+    setInternalSelection(selectionOf(defaultValueRef.current));
     setSummary(null);
-    reset();
+    reset(defaultSubmittedRef.current === true ? 'completed' : 'idle');
   }, [data, reset]);
 
   const displayedOptions = useMemo<MultipleChoiceOption[]>(() => {

@@ -2,10 +2,12 @@ import {
   type FillInTheBlanksData,
   flattenSequence,
   type ItemGroup,
+  type ItemOutcome,
+  type LearnerResponse,
   type MultipleChoiceData,
   type SequenceEntry,
 } from '@intellectif/lk-core';
-import { render, render as rtlRender, screen } from '@testing-library/react';
+import { fireEvent, render, render as rtlRender, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest';
 import { checkA11y } from '../../../test-support/a11y.js';
@@ -378,6 +380,345 @@ describe('ActivitySequence set-change reset', () => {
     await user.click(screen.getByRole('button', { name: 'Submit' }));
 
     expect(onFinished).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ActivitySequence resume', () => {
+  const three: SequenceEntry[] = [mc('a', 'A?'), mc('b', 'B?'), mc('c', 'C?')];
+
+  it('reopens on the stored position instead of question 1', () => {
+    render(<ActivitySequence activities={three} defaultIndex={2} />);
+    expect(screen.getByText('Question 3 of 3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  });
+
+  it('clamps a stored position the paper no longer has', () => {
+    // A paper that lost its last question would otherwise reopen on a slot
+    // that is not there — an empty shell with no way forward.
+    render(<ActivitySequence activities={three} defaultIndex={99} />);
+    expect(screen.getByText('Question 3 of 3')).toBeInTheDocument();
+    render(<ActivitySequence activities={three} defaultIndex={-4} />);
+    expect(screen.getAllByText('Question 1 of 3').length).toBeGreaterThan(0);
+  });
+
+  it('reports every move, so the position can be persisted at all', () => {
+    const onIndexChange = vi.fn();
+    render(<ActivitySequence activities={three} onIndexChange={onIndexChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    expect(onIndexChange.mock.calls.map((call) => call[0])).toEqual([1, 2, 1]);
+  });
+
+  it('restores a saved answer into its own slot, keyed by slotId', () => {
+    render(
+      <ActivitySequence
+        activities={three}
+        responses={{ '1': { type: 'multiple-choice', selectedOptionIds: ['a'] } }}
+        defaultIndex={1}
+      />,
+    );
+    // Question 2 comes back answered…
+    expect(screen.getByRole('radio', { name: 'Yes' })).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    // …and question 1, which had no saved answer, comes back blank.
+    expect(screen.getByRole('radio', { name: 'Yes' })).not.toBeChecked();
+  });
+
+  it('restores into the right slot when a group shifts the ids', () => {
+    render(
+      <ActivitySequence
+        activities={[fib, passageGroup]}
+        responses={{ '1.1': { type: 'multiple-choice', selectedOptionIds: ['a'] } }}
+        defaultIndex={2}
+      />,
+    );
+    // Slot "1.1" is the group's SECOND question, presented third.
+    expect(screen.getByText('Tides question two?')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Yes' })).toBeChecked();
+  });
+
+  it('leaves a restored answer editable — resume is not a freeze', async () => {
+    const user = userEvent.setup();
+    render(
+      <ActivitySequence
+        activities={three}
+        responses={{ '0': { type: 'multiple-choice', selectedOptionIds: ['a'] } }}
+      />,
+    );
+    expect(screen.getByRole('radio', { name: 'Yes' })).toBeChecked();
+    await user.click(screen.getByRole('radio', { name: 'No' }));
+    expect(screen.getByRole('radio', { name: 'No' })).toBeChecked();
+  });
+
+  it('ignores a response whose slot id is a prototype key', () => {
+    // TypeScript resolves a `constructor` key against Object.prototype rather
+    // than the index signature, so the map is built through fromEntries. The
+    // point of the test is the RUNTIME lookup, which must not walk the
+    // prototype chain and hand a function to a slot.
+    const answer: LearnerResponse = { type: 'multiple-choice', selectedOptionIds: ['a'] };
+    const hostile: Record<string, LearnerResponse> = Object.fromEntries([['constructor', answer]]);
+    expect(() => render(<ActivitySequence activities={three} responses={hostile} />)).not.toThrow();
+    expect(screen.getByRole('radio', { name: 'Yes' })).not.toBeChecked();
+  });
+});
+
+describe('ActivitySequence resume — the cases that make it safe', () => {
+  const three: SequenceEntry[] = [mc('a', 'A?'), mc('b', 'B?'), mc('c', 'C?')];
+  const answerA: LearnerResponse = { type: 'multiple-choice', selectedOptionIds: ['a'] };
+
+  it('a NaN defaultIndex opens question 1, not an empty shell', () => {
+    // NaN passes through Math.min/Math.max untouched, so it survived every
+    // clamp and indexed the slots with NaN. `Number(row.last_index)` on a NULL
+    // column produces exactly that, and the learner got a blank page.
+    const { container } = render(<ActivitySequence activities={three} defaultIndex={Number.NaN} />);
+    expect(screen.getByText('Question 1 of 3')).toBeInTheDocument();
+    expect(container.querySelector('.lk-seq-nav')).toBeInTheDocument();
+  });
+
+  it('reports a position it had to correct, so storage stops disagreeing with the screen', () => {
+    const onIndexChange = vi.fn();
+    render(<ActivitySequence activities={three} defaultIndex={99} onIndexChange={onIndexChange} />);
+    expect(screen.getByText('Question 3 of 3')).toBeInTheDocument();
+    expect(onIndexChange).toHaveBeenCalledWith(2);
+  });
+
+  it('stays quiet at mount when the requested position was honoured', () => {
+    const onIndexChange = vi.fn();
+    render(<ActivitySequence activities={three} defaultIndex={1} onIndexChange={onIndexChange} />);
+    expect(onIndexChange).not.toHaveBeenCalled();
+  });
+
+  it('reports the reset a set change performs', () => {
+    const onIndexChange = vi.fn();
+    const props = { onIndexChange };
+    const { rerender } = rtlRender(<ActivitySequence activities={three} {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    onIndexChange.mockClear();
+    rerender(<ActivitySequence activities={[mc('x', 'X?'), mc('y', 'Y?')]} {...props} />);
+    // The pager jumped to question 1; storage must be told, or the next
+    // autosave writes a position the new paper does not have.
+    expect(onIndexChange).toHaveBeenCalledWith(0);
+  });
+
+  it('does NOT seed one paper’s answers onto another paper’s questions', () => {
+    // Slot ids are short and repeat across papers, so re-applying `responses`
+    // after a set change drops paper A's answer under paper B's question 1.
+    const props = { responses: { '0': answerA } };
+    const { rerender } = rtlRender(<ActivitySequence activities={three} {...props} />);
+    expect(screen.getByRole('radio', { name: 'Yes' })).toBeChecked();
+
+    rerender(<ActivitySequence activities={[mc('x', 'X?'), mc('y', 'Y?')]} {...props} />);
+    expect(screen.getByText('X?')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Yes' })).not.toBeChecked();
+  });
+
+  it('keeps a restored answer when the parent re-creates the activity objects', async () => {
+    // `activities={raw.map(redact)}` — the documented exam pattern — hands over
+    // new objects every render. Clearing to empty wiped every restored answer
+    // on the first unrelated re-render (a timer tick), silently.
+    const fresh = (): SequenceEntry[] => [mc('a', 'A?'), mc('b', 'B?')];
+    const props = { responses: { '0': answerA } };
+    const { rerender } = rtlRender(<ActivitySequence activities={fresh()} {...props} />);
+    expect(screen.getByRole('radio', { name: 'Yes' })).toBeChecked();
+
+    // Same content, brand-new objects — a parent re-render, nothing more.
+    rerender(<ActivitySequence activities={fresh()} {...props} />);
+    await waitFor(() => {
+      expect(screen.getByRole('radio', { name: 'Yes' })).toBeChecked();
+    });
+  });
+
+  it('reopens an already-submitted question as submitted, not re-answerable', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <ActivitySequence
+        activities={three}
+        renderMode="exam"
+        responses={{ '0': answerA }}
+        submittedSlotIds={['0']}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    // The learner committed this one before the crash; it must stay committed.
+    expect(screen.getByRole('radio', { name: 'Yes' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled();
+    await user.click(screen.getByRole('radio', { name: 'No' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('leaves an unsubmitted question answerable', async () => {
+    const user = userEvent.setup();
+    render(
+      <ActivitySequence
+        activities={three}
+        renderMode="exam"
+        responses={{ '0': answerA }}
+        submittedSlotIds={['1']}
+      />,
+    );
+    expect(screen.getByRole('radio', { name: 'Yes' })).toBeEnabled();
+    await user.click(screen.getByRole('radio', { name: 'No' }));
+    expect(screen.getByRole('radio', { name: 'No' })).toBeChecked();
+  });
+});
+
+describe('ActivitySequence resume — every activity type, not just the easy one', () => {
+  const fibAnswered: LearnerResponse = { type: 'fill-in-the-blanks', answers: { x: 'blue' } };
+
+  it.each([
+    ['fill-in-the-blanks', fib, () => screen.getByRole('textbox')],
+    [
+      'multiple-choice',
+      mc('m1', 'Q?') as SequenceEntry,
+      () => screen.getByRole('radio', { name: 'Yes' }),
+    ],
+  ])('keeps a submitted %s locked after resume', (_label, entry, control) => {
+    // The Req 3.7 data-change effect ran right after the first paint and reset
+    // to idle, undoing the seed it had just been given — so `defaultSubmitted`
+    // was a no-op for every type without a mount identity guard.
+    render(
+      <ActivitySequence
+        activities={[entry] as SequenceEntry[]}
+        renderMode="exam"
+        responses={{
+          '0': entry === fib ? fibAnswered : { type: 'multiple-choice', selectedOptionIds: ['a'] },
+        }}
+        submittedSlotIds={['0']}
+      />,
+    );
+    expect(control()).toBeDisabled();
+  });
+
+  it('a parent re-render does not unlock a submitted item', async () => {
+    const fresh = (): SequenceEntry[] => [{ ...fib }];
+    const props = {
+      renderMode: 'exam' as const,
+      responses: { '0': fibAnswered },
+      submittedSlotIds: ['0'],
+    };
+    const { rerender } = rtlRender(<ActivitySequence activities={fresh()} {...props} />);
+    expect(screen.getByRole('textbox')).toBeDisabled();
+
+    // Structurally identical entries, brand-new objects — the documented
+    // `activities={raw.map(redact)}` pattern.
+    rerender(<ActivitySequence activities={fresh()} {...props} />);
+    await waitFor(() => {
+      expect(screen.getByRole('textbox')).toBeDisabled();
+    });
+  });
+
+  it('can still finish a resumed attempt — onFinished fires on the last slot', async () => {
+    const user = userEvent.setup();
+    const onFinished = vi.fn();
+    render(
+      <ActivitySequence
+        activities={[mc('m1', 'Q1?'), mc('m2', 'Q2?')]}
+        renderMode="exam"
+        responses={{ '0': { type: 'multiple-choice', selectedOptionIds: ['a'] } }}
+        submittedSlotIds={['0']}
+        onFinished={onFinished}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(screen.getByRole('radio', { name: 'Yes' }));
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+    // Slot "0" was seeded as `restored`; leaving it null meant the set could
+    // never complete and a consumer marking the attempt done never heard.
+    expect(onFinished).toHaveBeenCalledTimes(1);
+    const items = onFinished.mock.calls[0]?.[0] as { kind: string; slotId: string }[];
+    expect(items.map((i) => [i.kind, i.slotId])).toEqual([
+      ['restored', '0'],
+      ['responded', '1'],
+    ]);
+  });
+
+  it('does not announce completion at mount when the whole attempt was already submitted', () => {
+    const onFinished = vi.fn();
+    render(
+      <ActivitySequence
+        activities={[mc('m1', 'Q1?')]}
+        renderMode="exam"
+        submittedSlotIds={['0']}
+        onFinished={onFinished}
+      />,
+    );
+    expect(onFinished).not.toHaveBeenCalled();
+  });
+
+  it('reproduces the OPTION order the learner sat, not a fresh one', () => {
+    const shuffled: MultipleChoiceData = {
+      ...mc('m1', 'Q?'),
+      shuffle: true,
+      options: [
+        { id: 'a', text: 'Alpha', isCorrect: true },
+        { id: 'b', text: 'Bravo', isCorrect: false },
+        { id: 'c', text: 'Charlie', isCorrect: false },
+        { id: 'd', text: 'Delta', isCorrect: false },
+      ],
+    };
+    const order = () =>
+      screen
+        .getAllByRole('radio')
+        .map((r) => (r as HTMLInputElement).value)
+        .join(',');
+
+    const sitting = rtlRender(
+      <ActivitySequence activities={[shuffled]} renderMode="exam" shuffleSeed="attempt-1" />,
+    );
+    const sat = order();
+    sitting.unmount();
+
+    // The review render must show the same arrangement, or an appeal about
+    // "the second option" is about a different option.
+    render(<ActivitySequence activities={[shuffled]} renderMode="exam" shuffleSeed="attempt-1" />);
+    expect(order()).toBe(sat);
+  });
+});
+
+describe('ActivitySequence review', () => {
+  const scoredOutcome = (score: number): ItemOutcome => ({
+    status: 'scored',
+    score,
+    maxScore: 1,
+    passed: score >= 0.7,
+    feedback: null,
+    details: [
+      {
+        itemId: 'a',
+        correct: score === 1,
+        outcome: 'correct',
+        learnerResponse: 'Yes',
+        correctResponse: 'Yes',
+      },
+    ],
+  });
+
+  it('forwards each slot’s outcome so a review render can mark it', () => {
+    const { container } = render(
+      <ActivitySequence
+        activities={[mc('a', 'A?'), mc('b', 'B?')]}
+        renderMode="review"
+        outcomes={{ '0': scoredOutcome(1), '1': scoredOutcome(0) }}
+        responses={{
+          '0': { type: 'multiple-choice', selectedOptionIds: ['a'] },
+          '1': { type: 'multiple-choice', selectedOptionIds: ['b'] },
+        }}
+      />,
+    );
+    // Review is read-only: nothing is submittable.
+    expect(screen.queryByRole('button', { name: 'Submit' })).not.toBeInTheDocument();
+    expect(container.querySelector('.lk-seq-slot')).toBeInTheDocument();
+  });
+
+  it('renders review without outcomes rather than inventing one', () => {
+    render(<ActivitySequence activities={[mc('a', 'A?')]} renderMode="review" />);
+    expect(screen.getByText('A?')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Submit' })).not.toBeInTheDocument();
   });
 });
 
