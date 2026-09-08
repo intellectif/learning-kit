@@ -1,4 +1,7 @@
-import type { ActivityMedia as ActivityMediaData } from '@intellectif/lk-core';
+import type { ActivityMedia as ActivityMediaData, InteractionEvent } from '@intellectif/lk-core';
+import { resolvePlaybackPolicy } from '@intellectif/lk-core';
+import type { MediaBudgetBinding, MediaTransportStrings, RenderMode } from '../types.js';
+import { AudioTransport } from './AudioTransport.js';
 
 /**
  * Presentational media block shown above a question or passage. URL-only:
@@ -7,38 +10,88 @@ import type { ActivityMedia as ActivityMediaData } from '@intellectif/lk-core';
  * optional label and a captions `<track>` when `captionsUrl` is provided;
  * `embed` renders a responsive sandboxed iframe with `alt` as its required
  * accessible `title` (Req 14.5).
+ *
+ * Audio additionally carries a playback policy (`media.playback`). With no
+ * policy the emitted element is character-identical to what every release
+ * before 0.8.0 produced; with something to enforce, the browser's control bar
+ * is replaced by {@link AudioTransport}.
  */
-export function ActivityMedia({ media }: { media: ActivityMediaData }): React.JSX.Element {
-  const { type, url, alt, captionsUrl } = media;
+export interface ActivityMediaProps {
+  media: ActivityMediaData;
+  renderMode?: RenderMode;
+  disabled?: boolean;
+  locale?: string;
+  mediaBudget?: MediaBudgetBinding;
+  mediaStrings?: Partial<MediaTransportStrings>;
+  onInteraction?: (event: InteractionEvent) => void;
+}
 
-  if (type === 'image') {
+export function ActivityMedia(props: ActivityMediaProps): React.JSX.Element {
+  const { media, renderMode = 'practice' } = props;
+
+  if (media.type === 'image') {
     return (
       <figure className="lk-media">
-        <img className="lk-media-el" src={url} alt={alt ?? ''} />
+        <img className="lk-media-el" src={media.url} alt={media.alt ?? ''} />
       </figure>
     );
   }
 
-  if (type === 'audio') {
+  if (media.type === 'audio') {
+    const policy = resolvePlaybackPolicy(media);
+
+    // REVIEW ALWAYS GETS THE NATIVE BAR. The paper is graded; a learner
+    // reviewing it cannot change an answer by listening again, so taking away
+    // their scrubber, their speed control and their browser-localized controls
+    // buys nothing — and costs a learner with a processing disability the
+    // ability to work out what they got wrong.
+    if (policy.controls === 'minimal' && renderMode !== 'review') {
+      return <AudioTransport {...props} media={media} policy={policy} />;
+    }
+
+    // A mis-wired budget must not render as an ordinary recording. Without a
+    // binding nothing persists the count, so a refresh restores the full
+    // budget while the page still says "2 plays remaining".
+    if (policy.maxPlays !== null && renderMode === 'exam' && props.mediaBudget === undefined) {
+      throw new Error(
+        `ActivityMedia: audio ${JSON.stringify(media.url)} declares maxPlays and is rendered in ` +
+          'renderMode "exam" without a `mediaBudget` binding. Nothing would persist the count, so ' +
+          'a refresh restores the full budget while the page says plays remain. Render it through ' +
+          '<ActivitySequence mediaBudget={…}> or pass `mediaBudget` yourself.',
+      );
+    }
+
+    const hints = renderMode === 'review' ? [] : policy.nativeControlHints;
     return (
       <figure className="lk-media">
         {/* biome-ignore lint/a11y/useMediaCaption: captions are optional in the data contract — a <track> is rendered when captionsUrl is provided; absence is the author's documented choice (Req 14.5) */}
-        <audio className="lk-media-el" controls aria-label={alt || undefined}>
-          <source src={url} />
-          {captionsUrl ? <track kind="captions" src={captionsUrl} default /> : null}
+        <audio
+          className="lk-media-el"
+          controls
+          aria-label={media.alt || undefined}
+          {...(hints.length > 0
+            ? {
+                controlsList: hints
+                  .map((hint) => (hint === 'hide-download' ? 'nodownload' : 'noplaybackrate'))
+                  .join(' '),
+              }
+            : {})}
+        >
+          <source src={media.url} />
+          {media.captionsUrl ? <track kind="captions" src={media.captionsUrl} default /> : null}
         </audio>
       </figure>
     );
   }
 
-  if (type === 'embed') {
+  if (media.type === 'embed') {
     return (
       <figure className="lk-media">
         <div className="lk-media-embed">
           <iframe
             className="lk-media-el"
-            src={url}
-            title={alt ?? 'Embedded media'}
+            src={media.url}
+            title={media.alt ?? 'Embedded media'}
             loading="lazy"
             referrerPolicy="strict-origin-when-cross-origin"
             // The docblock always promised a sandboxed iframe; now it is one.
@@ -58,9 +111,9 @@ export function ActivityMedia({ media }: { media: ActivityMediaData }): React.JS
   return (
     <figure className="lk-media">
       {/* biome-ignore lint/a11y/useMediaCaption: captions are optional in the data contract — a <track> is rendered when captionsUrl is provided; absence is the author's documented choice (Req 14.5) */}
-      <video className="lk-media-el" controls aria-label={alt || undefined}>
-        <source src={url} />
-        {captionsUrl ? <track kind="captions" src={captionsUrl} default /> : null}
+      <video className="lk-media-el" controls aria-label={media.alt || undefined}>
+        <source src={media.url} />
+        {media.captionsUrl ? <track kind="captions" src={media.captionsUrl} default /> : null}
       </video>
     </figure>
   );

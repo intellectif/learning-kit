@@ -1,11 +1,22 @@
 import { contentHash } from './content-hash.js';
 import { flattenSequence } from './item-group.js';
+import { resolvePlaybackPolicy, slotMediaKey, stimulusMediaKey } from './media-budget.js';
 import type { ScoredItem } from './scoring/compose.js';
-import type { ActivityData, ItemOutcome } from './types/activity.js';
-import type { AttemptPlan, AttemptPlanDrift, AttemptPlanSlot } from './types/attempt-plan.js';
+import type { ActivityData, ActivityMedia, ItemOutcome } from './types/activity.js';
+import type {
+  AttemptPlan,
+  AttemptPlanDrift,
+  AttemptPlanSlot,
+  MediaBudgetRef,
+} from './types/attempt-plan.js';
 import type { SequenceEntry, SequenceSlot } from './types/item-group.js';
 
-export type { AttemptPlan, AttemptPlanDrift, AttemptPlanSlot } from './types/attempt-plan.js';
+export type {
+  AttemptPlan,
+  AttemptPlanDrift,
+  AttemptPlanSlot,
+  MediaBudgetRef,
+} from './types/attempt-plan.js';
 
 /** Options for {@link planAttempt}. */
 export interface PlanAttemptOptions<TItem> {
@@ -47,6 +58,69 @@ function contentOf(activity: object): object {
   return content;
 }
 
+/**
+ * The budgeted recordings a slot presents: its own media, and its group's
+ * stimulus. Returns `undefined` — not `[]` — when nothing is budgeted, so the
+ * conditional spread below leaves the serialized slot byte-identical to what
+ * every pre-0.8.0 paper produced.
+ */
+function mediaBudgetsOf<TItem extends { id: string; type: string }>(
+  slot: SequenceSlot<TItem>,
+): MediaBudgetRef[] | undefined {
+  const budgets: MediaBudgetRef[] = [];
+  // Read structurally: `media` is a shared optional field, not part of the
+  // `{ id, type }` bound this function is generic over.
+  const own = (slot.activity as { media?: ActivityMedia }).media;
+  if (own !== undefined) {
+    const maxPlays = resolvePlaybackPolicy(own).maxPlays;
+    if (maxPlays !== null) {
+      budgets.push({ key: slotMediaKey(slot.slotId), maxPlays });
+    }
+  }
+  const stimulusMedia = slot.group?.stimulus.media;
+  if (stimulusMedia !== undefined) {
+    const maxPlays = resolvePlaybackPolicy(stimulusMedia).maxPlays;
+    if (maxPlays !== null) {
+      budgets.push({ key: stimulusMediaKey(slot.slotId), maxPlays });
+    }
+  }
+  return budgets.length > 0 ? budgets : undefined;
+}
+
+/**
+ * Refuses a paper in which one recording is budgeted under several keys.
+ *
+ * Six questions that each carry the same `/audio/part2.mp3` with `maxPlays: 2`
+ * are six budgets, so the learner gets twelve plays of one recording while the
+ * paper says two. The fix is authoring, not arithmetic: questions that share a
+ * recording belong in an item group, whose stimulus is one recording with one
+ * budget.
+ */
+function assertNoSplitBudgets<TItem extends { id: string; type: string }>(
+  slots: readonly SequenceSlot<TItem>[],
+): void {
+  const keysByUrl = new Map<string, string[]>();
+  for (const slot of slots) {
+    const own = (slot.activity as { media?: ActivityMedia }).media;
+    if (own === undefined || resolvePlaybackPolicy(own).maxPlays === null) {
+      continue;
+    }
+    const keys = keysByUrl.get(own.url) ?? [];
+    keys.push(slotMediaKey(slot.slotId));
+    keysByUrl.set(own.url, keys);
+  }
+  for (const [url, keys] of keysByUrl) {
+    if (keys.length > 1) {
+      throw new Error(
+        `planAttempt: media ${JSON.stringify(url)} is budgeted under ${keys.length} separate ` +
+          `keys (${keys.join(', ')}), so one recording grants ${keys.length} × maxPlays. Put the ` +
+          "questions that share a recording in an item group — a group's stimulus is one " +
+          'recording with one budget.',
+      );
+    }
+  }
+}
+
 function planSlot<TItem extends { id: string; type: string }>(
   slot: SequenceSlot<TItem>,
   points: number,
@@ -57,6 +131,7 @@ function planSlot<TItem extends { id: string; type: string }>(
         'finite, non-negative number, or the paper has no defensible total.',
     );
   }
+  const mediaBudgets = mediaBudgetsOf(slot);
   return {
     slotId: slot.slotId,
     index: slot.index,
@@ -73,6 +148,7 @@ function planSlot<TItem extends { id: string; type: string }>(
           },
         }
       : {}),
+    ...(mediaBudgets !== undefined ? { mediaBudgets } : {}),
   };
 }
 
@@ -101,6 +177,8 @@ export function planAttempt<TItem extends { id: string; type: string }>(
     ...(shuffleEntries !== undefined ? { shuffleEntries } : {}),
     ...(seed !== undefined ? { seed } : {}),
   });
+
+  assertNoSplitBudgets(slots);
 
   const planned = slots.map((slot) => planSlot(slot, points?.(slot) ?? 1));
   const totalPoints = planned.reduce((sum, slot) => sum + slot.points, 0);

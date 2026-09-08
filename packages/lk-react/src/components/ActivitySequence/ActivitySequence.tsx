@@ -1,15 +1,19 @@
 'use client';
 
 import {
+  type ActivityMedia,
   type ActivityResult,
   flattenSequence,
   type InteractionEvent,
   type ItemOutcome,
   isItemGroup,
   type LearnerResponse,
+  resolvePlaybackPolicy,
   type SequenceEntry,
   type SequenceSlot,
   type SequenceSlotGroup,
+  slotMediaKey,
+  stimulusMediaKey,
   type ThemeTokens,
 } from '@intellectif/lk-core';
 import { type ComponentType, useEffect, useMemo, useRef, useState } from 'react';
@@ -17,7 +21,14 @@ import { randomSessionId } from '../_internal.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { StimulusPanel } from '../StimulusPanel/index.js';
-import type { ActivityProps, HtmlSanitizer, RenderableActivity, RenderMode } from '../types.js';
+import type {
+  ActivityProps,
+  HtmlSanitizer,
+  MediaBudgetBinding,
+  RenderableActivity,
+  RenderMode,
+  SequenceMediaBudget,
+} from '../types.js';
 import { WrittenResponse, type WrittenResponseSubmission } from '../WrittenResponse/index.js';
 
 /**
@@ -139,6 +150,16 @@ export interface ActivitySequenceProps {
   onInteraction?: (event: InteractionEvent) => void;
   /** Forwarded to each activity. `exam` and `review` disable local scoring. */
   renderMode?: RenderMode;
+  /**
+   * Binds every budgeted recording in this sequence to a play ledger the
+   * consumer persists.
+   *
+   * The SDK refuses a play; it does not remember one. `plays` seeds the counts
+   * at mount (pass `restoreMediaPlayLedger(plan, stored).entries`), and
+   * `onPlayConsumed` is how a play becomes durable — see
+   * {@link SequenceMediaBudget}.
+   */
+  mediaBudget?: SequenceMediaBudget;
   /**
    * `entries` shuffles the top-level entries; a group moves as one block, and
    * the order INSIDE a group follows the group's own `shuffle` setting.
@@ -293,6 +314,15 @@ function SequencePane({
  * alongside every question in the group — so a passage stays put, and a
  * recording keeps its position, as the learner moves between its questions.
  */
+/**
+ * Whether an activity shuffles its own options, and therefore needs a seed of
+ * its own. Read structurally: `shuffle` is a per-type content field, not part
+ * of the sequence entry contract.
+ */
+function shufflesItsOwnOptions(entry: unknown): boolean {
+  return (entry as { shuffle?: unknown } | null)?.shuffle === true;
+}
+
 export function ActivitySequence({
   activities,
   renderers,
@@ -313,15 +343,28 @@ export function ActivitySequence({
   theme,
   locale,
   disabled,
+  mediaBudget,
 }: ActivitySequenceProps): React.JSX.Element {
   const sessionIdRef = useRef<string | null>(null);
+  const mediaPlays = mediaBudget?.plays;
 
   // The presented order comes from lk-core, never computed here: the server
   // that records an attempt calls the same function with the same seed.
   const shuffleEntries = shuffle === 'entries';
+  // Every shuffle this sequence can produce, not just the ones it performs
+  // itself. An ACTIVITY's own `data.shuffle` is the third source: MultipleChoice
+  // falls back to a per-mount seed when none reaches it, so an unseeded item
+  // shuffle used to render happily under `exam` and hand the learner a
+  // different option order on every mount — exactly the unreproducible
+  // arrangement this guard exists to refuse, arriving through the one door it
+  // did not watch.
   const needsSeed =
     shuffleEntries ||
-    activities.some((entry) => isItemGroup(entry) && entry.shuffle === 'within-group');
+    activities.some((entry) =>
+      isItemGroup(entry)
+        ? entry.shuffle === 'within-group' || entry.items.some(shufflesItsOwnOptions)
+        : shufflesItsOwnOptions(entry),
+    );
 
   // An unreproducible order is a practice-only affordance. Under `exam` or
   // `review` the server has to be able to rebuild exactly what the learner
@@ -409,8 +452,18 @@ export function ActivitySequence({
   // paper's questions — a review modal stepping to the next attempt did
   // exactly that. Seeding stops at the first set change; to show a different
   // attempt, remount with a `key`, which is what "read at mount only" means.
+  // `mediaBudget.resumeKey` participates so an invigilator can hand a play
+  // back — re-seeding the budgets in place — without remounting the pager and
+  // costing the learner their focus, their scroll position and an unsaved
+  // answer.
+  const seedKey = `${setKey}::${mediaBudget?.resumeKey ?? ''}`;
   const mountSetKeyRef = useRef(setKey);
+  const mountSeedKeyRef = useRef(seedKey);
   const seedsApply = mountSetKeyRef.current === setKey;
+  const mediaSeedsApply = mountSeedKeyRef.current === seedKey || seedsApply;
+  if (mountSeedKeyRef.current !== seedKey) {
+    mountSeedKeyRef.current = seedKey;
+  }
   const submitted = useMemo(() => new Set(submittedSlotIds ?? []), [submittedSlotIds]);
   if (prevSetKey !== setKey) {
     setPrevSetKey(setKey);
@@ -517,6 +570,98 @@ export function ActivitySequence({
     return <div className="lk-seq" />;
   }
 
+  // Every budgeted recording this paper presents, and the key it is budgeted
+  // under. Derived from the resolved policy, so the pager, the plan and the
+  // schema cannot disagree about what is budgeted.
+  const budgetedMedia = slots.flatMap((slot) => {
+    const found: { key: string; url: string }[] = [];
+    const own = (slot.activity as { media?: ActivityMedia }).media;
+    if (own !== undefined && resolvePlaybackPolicy(own).maxPlays !== null) {
+      found.push({ key: slotMediaKey(slot.slotId), url: own.url });
+    }
+    const stimulus = slot.group?.stimulus.media;
+    if (stimulus !== undefined && resolvePlaybackPolicy(stimulus).maxPlays !== null) {
+      found.push({ key: stimulusMediaKey(slot.slotId), url: stimulus.url });
+    }
+    return found;
+  });
+
+  const budgetEnforced = mediaBudget?.enforced ?? renderMode !== 'review';
+
+  if (budgetedMedia.length > 0 && renderMode === 'exam' && budgetEnforced) {
+    if (mediaBudget?.onPlayConsumed === undefined) {
+      throw new Error(
+        'ActivitySequence: renderMode "exam" with media that declares `maxPlays` requires ' +
+          '`mediaBudget.onPlayConsumed`. The SDK persists nothing, so without it the count lives ' +
+          'only in this mount: a refresh silently restores the full budget, and a paper that ' +
+          'grants unlimited plays while showing "2 plays remaining" is indistinguishable — to the ' +
+          'learner and to an appeal — from one that works. Budgeted media: ' +
+          `${[...new Set(budgetedMedia.map((m) => m.key))].join(', ')}.`,
+      );
+    }
+    const resuming =
+      (responses !== undefined && Object.keys(responses).length > 0) ||
+      (submittedSlotIds !== undefined && submittedSlotIds.length > 0);
+    if (resuming && mediaBudget.plays === undefined) {
+      throw new Error(
+        'ActivitySequence: this is a resumed attempt (`responses`/`submittedSlotIds` were ' +
+          'supplied) but `mediaBudget.plays` is absent. A resume that omits the ledger hands the ' +
+          'learner a fresh budget at exactly the moment it matters. Pass ' +
+          '`restoreMediaPlayLedger(plan, stored).entries`, or `{}` to state explicitly that ' +
+          'nothing was spent.',
+      );
+    }
+  }
+
+  // One recording must not carry two budgets, in any mode — six questions each
+  // holding the same clip at maxPlays 2 is twelve plays of one recording.
+  const keysByUrl = new Map<string, Set<string>>();
+  for (const { key, url } of budgetedMedia) {
+    const keys = keysByUrl.get(url) ?? new Set<string>();
+    keys.add(key);
+    keysByUrl.set(url, keys);
+  }
+  for (const [url, keys] of keysByUrl) {
+    if (keys.size > 1) {
+      throw new Error(
+        `ActivitySequence: media ${JSON.stringify(url)} is budgeted under ${keys.size} separate ` +
+          `keys (${[...keys].join(', ')}), so one recording grants ${keys.size} × maxPlays. Put ` +
+          "the questions that share a recording in an item group — a group's stimulus is one " +
+          'recording with one budget.',
+      );
+    }
+  }
+
+  /** The per-media binding handed to a component or to the stimulus panel. */
+  const bindingFor = (
+    key: string,
+    slot: { slotId: string; index: number; activity: { id: string } },
+  ): MediaBudgetBinding | undefined => {
+    if (mediaBudget === undefined) {
+      return undefined;
+    }
+    const entry =
+      mediaSeedsApply && mediaPlays !== undefined && Object.hasOwn(mediaPlays, key)
+        ? mediaPlays[key]
+        : undefined;
+    return {
+      key,
+      slotId: slot.slotId,
+      index: slot.index,
+      activityId: slot.activity.id,
+      ...(entry !== undefined ? { entry } : {}),
+      ...(mediaBudget.enforced !== undefined ? { enforced: mediaBudget.enforced } : {}),
+      ...(mediaBudget.onPlayConsumed !== undefined
+        ? { onPlayConsumed: mediaBudget.onPlayConsumed }
+        : {}),
+      ...(mediaBudget.onPlayRefunded !== undefined
+        ? { onPlayRefunded: mediaBudget.onPlayRefunded }
+        : {}),
+      ...(mediaBudget.onPosition !== undefined ? { onPosition: mediaBudget.onPosition } : {}),
+      ...(mediaBudget.strings !== undefined ? { strings: mediaBudget.strings } : {}),
+    };
+  };
+
   const forwarded = {
     ...(onInteraction ? { onInteraction } : {}),
     renderMode,
@@ -536,6 +681,7 @@ export function ActivitySequence({
         : undefined;
     const slotOutcome =
       outcomes !== undefined && Object.hasOwn(outcomes, slotId) ? outcomes[slotId] : undefined;
+    const slotBinding = bindingFor(slotMediaKey(slotId), slot);
     const childProps = {
       // `defaultValue`, not `value`: the learner must be able to keep editing
       // a restored answer. A controlled `value` would freeze it unless the
@@ -557,6 +703,7 @@ export function ActivitySequence({
         }
       },
       ...forwarded,
+      ...(slotBinding !== undefined ? { mediaBudget: slotBinding } : {}),
     };
 
     const CustomRenderer = renderers?.[activity.type];
@@ -628,20 +775,35 @@ export function ActivitySequence({
         landmark the learner can jump back to, while focus lands on the
         question that was actually navigated to.
       */}
-      {stimulusMounts.map(({ entryKey, group, first, last }) => (
-        <SequencePane
-          className="lk-seq-stimulus"
-          hidden={entryKey !== currentEntryKey}
-          key={`group-${entryKey}`}
-        >
-          <StimulusPanel
-            stimulus={group.stimulus}
-            range={{ first: first + 1, last: last + 1 }}
-            {...(sanitizeHtml ? { sanitizeHtml } : {})}
-            {...(locale ? { locale } : {})}
-          />
-        </SequencePane>
-      ))}
+      {stimulusMounts.map(({ entryKey, group, first, last }) => {
+        // `setKey` leads for the same reason it does on a slot pane: entry keys
+        // are short and repeat across papers, so a set change to a DIFFERENT
+        // paper that happens to reuse an entry key would not remount this
+        // panel — and a mount-only budget seed would leak into the next paper.
+        const firstSlot = slots[first];
+        const stimulusBinding =
+          firstSlot === undefined
+            ? undefined
+            : bindingFor(stimulusMediaKey(firstSlot.slotId), firstSlot);
+        return (
+          <SequencePane
+            className="lk-seq-stimulus"
+            hidden={entryKey !== currentEntryKey}
+            key={`${setKey}::group-${entryKey}`}
+          >
+            <StimulusPanel
+              stimulus={group.stimulus}
+              range={{ first: first + 1, last: last + 1 }}
+              renderMode={renderMode}
+              {...(sanitizeHtml ? { sanitizeHtml } : {})}
+              {...(locale ? { locale } : {})}
+              {...(onInteraction ? { onInteraction } : {})}
+              {...(disabled ? { disabled } : {})}
+              {...(stimulusBinding !== undefined ? { mediaBudget: stimulusBinding } : {})}
+            />
+          </SequencePane>
+        );
+      })}
 
       <section
         className="lk-seq-question"

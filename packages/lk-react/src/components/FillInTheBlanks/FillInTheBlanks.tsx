@@ -104,6 +104,8 @@ export function FillInTheBlanks({
   renderMode = 'practice',
   outcome,
   sanitizeHtml,
+  mediaBudget,
+  mediaStrings,
   theme,
   locale,
   disabled,
@@ -401,7 +403,16 @@ export function FillInTheBlanks({
       style={theme as CSSProperties | undefined}
       onSubmit={handleSubmit}
     >
-      {data.media ? <ActivityMedia media={data.media} /> : null}
+      {data.media ? (
+        <ActivityMedia
+          media={data.media}
+          renderMode={renderMode}
+          {...(mediaBudget !== undefined ? { mediaBudget } : {})}
+          {...(mediaStrings !== undefined ? { mediaStrings } : {})}
+          {...(onInteraction !== undefined ? { onInteraction } : {})}
+          {...(locale !== undefined ? { locale } : {})}
+        />
+      ) : null}
       <fieldset disabled={inactive}>
         <p className="lk-fib-passage">
           {segments.map((seg, i) => {

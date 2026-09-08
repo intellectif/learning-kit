@@ -44,11 +44,18 @@ Every skin rule is inside the named cascade layer **`@layer lk-skin`**. By CSS c
 | `.lk-wr-criteria`, `.lk-wr-criterion`, `.lk-wr-criterion-name`, `.lk-wr-criterion-score`, `.lk-wr-criterion-comment` | Per-criterion rubric breakdown in `review` mode |
 | `.lk-wr-corrections`, `.lk-wr-correction`, `.lk-wr-correction-original`, `.lk-wr-correction-corrected`, `.lk-wr-correction-explanation` | Inline corrections anchored in the learner's text |
 | `.lk-stimulus`, `.lk-stimulus-title`, `.lk-stimulus-body`, `.lk-stimulus-range`, `.lk-stimulus-attribution` | Shared stimulus panel (an item group's passage / recording) |
+| `.lk-media`, `.lk-media-el`, `.lk-media-embed` | Media block, the element itself, and the responsive embed wrapper |
+| `.lk-media[data-controls="minimal"]`, `.lk-media-transport` | The SDK audio transport, rendered when a playback policy has something to enforce |
+| `.lk-media-play`, `.lk-media-mute`, `.lk-media-time`, `.lk-media-scrub`, `.lk-media-volume`, `.lk-media-rate` | Transport controls. `.lk-media-play[aria-disabled="true"]` is the exhausted state — styled as unavailable but still focusable, so a learner who tabs to it is told why |
+| `.lk-media-plays`, `.lk-media-notice` | Live plays-remaining status (polite) and the refusal / blocked-seek alert (assertive) |
+| `.lk-media-confirm`, `.lk-media-confirm-start`, `.lk-media-confirm-cancel` | Last-play confirmation, so a stray press cannot spend the final play |
 | `.lk-seq`, `.lk-seq-progress`, `.lk-seq-question`, `.lk-seq-nav` | ActivitySequence pager |
 | `.lk-seq-prev`, `.lk-seq-next`, `.lk-seq-slot`, `.lk-seq-stimulus`, `.lk-seq-unsupported` | Pager buttons, the per-question pane, its stimulus wrapper, and the fallback for an unregistered activity type |
 | `[aria-live]` (within `.lk-mc` / `.lk-fib`) | Feedback / status region |
 
 State is exposed via `data-correct="true|false"` after submission, but **not at the same level for both types**: on Multiple Choice it lands on `.lk-mc-option` itself, while on Fill-in-the-Blanks it lands on the `input` *inside* `.lk-fib-blank`. So target `.lk-mc-option[data-correct="false"]` but `.lk-fib-blank input[data-correct="false"]` — a rule written against `.lk-fib-blank[data-correct]` silently never matches. (The bundled skin does exactly this; compare its `.lk-mc-option` and `.lk-fib-blank input` rules.) `:has(input:checked)` is for Multiple Choice selection.
+
+**The marking contract after submit.** Hue says correctness; *weight* says whether the learner chose it. A correct **and chosen** option is a solid green border with a tint and a `✓`; a wrong-and-chosen option is solid red with a tint and a `✗`; the correct answer the learner **missed** is the same green but **dashed**, with a hollow `○` and no fill — the key revealed, not a win. Untouched distractors recede to 70% opacity, which keeps the default text above AA (6.6:1). The glyphs are CSS generated content declared decorative (`content: "✓" / ""`): they satisfy WCAG 1.4.1 for sighted users without baking English into the stylesheet, and a translatable screen-reader announcement is the component's job. Override any of it with an unlayered rule on the same selectors.
 
 ## Theming with `ThemeProvider`
 

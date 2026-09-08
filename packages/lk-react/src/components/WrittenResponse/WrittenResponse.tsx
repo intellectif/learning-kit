@@ -20,7 +20,13 @@ import { useActivityState } from '../../hooks/useActivityState.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
-import type { HtmlSanitizer, Renderable, RenderMode } from '../types.js';
+import type {
+  HtmlSanitizer,
+  MediaBudgetBinding,
+  MediaTransportStrings,
+  Renderable,
+  RenderMode,
+} from '../types.js';
 
 /**
  * Payload delivered when the learner submits a written response. Grading is
@@ -105,6 +111,10 @@ export interface WrittenResponseProps {
   outcome?: ItemOutcome;
   /** Renders `data.promptHtml` when provided. See `HtmlSanitizer`. */
   sanitizeHtml?: HtmlSanitizer;
+  /** Binds this activity's own `data.media` to a play budget. See {@link MediaBudgetBinding}. */
+  mediaBudget?: MediaBudgetBinding;
+  /** Translations for the audio transport chrome. See {@link MediaTransportStrings}. */
+  mediaStrings?: Partial<MediaTransportStrings>;
   onInteraction?: (event: InteractionEvent) => void;
   /** Per-instance token overrides, applied as inline CSS vars on the root. */
   theme?: Partial<ThemeTokens>;
@@ -251,6 +261,8 @@ export function WrittenResponse({
   renderMode = 'practice',
   outcome,
   sanitizeHtml,
+  mediaBudget,
+  mediaStrings,
   onInteraction,
   theme,
   locale,
@@ -356,6 +368,21 @@ export function WrittenResponse({
     });
   };
 
+  // Practice reveals nothing an essay could leak, but it DOES run the local
+  // submit path and emit a practice xAPI statement for work the server is
+  // supposed to grade. MultipleChoice and FillInTheBlanks have refused
+  // redacted data in `practice` since 0.5.0; this component silently accepted
+  // it, so an all-essay redacted paper mounted without `renderMode` looked
+  // entirely healthy end to end. Fail at render, like its siblings.
+  if (data.redacted === true && renderMode === 'practice') {
+    throw new Error(
+      `Written Response "${data.id}" received redacted activity data in renderMode "practice". ` +
+        'Practice runs the local submit path and emits a practice-mode xAPI statement, so an ' +
+        'exam item wired this way is graded nowhere and looks fine while it happens. ' +
+        'Render redacted data with renderMode="exam" (server grades) or "review" (pass `outcome`).',
+    );
+  }
+
   const handleSubmit = (event: React.FormEvent): void => {
     event.preventDefault();
     if (inactive || text.trim().length === 0) {
@@ -428,7 +455,16 @@ export function WrittenResponse({
       style={theme as CSSProperties | undefined}
       onSubmit={handleSubmit}
     >
-      {data.media ? <ActivityMedia media={data.media} /> : null}
+      {data.media ? (
+        <ActivityMedia
+          media={data.media}
+          renderMode={renderMode}
+          {...(mediaBudget !== undefined ? { mediaBudget } : {})}
+          {...(mediaStrings !== undefined ? { mediaStrings } : {})}
+          {...(onInteraction !== undefined ? { onInteraction } : {})}
+          {...(locale !== undefined ? { locale } : {})}
+        />
+      ) : null}
       {promptHtml === null ? (
         <p className="lk-wr-prompt" id={promptId}>
           {data.prompt}

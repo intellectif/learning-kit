@@ -225,3 +225,51 @@ describe('matchText — review-pinned edge cases (v0.3 release review)', () => {
     ).toEqual({ matched: true, via: 'normalized' });
   });
 });
+
+/**
+ * A learner who typed nothing made no typo.
+ *
+ * Levenshtein distance from an empty string is just the answer's length, so
+ * `levenshtein: 1` on a one-letter blank — an article, "I" — accepted an
+ * UNANSWERED blank as correct. The fuzzy stage was rescuing a blank rather
+ * than a misspelling, and on a partial-credit gap-fill that silently awarded
+ * marks for work the learner never did. Reported by a consumer against 0.7.1.
+ */
+describe('empty input never reaches the fuzzy stage', () => {
+  it.each([
+    'a',
+    'I',
+    'an',
+    'to',
+  ])('does not fuzzy-match an unanswered blank against the short answer %s', (accepted) => {
+    expect(matchText('', [accepted], { levenshtein: 1 })).toEqual({
+      matched: false,
+      via: 'none',
+    });
+  });
+
+  it('does not fuzzy-match a whitespace-only answer', () => {
+    expect(matchText('   ', ['a'], { levenshtein: 1 })).toEqual({ matched: false, via: 'none' });
+    // Also with trimming turned off, where the input is not empty but is still
+    // not an answer.
+    expect(matchText('   ', ['a'], { levenshtein: 1, trim: false })).toEqual({
+      matched: false,
+      via: 'none',
+    });
+  });
+
+  it('still matches an empty answer an author deliberately accepted, one stage earlier', () => {
+    expect(matchText('', [''], { levenshtein: 1 })).toEqual({ matched: true, via: 'exact' });
+  });
+
+  it('leaves real typo tolerance alone', () => {
+    expect(matchText('color', ['colour'], { levenshtein: 1 })).toEqual({
+      matched: true,
+      via: 'fuzzy',
+    });
+    expect(matchText('cat', ['cats'], { levenshtein: 1 })).toEqual({
+      matched: true,
+      via: 'fuzzy',
+    });
+  });
+});

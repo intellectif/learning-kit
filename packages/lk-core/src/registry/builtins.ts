@@ -30,6 +30,35 @@ import { defineActivityType, type FieldPolicy, registerActivityType } from './re
  * and a deployment that wants it hidden tightens it per call — see the
  * `rubric` entry in the written-response policy below.
  */
+/**
+ * `media` classified field by field, not as one opaque leaf.
+ *
+ * A scalar `Sensitivity` classifies the WHOLE field, so `media: 'public'`
+ * returned the author's object by reference without recursing — and an
+ * unclassified key nested under it (`media.secretAnswerHint`) survived
+ * `redact()` AND passed `assertRedacted()`. The fail-closed contract the SDK
+ * documents ("a field the policy does not classify is removed") stopped at the
+ * media boundary. It no longer does.
+ *
+ * Everything here is public by necessity: the client is the thing that renders
+ * and enforces the policy, and "1 play remaining" is text the learner has to
+ * read. None of it is an answer key — a listening paper's answer key is
+ * `stimulus.transcript`, which stays `author-only`.
+ */
+export const MEDIA_FIELD_POLICY: FieldPolicy = {
+  type: 'public',
+  url: 'public',
+  alt: 'public',
+  captionsUrl: 'public',
+  playback: {
+    controls: 'public',
+    maxPlays: 'public',
+    seek: 'public',
+    rate: 'public',
+    nativeControlHints: 'public',
+  },
+};
+
 const SHARED_PUBLIC_FIELDS: FieldPolicy = {
   schemaVersion: 'public',
   type: 'public',
@@ -40,7 +69,7 @@ const SHARED_PUBLIC_FIELDS: FieldPolicy = {
   // responses cannot be matched back to the attempt.
   slotKey: 'public',
   title: 'public',
-  media: 'public',
+  media: MEDIA_FIELD_POLICY,
   passThreshold: 'public',
   locale: 'public',
   learningObjectives: 'public',

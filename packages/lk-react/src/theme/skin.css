@@ -174,7 +174,7 @@
     transition: var(--lk-transition-fast);
   }
 
-  .lk-mc-option:hover {
+  .lk-mc-option:not([data-correct]):hover {
     border-color: var(--lk-color-primary);
     background: var(--lk-color-surface-raised);
   }
@@ -188,14 +188,68 @@
     cursor: default;
   }
 
-  .lk-mc-option[data-correct="true"] {
-    border-color: var(--lk-color-success);
-    box-shadow: inset 0 0 0 1px var(--lk-color-success);
+  .lk-mc-option > span:first-of-type {
+    flex: 1 1 0%;
+    min-inline-size: 12ch;
+    overflow-wrap: anywhere;
   }
 
+  /* -- Post-submit marking ---------------------------------------------
+     Hue says correctness; weight says whether the LEARNER chose it. Both
+     correct states are green, because it is the same fact, but only the
+     chosen one is filled, so "you got it" and "the key was here" cannot be
+     confused. The glyphs exist for WCAG 1.4.1: colour must not be the only
+     carrier, and the component emits no correctness text of its own. They
+     are declared decorative (the `/ ""` alt text) because the translatable
+     announcement belongs to the component, not to a stylesheet that would
+     bake English into every locale. */
+
+  /* The answer was here and the learner did not pick it: outlined, not filled. */
+  .lk-mc-option[data-correct="true"] {
+    border-color: var(--lk-color-success);
+    border-style: dashed;
+    box-shadow: none;
+  }
+
+  .lk-mc-option[data-correct="true"]::after {
+    content: "○" / "";
+    margin-inline-start: auto;
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-success);
+  }
+
+  /* Chosen AND right: the strongest mark. At (0,3,1) this outranks
+     `:has(input:checked)`, which is the whole reason it has to exist. */
+  .lk-mc-option[data-correct="true"]:has(input:checked) {
+    border-color: var(--lk-color-success);
+    border-style: solid;
+    box-shadow: inset 0 0 0 1px var(--lk-color-success);
+    background: color-mix(in srgb, var(--lk-color-success) 10%, var(--lk-color-surface));
+  }
+
+  .lk-mc-option[data-correct="true"]:has(input:checked)::after {
+    content: "✓" / "";
+  }
+
+  /* Chosen and wrong. */
   .lk-mc-option[data-correct="false"]:has(input:checked) {
     border-color: var(--lk-color-error);
     box-shadow: inset 0 0 0 1px var(--lk-color-error);
+    background: color-mix(in srgb, var(--lk-color-error) 8%, var(--lk-color-surface));
+  }
+
+  .lk-mc-option[data-correct="false"]:has(input:checked)::after {
+    content: "✗" / "";
+    margin-inline-start: auto;
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-error);
+  }
+
+  /* A distractor nobody picked recedes so the three marks carry the eye.
+     0.7 keeps the default text at 6.6:1 on the default surface (AA);
+     0.55 would drop it to 3.9:1 and fail. */
+  .lk-mc-option[data-correct="false"]:not(:has(input:checked)) {
+    opacity: 0.7;
   }
 
   .lk-mc-option input {
@@ -557,5 +611,154 @@
     margin: 0;
     font-size: var(--lk-font-size-sm);
     color: var(--lk-color-warning);
+  }
+}
+
+/*
+ * The SDK's own audio transport, rendered whenever a playback policy has
+ * something to enforce. It replaces the browser's control bar, so it has to be
+ * at least as operable: 44px targets (WCAG 2.5.8), visible focus, and controls
+ * that never disappear just because a budget is spent.
+ */
+@layer lk-skin {
+  .lk-media[data-controls="minimal"] {
+    margin: 0 0 var(--lk-spacing-md);
+    padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+    background: var(--lk-color-surface-raised);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+  }
+
+  .lk-media-transport {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--lk-spacing-sm);
+  }
+
+  .lk-media-play,
+  .lk-media-mute {
+    min-block-size: 44px;
+    min-inline-size: 44px;
+    padding: var(--lk-spacing-xs) var(--lk-spacing-md);
+    font: inherit;
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-surface);
+    background: var(--lk-color-primary);
+    border: 0;
+    border-radius: var(--lk-radius-base);
+    cursor: pointer;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-media-mute {
+    color: var(--lk-color-text);
+    background: transparent;
+    border: 1px solid var(--lk-color-border);
+  }
+
+  .lk-media-play:hover {
+    background: var(--lk-color-primary-hover);
+  }
+
+  /*
+   * `aria-disabled`, never `disabled`: the button stays focusable so a learner
+   * who tabs to it is told why it will not start, and pressing it re-announces
+   * the refusal. Styled as unavailable without leaving the focus order.
+   */
+  .lk-media-play[aria-disabled="true"] {
+    background: var(--lk-color-text-muted);
+    cursor: not-allowed;
+  }
+
+  .lk-media-play:focus-visible,
+  .lk-media-mute:focus-visible,
+  .lk-media-scrub:focus-visible,
+  .lk-media-volume:focus-visible,
+  .lk-media-rate:focus-visible {
+    outline: 2px solid var(--lk-color-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .lk-media-time {
+    font-size: var(--lk-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-media-scrub {
+    flex: 1 1 8rem;
+  }
+
+  .lk-media-volume {
+    inline-size: 6rem;
+  }
+
+  .lk-media-rate {
+    min-block-size: 44px;
+    padding: var(--lk-spacing-xs);
+    font: inherit;
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-sm);
+  }
+
+  .lk-media-plays {
+    margin: var(--lk-spacing-xs) 0 0;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  /* A refusal is the highest-stakes text on a listening paper. */
+  .lk-media-notice:not(:empty) {
+    margin: var(--lk-spacing-xs) 0 0;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-warning);
+  }
+
+  .lk-media-confirm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--lk-spacing-sm);
+    margin: var(--lk-spacing-sm) 0 0;
+    padding: var(--lk-spacing-sm);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+  }
+
+  .lk-media-confirm legend {
+    padding-inline: var(--lk-spacing-xs);
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text);
+  }
+
+  .lk-media-confirm-start,
+  .lk-media-confirm-cancel {
+    min-block-size: 44px;
+    padding: var(--lk-spacing-xs) var(--lk-spacing-md);
+    font: inherit;
+    border-radius: var(--lk-radius-base);
+    cursor: pointer;
+  }
+
+  .lk-media-confirm-start {
+    color: var(--lk-color-surface);
+    background: var(--lk-color-primary);
+    border: 0;
+  }
+
+  .lk-media-confirm-cancel {
+    color: var(--lk-color-text);
+    background: transparent;
+    border: 1px solid var(--lk-color-border);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lk-media-play,
+    .lk-media-mute {
+      transition: none;
+    }
   }
 }

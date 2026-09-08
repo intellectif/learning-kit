@@ -24,7 +24,13 @@ export {
   stimulusJsonSchema,
   writtenResponseJsonSchema,
 } from './json-schema.js';
-export { MediaSchema, MediaUrlSchema } from './media.js';
+export {
+  MediaPlaybackSchema,
+  MediaSchema,
+  MediaUrlSchema,
+  NativeControlHintSchema,
+  RedactedMediaSchema,
+} from './media.js';
 export { MultipleChoiceDataSchema, MultipleChoiceOptionSchema } from './multiple-choice.js';
 export type {
   RedactedActivity,
