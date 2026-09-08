@@ -45,6 +45,26 @@ export interface AttemptPlanSlot {
     /** Fingerprint of the stimulus as served — a corrected passage changes the question. */
     stimulusHash: string;
   };
+  /**
+   * Play budgets in force for this slot when the attempt was planned.
+   *
+   * Frozen for the same reason `points` is: a budget decides the grade, so an
+   * author who edits `maxPlays: 2 → 4` mid-window must not be able to change
+   * what a past learner was held to. A group's stimulus budget repeats on every
+   * slot of the group, exactly as `group.stimulusHash` already does.
+   *
+   * Absent when the slot budgets nothing, which keeps the plan — and therefore
+   * `planHash` — byte-identical for every paper written before 0.8.0.
+   */
+  mediaBudgets?: MediaBudgetRef[];
+}
+
+/** A budgeted recording a slot presents, frozen as served. */
+export interface MediaBudgetRef {
+  /** `slot:<slotId>` or `stimulus:<entryKey>`. */
+  key: string;
+  /** The `maxPlays` in force when the attempt was planned. */
+  maxPlays: number;
 }
 
 /** Everything needed to reproduce and re-grade one attempt. */

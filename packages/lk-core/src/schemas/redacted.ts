@@ -1,5 +1,5 @@
 import { z } from 'zod/v4';
-import { MediaSchema } from './media.js';
+import { RedactedMediaSchema } from './media.js';
 import { WrittenResponseRubricSchema } from './written-response.js';
 
 /**
@@ -19,7 +19,7 @@ const redactedBase = {
   schemaVersion: z.literal('1.0'),
   id: z.string().min(1),
   title: z.string().min(1),
-  media: MediaSchema.optional(),
+  media: RedactedMediaSchema.optional(),
   passThreshold: z.number().min(0).max(1).optional(),
   locale: z.string().optional(),
   learningObjectives: z.array(z.string()).optional(),

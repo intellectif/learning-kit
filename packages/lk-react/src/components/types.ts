@@ -5,6 +5,9 @@ import type {
   ItemGroup,
   ItemOutcome,
   LearnerResponse,
+  MediaPlayClaim,
+  MediaPlayGrant,
+  MediaPlayLedgerEntry,
   RedactedActivityData,
   SequenceEntry,
   ThemeTokens,
@@ -124,6 +127,14 @@ export interface ActivityProps<TData extends ActivityData = ActivityData> {
   outcome?: ItemOutcome;
   /** Renders author-supplied rich text when provided. See {@link HtmlSanitizer}. */
   sanitizeHtml?: HtmlSanitizer;
+  /**
+   * Binds this activity's own `data.media` to a play budget the consumer
+   * persists. Usually supplied by `<ActivitySequence mediaBudget={…}>`; pass it
+   * yourself when rendering an activity standalone.
+   */
+  mediaBudget?: MediaBudgetBinding;
+  /** Translations for the audio transport chrome. See {@link MediaTransportStrings}. */
+  mediaStrings?: Partial<MediaTransportStrings>;
   onInteraction?: (event: InteractionEvent) => void;
   /** Per-instance token overrides, applied as inline CSS vars on the root. */
   theme?: Partial<ThemeTokens>;
@@ -202,3 +213,124 @@ export function asRenderableSequence(
 
 /** Structural shape of a `redactItemGroup()` projection, as it arrives from a server. */
 type RedactedItemGroupData = ItemGroup<RedactedActivityData> & { redacted: true };
+
+/**
+ * Every English string the SDK's audio transport renders.
+ *
+ * Supply them to translate it. These are the highest-stakes strings on a
+ * listening paper — "No plays remaining" decides whether a learner believes
+ * they may try again — so shipping them as untranslatable English inside a
+ * Spanish panel was not acceptable. Supplying any of them also sets `lang` on
+ * the transport chrome, so a screen reader does not read the SDK's own words
+ * with the passage's phonetics.
+ */
+export interface MediaTransportStrings {
+  play: string;
+  pause: string;
+  preparing: string;
+  mute: string;
+  unmute: string;
+  volume: string;
+  speed: string;
+  seek: string;
+  /** e.g. `(1, 2) => '1 of 2 plays remaining'`. */
+  playsRemaining: (remaining: number, max: number) => string;
+  noPlaysRemaining: string;
+  /** Shown before the LAST play is spent, so a stray press cannot cost it. */
+  lastPlayConfirm: string;
+  lastPlayStart: string;
+  lastPlayCancel: string;
+  seekBlocked: string;
+  rateBlocked: string;
+  playFailed: string;
+}
+
+/**
+ * Binds ONE media block to a play budget the consumer persists.
+ *
+ * The SDK refuses a play; it does not remember one. Everything durable here is
+ * the consuming application's — see {@link SequenceMediaBudget.onPlayConsumed}.
+ */
+export interface MediaBudgetBinding {
+  /** From `slotMediaKey(slotId)` / `stimulusMediaKey(slotId)` in lk-core. */
+  key: string;
+  /** Plays already spent, and where playback stood. Read at mount only. */
+  entry?: MediaPlayLedgerEntry;
+  /** Defaults to `renderMode !== 'review'`. An explicit boolean wins either way. */
+  enforced?: boolean;
+  /** Slot context stamped onto the claim and the interaction event. */
+  slotId: string;
+  index: number;
+  activityId?: string;
+  onPlayConsumed?: (claim: MediaPlayClaim) => undefined | Promise<MediaPlayGrant | undefined>;
+  onPlayRefunded?: (claim: MediaPlayClaim) => void;
+  onPosition?: (key: string, seconds: number) => void;
+  /** Translations for the transport chrome. */
+  strings?: Partial<MediaTransportStrings>;
+}
+
+/**
+ * The pager-level half of a play budget. One prop, because it is one concept.
+ */
+export interface SequenceMediaBudget {
+  /**
+   * `MediaPlayLedger.entries` goes straight in. An absent key means nothing
+   * spent. Read at mount, like `responses`.
+   */
+  plays?: Readonly<Record<string, MediaPlayLedgerEntry>>;
+  /**
+   * Re-seed token. Change this string and the budgets re-seed from `plays`
+   * WITHOUT remounting the pager — the invigilator path ("the audio never
+   * started, give her the play back") that would otherwise cost the learner
+   * their focus, their scroll position and an unsaved answer.
+   */
+  resumeKey?: string;
+  /** Explicit override of the default (`renderMode !== 'review'`). */
+  enforced?: boolean;
+  /**
+   * Called the instant a play is claimed, BEFORE any audio is audible.
+   *
+   * Two tiers, chosen by what you return:
+   *
+   * - **Return nothing (optimistic).** Playback starts immediately and the
+   *   count is only as durable as your write. **Do not debounce this, and do
+   *   not batch it with the answer autosave** — an eight-second debounce is
+   *   exactly long enough to start a third play and hard-reload. A `pagehide`
+   *   beacon is a backstop, not the mechanism. A crash between this call and
+   *   your write landing RETURNS the play to the learner; that is the honest
+   *   description of what you are buying.
+   * - **Return a promise (confirmed).** Playback is held — the button reads
+   *   "Preparing…" and is `aria-busy` — until it settles. Resolve with
+   *   `{ playsUsed }` from an ATOMIC server write (`UPDATE … SET plays = plays
+   *   + 1 … RETURNING plays`, or a compare-and-set on
+   *   `claim.previousPlaysUsed`). A resolved count above `maxPlays` refuses the
+   *   play, which is how a second tab is caught: two mounts both seeded at 0
+   *   both claim 1, and only an atomic increment can tell them apart. A
+   *   rejection charges nothing and lets the learner retry. This is the only
+   *   tier in which "consumed before audible" is true of storage rather than
+   *   only of memory; use it for summative papers.
+   *
+   * Never settle the promise and the learner cannot play at all: settle it.
+   */
+  onPlayConsumed?: (claim: MediaPlayClaim) => undefined | Promise<MediaPlayGrant | undefined>;
+  /**
+   * Called when a charged play produced no audio — the element errored before
+   * playback advanced past 0.25 s, an expired signed URL being the realistic
+   * cause. Supply it to give the play back, decrementing with a compare-and-set
+   * on `claim.playsUsed`. Omit it and the play stays spent: the SDK will not
+   * decrement a ledger it has no channel to correct.
+   */
+  onPlayRefunded?: (claim: MediaPlayClaim) => void;
+  /**
+   * Position reports, so a refresh resumes the play the learner already paid
+   * for instead of charging them again. Fires on pause, on end (with 0), and at
+   * most once per whole second of playback.
+   *
+   * **This one you MAY throttle** — the granularity you persist is the
+   * granularity of the replay a crash grants. Three seconds is sane; three
+   * minutes is not.
+   */
+  onPosition?: (key: string, seconds: number) => void;
+  /** Translations for the transport chrome. Defaults are English. */
+  strings?: Partial<MediaTransportStrings>;
+}

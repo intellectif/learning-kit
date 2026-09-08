@@ -2,7 +2,25 @@ import { z } from 'zod/v4';
 import { getActivityTypeDescriptor } from '../registry/index.js';
 import type { ActivityData, ValidationError, ValidationResult } from '../types/activity.js';
 import type { ItemGroup, StimulusKind } from '../types/item-group.js';
-import { MediaSchema } from './media.js';
+import { MediaSchema, RedactedMediaSchema } from './media.js';
+
+/**
+ * An authored slot key.
+ *
+ * A `.` is rejected here, not at render time: `flattenSequence` uses the first
+ * `.` to separate a group from its item, so a key containing one would produce
+ * an ambiguous slot id. `keyOf` already threw on it — this moves the rejection
+ * to `validateItemGroup`, where an author finds it, instead of leaving it to
+ * surface when a learner opens the paper. Content that would newly fail
+ * validation already threw at flatten time, so it can never have been sat.
+ */
+const SlotKeySchema = z
+  .string()
+  .min(1)
+  .refine((key) => !key.includes('.'), {
+    error:
+      'slotKey must not contain "." — that character separates a group from its item in a slot id, so a key containing one would make the slot ambiguous.',
+  });
 
 function hasBody(stimulus: { body?: string | undefined }): boolean {
   return typeof stimulus.body === 'string' && stimulus.body.trim().length > 0;
@@ -77,7 +95,7 @@ export const StimulusSchema = z
 const ItemShapeSchema = z.looseObject({
   type: z.string().min(1),
   id: z.string().min(1),
-  slotKey: z.string().min(1).optional(),
+  slotKey: SlotKeySchema.optional(),
 });
 
 /**
@@ -92,7 +110,7 @@ export const ItemGroupSchema = z
     type: z.literal('item-group'),
     id: z.string().min(1),
     title: z.string().optional(),
-    slotKey: z.string().min(1).optional(),
+    slotKey: SlotKeySchema.optional(),
     stimulus: StimulusSchema,
     items: z.array(ItemShapeSchema).min(1),
     shuffle: z.enum(['none', 'within-group']).optional(),
@@ -116,7 +134,7 @@ export const RedactedStimulusSchema = z.strictObject({
   title: z.string().optional(),
   body: z.string().optional(),
   bodyHtml: z.string().optional(),
-  media: MediaSchema.optional(),
+  media: RedactedMediaSchema.optional(),
   locale: z.string().optional(),
   attribution: z.string().optional(),
 });
@@ -132,7 +150,7 @@ export const RedactedItemGroupSchema = z.strictObject({
   type: z.literal('item-group'),
   id: z.string().min(1),
   title: z.string().optional(),
-  slotKey: z.string().min(1).optional(),
+  slotKey: SlotKeySchema.optional(),
   stimulus: RedactedStimulusSchema,
   items: z.array(z.unknown()).min(1),
   shuffle: z.enum(['none', 'within-group']).optional(),

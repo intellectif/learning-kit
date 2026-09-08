@@ -250,10 +250,21 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   the paper rather than from whatever was answered. An authored `slotKey` on an entry now overrides the
   positional path, so a stored id survives an insert. Selection/assembly (pick 20 of 60, blueprint sections)
   stays out — it is authoring, and no evidence asks for it yet.
-- **Media playback policy** on `ActivityMedia`: `{ maxPlays?, allowSeek?, allowDownload?, allowRateChange?,
-  autoplayOnce? }` plus a plays-remaining interaction event. Listening assessment is unrunnable without it
-  (an integrator replaced the SDK's audio rendering wholesale to stop downloads and rate changes), and it is
-  a prerequisite for `dictation`.
+- ✅ **Media playback policy** on `ActivityMedia` — shipped as `media.playback`
+  `{ controls?, maxPlays?, seek?, rate?, nativeControlHints? }` on **audio only**, plus four
+  `media-play-*` interaction kinds, an SDK-owned accessible transport, and a `planHash`-bound
+  `MediaPlayLedger` the consumer persists. The sketched shape changed on evidence: `allowDownload` and
+  `autoplayOnce` were **cut** rather than shipped. No client can prevent a download, so a flag reading like
+  a guarantee was replaced by `nativeControlHints`, named as the advisory `controlsList` hint it actually
+  is; `autoplayOnce` contradicts two shipped promises that nothing auto-plays, fails WCAG 1.4.2, and would
+  consume a play unpredictably. `maxPlays` shipped, but on a roadmap hypothesis rather than replicated
+  behaviour — a search of the integrating application found no play counter of any kind; what it had built
+  was seek/download/rate suppression. An in-repo capability probe (`e2e/media-capability-probe.spec.ts`)
+  now backs every enforcement claim, so no doc outlives its evidence. `video` and `embed` policies are
+  deferred loudly, at validation. Unblocks `dictation`.
+- Deferred with it: a **video** transport (it must own fullscreen and Picture-in-Picture), charging for a
+  backward seek so `maxPlays` could coexist with seeking (an unpredictable budget is worse than none at an
+  appeal), and `allowPause: false`.
 - ✅ **`serializeAttemptState` / `restoreAttemptState` / `diffResponses`** — plus the pager props that make
   them usable (`defaultIndex`, `onIndexChange`, `responses`, `outcomes`). A snapshot is bound to its plan by
   `planHash`, so answers can never be restored onto a paper the learner never sat, and the position and

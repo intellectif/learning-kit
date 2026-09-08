@@ -92,6 +92,8 @@ export function MultipleChoice({
   renderMode = 'practice',
   outcome,
   sanitizeHtml,
+  mediaBudget,
+  mediaStrings,
   onInteraction,
   theme,
   locale,
@@ -356,7 +358,16 @@ export function MultipleChoice({
 
   return (
     <div className="lk-mc" lang={locale} style={theme as CSSProperties | undefined}>
-      {data.media ? <ActivityMedia media={data.media} /> : null}
+      {data.media ? (
+        <ActivityMedia
+          media={data.media}
+          renderMode={renderMode}
+          {...(mediaBudget !== undefined ? { mediaBudget } : {})}
+          {...(mediaStrings !== undefined ? { mediaStrings } : {})}
+          {...(onInteraction !== undefined ? { onInteraction } : {})}
+          {...(locale !== undefined ? { locale } : {})}
+        />
+      ) : null}
       <form onSubmit={handleSubmit}>
         <fieldset disabled={inactive}>
           {questionHtml === null ? (

@@ -48,6 +48,59 @@ export interface ActivityMedia {
   alt?: string;
   /** Optional WebVTT captions track URL for `audio`/`video`. */
   captionsUrl?: string;
+  /**
+   * How the recording may be played. `audio` only — see
+   * {@link MediaPlaybackPolicy}. Absent means today's behaviour exactly: the
+   * browser's own control bar, unlimited plays, free seeking and free speed.
+   */
+  playback?: MediaPlaybackPolicy;
+}
+
+/**
+ * A hint to the browser's own control bar, emitted as a `controlsList` token.
+ *
+ * Advisory, and engine-dependent. `hide-download` removes a menu item where
+ * `controlsList` is implemented; it never prevents a download, because the URL
+ * is in the page and the bytes are in the network panel. The real control is a
+ * short-lived signed URL, which belongs to the consuming application.
+ */
+export type NativeControlHint = 'hide-download' | 'hide-rate';
+
+/**
+ * How an audio recording may be played.
+ *
+ * Every field is optional and every default reproduces the SDK's pre-0.8.0
+ * behaviour, so adding this key is the only thing that changes anything.
+ *
+ * Setting any *enforcement* field (`maxPlays`, `seek: 'none'`, `rate: 'fixed'`)
+ * resolves `controls` to `'minimal'`: the browser's bar cannot express a spent
+ * budget — its play button stays enabled — so the SDK renders its own
+ * transport rather than leave a control that looks operable and does nothing.
+ */
+export interface MediaPlaybackPolicy {
+  /**
+   * `native` renders the browser's control bar. `minimal` renders the SDK
+   * transport. Resolved automatically; set it explicitly only to keep the
+   * native bar on a recording that has nothing to enforce.
+   */
+  controls?: 'native' | 'minimal';
+  /**
+   * How many times the recording may be STARTED (1–20). A play is consumed
+   * when playback begins from anywhere other than where it last stopped, so
+   * pausing, resuming, and paging between the questions of one listening group
+   * are free.
+   *
+   * The SDK refuses the play; it does not remember it. The count is durable
+   * only if the consuming application persists it — see `mediaBudget` on
+   * `<ActivitySequence>` in `@intellectif/lk-react`.
+   */
+  maxPlays?: number;
+  /** `none` renders no scrubber and reverts an out-of-band seek. Resolves to `none` under a budget. */
+  seek?: 'allow' | 'none';
+  /** `fixed` renders no speed control and snaps `playbackRate` back to 1. */
+  rate?: 'allow' | 'fixed';
+  /** Advisory hints to the native bar. See {@link NativeControlHint}. */
+  nativeControlHints?: NativeControlHint[];
 }
 
 /**
@@ -464,8 +517,37 @@ export type InteractionKind =
   | 'hint-requested'
   | 'text-changed'
   | 'submitted'
-  // biome-ignore lint/complexity/noBannedTypes: `string & {}` preserves literal autocompletion while keeping the union open for registered custom types
+  /**
+   * A play was charged against a recording's budget, before any audio was
+   * audible. Emitted only when a budget is in force, so a `review`-mode replay
+   * never pollutes the record an appeal reads.
+   */
+  | 'media-play-consumed'
+  /** An exhausted budget refused a play. The artifact an appeal asks for. */
+  | 'media-play-refused'
+  /** A charged play produced no audio — a failed or expired media URL. */
+  | 'media-play-errored'
+  /** A charged play was returned, because the consumer accepted the refund. */
+  | 'media-play-refunded'
+  // `string & {}` preserves literal autocompletion while keeping the union open
+  // for registered custom types.
   | (string & {});
+
+/**
+ * Payload carried by every `media-play-*` {@link InteractionEvent}.
+ *
+ * `activityId` on the event is the slot the learner was standing on — position,
+ * not ownership. `mediaKey` is the identity: one group stimulus serves several
+ * questions and belongs to no single activity.
+ */
+export interface MediaPlayInteractionPayload {
+  /** `slot:<slotId>` or `stimulus:<entryKey>`. */
+  mediaKey: string;
+  mediaType: 'audio';
+  playsUsed: number;
+  maxPlays: number;
+  playsRemaining: number;
+}
 
 /** Fired by activity components on every discrete learner interaction. */
 export interface InteractionEvent {

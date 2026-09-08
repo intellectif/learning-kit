@@ -65,19 +65,30 @@ function wrData(overrides: Record<string, unknown> = {}): Record<string, unknown
   };
 }
 
-/** Recursively walks a JSON tree looking for `additionalProperties: false`. */
-function containsAdditionalPropertiesFalse(node: unknown): boolean {
+/**
+ * Recursively collects the JSON-pointer-ish paths at which a tree closes
+ * itself with `additionalProperties: false`.
+ *
+ * The content schemas are loose on purpose, so a consumer's sidecar fields
+ * survive validation and a form generator or an AI prompted with the exported
+ * schema is not told to reject them. `media.playback` is the one deliberate
+ * exception: an unrecognised key there (`maxPlay`, `seeking`) would silently
+ * disarm an exam control that an author believed was enforced, so it is strict
+ * and the export says so. Returning the PATHS rather than a boolean is what
+ * keeps that exception honest — a second one cannot appear unnoticed.
+ */
+function closedObjectPaths(node: unknown, path = '$'): string[] {
   if (Array.isArray(node)) {
-    return node.some(containsAdditionalPropertiesFalse);
+    return node.flatMap((child, i) => closedObjectPaths(child, `${path}[${i}]`));
   }
   if (node !== null && typeof node === 'object') {
-    return Object.entries(node).some(
-      ([key, value]) =>
-        (key === 'additionalProperties' && value === false) ||
-        containsAdditionalPropertiesFalse(value),
+    return Object.entries(node).flatMap(([key, value]) =>
+      key === 'additionalProperties' && value === false
+        ? [path]
+        : closedObjectPaths(value, `${path}.${key}`),
     );
   }
-  return false;
+  return [];
 }
 
 describe('unknown-key preservation (B7 fix)', () => {
@@ -380,8 +391,12 @@ describe('JSON Schema exports (v0.3)', () => {
     expect(typeof writtenResponseJsonSchema).toBe('object');
   });
 
-  it('multipleChoiceJsonSchema contains no additionalProperties:false anywhere', () => {
-    expect(containsAdditionalPropertiesFalse(multipleChoiceJsonSchema)).toBe(false);
+  it('multipleChoiceJsonSchema closes only media.playback, so sidecar fields survive everywhere else', () => {
+    const closed = closedObjectPaths(multipleChoiceJsonSchema);
+    // Exactly one closed object, and it is the playback policy. If this list
+    // grows, a schema became strict and consumer sidecars will start failing.
+    expect(closed).toHaveLength(1);
+    expect(closed[0]).toContain('playback');
   });
 });
 

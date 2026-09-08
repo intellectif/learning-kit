@@ -188,6 +188,92 @@ Optional `media` on either activity, rendered above the question/passage:
 - `video`/`audio` use native controls; provide `captionsUrl` (WebVTT) for captions.
 - **URL-only**: the SDK never hosts media. Hosting/CDN is yours.
 
+### Playback policy (v0.8)
+
+A listening paper usually needs the recording played on the paper's terms, not
+the browser's. `media.playback` says so, on **audio only**:
+
+```jsonc
+{ "media": { "type": "audio", "url": "/audio/part2.mp3", "alt": "Part 2",
+             "playback": { "maxPlays": 2 } } }
+```
+
+`{ "maxPlays": 2 }` is a complete policy. `controls` resolves to `"minimal"` and
+`seek` to `"none"`, because those are the only values that can keep the promise:
+the browser's own bar leaves its play button enabled after a budget is spent, and
+a scrubber that moved and silently snapped back would be a control that looks
+operable and does nothing. So an enforcing policy replaces the bar with the SDK's
+transport — play/pause, elapsed and total time, mute, volume, an optional speed
+control, and a live "1 of 2 plays remaining".
+
+| Field | Meaning |
+|---|---|
+| `maxPlays` (1–20) | How many times the recording may be **started**. Pausing, resuming, and paging between the questions of one listening group are free. |
+| `seek: "none"` | No scrubber; an out-of-band seek (an OS media key, a notification-tray scrubber) is reverted and announced. |
+| `rate: "fixed"` | No speed control; a rate change from any source is reset and announced. |
+| `controls` | `"native"` \| `"minimal"`. Resolved for you; set it only to keep the native bar on a recording that enforces nothing. |
+| `nativeControlHints` | `"hide-download"` / `"hide-rate"` — **advisory** `controlsList` tokens for the native bar. |
+
+**What is actually enforced, and what is not.** The SDK does not claim more than
+a browser gives, and [`e2e/media-capability-probe.spec.ts`](../packages/lk-react/e2e/media-capability-probe.spec.ts)
+is the evidence:
+
+- **Enforced.** A refused play is stopped inside the browser's own `play` event,
+  before a sample is audible — verified at `currentTime < 0.25s`. It cannot be
+  defeated by a hardware media key or a scripted `play()`, because the budget
+  lives on the element's event rather than on the button. Seek reverting and rate
+  snapping are enforced the same way.
+- **Advisory.** `nativeControlHints` emits `controlsList`, which some engines
+  ignore entirely. `hide-download` **never prevents a download** — the URL is in
+  the page and the bytes are in the network panel. If a recording must not be
+  kept, issue a short-lived signed URL; that is your control, not the SDK's.
+- **Never.** Nothing here survives devtools. A client SDK cannot make it.
+
+**A budget is only as durable as your write.** The SDK reads and writes no store,
+so `maxPlays` means nothing across a refresh unless you persist it:
+
+```tsx
+import { planAttempt, planMediaBudgets, restoreMediaPlayLedger } from '@intellectif/lk-core';
+
+<ActivitySequence
+  activities={entries}
+  renderMode="exam"
+  shuffleSeed={attemptId}
+  mediaBudget={{
+    plays: restoreMediaPlayLedger(plan, storedLedger).entries,   // read at mount
+    onPlayConsumed: async (claim) => {
+      // ATOMIC. Two tabs both seeded at 0 both claim 1, and only the server
+      // can tell them apart. Returning a count above maxPlays refuses the play.
+      const { plays } = await db.incrementPlay(attemptId, claim.key);
+      return { playsUsed: plays };
+    },
+    onPosition: (key, seconds) => saveThrottled(key, seconds),
+  }}
+/>
+```
+
+Return a **promise** and playback is held until your atomic write settles — the
+only tier in which "consumed before audible" is true of storage rather than only
+of memory. Return **nothing** and playback starts immediately, which is fine for
+practice: just do not debounce that write, and do not batch it with the answer
+autosave. An eight-second debounce is exactly long enough to start a third play
+and hard-reload.
+
+`serializeMediaPlayLedger` / `restoreMediaPlayLedger` bind the counts to their
+paper by `planHash`, exactly as `AttemptState` does — the ledger is a **separate**
+object on purpose, because a build that predates it would rewrite an
+`AttemptState` snapshot without the counts and erase them mid-rollout.
+
+`planAttempt` freezes each budget into the plan, so editing `maxPlays: 2 → 4`
+mid-window cannot change what a past learner was held to. It also refuses a paper
+where one recording is budgeted under two keys — six questions each carrying the
+same clip at `maxPlays: 2` is twelve plays of one recording. Put questions that
+share a recording in an **item group**: one stimulus, one budget.
+
+`review` mode never enforces: a graded paper cannot be changed by listening
+again, and taking a learner's scrubber and speed control away while they work out
+what they got wrong helps nobody.
+
 ### Feedback
 
 Two composable layers, both authored by you. The SDK never *writes* feedback, but it does **select** it: since 0.3.0 `score()` and `evaluate()` set `ScoringResult.feedback` to `feedback.correct` or `feedback.incorrect` according to `passed`, so a server scoring headlessly gets the same message the component shows and does not have to reimplement the choice.

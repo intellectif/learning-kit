@@ -1,9 +1,14 @@
 'use client';
 
-import type { Stimulus } from '@intellectif/lk-core';
+import type { InteractionEvent, Stimulus } from '@intellectif/lk-core';
 import { useId, useMemo } from 'react';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
-import type { HtmlSanitizer } from '../types.js';
+import type {
+  HtmlSanitizer,
+  MediaBudgetBinding,
+  MediaTransportStrings,
+  RenderMode,
+} from '../types.js';
 
 export interface StimulusPanelProps {
   stimulus: Stimulus;
@@ -16,6 +21,22 @@ export interface StimulusPanelProps {
   /** Renders `stimulus.bodyHtml` when provided. See `HtmlSanitizer`. */
   sanitizeHtml?: HtmlSanitizer;
   locale?: string;
+  /**
+   * Forwarded to the stimulus's own media. `review` keeps the browser's control
+   * bar even under an enforcing policy — a graded paper cannot be changed by
+   * listening again.
+   */
+  renderMode?: RenderMode;
+  /**
+   * Binds this group's recording to a play budget the consumer persists. One
+   * recording serves every question in the group, so the key is derived from
+   * the ENTRY rather than the slot — see `stimulusMediaKey()` in lk-core.
+   */
+  mediaBudget?: MediaBudgetBinding;
+  /** Translations for the audio transport chrome. */
+  mediaStrings?: Partial<MediaTransportStrings>;
+  onInteraction?: (event: InteractionEvent) => void;
+  disabled?: boolean;
 }
 
 /** Accessible name of the region when the stimulus has no title of its own. */
@@ -41,6 +62,11 @@ export function StimulusPanel({
   range,
   sanitizeHtml,
   locale,
+  renderMode,
+  mediaBudget,
+  mediaStrings,
+  onInteraction,
+  disabled,
 }: StimulusPanelProps): React.JSX.Element {
   const titleId = useId();
 
@@ -80,7 +106,17 @@ export function StimulusPanel({
         </p>
       ) : null}
       {rangeText !== null ? <p className="lk-stimulus-range">{rangeText}</p> : null}
-      {stimulus.media !== undefined ? <ActivityMedia media={stimulus.media} /> : null}
+      {stimulus.media !== undefined ? (
+        <ActivityMedia
+          media={stimulus.media}
+          {...(renderMode !== undefined ? { renderMode } : {})}
+          {...(mediaBudget !== undefined ? { mediaBudget } : {})}
+          {...(mediaStrings !== undefined ? { mediaStrings } : {})}
+          {...(onInteraction !== undefined ? { onInteraction } : {})}
+          {...(disabled !== undefined ? { disabled } : {})}
+          {...(locale !== undefined ? { locale } : {})}
+        />
+      ) : null}
       {bodyHtml !== null ? (
         <div
           className="lk-stimulus-body"

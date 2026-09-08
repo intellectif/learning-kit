@@ -1,4 +1,5 @@
 import { ActivitySchemaError, UnknownActivityTypeError } from './errors.js';
+import { MEDIA_FIELD_POLICY } from './registry/builtins.js';
 import { getActivityTypeDescriptor } from './registry/index.js';
 import type { FieldPolicy, Sensitivity } from './registry/registry.js';
 import { RedactedItemGroupSchema } from './schemas/item-group.js';
@@ -237,7 +238,7 @@ const STIMULUS_FIELD_POLICY: FieldPolicy = {
   title: 'public',
   body: 'public',
   bodyHtml: 'public',
-  media: 'public',
+  media: MEDIA_FIELD_POLICY,
   locale: 'public',
   attribution: 'public',
   transcript: 'author-only',

@@ -172,9 +172,17 @@ export function matchText(
     return { matched: true, via: 'folded' };
   }
 
+  // A learner who typed nothing made no typo. Levenshtein distance from an
+  // empty string is just the answer's length, so `levenshtein: 1` on a
+  // one-letter blank ("a", "I") marked an UNANSWERED blank correct — the
+  // fuzzy stage rescuing a blank rather than a misspelling. No author enabling
+  // typo tolerance intends that, so an empty input never reaches this stage.
+  // Exact and normalized matching are untouched: an author who genuinely lists
+  // "" as an accepted answer still gets it, deliberately, one stage earlier.
   const maxDistance = policy.levenshtein ?? 0;
   if (
     maxDistance > 0 &&
+    foldedInput.trim().length > 0 &&
     foldedAccepted.some(
       (answer) => levenshteinDistance(foldedInput, answer, maxDistance) <= maxDistance,
     )
