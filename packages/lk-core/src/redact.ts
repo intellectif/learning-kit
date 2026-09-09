@@ -81,6 +81,16 @@ function keepField(sensitivity: Sensitivity, reveal: 'none' | 'after-submit'): b
   return sensitivity === 'answer-key' && reveal === 'after-submit';
 }
 
+/** An object projection that kept no fields at all. Arrays are never dropped. */
+function isEmptyObject(value: unknown): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.keys(value).length === 0
+  );
+}
+
 function redactValue(
   value: unknown,
   policy: FieldPolicy,
@@ -115,7 +125,12 @@ function redactValue(
       continue;
     }
     const nested = redactValue(fieldValue, classification, reveal);
-    if (nested !== undefined) {
+    // A nested projection that emitted nothing is omitted rather than emitted
+    // as `{}`. "Nothing survived redaction" and "the field was absent" are the
+    // same thing to a learner — and without this, giving an all-`answer-key`
+    // object a nested policy would turn its absence under `reveal: 'none'`
+    // into an empty object, changing every existing projection.
+    if (nested !== undefined && !isEmptyObject(nested)) {
       output[key] = nested;
     }
   }

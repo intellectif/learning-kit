@@ -1,6 +1,6 @@
 import { z } from 'zod/v4';
 import { RedactedMediaSchema } from './media.js';
-import { WrittenResponseRubricSchema } from './written-response.js';
+import { RedactedWrittenResponseRubricSchema } from './written-response.js';
 
 /**
  * Schemas for REDACTED activity data — the learner-safe projection `redact()`
@@ -76,7 +76,7 @@ export const RedactedWrittenResponseDataSchema = z.strictObject({
   promptHtml: z.string().optional(),
   minWords: z.number().int().min(0),
   maxWords: z.number().int().min(1),
-  rubric: WrittenResponseRubricSchema.optional(),
+  rubric: RedactedWrittenResponseRubricSchema.optional(),
   languageTarget: z.string().optional(),
 });
 

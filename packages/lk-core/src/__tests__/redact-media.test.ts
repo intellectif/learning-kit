@@ -152,3 +152,169 @@ describe('the redacted schemas are strict at the media boundary', () => {
     expect(redact(mc).media).toHaveProperty('playback', { maxPlays: 2 });
   });
 });
+
+/**
+ * The same fail-open shape as the media hole, one field along.
+ *
+ * `rubric` was classified as a single `public` leaf, so `redactValue` returned
+ * the author's object by reference without recursing, and the strict redacted
+ * schema embedded the LOOSE rubric schema. A grader's `modelAnswer` parked on
+ * the rubric therefore reached the exam client and `assertRedacted` blessed it.
+ *
+ * The rubric itself is deliberately learner-visible — it tells the learner what
+ * they are graded on. That has to mean its DOCUMENTED fields are visible, not
+ * that anything anyone stashes under it is.
+ */
+describe('redact(): the rubric is public field by field, not wholesale', () => {
+  const essay = {
+    schemaVersion: '1.0',
+    type: 'written-response',
+    id: 'w1',
+    title: 'Essay',
+    prompt: 'Describe your last holiday.',
+    minWords: 10,
+    maxWords: 200,
+    rubric: {
+      label: 'Writing rubric',
+      criteria: [{ name: 'Grammar', description: 'Accuracy of form', weight: 1 }],
+      modelAnswer: 'THE SECRET MODEL ANSWER',
+      aiModel: 'grader-v2',
+    },
+  } as never;
+
+  it('drops an unclassified key nested under the rubric', () => {
+    const projection = redact(essay) as { rubric?: Record<string, unknown> };
+    expect(projection.rubric).not.toHaveProperty('modelAnswer');
+    expect(projection.rubric).not.toHaveProperty('aiModel');
+  });
+
+  it('keeps the fields a learner is meant to read', () => {
+    const projection = redact(essay) as {
+      rubric?: { label?: string; criteria?: { name: string; weight: number }[] };
+    };
+    expect(projection.rubric?.label).toBe('Writing rubric');
+    expect(projection.rubric?.criteria).toEqual([
+      { name: 'Grammar', description: 'Accuracy of form', weight: 1 },
+    ]);
+  });
+
+  it('returns a copy of the rubric, not the author’s object', () => {
+    const projection = redact(essay) as { rubric?: unknown };
+    expect(projection.rubric).not.toBe((essay as { rubric: unknown }).rubric);
+  });
+
+  it('rejects a hand-built payload carrying a secret under the rubric', () => {
+    const clean = redact(essay) as unknown as Record<string, unknown> & {
+      rubric: Record<string, unknown>;
+    };
+    // Prove the rejection is not vacuous: the same payload passes without the
+    // planted key.
+    expect(() => assertRedacted(clean)).not.toThrow();
+    expect(() =>
+      assertRedacted({ ...clean, rubric: { ...clean.rubric, modelAnswer: 'LEAK' } }),
+    ).toThrow();
+  });
+});
+
+/**
+ * The same fail-open shape once more, on the answer-key object leaves.
+ *
+ * `feedback` and `blanks[].match` were scalar `answer-key` classifications, so
+ * `redactValue` assigned the author's object by reference without recursing.
+ * Under the default `reveal: 'none'` that is invisible — the whole field is
+ * dropped — but `reveal: 'after-submit'` keeps it, and kept it WHOLE: a
+ * grader's private note or tuning knob parked beside the documented fields
+ * went to the learner with the answer key, and the projection aliased the
+ * caller's object. Third instance of the pattern, after `media` and `rubric`.
+ */
+describe('redact(): answer-key objects are classified field by field too', () => {
+  const mc = {
+    schemaVersion: '1.0',
+    type: 'multiple-choice',
+    id: 'm1',
+    title: 'Q',
+    question: 'Pick one',
+    mode: 'single',
+    scoringStrategy: 'all-or-nothing',
+    feedback: {
+      correct: 'Well done',
+      incorrect: 'Try again',
+      graderNote: 'INTERNAL: flag for review',
+      costCents: 42,
+    },
+    options: [
+      { id: 'a', text: 'A', isCorrect: true },
+      { id: 'b', text: 'B', isCorrect: false },
+    ],
+  } as never;
+
+  const fib = {
+    schemaVersion: '1.0',
+    type: 'fill-in-the-blanks',
+    id: 'f1',
+    title: 'F',
+    passage: 'The capital is {{b1}}.',
+    scoringStrategy: 'partial',
+    blanks: [
+      {
+        id: 'b1',
+        acceptedAnswers: ['Tokyo'],
+        match: { levenshtein: 1, internalTuning: 'SECRET-KNOB', graderHint: 'accept Tokio' },
+      },
+    ],
+  } as never;
+
+  it('reveals only the documented feedback fields after submit', () => {
+    const revealed = redact(mc, { reveal: 'after-submit' }) as {
+      feedback?: Record<string, unknown>;
+    };
+    expect(revealed.feedback).toEqual({ correct: 'Well done', incorrect: 'Try again' });
+    expect(revealed.feedback).not.toHaveProperty('graderNote');
+    expect(revealed.feedback).not.toHaveProperty('costCents');
+  });
+
+  it('reveals only the documented match keys after submit', () => {
+    const revealed = redact(fib, { reveal: 'after-submit' }) as {
+      blanks?: { match?: Record<string, unknown> }[];
+    };
+    expect(revealed.blanks?.[0]?.match).toEqual({ levenshtein: 1 });
+  });
+
+  it('does not alias the author’s objects into the projection', () => {
+    const revealedMc = redact(mc, { reveal: 'after-submit' }) as { feedback?: unknown };
+    const revealedFib = redact(fib, { reveal: 'after-submit' }) as {
+      blanks?: { match?: unknown }[];
+    };
+    expect(revealedMc.feedback).not.toBe((mc as { feedback: unknown }).feedback);
+    expect(revealedFib.blanks?.[0]?.match).not.toBe(
+      (fib as { blanks: { match: unknown }[] }).blanks[0]?.match,
+    );
+  });
+
+  it('still drops them entirely under the default reveal', () => {
+    const projection = redact(mc) as Record<string, unknown>;
+    expect(Object.hasOwn(projection, 'feedback')).toBe(false);
+    const blanks = (redact(fib) as unknown as { blanks: Record<string, unknown>[] }).blanks;
+    expect(Object.hasOwn(blanks[0] as object, 'match')).toBe(false);
+  });
+
+  it('drops an unclassified key planted on a rubric CRITERION, not just the root', () => {
+    // The root-level cases above would still pass if `criteria` were
+    // reclassified as a scalar, so the nesting needs its own probe.
+    const essay = {
+      schemaVersion: '1.0',
+      type: 'written-response',
+      id: 'w2',
+      title: 'Essay',
+      prompt: 'Write.',
+      minWords: 1,
+      maxWords: 50,
+      rubric: {
+        label: 'R',
+        criteria: [{ name: 'Grammar', weight: 1, modelAnswer: 'SECRET ON THE CRITERION' }],
+      },
+    } as never;
+    const projection = redact(essay) as { rubric?: { criteria?: Record<string, unknown>[] } };
+    expect(projection.rubric?.criteria?.[0]).toEqual({ name: 'Grammar', weight: 1 });
+  });
+});

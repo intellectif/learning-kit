@@ -727,21 +727,21 @@ export function ActivitySequence({
       return <FillInTheBlanks data={activity} {...childProps} />;
     }
     if (activity.type === 'written-response') {
+      // Derived from the SAME bag the other two get, minus the one prop this
+      // component genuinely does not have. Listing the props by hand is what
+      // made this the branch left behind three separate times —
+      // `defaultSubmitted`, the redacted-in-`practice` guard and the media
+      // budget were each added to `childProps` and each silently missed here.
+      // Subtracting from the shared bag cannot forget a prop that is added to
+      // it; listing them can.
+      const { onComplete: _neverGrades, ...writtenResponseProps } = childProps;
       return (
         <WrittenResponse
           data={activity}
+          {...writtenResponseProps}
           onSubmitted={(submission) =>
             record({ kind: 'submitted', index: slotIndex, slotId, activityId, submission })
           }
-          // Explicit rather than spread: WrittenResponse has no `onComplete`
-          // (it never grades), so `childProps` does not fit it — but it must
-          // still report the raw response, restore a saved draft, and show a
-          // returned grade like every other slot.
-          onSubmit={childProps.onSubmit}
-          {...(restored !== undefined ? { defaultValue: restored } : {})}
-          {...(seedsApply && submitted.has(slotId) ? { defaultSubmitted: true } : {})}
-          {...(slotOutcome !== undefined ? { outcome: slotOutcome } : {})}
-          {...forwarded}
         />
       );
     }

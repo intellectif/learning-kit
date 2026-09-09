@@ -59,9 +59,18 @@ describe('scoreMultipleChoice — all branches', () => {
         { id: 'c', text: 'C', isCorrect: false },
       ],
     });
-    const r = scoreMultipleChoice(data, mcr(['a', 'c', 'zzz'])).score;
-    expect(r).toBeGreaterThanOrEqual(0);
-    expect(r).toBeLessThanOrEqual(1);
+    // Exact values, not a [0,1] range. A range assertion holds under every
+    // plausible mis-handling of an id that is not on the paper — ignoring it,
+    // or crediting it as correct — and crediting it lets a learner who selects
+    // five options score above the maximum on a two-mark item.
+    expect(scoreMultipleChoice(data, mcr(['a', 'c', 'zzz'])).score).toBe(0);
+    // 1 of 2 correct, minus one wrong selection: max(0, 1/2 - 1/1) = 0.
+    // Treating 'zzz' as correct would give 1; ignoring it, 0.5.
+    expect(scoreMultipleChoice(data, mcr(['a', 'zzz'])).score).toBe(0);
+    // An unknown id must never inflate the total past the maximum.
+    expect(scoreMultipleChoice(data, mcr(['a', 'b', 'z1', 'z2', 'z3'])).score).toBeLessThanOrEqual(
+      1,
+    );
 
     const allCorrect = mc({
       mode: 'multi',

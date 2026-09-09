@@ -40,18 +40,11 @@ export function ActivityMedia(props: ActivityMediaProps): React.JSX.Element {
   if (media.type === 'audio') {
     const policy = resolvePlaybackPolicy(media);
 
-    // REVIEW ALWAYS GETS THE NATIVE BAR. The paper is graded; a learner
-    // reviewing it cannot change an answer by listening again, so taking away
-    // their scrubber, their speed control and their browser-localized controls
-    // buys nothing — and costs a learner with a processing disability the
-    // ability to work out what they got wrong.
-    if (policy.controls === 'minimal' && renderMode !== 'review') {
-      return <AudioTransport {...props} media={media} policy={policy} />;
-    }
-
-    // A mis-wired budget must not render as an ordinary recording. Without a
-    // binding nothing persists the count, so a refresh restores the full
-    // budget while the page still says "2 plays remaining".
+    // BEFORE the branch below, not after it. A budgeted policy always resolves
+    // to `controls: 'minimal'`, so a guard placed after that early return
+    // could never fire for the one case it exists to catch — the transport
+    // rendered happily with no binding, counting nothing, while the paper
+    // believed it had a budget.
     if (policy.maxPlays !== null && renderMode === 'exam' && props.mediaBudget === undefined) {
       throw new Error(
         `ActivityMedia: audio ${JSON.stringify(media.url)} declares maxPlays and is rendered in ` +
@@ -59,6 +52,15 @@ export function ActivityMedia(props: ActivityMediaProps): React.JSX.Element {
           'a refresh restores the full budget while the page says plays remain. Render it through ' +
           '<ActivitySequence mediaBudget={…}> or pass `mediaBudget` yourself.',
       );
+    }
+
+    // REVIEW ALWAYS GETS THE NATIVE BAR. The paper is graded; a learner
+    // reviewing it cannot change an answer by listening again, so taking away
+    // their scrubber, their speed control and their browser-localized controls
+    // buys nothing — and costs a learner with a processing disability the
+    // ability to work out what they got wrong.
+    if (policy.controls === 'minimal' && renderMode !== 'review') {
+      return <AudioTransport {...props} media={media} policy={policy} />;
     }
 
     const hints = renderMode === 'review' ? [] : policy.nativeControlHints;

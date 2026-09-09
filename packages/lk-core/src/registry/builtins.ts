@@ -76,6 +76,43 @@ const SHARED_PUBLIC_FIELDS: FieldPolicy = {
   difficultyLevel: 'public',
 };
 
+/**
+ * Activity-level feedback, classified field by field.
+ *
+ * The third object leaf to need this, after `media` and `rubric`, and the same
+ * defect each time: a scalar classification assigns the author's object by
+ * reference without recursing, so under `reveal: 'after-submit'` an
+ * unclassified key nested inside it — a grader note, an internal cost — was
+ * forwarded to the learner along with the answer key, and `redact()` handed
+ * back an alias of the caller's object. `FeedbackSchema` is loose, so anything
+ * can be parked there.
+ *
+ * Both fields stay `answer-key`: activity feedback IS the answer key's
+ * commentary, so `reveal: 'none'` still drops the whole object.
+ */
+export const FEEDBACK_FIELD_POLICY: FieldPolicy = {
+  correct: 'answer-key',
+  incorrect: 'answer-key',
+};
+
+/**
+ * A blank's matching tolerances, classified key by key.
+ *
+ * Same reasoning as {@link FEEDBACK_FIELD_POLICY}: `TextMatchPolicy` is a
+ * documented set of knobs, and a consumer's private tuning parked beside them
+ * is not part of what an after-submit reveal promises to show.
+ */
+export const TEXT_MATCH_FIELD_POLICY: FieldPolicy = {
+  caseSensitive: 'answer-key',
+  trim: 'answer-key',
+  normalize: 'answer-key',
+  foldDiacritics: 'answer-key',
+  collapseInnerWhitespace: 'answer-key',
+  ignorePunctuation: 'answer-key',
+  levenshtein: 'answer-key',
+  locale: 'answer-key',
+};
+
 const MULTIPLE_CHOICE_FIELD_POLICY: FieldPolicy = {
   ...SHARED_PUBLIC_FIELDS,
   question: 'public',
@@ -83,7 +120,7 @@ const MULTIPLE_CHOICE_FIELD_POLICY: FieldPolicy = {
   mode: 'public',
   shuffle: 'public',
   scoringStrategy: 'answer-key',
-  feedback: 'answer-key',
+  feedback: FEEDBACK_FIELD_POLICY,
   options: {
     id: 'public',
     text: 'public',
@@ -97,15 +134,36 @@ const FILL_IN_THE_BLANKS_FIELD_POLICY: FieldPolicy = {
   passage: 'public',
   passageHtml: 'public',
   scoringStrategy: 'answer-key',
-  feedback: 'answer-key',
+  feedback: FEEDBACK_FIELD_POLICY,
   blanks: {
     id: 'public',
     hint: 'public',
     acceptedAnswers: 'answer-key',
     caseSensitive: 'answer-key',
     trimWhitespace: 'answer-key',
-    match: 'answer-key',
+    match: TEXT_MATCH_FIELD_POLICY,
     feedback: 'answer-key',
+  },
+};
+
+/**
+ * The rubric classified field by field, not as one opaque leaf.
+ *
+ * A scalar `Sensitivity` classifies the WHOLE field, so `rubric: 'public'`
+ * returned the author's object by reference without recursing — and an
+ * unclassified key nested under it survived `redact()` AND passed
+ * `assertRedacted()`. A grader's `modelAnswer` or `aiModel` stashed on the
+ * rubric went straight to the exam client. Same defect as the one `media` had,
+ * one field along: "the rubric is public" has to mean its documented fields
+ * are public, not that anything anyone parks under it is.
+ */
+export const RUBRIC_FIELD_POLICY: FieldPolicy = {
+  label: 'public',
+  // Applies to every element of the array.
+  criteria: {
+    name: 'public',
+    description: 'public',
+    weight: 'public',
   },
 };
 
@@ -116,13 +174,15 @@ const WRITTEN_RESPONSE_FIELD_POLICY: FieldPolicy = {
   minWords: 'public',
   maxWords: 'public',
   languageTarget: 'public',
-  feedback: 'answer-key',
+  feedback: FEEDBACK_FIELD_POLICY,
   // A rubric is a LEARNER affordance, not a grader secret: it tells the
   // learner what they are being graded on, which is pedagogically the point
   // of publishing one. (Classifying it author-only broke real deployments
   // that render a rubric panel during the attempt.) A deployment that wants
   // it hidden can tighten this per call via `redact(data, { policy })`.
-  rubric: 'public',
+  // Classified field by field so that stays true of the rubric's DOCUMENTED
+  // fields only — see {@link RUBRIC_FIELD_POLICY}.
+  rubric: RUBRIC_FIELD_POLICY,
 };
 
 /** Built-in Multiple Choice descriptor. */
