@@ -1,6 +1,6 @@
 {
   "name": "@intellectif/lk-react",
-  "version": "6.1.0",
+  "version": "7.0.0",
   "description": "Accessible React 19 assessment components — multiple choice, fill-in-the-blanks, written response — with a resumable exam/review pager, theming, and xAPI delivery.",
   "keywords": [
     "react",
