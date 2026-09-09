@@ -250,9 +250,17 @@ describe('empty input never reaches the fuzzy stage', () => {
 
   it('does not fuzzy-match a whitespace-only answer', () => {
     expect(matchText('   ', ['a'], { levenshtein: 1 })).toEqual({ matched: false, via: 'none' });
-    // Also with trimming turned off, where the input is not empty but is still
-    // not an answer.
-    expect(matchText('   ', ['a'], { levenshtein: 1, trim: false })).toEqual({
+  });
+
+  // A SINGLE space, not three. Three characters against a one-character answer
+  // is refused by the length-difference early exit before the guard is ever
+  // consulted, so the wider case pins nothing: delete the `.trim()` from the
+  // guard and `'   '` still fails while `' '` starts matching.
+  it.each([
+    [' ', 'a'],
+    ['	', 'I'],
+  ])('refuses %j against %j even with trimming off', (input, accepted) => {
+    expect(matchText(input, [accepted], { levenshtein: 1, trim: false })).toEqual({
       matched: false,
       via: 'none',
     });

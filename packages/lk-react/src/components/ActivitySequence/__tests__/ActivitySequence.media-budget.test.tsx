@@ -209,3 +209,78 @@ describe('ActivitySequence media budget', () => {
     expect(document.querySelector('audio[controls]')).not.toBeNull();
   });
 });
+
+/**
+ * Every activity type, not just the two that share a spread.
+ *
+ * `<WrittenResponse>` is the one branch of `renderSlot` whose props are
+ * hand-written rather than spread from `childProps`, and it has now been the
+ * one left behind three separate times: `defaultSubmitted`, the
+ * redacted-in-`practice` guard, and the media budget. An essay carrying a
+ * budgeted recording rendered an UNLIMITED player, showing no plays-remaining
+ * and counting nothing — on a listening-and-writing paper, exactly the failure
+ * this milestone exists to prevent. Parameterising over the types is the only
+ * shape of test that catches it.
+ */
+const audioItem = (type: string, extra: Record<string, unknown>) =>
+  ({
+    schemaVersion: '1.0',
+    type,
+    id: `${type}-1`,
+    title: 'T',
+    media: { type: 'audio', url: '/part2.mp3', alt: 'Part 2', playback: { maxPlays: 2 } },
+    ...extra,
+  }) as never;
+
+const TYPES: [string, unknown][] = [
+  [
+    'written-response',
+    audioItem('written-response', { prompt: 'Summarise.', minWords: 1, maxWords: 50 }),
+  ],
+  [
+    'multiple-choice',
+    audioItem('multiple-choice', {
+      question: 'Q?',
+      mode: 'single',
+      scoringStrategy: 'all-or-nothing',
+      options: [
+        { id: 'a', text: 'A', isCorrect: true },
+        { id: 'b', text: 'B', isCorrect: false },
+      ],
+    }),
+  ],
+  [
+    'fill-in-the-blanks',
+    audioItem('fill-in-the-blanks', {
+      passage: 'The capital is {{b1}}.',
+      scoringStrategy: 'partial',
+      blanks: [{ id: 'b1', acceptedAnswers: ['Tokyo'] }],
+    }),
+  ],
+];
+
+describe('a budgeted recording binds on every activity type', () => {
+  it.each(TYPES)('%s receives its budget binding', (_label, activity) => {
+    render(
+      <ActivitySequence
+        activities={[activity as never]}
+        renderMode="exam"
+        onSubmit={vi.fn()}
+        mediaBudget={{ onPlayConsumed: vi.fn() }}
+      />,
+    );
+
+    // The status element renders only when the budget is actually bound; a
+    // transport renders either way, so asserting on the transport would pass
+    // against the very bug this pins.
+    expect(document.querySelector('.lk-media-plays')).toHaveTextContent('2 of 2 plays remaining');
+  });
+
+  it.each(TYPES)('%s refuses to render a budget it cannot persist', (_label, activity) => {
+    expect(() =>
+      render(
+        <ActivitySequence activities={[activity as never]} renderMode="exam" onSubmit={vi.fn()} />,
+      ),
+    ).toThrow(/onPlayConsumed/);
+  });
+});

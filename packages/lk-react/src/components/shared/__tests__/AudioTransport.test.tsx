@@ -116,7 +116,11 @@ describe('AudioTransport', () => {
   it('charges nothing for pausing and resuming where playback stopped', async () => {
     const user = userEvent.setup();
     const onPlayConsumed = vi.fn();
-    renderTransport(audio({ maxPlays: 2 }), { mediaBudget: binding({ onPlayConsumed }) });
+    // maxPlays 3, not 2: with two plays left after the first, the resume press
+    // clears the last-play confirmation gate. At `remaining === 1` the gate
+    // swallows the press and charges nothing either way, so the assertion
+    // below would hold even if resume detection were broken.
+    renderTransport(audio({ maxPlays: 3 }), { mediaBudget: binding({ onPlayConsumed }) });
     loadMetadata();
 
     await user.click(screen.getByRole('button', { name: 'Play' }));
@@ -133,7 +137,10 @@ describe('AudioTransport', () => {
     await user.click(screen.getByRole('button', { name: 'Play' }));
 
     expect(onPlayConsumed).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('status')).toHaveTextContent('1 of 2 plays remaining');
+    // Playback actually resumed — it was not a press the gate absorbed.
+    expect(element().paused).toBe(false);
+    expect(screen.queryByText('This is your last play. Start it now?')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('2 of 3 plays remaining');
   });
 
   it('refuses a scripted play once the budget is spent, before audio is audible', async () => {
@@ -186,7 +193,9 @@ describe('AudioTransport', () => {
   it('restores the paid-for position so a refresh continues rather than recharges', async () => {
     const user = userEvent.setup();
     const onPlayConsumed = vi.fn();
-    renderTransport(audio({ maxPlays: 2 }), {
+    // maxPlays 3 so two remain: the press clears the last-play gate, which
+    // would otherwise absorb it and make this pass without resuming anything.
+    renderTransport(audio({ maxPlays: 3 }), {
       mediaBudget: binding({ entry: { plays: 1, at: 42 }, onPlayConsumed }),
     });
     loadMetadata();
@@ -194,9 +203,12 @@ describe('AudioTransport', () => {
     expect(element().currentTime).toBe(42);
     await user.click(screen.getByRole('button', { name: 'Play' }));
 
-    // Continuing the play they already paid for is free.
+    // Continuing the play they already paid for is free — and it really did
+    // continue, rather than being swallowed by a confirmation.
     expect(onPlayConsumed).not.toHaveBeenCalled();
-    expect(screen.getByRole('status')).toHaveTextContent('1 of 2 plays remaining');
+    expect(element().paused).toBe(false);
+    expect(screen.queryByText('This is your last play. Start it now?')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('2 of 3 plays remaining');
   });
 
   it('reverts an out-of-band seek under seek: none and says so', () => {
@@ -243,5 +255,84 @@ describe('AudioTransport', () => {
     const play = screen.getByRole('button', { name: 'Play — No plays remaining' });
     expect(play).toHaveAttribute('aria-disabled', 'true');
     expect(play).not.toBeDisabled();
+  });
+});
+
+/**
+ * The last-play confirmation gate.
+ *
+ * When one play remains, the first press opens a confirmation instead of
+ * spending it — an accidental tap on a listening paper should not cost a
+ * learner their final listen. The whole path had no coverage anywhere in the
+ * repo: `lastPlayConfirm` and `setConfirming` appeared only in source.
+ *
+ * That gap also silently weakened two neighbouring tests, which used
+ * `maxPlays: 2` with one play spent. At `remaining === 1` the press they made
+ * was swallowed by this gate, so their assertions held whether playback
+ * resumed or a dialog opened; both now use budgets that clear it.
+ */
+describe('AudioTransport last-play confirmation', () => {
+  beforeEach(() => {
+    stubMediaElement();
+  });
+
+  it('asks before spending the final play instead of spending it', async () => {
+    const user = userEvent.setup();
+    const onPlayConsumed = vi.fn();
+    renderTransport(audio({ maxPlays: 2 }), {
+      mediaBudget: binding({ entry: { plays: 1 }, onPlayConsumed }),
+    });
+    loadMetadata();
+
+    await user.click(screen.getByRole('button', { name: 'Play' }));
+
+    expect(screen.getByText('This is your last play. Start it now?')).toBeInTheDocument();
+    expect(onPlayConsumed).not.toHaveBeenCalled();
+    expect(element().paused).toBe(true);
+  });
+
+  it('charges nothing when the learner backs out', async () => {
+    const user = userEvent.setup();
+    const onPlayConsumed = vi.fn();
+    renderTransport(audio({ maxPlays: 2 }), {
+      mediaBudget: binding({ entry: { plays: 1 }, onPlayConsumed }),
+    });
+    loadMetadata();
+
+    await user.click(screen.getByRole('button', { name: 'Play' }));
+    await user.click(screen.getByRole('button', { name: 'Not yet' }));
+
+    expect(onPlayConsumed).not.toHaveBeenCalled();
+    expect(element().paused).toBe(true);
+    expect(document.querySelector('.lk-media-plays')).toHaveTextContent('1 of 2 plays remaining');
+  });
+
+  it('spends exactly one play when the learner confirms', async () => {
+    const user = userEvent.setup();
+    const onPlayConsumed = vi.fn();
+    renderTransport(audio({ maxPlays: 2 }), {
+      mediaBudget: binding({ entry: { plays: 1 }, onPlayConsumed }),
+    });
+    loadMetadata();
+
+    await user.click(screen.getByRole('button', { name: 'Play' }));
+    await user.click(screen.getByRole('button', { name: 'Start last play' }));
+
+    expect(onPlayConsumed).toHaveBeenCalledTimes(1);
+    expect(element().paused).toBe(false);
+    expect(document.querySelector('.lk-media-plays')).toHaveTextContent('No plays remaining');
+  });
+
+  it('does not gate a press while more than one play remains', async () => {
+    const user = userEvent.setup();
+    const onPlayConsumed = vi.fn();
+    renderTransport(audio({ maxPlays: 3 }), { mediaBudget: binding({ onPlayConsumed }) });
+    loadMetadata();
+
+    await user.click(screen.getByRole('button', { name: 'Play' }));
+
+    expect(screen.queryByText('This is your last play. Start it now?')).not.toBeInTheDocument();
+    expect(onPlayConsumed).toHaveBeenCalledTimes(1);
+    expect(element().paused).toBe(false);
   });
 });

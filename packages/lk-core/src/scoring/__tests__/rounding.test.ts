@@ -321,6 +321,18 @@ describe('classifyBand', () => {
     expect(classifyBand(0.59, BANDS)).toEqual({ name: 'A2', min: 0.4 });
   });
 
+  // 0.59 probes a full 0.01 below the boundary while the implementation's
+  // tolerance is 1e-9 — seven orders of magnitude of slack, all of it in the
+  // promoting direction this function exists to prevent. These two straddle
+  // the actual epsilon, so a tolerance widened to anything a learner could
+  // reach fails here.
+  it('absorbs float noise at a boundary without promoting a genuine miss', () => {
+    // Just under 0.6 by less than the epsilon: the value IS 0.6, in binary.
+    expect(classifyBand(0.6 - 1e-10, BANDS)).toEqual({ name: 'B1', min: 0.6 });
+    // A real miss, far outside any float-noise tolerance.
+    expect(classifyBand(0.5999, BANDS)).toEqual({ name: 'A2', min: 0.4 });
+  });
+
   it('selects the band a value sits exactly on', () => {
     expect(classifyBand(0.6, BANDS)).toEqual({ name: 'B1', min: 0.6 });
     expect(classifyBand(0.4, BANDS)).toEqual({ name: 'A2', min: 0.4 });

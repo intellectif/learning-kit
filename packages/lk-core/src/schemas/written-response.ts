@@ -16,6 +16,27 @@ export const WrittenResponseRubricSchema = z.looseObject({
 });
 
 /**
+ * The strict counterparts of the rubric schemas, for the redacted shapes.
+ *
+ * The authoring schemas above are loose on purpose (Req 22.5: a consumer's
+ * rubric sidecars must survive `validateActivity` verbatim). The REDACTED
+ * shape must not be: `RedactedWrittenResponseDataSchema` is a `strictObject`
+ * precisely so an unknown key is a validation failure, and embedding the loose
+ * rubric there meant the strictness stopped at the rubric boundary — a
+ * `rubric.modelAnswer` reached the learner and `assertRedacted` blessed it.
+ */
+export const RedactedWrittenResponseRubricCriterionSchema = z.strictObject({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  weight: z.number().min(0),
+});
+
+export const RedactedWrittenResponseRubricSchema = z.strictObject({
+  label: z.string().optional(),
+  criteria: z.array(RedactedWrittenResponseRubricCriterionSchema).min(1),
+});
+
+/**
  * Zod schema validating the Written Response activity data contract (Req 22).
  *
  * Wire-format constraints (Req 22.9): field names are locked for

@@ -568,6 +568,20 @@ describe('ActivitySequence resume — the cases that make it safe', () => {
 describe('ActivitySequence resume — every activity type, not just the easy one', () => {
   const fibAnswered: LearnerResponse = { type: 'fill-in-the-blanks', answers: { x: 'blue' } };
 
+  // `written-response` belongs here precisely because it is the branch that
+  // does not share the others' prop spread — it has been the type left behind
+  // three separate times, and a two-row list of the two easy types is how that
+  // kept happening.
+  const essay = {
+    schemaVersion: '1.0',
+    type: 'written-response',
+    id: 'w1',
+    title: 'Essay',
+    prompt: 'Describe your last holiday.',
+    minWords: 1,
+    maxWords: 100,
+  } as unknown as SequenceEntry;
+
   it.each([
     ['fill-in-the-blanks', fib, () => screen.getByRole('textbox')],
     [
@@ -575,6 +589,7 @@ describe('ActivitySequence resume — every activity type, not just the easy one
       mc('m1', 'Q?') as SequenceEntry,
       () => screen.getByRole('radio', { name: 'Yes' }),
     ],
+    ['written-response', essay, () => screen.getByRole('textbox')],
   ])('keeps a submitted %s locked after resume', (_label, entry, control) => {
     // The Req 3.7 data-change effect ran right after the first paint and reset
     // to idle, undoing the seed it had just been given — so `defaultSubmitted`
@@ -584,12 +599,23 @@ describe('ActivitySequence resume — every activity type, not just the easy one
         activities={[entry] as SequenceEntry[]}
         renderMode="exam"
         responses={{
-          '0': entry === fib ? fibAnswered : { type: 'multiple-choice', selectedOptionIds: ['a'] },
+          '0':
+            entry === fib
+              ? fibAnswered
+              : entry === essay
+                ? ({ type: 'written-response', text: 'My essay', wordCount: 2 } as LearnerResponse)
+                : { type: 'multiple-choice', selectedOptionIds: ['a'] },
         }}
         submittedSlotIds={['0']}
       />,
     );
     expect(control()).toBeDisabled();
+    // Locked is only half of it: the committed answer has to still be there.
+    // A branch that dropped `defaultValue` would lock an EMPTY control, and
+    // asserting only `toBeDisabled()` would call that a pass.
+    if (entry === essay) {
+      expect(control()).toHaveValue('My essay');
+    }
   });
 
   it('a parent re-render does not unlock a submitted item', async () => {
