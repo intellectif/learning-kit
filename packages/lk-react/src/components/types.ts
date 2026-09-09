@@ -12,6 +12,7 @@ import type {
   SequenceEntry,
   ThemeTokens,
 } from '@intellectif/lk-core';
+import type { LkStringsOverride } from '../i18n/strings.js';
 
 /**
  * How an activity is being presented. This is the single switch that decides
@@ -135,9 +136,26 @@ export interface ActivityProps<TData extends ActivityData = ActivityData> {
   mediaBudget?: MediaBudgetBinding;
   /** Translations for the audio transport chrome. See {@link MediaTransportStrings}. */
   mediaStrings?: Partial<MediaTransportStrings>;
+  /**
+   * Overrides the SDK's chrome text for this activity, layered on whatever
+   * `LkIntlProvider` supplies. `mediaStrings` still works and is merged after
+   * this, so an existing 0.8.x call site keeps behaving as it did.
+   */
+  strings?: LkStringsOverride;
   onInteraction?: (event: InteractionEvent) => void;
   /** Per-instance token overrides, applied as inline CSS vars on the root. */
   theme?: Partial<ThemeTokens>;
+  /**
+   * BCP 47 tag stamped as `lang` on this component's root. This is the
+   * INTERFACE language — the SDK's own chrome renders inside that element — so
+   * it should carry the same value you give `<LkIntlProvider locale>`. Passing
+   * a different one re-declares the language of every SDK string in this
+   * subtree without changing the words.
+   *
+   * It is NOT `data.locale`, which labels xAPI statements only. Authored
+   * content in another language belongs on `stimulus.locale`, which
+   * `<StimulusPanel>` puts on the passage alone.
+   */
   locale?: string;
   disabled?: boolean;
 }
@@ -215,7 +233,12 @@ export function asRenderableSequence(
 type RedactedItemGroupData = ItemGroup<RedactedActivityData> & { redacted: true };
 
 /**
- * Every English string the SDK's audio transport renders.
+ * Every word the SDK's audio transport renders.
+ *
+ * Words, not characters: the `m:ss / m:ss` clock is digits and punctuation and
+ * is formatted by the component, because it reads identically in every locale
+ * this SDK targets. The scrubber's SPOKEN value does have a word in it and does
+ * have a key ({@link MediaTransportStrings.timeValue}).
  *
  * Supply them to translate it. These are the highest-stakes strings on a
  * listening paper — "No plays remaining" decides whether a learner believes
@@ -233,6 +256,12 @@ export interface MediaTransportStrings {
   volume: string;
   speed: string;
   seek: string;
+  /**
+   * Spoken value of the scrubber, e.g. `('1:05', '4:30') => '1:05 of 4:30'`.
+   * Takes ALREADY-FORMATTED `m:ss` strings: a translation should not have to
+   * reimplement the clock to change the word between them.
+   */
+  timeValue: (elapsed: string, duration: string) => string;
   /** e.g. `(1, 2) => '1 of 2 plays remaining'`. */
   playsRemaining: (remaining: number, max: number) => string;
   noPlaysRemaining: string;

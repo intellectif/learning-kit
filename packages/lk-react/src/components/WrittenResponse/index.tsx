@@ -1,5 +1,6 @@
 'use client';
 
+import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import { ActivityErrorBoundary } from '../ActivityErrorBoundary.js';
 import {
   WrittenResponse as WrittenResponseCore,
@@ -16,8 +17,11 @@ export type { WrittenResponseProps, WrittenResponseSubmission } from './WrittenR
  * schema-validation throw) degrades to an accessible fallback.
  */
 export function WrittenResponse(props: WrittenResponseProps) {
+  // Read here rather than in the boundary: a class component cannot call a
+  // hook, and the fallback it renders is learner-facing text like any other.
+  const strings = useLkStrings(props.strings);
   return (
-    <ActivityErrorBoundary activityTitle={props.data?.title}>
+    <ActivityErrorBoundary activityTitle={props.data?.title} strings={strings}>
       <WrittenResponseCore {...props} />
     </ActivityErrorBoundary>
   );

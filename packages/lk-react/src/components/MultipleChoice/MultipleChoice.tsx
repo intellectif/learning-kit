@@ -16,6 +16,8 @@ import {
 } from '@intellectif/lk-core';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { useActivityState } from '../../hooks/useActivityState.js';
+import { useLkStrings } from '../../i18n/LkIntlProvider.js';
+import type { LkStrings } from '../../i18n/strings.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor, randomSessionId } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
@@ -52,21 +54,33 @@ function isAnswerOption(detail: ScoringDetail, wasSelected: boolean): boolean {
   }
 }
 
-/** Announcement for `review` mode, built only from the server-supplied outcome. */
-function reviewAnnouncement(outcome: ItemOutcome | undefined): string | null {
+/**
+ * Announcement for `review` mode, built only from the server-supplied outcome.
+ *
+ * The authored overall feedback is appended by this function rather than being
+ * baked into the score sentence, so a translation of "Score 80%. Passed." never
+ * has to carry the author's words with it.
+ */
+function reviewAnnouncement(outcome: ItemOutcome | undefined, s: LkStrings): string | null {
   if (outcome === undefined) {
     return null;
   }
   if (outcome.status === 'scored') {
     const overall = outcome.feedback;
-    return `Score ${Math.round(outcome.score * 100)}%. ${
-      outcome.passed ? 'Passed.' : 'Not passed.'
-    }${overall ? ` ${overall}` : ''}`;
+    return `${s.scoreAnnouncement(Math.round(outcome.score * 100), outcome.passed)}${
+      overall ? ` ${overall}` : ''
+    }`;
   }
   if (outcome.status === 'deferred') {
     // Never "0%": ungraded is not the same as wrong.
-    return 'Not graded yet.';
+    return s.notGradedYet;
   }
+  if (outcome.status === 'unscorable') {
+    return s.noGradeAvailable;
+  }
+  // `graded` is left silent here deliberately: a returned GradeRecord on a
+  // multiple-choice item has no rubric to render, and announcing a bare
+  // percentage would duplicate what the marking already shows.
   return null;
 }
 
@@ -99,7 +113,10 @@ export function MultipleChoice({
   locale,
   disabled,
   shuffleSeed,
+  strings,
 }: MultipleChoiceProps) {
+  const s = useLkStrings(strings);
+
   // Dev-only boundary validation (Req 2.3). Throwing during render lets
   // ActivityErrorBoundary catch it. Memoised so it only re-runs on data change.
   const devError = useMemo(() => {
@@ -269,7 +286,7 @@ export function MultipleChoice({
       // No score(), no answer key read, no onComplete, no xAPI — the server
       // grades. The announcement deliberately carries no correctness signal.
       complete();
-      setSummary('Answer submitted.');
+      setSummary(s.answerSubmitted);
       fireInteraction('submitted', { selectedOptionIds: selected });
       return;
     }
@@ -305,9 +322,10 @@ export function MultipleChoice({
     // Core selects the authored overall feedback on `passed` (B3 fix).
     const overall = scoringResult.feedback;
     setSummary(
-      `Answer submitted. Score ${Math.round(scoringResult.score * 100)}%. ${
-        scoringResult.passed ? 'Passed.' : 'Not passed.'
-      }${overall ? ` ${overall}` : ''}`,
+      `${s.answerSubmitted} ${s.scoreAnnouncement(
+        Math.round(scoringResult.score * 100),
+        scoringResult.passed,
+      )}${overall ? ` ${overall}` : ''}`,
     );
     fireInteraction('submitted', {
       selectedOptionIds: selected,
@@ -364,6 +382,7 @@ export function MultipleChoice({
           renderMode={renderMode}
           {...(mediaBudget !== undefined ? { mediaBudget } : {})}
           {...(mediaStrings !== undefined ? { mediaStrings } : {})}
+          {...(strings !== undefined ? { strings } : {})}
           {...(onInteraction !== undefined ? { onInteraction } : {})}
           {...(locale !== undefined ? { locale } : {})}
         />
@@ -396,13 +415,13 @@ export function MultipleChoice({
           {/* review is read-only: there is nothing left to submit. */}
           {isReview ? null : (
             <button type="submit" disabled={inactive}>
-              Submit
+              {s.submit}
             </button>
           )}
         </fieldset>
       </form>
       <FeedbackRegion id={`${data.id}-feedback`}>
-        {isReview ? reviewAnnouncement(outcome) : summary}
+        {isReview ? reviewAnnouncement(outcome, s) : summary}
       </FeedbackRegion>
     </div>
   );

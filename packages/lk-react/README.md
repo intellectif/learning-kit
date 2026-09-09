@@ -84,6 +84,7 @@ export function Demo() {
 - **`useActivityState()`** — `idle → in-progress → completed → reviewing` machine with `getTimeSpent()`.
 - **`<ThemeProvider>` + `defaults.css`** — `--lk-*` design-token system; automatic dark mode via `prefers-color-scheme` (SSR-safe with `useSyncExternalStore`).
 - **`createTailwindTheme(theme)`** — optional Tailwind interop; consume the SDK palette from your own utilities.
+- **`<LkIntlProvider>`** — all 50 strings the SDK's own chrome renders, replaceable in one place, with a per-component `strings` prop for the exceptions. Interpolation and plurals are **functions**, not format strings, so your `Intl.PluralRules` does the work and TypeScript checks the arity. `locale` sets `lang` and derives `dir`; the skin uses logical properties, so RTL follows. The SDK ships the mechanism and **English only** — see [docs/i18n.md](https://github.com/intellectif/learning-kit/blob/main/docs/i18n.md).
 - **WCAG 2.2 AA** — axe-clean unit + Playwright e2e tests; full keyboard operability; numerically-verified contrast.
 - **RSC-compatible** — every component carries `'use client'` and hydrates inside a React Server Component tree.
 
@@ -99,6 +100,7 @@ export function Demo() {
 | `@intellectif/lk-react/components/StimulusPanel` | `<StimulusPanel>` shared-stimulus region |
 | `@intellectif/lk-react/hooks/useActivityState` | Lifecycle + timing |
 | `@intellectif/lk-react/hooks/useXAPI` | LRS delivery (retry, never-throws) |
+| `@intellectif/lk-react/i18n/LkIntlProvider` | `<LkIntlProvider>`, `useLkStrings`, `useLkDirection`, `DEFAULT_STRINGS`, `mergeStrings`, `directionForLocale` |
 | `@intellectif/lk-react/theme/ThemeProvider` | `<ThemeProvider>`, `darkTheme`, `useTheme`, `createTailwindTheme` |
 | `@intellectif/lk-react/theme/defaults.css` | Tokens (required) |
 | `@intellectif/lk-react/theme/skin.css` | Optional polished skin |
@@ -120,7 +122,7 @@ subpath of their own.
 | **Retry** | Pass a new `data` reference or change the React `key` → the activity resets to **its seeded state**, not to blank. With `defaultValue` / `defaultSubmitted` set, a new `key` and a new `data` reference are indistinguishable: both return the restored answer, still locked as submitted. For a genuinely fresh attempt, change the `key` **and stop passing the seeds**. No built-in button — retry *policy* is yours. |
 | **Persistence / resume** | Storage is yours — capture `onSubmit` / `onChange` / `onInteraction` / `onIndexChange` and persist as you wish. Re-hydration is supported at **both** levels: `defaultValue` / `value` + `onChange` on a component (since 2.1.0), and `defaultIndex` / `responses` / `submittedSlotIds` on `<ActivitySequence>` (since 6.0.0). |
 | **Rich text** | Rendered only when you pass `sanitizeHtml`; the SDK bundles no sanitiser and injects no HTML without one. `FillInTheBlanks` deliberately **ignores** `passageHtml` — the passage hosts the answer inputs, so it is built from `passage` plus the blanks (dev-mode warning if you pass it). |
-| **i18n** | `locale` sets the `lang` attribute on the rendered region and names xAPI statements. UI strings are English and not yet overridable, and there is no RTL-specific styling. |
+| **i18n** | Every SDK-rendered string is replaceable through `<LkIntlProvider>` or a per-component `strings` prop (lk-react 7.1.0); `locale` sets `lang` and names xAPI statements. **No locale but English is bundled** — the SDK ships the mechanism and the English defaults, because it cannot review a translation it does not speak. RTL is supported: the provider derives `dir` from the locale — and declares neither `lang` nor `dir` when you supplied neither, so it cannot flip an RTL host back — and the skin uses logical properties throughout. Thrown errors stay English on purpose — they address the developer, not the learner. |
 | **Media** | `<audio>` / `<video>` are paused when the pager navigates away, preserving `currentTime` so a group resumes where the learner left it; nothing ever auto-plays. A provider `embed` (iframe) **cannot** be paused this way — controlling a third-party player needs its own JS API. Use `audio` / `video` for anything that must stop when the learner navigates. |
 | **Playback policy** | Audio only. `maxPlays` / `seek` / `rate` are enforced by the SDK's own transport — a refused play is stopped inside the browser's `play` event, before a sample is audible. `nativeControlHints` is **advisory**: it emits `controlsList`, which some engines ignore, and never prevents a download. A budget is durable only if you persist it through `mediaBudget.onPlayConsumed`; the SDK stores nothing. Nothing here survives devtools. Not implemented for `video` or `embed`. |
 | **Authoring / content storage / CDN / auth** | Consumer responsibility — typed schemas + `validateActivity` + JSON Schema export are provided for you to build authoring on. |
@@ -143,6 +145,7 @@ before assuming a migration is needed.
 - [Changelog](https://github.com/intellectif/learning-kit/blob/main/packages/lk-react/CHANGELOG.md) — every release, with the reasoning.
 - [Authoring & content storage](https://github.com/intellectif/learning-kit/blob/main/docs/authoring.md)
 - [Styling](https://github.com/intellectif/learning-kit/blob/main/docs/styling.md) — tokens, the skin, overrides, dark mode, Tailwind.
+- [Internationalisation](https://github.com/intellectif/learning-kit/blob/main/docs/i18n.md) — the full string surface, precedence, plurals, RTL.
 - [Project README](https://github.com/intellectif/learning-kit#readme) — full picture & monorepo layout.
 
 ## License

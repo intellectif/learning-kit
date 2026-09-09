@@ -15,6 +15,7 @@ import {
 } from '@intellectif/lk-core';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { useActivityState } from '../../hooks/useActivityState.js';
+import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
@@ -106,6 +107,7 @@ export function FillInTheBlanks({
   sanitizeHtml,
   mediaBudget,
   mediaStrings,
+  strings,
   theme,
   locale,
   disabled,
@@ -116,6 +118,8 @@ export function FillInTheBlanks({
 
   // Dev-only boundary validation (Req 2.3); throws in render so the wrapping
   // ActivityErrorBoundary catches it. Re-runs only when data changes.
+  const s = useLkStrings(strings);
+
   const devError = useMemo(() => {
     if (!isDevelopment()) {
       return null;
@@ -327,7 +331,7 @@ export function FillInTheBlanks({
       // because its `correctResponsesPattern` IS the answer key. The server
       // owns the grade; it emits the statement.
       complete();
-      setSummary('Answer submitted.');
+      setSummary(s.answerSubmitted);
       fireInteraction('submitted', { answers });
       return;
     }
@@ -359,9 +363,10 @@ export function FillInTheBlanks({
     // Core selects the authored overall feedback on `passed` (B3 fix).
     const overall = scoringResult.feedback;
     setSummary(
-      `Answer submitted. Score ${Math.round(scoringResult.score * 100)}%. ${
-        scoringResult.passed ? 'Passed.' : 'Not passed.'
-      }${overall ? ` ${overall}` : ''}`,
+      `${s.answerSubmitted} ${s.scoreAnnouncement(
+        Math.round(scoringResult.score * 100),
+        scoringResult.passed,
+      )}${overall ? ` ${overall}` : ''}`,
     );
     fireInteraction('submitted', { answers, score: scoringResult.score });
   };
@@ -387,12 +392,28 @@ export function FillInTheBlanks({
       return null;
     }
     if (outcome.status === 'scored') {
-      return `Score ${Math.round(outcome.score * 100)}%. ${
-        outcome.passed ? 'Passed.' : 'Not passed.'
-      }${outcome.feedback ? ` ${outcome.feedback}` : ''}`;
+      return `${s.scoreAnnouncement(Math.round(outcome.score * 100), outcome.passed)}${
+        outcome.feedback ? ` ${outcome.feedback}` : ''
+      }`;
     }
-    return outcome.status === 'deferred' ? 'Not graded yet.' : 'No grade available.';
-  }, [isReview, outcome]);
+    if (outcome.status === 'deferred') {
+      return s.notGradedYet;
+    }
+    // `graded` used to fall into the arm below and announce "No grade
+    // available." over a grade that had come back. Normalised by maxScore so a
+    // grader payload of 8.5 / 10 does not read as 850% — same guard as
+    // `<WrittenResponse>`.
+    if (outcome.status === 'graded') {
+      const percent =
+        outcome.maxScore > 0
+          ? Math.round((outcome.score / outcome.maxScore) * 100)
+          : Math.round(outcome.score * 100);
+      return `${s.scoreAnnouncement(percent, outcome.passed)}${
+        outcome.feedback ? ` ${outcome.feedback}` : ''
+      }`;
+    }
+    return s.noGradeAvailable;
+  }, [isReview, outcome, s]);
 
   return (
     <form
@@ -409,6 +430,7 @@ export function FillInTheBlanks({
           renderMode={renderMode}
           {...(mediaBudget !== undefined ? { mediaBudget } : {})}
           {...(mediaStrings !== undefined ? { mediaStrings } : {})}
+          {...(strings !== undefined ? { strings } : {})}
           {...(onInteraction !== undefined ? { onInteraction } : {})}
           {...(locale !== undefined ? { locale } : {})}
         />
@@ -446,7 +468,7 @@ export function FillInTheBlanks({
               <span key={seg.id} className="lk-fib-blank">
                 <input
                   type="text"
-                  aria-label={`Fill in blank ${seg.ordinal}`}
+                  aria-label={s.blankLabel(seg.ordinal)}
                   aria-describedby={blank.hint ? hintId : undefined}
                   value={answers[seg.id] ?? ''}
                   disabled={inactive}
@@ -473,7 +495,7 @@ export function FillInTheBlanks({
                       className="lk-fib-hint-btn"
                       aria-controls={hintId}
                       aria-expanded={revealed.has(seg.id)}
-                      aria-label={revealed.has(seg.id) ? 'Hide hint' : 'Show hint'}
+                      aria-label={revealed.has(seg.id) ? s.hideHint : s.showHint}
                       disabled={inactive}
                       onClick={() => toggleHint(seg.id)}
                     >
@@ -520,7 +542,7 @@ export function FillInTheBlanks({
         {/* Review is read-only: there is nothing to submit. */}
         {isReview ? null : (
           <button type="submit" disabled={inactive}>
-            {isExam ? 'Submit answers' : 'Check answers'}
+            {isExam ? s.submitAnswers : s.checkAnswers}
           </button>
         )}
       </fieldset>
@@ -531,7 +553,7 @@ export function FillInTheBlanks({
           aria-expanded={!feedbackHidden}
           onClick={() => setFeedbackHidden((h) => !h)}
         >
-          {feedbackHidden ? 'Show feedback' : 'Hide feedback'}
+          {feedbackHidden ? s.showFeedback : s.hideFeedback}
         </button>
       ) : null}
       <FeedbackRegion id={`${data.id}-feedback`}>

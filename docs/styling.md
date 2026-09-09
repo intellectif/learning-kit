@@ -30,6 +30,18 @@ Every skin rule is inside the named cascade layer **`@layer lk-skin`**. By CSS c
 .lk-fib-blank input { border-color: rebeccapurple; }
 ```
 
+### Writing direction
+
+The skin is direction-agnostic: it uses logical properties (`margin-inline-start`,
+`inset-inline-start`, `padding-inline`) rather than `left` / `right`, so it follows the
+`dir` that `<LkIntlProvider>` sets — or the one your own document sets. `defaults.css`
+declares no directional properties at all. `e2e/rtl-layout.spec.ts` measures this in a
+real browser in both directions, because a physical `margin-left` is invisible to every
+other check when the page happens to be left-to-right.
+
+Override with logical properties too, or an RTL learner gets your left-to-right layout
+inside a right-to-left page. See [Internationalisation](./i18n.md).
+
 ### Class hooks
 
 | Hook | Element |

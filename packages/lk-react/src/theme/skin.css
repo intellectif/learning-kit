@@ -260,7 +260,7 @@
   }
 
   .lk-mc-option-feedback {
-    margin-left: auto;
+    margin-inline-start: auto;
     font-size: var(--lk-font-size-sm);
     color: var(--lk-color-text-muted);
   }
@@ -338,7 +338,7 @@
 
   /* Inline per-blank feedback shown after submission. */
   .lk-fib-blank-feedback {
-    margin-left: var(--lk-spacing-xs);
+    margin-inline-start: var(--lk-spacing-xs);
     font-size: var(--lk-font-size-sm);
     color: var(--lk-color-text-muted);
   }
@@ -376,7 +376,7 @@
   .lk-fib-blank [aria-live]:not(:empty) {
     position: absolute;
     bottom: calc(100% + 6px);
-    left: 0;
+    inset-inline-start: 0;
     z-index: 1;
     max-width: 16rem;
     padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
@@ -393,7 +393,7 @@
     content: "";
     position: absolute;
     top: 100%;
-    left: var(--lk-spacing-sm);
+    inset-inline-start: var(--lk-spacing-sm);
     border: 5px solid transparent;
     border-top-color: var(--lk-color-text);
   }

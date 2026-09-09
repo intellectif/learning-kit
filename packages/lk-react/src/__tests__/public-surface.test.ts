@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import * as intlEntry from '../i18n/LkIntlProvider.js';
 import * as barrel from '../index.js';
 import * as themeEntry from '../theme/ThemeProvider.js';
 
@@ -20,13 +21,19 @@ describe('published export surface', () => {
     'MultipleChoice',
     'StimulusPanel',
     'WrittenResponse',
+    'DEFAULT_STRINGS',
+    'LkIntlProvider',
     'ThemeProvider',
     'asRenderable',
     'asRenderableSequence',
     'createTailwindTheme',
     'darkTheme',
     'defaultTheme',
+    'directionForLocale',
+    'mergeStrings',
     'useActivityState',
+    'useLkDirection',
+    'useLkStrings',
     'useTheme',
     'useXAPI',
   ] as const;
@@ -51,5 +58,22 @@ describe('published export surface', () => {
 
   it.each(themeExports)('theme/ThemeProvider exports %s', (name) => {
     expect(themeNames).toContain(name);
+  });
+
+  // The README's subpath table names these as the contents of
+  // `@intellectif/lk-react/i18n/LkIntlProvider`.
+  const intlExports = [
+    'DEFAULT_STRINGS',
+    'LkIntlProvider',
+    'directionForLocale',
+    'mergeStrings',
+    'useLkDirection',
+    'useLkStrings',
+  ] as const;
+
+  const intlNames = Object.keys(intlEntry);
+
+  it.each(intlExports)('i18n/LkIntlProvider exports %s', (name) => {
+    expect(intlNames).toContain(name);
   });
 });

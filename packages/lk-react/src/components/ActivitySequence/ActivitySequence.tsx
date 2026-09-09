@@ -17,6 +17,8 @@ import {
   type ThemeTokens,
 } from '@intellectif/lk-core';
 import { type ComponentType, useEffect, useMemo, useRef, useState } from 'react';
+import { useLkStrings } from '../../i18n/LkIntlProvider.js';
+import type { LkStringsOverride } from '../../i18n/strings.js';
 import { randomSessionId } from '../_internal.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
@@ -160,6 +162,8 @@ export interface ActivitySequenceProps {
    * {@link SequenceMediaBudget}.
    */
   mediaBudget?: SequenceMediaBudget;
+  /** Overrides the SDK's chrome text for this sequence. See {@link LkIntlProvider}. */
+  strings?: LkStringsOverride;
   /**
    * `entries` shuffles the top-level entries; a group moves as one block, and
    * the order INSIDE a group follows the group's own `shuffle` setting.
@@ -228,6 +232,17 @@ export interface ActivitySequenceProps {
   /** Renders author-supplied rich text; forwarded to the stimulus panel and every activity. */
   sanitizeHtml?: HtmlSanitizer;
   theme?: Partial<ThemeTokens>;
+  /**
+   * BCP 47 tag stamped as `lang` on this component's root. This is the
+   * INTERFACE language — the SDK's own chrome renders inside that element — so
+   * it should carry the same value you give `<LkIntlProvider locale>`. Passing
+   * a different one re-declares the language of every SDK string in this
+   * subtree without changing the words.
+   *
+   * It is NOT `data.locale`, which labels xAPI statements only. Authored
+   * content in another language belongs on `stimulus.locale`, which
+   * `<StimulusPanel>` puts on the passage alone.
+   */
   locale?: string;
   disabled?: boolean;
 }
@@ -344,8 +359,10 @@ export function ActivitySequence({
   locale,
   disabled,
   mediaBudget,
+  strings,
 }: ActivitySequenceProps): React.JSX.Element {
   const sessionIdRef = useRef<string | null>(null);
+  const s = useLkStrings(strings);
   const mediaPlays = mediaBudget?.plays;
 
   // The presented order comes from lk-core, never computed here: the server
@@ -666,6 +683,7 @@ export function ActivitySequence({
     ...(onInteraction ? { onInteraction } : {}),
     renderMode,
     ...(sanitizeHtml ? { sanitizeHtml } : {}),
+    ...(strings !== undefined ? { strings } : {}),
     ...(theme ? { theme } : {}),
     ...(locale ? { locale } : {}),
     ...(disabled ? { disabled } : {}),
@@ -747,7 +765,7 @@ export function ActivitySequence({
     }
     return (
       <div className="lk-seq-unsupported" role="note">
-        This activity type has no renderer. Supply one through the renderers prop.
+        {s.unsupportedActivity}
       </div>
     );
   };
@@ -757,7 +775,7 @@ export function ActivitySequence({
   return (
     <div className="lk-seq" lang={locale}>
       <div className="lk-seq-progress" aria-live="polite" role="status">
-        Question {index + 1} of {total}
+        {s.questionProgress(index + 1, total)}
       </div>
 
       {/*
@@ -799,6 +817,7 @@ export function ActivitySequence({
               {...(locale ? { locale } : {})}
               {...(onInteraction ? { onInteraction } : {})}
               {...(disabled ? { disabled } : {})}
+              {...(strings !== undefined ? { strings } : {})}
               {...(stimulusBinding !== undefined ? { mediaBudget: stimulusBinding } : {})}
             />
           </SequencePane>
@@ -809,7 +828,7 @@ export function ActivitySequence({
         className="lk-seq-question"
         ref={regionRef}
         tabIndex={-1}
-        aria-label={`Question ${index + 1} of ${total}`}
+        aria-label={s.questionProgress(index + 1, total)}
       >
         {/*
           Every slot stays MOUNTED; only the current one is visible. Rendering
@@ -849,7 +868,7 @@ export function ActivitySequence({
           onClick={() => go(index - 1)}
           disabled={index === 0}
         >
-          Previous
+          {s.previous}
         </button>
         <button
           type="button"
@@ -857,7 +876,7 @@ export function ActivitySequence({
           onClick={() => go(index + 1)}
           disabled={index === total - 1}
         >
-          Next
+          {s.next}
         </button>
       </div>
     </div>

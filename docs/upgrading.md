@@ -14,13 +14,22 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.5.0 | 4.0.0 | Item groups + shared stimulus, the exam response channel (`onSubmit`), `slotId` on `onActivityComplete`, `xapiDefinitionFor`, opt-in rounded item threshold, `seededShuffle` v2 |
 | 0.6.0 | 5.0.0 | `CriterionScore.maxScore`, per-type redacted types, `planAttempt`. **No React API change** — 5.0.0 is purely the peer bump |
 | 0.7.0 | 6.0.0 | `AttemptState`, sequence resume & review, `defaultSubmitted`, `shuffleSeed` reaching the option shuffle |
+| 0.8.0 | 7.0.0 | Media playback policy for listening papers: `media.playback` (`maxPlays` / `seek` / `rate` / `nativeControlHints`), the SDK's own audio transport, `MediaPlayLedger`, `mediaBudget` on the pager. **Also two new render-time throws and one grade-affecting match fix** — the only release in this table that asks you to do something |
+| 0.8.1 | 7.0.1 | Patch: two further fail-open leaks in `redact()`, a play budget that never bound on an essay slot, and three guards that could not fail |
+| 0.8.1 | 7.1.0 | `<LkIntlProvider>`: every string the SDK renders itself is overridable, `lang` / `dir` derived from the locale, RTL-safe skin. **No `lk-core` change** — a `lk-react` minor on the same peer range as 7.0.1 |
 
-Nothing here changes a grade on its own. Every behavioural change is opt-in, per
-the [grade-stability rule](./roadmap.md#5-standing-decisions): if you upgrade and
-change no code, the numbers you record stay exactly what they were.
+Every behavioural change here is opt-in, per the
+[grade-stability rule](./roadmap.md#5-standing-decisions) — with **one
+exception, in 0.8.0**: a fuzzy-matching fix that stopped an *unanswered* blank
+scoring as correct. That one changes a number, deliberately, because every mark
+it changes was wrong. It is spelled out in
+[0.7 → 0.8](#07--08-lk-core--6x--7x-lk-react). Everywhere else in this table, if
+you upgrade and change no code, the numbers you record stay exactly what they
+were.
 
 - On **0.3.x / 0.4.x / 0.5.x**? Start with [Grade-correctness first](#grade-correctness-first).
 - On **0.6.x**? Skip to [0.6 → 0.7](#06--07-lk-core--5x--6x-lk-react).
+- On **0.7.x**? Skip to [0.7 → 0.8](#07--08-lk-core--6x--7x-lk-react) — it has two new render-time throws and one grade-affecting fix.
 
 ---
 
@@ -210,6 +219,75 @@ the learner actually saw.
 > is tracked in the [roadmap](./roadmap.md).
 
 ---
+
+## 0.7 → 0.8 (`lk-core`) / 6.x → 7.x (`lk-react`)
+
+7.1.0 is additive: upgrade to it from 7.0.x and change nothing. **0.8.0 / 7.0.0
+is not** — it closed two exam-integrity holes by turning them into render-time
+throws, and fixed a match bug that can change a recorded grade. Those three are
+first below; do them before anything else.
+
+### Two things that now throw at render *(0.8.0 / 7.0.0)*
+
+Both were exam-integrity guards watching the wrong door. Each threw open a path
+that looked like it worked, which is why they are errors rather than warnings.
+
+- **An unseeded item-level shuffle in `exam` / `review`.** `<ActivitySequence>`
+  demanded a `shuffleSeed` for `shuffle="entries"` and for a group's
+  `shuffle: 'within-group'`, but never for an activity's own `data.shuffle` —
+  and `<MultipleChoice>` invents a per-mount seed when none reaches it. A single
+  item with `shuffle: true` produced an order the server cannot rebuild.
+  **Do:** pass `shuffleSeed={attemptId}` whenever any activity carries
+  `shuffle`. Note the pager is exported without an error boundary of its own, so
+  an unfixed paper fails whole rather than per item.
+- **Redacted data in `<WrittenResponse renderMode="practice">`** (`practice` is
+  the default). Its two siblings have refused this since 0.5.0. The asymmetry
+  looked harmless because the component never scores locally — but `practice`
+  still runs the submit path and emits a practice-mode xAPI statement for work
+  the server is meant to grade. **Do:** render redacted essays with
+  `renderMode="exam"` or `"review"`. Its own boundary contains this one to a
+  single error card.
+
+### One change that can move a recorded grade *(0.8.0)*
+
+Levenshtein distance from an empty string is just the answer's length, so
+`levenshtein: 1` on a one-letter blank — an article, or "I" — accepted an
+**unanswered** blank: `matchText('', ['a'], { levenshtein: 1 })` returned
+`{ matched: true, via: 'fuzzy' }`. Empty and whitespace-only input no longer
+reaches the fuzzy stage at all; exact and normalized matching are untouched, so
+an author who deliberately lists `""` as an accepted answer still gets it, one
+stage earlier.
+
+**Do:** if you have stored gap-fill grades under a `levenshtein` policy with
+very short accepted answers, they are worth recomputing. Related hazard,
+unchanged: `levenshtein: 1` against a one-character answer still accepts *any*
+single character — that is what an edit distance of 1 means. Prefer exact
+matching on single-letter blanks.
+
+### Listening papers can now limit playback *(0.8.0 / 7.0.0)*
+
+An audio `media` can declare `playback: { maxPlays, seek, rate }`. With any of
+them set, the component renders the SDK's own accessible transport instead of the
+browser bar and enforces the policy from the element's own events, so a hardware
+media key goes through the budget too. A play budget survives a refresh **only**
+if you persist it: wire `mediaBudget` on `<ActivitySequence>` and store what
+`onPlayConsumed` reports. The SDK remembers nothing.
+
+`nativeControlHints` is advisory by design — it emits `controlsList`, which some
+engines ignore and which never prevents a download. Use signed, expiring URLs if
+the file itself must not be kept.
+
+### The UI speaks your language *(7.1.0)*
+
+Every string the SDK renders itself — 47 of them — is replaceable through
+`<LkIntlProvider>` or a per-component `strings` prop, and the provider sets `lang`
+and derives `dir` from the locale. **Only English is bundled**; the mechanism
+ships and the translations are yours.
+
+If you already pass `mediaStrings` or `mediaBudget.strings` (7.0.0), keep them:
+they still work, and they still win over the provider for the transport. The
+English defaults are byte-identical to 7.0.1, so a tree with no provider is
+unchanged. See [Internationalisation](./i18n.md).
 
 ## 0.6 → 0.7 (`lk-core`) / 5.x → 6.x (`lk-react`)
 

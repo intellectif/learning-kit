@@ -1,58 +1,13 @@
 import type { ActivityMedia as ActivityMediaData } from '@intellectif/lk-core';
 import { resolvePlaybackPolicy } from '@intellectif/lk-core';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { LkIntlProvider } from '../../../i18n/LkIntlProvider.js';
+import { stubMediaElement } from '../../../test-support/media.js';
 import type { MediaBudgetBinding } from '../../types.js';
 import { AudioTransport } from '../AudioTransport.js';
-
-/**
- * jsdom ships no media pipeline: `play()` rejects with "Not implemented" and
- * `currentTime` never advances. These stubs give the element the two behaviours
- * the transport actually reasons about — a paused flag and a playhead — so the
- * state machine is exercised rather than mocked away.
- */
-function stubMediaElement(): void {
-  const state = new WeakMap<HTMLMediaElement, { paused: boolean; time: number }>();
-  const get = (el: HTMLMediaElement) => {
-    let s = state.get(el);
-    if (s === undefined) {
-      s = { paused: true, time: 0 };
-      state.set(el, s);
-    }
-    return s;
-  };
-
-  Object.defineProperty(HTMLMediaElement.prototype, 'paused', {
-    configurable: true,
-    get(this: HTMLMediaElement) {
-      return get(this).paused;
-    },
-  });
-  Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', {
-    configurable: true,
-    get(this: HTMLMediaElement) {
-      return get(this).time;
-    },
-    set(this: HTMLMediaElement, value: number) {
-      get(this).time = value;
-    },
-  });
-  Object.defineProperty(HTMLMediaElement.prototype, 'duration', {
-    configurable: true,
-    get: () => 60,
-  });
-  HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
-    get(this).paused = false;
-    this.dispatchEvent(new Event('play'));
-    return Promise.resolve();
-  };
-  HTMLMediaElement.prototype.pause = function pause(this: HTMLMediaElement) {
-    get(this).paused = true;
-    this.dispatchEvent(new Event('pause'));
-  };
-}
 
 const audio = (playback: Record<string, unknown>): ActivityMediaData =>
   ({ type: 'audio', url: '/part2.mp3', alt: 'Part 2', playback }) as ActivityMediaData;
@@ -255,6 +210,52 @@ describe('AudioTransport', () => {
     const play = screen.getByRole('button', { name: 'Play — No plays remaining' });
     expect(play).toHaveAttribute('aria-disabled', 'true');
     expect(play).not.toBeDisabled();
+  });
+
+  /**
+   * The precedence promised in four places — `docs/i18n.md`, `docs/upgrading.md`,
+   * the `types.ts` docblock and the changeset — was implemented as a spread
+   * order and asserted nowhere: no test rendered a provider together with the
+   * two narrower props, so swapping the spreads would not have failed CI. The
+   * order is a back-compat guarantee to anyone who wired `mediaStrings` in
+   * 7.0.0, which makes it exactly the kind of promise that needs a test.
+   */
+  it('mediaBudget.strings beats mediaStrings beats the provider, key by key', () => {
+    const media = audio({ maxPlays: 3 });
+    const withProvider = (over: Partial<React.ComponentProps<typeof AudioTransport>>) =>
+      render(
+        <LkIntlProvider
+          locale="es"
+          strings={{ media: { play: 'PROVIDER_PLAY', mute: 'PROVIDER_MUTE' } }}
+        >
+          <AudioTransport
+            media={media}
+            policy={resolvePlaybackPolicy(media)}
+            renderMode="exam"
+            {...over}
+          />
+        </LkIntlProvider>,
+      );
+
+    // All three levels present: the narrowest wins.
+    withProvider({
+      mediaStrings: { play: 'PROP_PLAY' },
+      mediaBudget: binding({ strings: { play: 'BUDGET_PLAY' } }),
+    });
+    expect(screen.getByRole('button', { name: 'BUDGET_PLAY' })).toBeInTheDocument();
+    // And a key none of the narrower levels mention still comes from the
+    // provider — the layers merge key by key rather than replacing wholesale.
+    expect(screen.getByRole('button', { name: 'PROVIDER_MUTE' })).toBeInTheDocument();
+    cleanup();
+
+    // Drop the budget strings: the 7.0.0 prop takes over.
+    withProvider({ mediaStrings: { play: 'PROP_PLAY' }, mediaBudget: binding() });
+    expect(screen.getByRole('button', { name: 'PROP_PLAY' })).toBeInTheDocument();
+    cleanup();
+
+    // Drop both: the provider is what is left.
+    withProvider({ mediaBudget: binding() });
+    expect(screen.getByRole('button', { name: 'PROVIDER_PLAY' })).toBeInTheDocument();
   });
 });
 

@@ -2,6 +2,8 @@
 
 import type { InteractionEvent, Stimulus } from '@intellectif/lk-core';
 import { useId, useMemo } from 'react';
+import { useLkStrings } from '../../i18n/LkIntlProvider.js';
+import type { LkStringsOverride } from '../../i18n/strings.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import type {
   HtmlSanitizer,
@@ -37,16 +39,9 @@ export interface StimulusPanelProps {
   mediaStrings?: Partial<MediaTransportStrings>;
   onInteraction?: (event: InteractionEvent) => void;
   disabled?: boolean;
+  /** Overrides the SDK's chrome text for this panel. See {@link LkIntlProvider}. */
+  strings?: LkStringsOverride;
 }
-
-/** Accessible name of the region when the stimulus has no title of its own. */
-const KIND_LABEL: Record<Stimulus['kind'], string> = {
-  text: 'Passage',
-  audio: 'Recording',
-  video: 'Video',
-  image: 'Image',
-  mixed: 'Material',
-};
 
 /**
  * Presents a shared stimulus — the passage, recording or image an item group's
@@ -67,8 +62,10 @@ export function StimulusPanel({
   mediaStrings,
   onInteraction,
   disabled,
+  strings,
 }: StimulusPanelProps): React.JSX.Element {
   const titleId = useId();
+  const s = useLkStrings(strings);
 
   const bodyHtml = useMemo(() => {
     if (sanitizeHtml === undefined || typeof stimulus.bodyHtml !== 'string') {
@@ -77,17 +74,12 @@ export function StimulusPanel({
     return sanitizeHtml(stimulus.bodyHtml);
   }, [stimulus.bodyHtml, sanitizeHtml]);
 
-  const rangeText =
-    range === undefined
-      ? null
-      : range.first === range.last
-        ? `Question ${range.first}`
-        : `Questions ${range.first}–${range.last}`;
+  const rangeText = range === undefined ? null : s.stimulusRange(range.first, range.last);
 
   const naming =
     stimulus.title !== undefined
       ? { 'aria-labelledby': titleId }
-      : { 'aria-label': KIND_LABEL[stimulus.kind] };
+      : { 'aria-label': s.stimulusKind[stimulus.kind] };
 
   // The AUTHORED parts carry the stimulus language; the SDK's own chrome does
   // not. Declaring `stimulus.locale` on the whole region made a screen reader
@@ -112,6 +104,7 @@ export function StimulusPanel({
           {...(renderMode !== undefined ? { renderMode } : {})}
           {...(mediaBudget !== undefined ? { mediaBudget } : {})}
           {...(mediaStrings !== undefined ? { mediaStrings } : {})}
+          {...(strings !== undefined ? { strings } : {})}
           {...(onInteraction !== undefined ? { onInteraction } : {})}
           {...(disabled !== undefined ? { disabled } : {})}
           {...(locale !== undefined ? { locale } : {})}
