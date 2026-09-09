@@ -78,7 +78,23 @@ const REQUIRED_EXPORTS = {
     'defaultTheme',
     'useTheme',
   ],
-  'dist/index.js': ['ActivitySequence', 'MultipleChoice', 'createTailwindTheme', 'useXAPI'],
+  'dist/i18n/LkIntlProvider.js': [
+    'DEFAULT_STRINGS',
+    'LkIntlProvider',
+    'directionForLocale',
+    'mergeStrings',
+    'useLkDirection',
+    'useLkStrings',
+  ],
+  'dist/index.js': [
+    'ActivitySequence',
+    'DEFAULT_STRINGS',
+    'LkIntlProvider',
+    'MultipleChoice',
+    'createTailwindTheme',
+    'useLkStrings',
+    'useXAPI',
+  ],
 };
 
 for (const [rel, expected] of Object.entries(REQUIRED_EXPORTS)) {
@@ -96,6 +112,66 @@ for (const [rel, expected] of Object.entries(REQUIRED_EXPORTS)) {
   }
 }
 
+/**
+ * `docs/i18n.md` documents every translatable string by name and, for the
+ * plain ones, by their English default. That table is what a consumer types
+ * their translation against, so a key renamed or a default reworded in `src`
+ * and not in the doc hands them a key that silently does nothing. Checked
+ * against the BUILT dictionary for the same reason as everything else here:
+ * what ships is what matters.
+ */
+const DOC = join(PKG_ROOT, '..', '..', 'docs', 'i18n.md');
+let documentedCount = 0;
+
+function leafPaths(source, prefix = '') {
+  return Object.entries(source).flatMap(([key, value]) => {
+    const path = prefix === '' ? key : `${prefix}.${key}`;
+    return typeof value === 'object' && value !== null ? leafPaths(value, path) : [path];
+  });
+}
+
+try {
+  const doc = readFileSync(DOC, 'utf8');
+  const section = doc.slice(doc.indexOf('## The full surface'), doc.indexOf('## Exports'));
+  if (section === '') {
+    throw new Error('could not locate the surface table between its two headings');
+  }
+
+  const { DEFAULT_STRINGS } = await import(
+    pathToFileURL(join(PKG_ROOT, 'dist/i18n/LkIntlProvider.js')).href
+  );
+  const actual = leafPaths(DEFAULT_STRINGS);
+
+  // Every row of every table there starts `| \`key\` | …`; a function's key
+  // carries its parameter list, which is not part of the path.
+  const rows = [...section.matchAll(/^\| `([^`]+)`\s*\|\s*(?:`([^`]*)`)?/gm)];
+  const documented = new Map(rows.map(([, key, value]) => [key.replace(/\(.*\)$/, ''), value]));
+  documentedCount = documented.size;
+
+  for (const path of actual) {
+    if (!documented.has(path)) {
+      failures.push(`docs/i18n.md does not document the string ${path}`);
+      continue;
+    }
+    const value = path.split('.').reduce((node, key) => node[key], DEFAULT_STRINGS);
+    const shown = documented.get(path);
+    // Only the plain strings are pinned. A function's column holds an EXAMPLE
+    // of what it returns, which is not a value this can compare against.
+    if (typeof value === 'string' && shown !== value) {
+      failures.push(
+        `docs/i18n.md documents ${path} as ${JSON.stringify(shown)}, not ${JSON.stringify(value)}`,
+      );
+    }
+  }
+  for (const path of documented.keys()) {
+    if (!actual.includes(path)) {
+      failures.push(`docs/i18n.md documents ${path}, which is not in DEFAULT_STRINGS`);
+    }
+  }
+} catch (error) {
+  failures.push(`docs/i18n.md could not be checked: ${error.message}`);
+}
+
 if (failures.length > 0) {
   console.error('verify-dist FAILED:\n');
   for (const failure of failures) {
@@ -105,5 +181,6 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `verify-dist OK: ${checked} emitted modules carry ${DIRECTIVE}; built exports resolve.`,
+  `verify-dist OK: ${checked} emitted modules carry ${DIRECTIVE}; built exports resolve; ` +
+    `docs/i18n.md matches all ${documentedCount} shipped strings.`,
 );

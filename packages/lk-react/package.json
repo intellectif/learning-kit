@@ -113,6 +113,16 @@
         "default": "./dist/hooks/useXAPI.cjs"
       }
     },
+    "./i18n/LkIntlProvider": {
+      "import": {
+        "types": "./dist/i18n/LkIntlProvider.d.ts",
+        "default": "./dist/i18n/LkIntlProvider.js"
+      },
+      "require": {
+        "types": "./dist/i18n/LkIntlProvider.d.cts",
+        "default": "./dist/i18n/LkIntlProvider.cjs"
+      }
+    },
     "./theme/ThemeProvider": {
       "import": {
         "types": "./dist/theme/ThemeProvider.d.ts",

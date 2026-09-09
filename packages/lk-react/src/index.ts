@@ -6,4 +6,5 @@ export * from './components/types.js';
 export * from './components/WrittenResponse/index.js';
 export * from './hooks/useActivityState.js';
 export * from './hooks/useXAPI.js';
+export * from './i18n/LkIntlProvider.js';
 export * from './theme/ThemeProvider.js';

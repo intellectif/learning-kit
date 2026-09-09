@@ -1,5 +1,7 @@
 import type { ActivityMedia as ActivityMediaData, InteractionEvent } from '@intellectif/lk-core';
 import { resolvePlaybackPolicy } from '@intellectif/lk-core';
+import { useLkStrings } from '../../i18n/LkIntlProvider.js';
+import type { LkStringsOverride } from '../../i18n/strings.js';
 import type { MediaBudgetBinding, MediaTransportStrings, RenderMode } from '../types.js';
 import { AudioTransport } from './AudioTransport.js';
 
@@ -23,11 +25,17 @@ export interface ActivityMediaProps {
   locale?: string;
   mediaBudget?: MediaBudgetBinding;
   mediaStrings?: Partial<MediaTransportStrings>;
+  /** Overrides the SDK's chrome text. See {@link LkIntlProvider}. */
+  strings?: LkStringsOverride;
   onInteraction?: (event: InteractionEvent) => void;
 }
 
 export function ActivityMedia(props: ActivityMediaProps): React.JSX.Element {
   const { media, renderMode = 'practice' } = props;
+  // Read before the branches: every return below is conditional, and the one
+  // string this component owns itself (the embed's accessible name) is on the
+  // last of them.
+  const s = useLkStrings(props.strings);
 
   if (media.type === 'image') {
     return (
@@ -93,7 +101,7 @@ export function ActivityMedia(props: ActivityMediaProps): React.JSX.Element {
           <iframe
             className="lk-media-el"
             src={media.url}
-            title={media.alt ?? 'Embedded media'}
+            title={media.alt ?? s.embeddedMedia}
             loading="lazy"
             referrerPolicy="strict-origin-when-cross-origin"
             // The docblock always promised a sandboxed iframe; now it is one.

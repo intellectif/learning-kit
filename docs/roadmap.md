@@ -265,6 +265,32 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
 - Deferred with it: a **video** transport (it must own fullscreen and Picture-in-Picture), charging for a
   backward seek so `maxPlays` could coexist with seeking (an unpredictable budget is worse than none at an
   appeal), and `allowPause: false`.
+- ✅ **`LkIntlProvider` + RTL** — shipped as the mechanism and **English only**, not as the sketched
+  `en`/`es`/`pt`/`ar` bundle. Bundling three translations this repository cannot review would put unreviewed
+  words in front of a learner on a summative paper, where a wrong "No plays remaining" on a listening exam
+  is worse than a visibly untranslated English one; the same evidence test that cut `allowDownload` and
+  `autoplayOnce` cuts them. What shipped is the whole surface — 50 strings in one `LkStrings` type, a
+  provider, a per-component `strings` prop, and `mediaStrings`/`mediaBudget.strings` still winning for
+  back-compat. Interpolation and plurals are **functions**, not a message format: no parser, no catalogue,
+  no dependency, argument reordering possible, and TypeScript checks the arity. Thrown errors stay English
+  deliberately — they address the developer, and translating them would make them unsearchable. RTL is
+  real rather than claimed: the provider derives `dir` from the locale, and four physical CSS properties
+  that put the per-blank feedback gap and the blank's tooltip on the wrong edge were found only because the
+  new `e2e/rtl-layout.spec.ts` measures geometry in both directions. Coverage is enforced structurally —
+  `src/i18n/__tests__/translation-coverage.test.tsx` overrides all 50 strings with sentinels and renders
+  the real components, so a key that no component reads fails by name, and `verify-dist` pins
+  `docs/i18n.md` against the BUILT dictionary so the table a consumer types their translation against
+  cannot drift. **The first cut of that sweep did not earn the claim.** It mounted `exam` mode without
+  submitting it and never submitted a written response at all, so it proved "no key is unreachable" but
+  not "no component keeps a literal" — and three literals were sitting on exactly those paths, including
+  the exam submit announcement of two components and an un-keyed sentence on the essay hand-in. It now
+  drives every submitting path in every render mode, and its leak check covers the WHOLE dictionary
+  including single words like "Next" (possible only because every fixture is Spanish), with sentinels
+  stripped first so a key's own camelCase name cannot read as its English value. Two learner-facing bugs
+  surfaced while proving it: `<FillInTheBlanks>` announced "No grade available." over a real `graded`
+  outcome because `graded` shared an arm with `unscorable`, and the shared stimulus — the ordinary
+  listening-paper player — was the one media host that never forwarded `strings`. Still open: no `useActivity` headless layer, no CSS-based dark mode, no full reduced-motion
+  pass — those were listed beside i18n in the same v0.4 lk-react bullet and are untouched.
 - ✅ **`serializeAttemptState` / `restoreAttemptState` / `diffResponses`** — plus the pager props that make
   them usable (`defaultIndex`, `onIndexChange`, `responses`, `outcomes`). A snapshot is bound to its plan by
   `planHash`, so answers can never be restored onto a paper the learner never sat, and the position and

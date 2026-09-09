@@ -11,6 +11,7 @@ export default defineConfig({
     'components/WrittenResponse': 'src/components/WrittenResponse/index.tsx',
     'components/StimulusPanel': 'src/components/StimulusPanel/index.tsx',
     'hooks/useActivityState': 'src/hooks/useActivityState.ts',
+    'i18n/LkIntlProvider': 'src/i18n/LkIntlProvider.tsx',
     'hooks/useXAPI': 'src/hooks/useXAPI.ts',
     'theme/ThemeProvider': 'src/theme/ThemeProvider.tsx',
   },

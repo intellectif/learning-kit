@@ -100,15 +100,17 @@ export function Demo() {
 | **Retry** | Supported: pass a new `data` reference or change the React `key` → the activity resets (Req 3.7). It resets to **its seeded state**, not to blank — so on the resume path, with `defaultValue` / `defaultSubmitted` set, a new `key` and a new `data` reference behave identically and both restore the previous, already-submitted answer. A genuinely fresh attempt needs a new `key` **and** the seed props dropped. The SDK ships no retry button; retry *policy* is yours. |
 | **Answer persistence / resume** | Storage is yours; **re-hydration is supported end to end**. Every component takes `value` / `defaultValue` / `onChange` (lk-react 2.1.0), and `<ActivitySequence>` takes `responses` / `submittedSlotIds` / `defaultIndex` (lk-react 6.0.0) — so an interrupted attempt reopens on the right question with the right answers, and already-committed questions stay committed. `serializeAttemptState` / `restoreAttemptState` (lk-core 0.7.0) bind that snapshot to the paper it was taken on. Persist via `onSubmit` / `onChange` / `onIndexChange`. See the [authoring guide](./docs/authoring.md#resuming-and-reviewing-an-attempt-v07). |
 | **Authoring / content storage / CDN / auth / learner DB** | Consumer responsibility. The SDK gives you typed schemas, `validateActivity`, and JSON Schema export to build authoring on. See [Authoring guide](./docs/authoring.md). |
+| **i18n** | Every string the SDK's own chrome renders is replaceable through `<LkIntlProvider>` or a per-component `strings` prop (lk-react 7.1.0), with `lang` and `dir` derived from `locale`. **Only English is bundled**: the mechanism ships, the translations are yours — the SDK will not put words in front of a learner in a language it cannot review. Authored content and thrown developer errors are out of scope by design. See [docs/i18n.md](./docs/i18n.md). |
 | **SSR / RSC** | Components are `'use client'`; render correctly inside an RSC tree (hydrate on the client). |
 
-Full detail: **[docs/authoring.md](./docs/authoring.md)** · **[docs/styling.md](./docs/styling.md)** · **[docs/roadmap.md](./docs/roadmap.md)** (release plan, audit-verification results, and standing decisions).
+Full detail: **[docs/authoring.md](./docs/authoring.md)** · **[docs/styling.md](./docs/styling.md)** · **[docs/i18n.md](./docs/i18n.md)** · **[docs/roadmap.md](./docs/roadmap.md)** (release plan, audit-verification results, and standing decisions).
 
 ## Documentation
 
 - **[Upgrading](./docs/upgrading.md)** — the `lk-core` ↔ `lk-react` release map, and **read it first if you are below `lk-core@0.6`**: two of the changes there close paths that put a wrong number in front of a learner.
 - **[Authoring & content storage](./docs/authoring.md)** — data model, validation, the fetch → validate → render → xAPI flow, retry/persistence patterns, the shared-responsibility boundary.
 - **[Styling](./docs/styling.md)** — token system, the optional skin, overriding it, dark mode, Tailwind.
+- **[Internationalisation](./docs/i18n.md)** — the full string surface, precedence, plurals as functions, RTL, and what is deliberately not translated.
 - **[Releasing & publishing](./docs/releasing.md)** — npm token setup, GitHub Actions release, manual publish.
 - **Storybook** — `pnpm --filter @intellectif/lk-storybook dev` (or `pnpm dev`), then open `http://localhost:6006`.
 - **Runnable example** — [`apps/lk-example-vite`](./apps/lk-example-vite) (Vite + React 19 + MSW mock LRS).

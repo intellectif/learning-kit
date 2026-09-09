@@ -17,6 +17,8 @@ import {
 } from '@intellectif/lk-core';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
 import { useActivityState } from '../../hooks/useActivityState.js';
+import { useLkStrings } from '../../i18n/LkIntlProvider.js';
+import type { LkStrings, LkStringsOverride } from '../../i18n/strings.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
@@ -115,6 +117,8 @@ export interface WrittenResponseProps {
   mediaBudget?: MediaBudgetBinding;
   /** Translations for the audio transport chrome. See {@link MediaTransportStrings}. */
   mediaStrings?: Partial<MediaTransportStrings>;
+  /** Overrides the SDK's chrome text for this activity. See {@link LkIntlProvider}. */
+  strings?: LkStringsOverride;
   onInteraction?: (event: InteractionEvent) => void;
   /** Per-instance token overrides, applied as inline CSS vars on the root. */
   theme?: Partial<ThemeTokens>;
@@ -155,7 +159,7 @@ function criterionPercent(criterion: CriterionScore): string {
  * per-item `details` (there are no options or blanks to mark), so the render
  * is the scaled score, the pass state, and the grader's feedback.
  */
-function GradeBody({ grade }: { grade: GradeRecord }) {
+function GradeBody({ grade, s }: { grade: GradeRecord; s: LkStrings }) {
   return (
     <>
       {grade.feedback ? <p className="lk-wr-grade-feedback">{grade.feedback}</p> : null}
@@ -169,7 +173,7 @@ function GradeBody({ grade }: { grade: GradeRecord }) {
             >
               <span className="lk-wr-criterion-name">{criterion.name}</span>
               {criterion.notApplicable === true ? (
-                <span className="lk-wr-criterion-score">Not applicable</span>
+                <span className="lk-wr-criterion-score">{s.notApplicable}</span>
               ) : (
                 <span className="lk-wr-criterion-score">
                   {criterion.band ??
@@ -197,7 +201,7 @@ function GradeBody({ grade }: { grade: GradeRecord }) {
         </ul>
       ) : null}
       {grade.requiresHumanReview === true ? (
-        <p className="lk-wr-review-flag">This grade is awaiting review by a teacher.</p>
+        <p className="lk-wr-review-flag">{s.awaitingHumanReview}</p>
       ) : null}
     </>
   );
@@ -208,7 +212,7 @@ function GradeBody({ grade }: { grade: GradeRecord }) {
  * always came back from the grader — nothing on this path scores, infers, or
  * defaults a grade.
  */
-function OutcomeSummary({ outcome }: { outcome: ItemOutcome }) {
+function OutcomeSummary({ outcome, s }: { outcome: ItemOutcome; s: LkStrings }) {
   if (outcome.status === 'scored' || outcome.status === 'graded') {
     // `score` is scaled [0–1] against `maxScore`; normalising by `maxScore`
     // is a no-op for the canonical maxScore of 1 and keeps an unscaled
@@ -223,11 +227,9 @@ function OutcomeSummary({ outcome }: { outcome: ItemOutcome }) {
         data-status={outcome.status}
         data-passed={String(outcome.passed)}
       >
-        <p className="lk-wr-grade">
-          Score {percent}%. {outcome.passed ? 'Passed.' : 'Not passed.'}
-        </p>
+        <p className="lk-wr-grade">{s.scoreAnnouncement(percent, outcome.passed)}</p>
         {outcome.status === 'graded' ? (
-          <GradeBody grade={outcome.grade} />
+          <GradeBody grade={outcome.grade} s={s} />
         ) : outcome.feedback ? (
           <p className="lk-wr-grade-feedback">{outcome.feedback}</p>
         ) : null}
@@ -237,7 +239,7 @@ function OutcomeSummary({ outcome }: { outcome: ItemOutcome }) {
   if (outcome.status === 'deferred') {
     return (
       <div className="lk-wr-outcome" data-status="deferred">
-        <p className="lk-wr-grade">Not graded yet. This response is waiting for its grade.</p>
+        <p className="lk-wr-grade">{s.awaitingGrade}</p>
       </div>
     );
   }
@@ -245,7 +247,7 @@ function OutcomeSummary({ outcome }: { outcome: ItemOutcome }) {
   // the reason, and leave it on the element for diagnostics.
   return (
     <div className="lk-wr-outcome" data-status="unscorable" data-reason={outcome.reason}>
-      <p className="lk-wr-grade">This response could not be graded.</p>
+      <p className="lk-wr-grade">{s.couldNotBeGraded}</p>
     </div>
   );
 }
@@ -263,6 +265,7 @@ export function WrittenResponse({
   sanitizeHtml,
   mediaBudget,
   mediaStrings,
+  strings,
   onInteraction,
   theme,
   locale,
@@ -270,6 +273,8 @@ export function WrittenResponse({
 }: WrittenResponseProps) {
   // Dev-only boundary validation (Req 2.3), same convention as MC/FIB. The
   // content schema is loose, so a `redact()` projection validates too.
+  const s = useLkStrings(strings);
+
   const devError = useMemo(() => {
     if (!isDevelopment()) {
       return null;
@@ -432,7 +437,7 @@ export function WrittenResponse({
       timeSpent,
       xapiStatement,
     });
-    setSummary('Response submitted. It will be graded and your result will appear here later.');
+    setSummary(s.responseSubmitted);
     onInteraction?.({
       type: 'submitted',
       activityId: data.id,
@@ -443,8 +448,7 @@ export function WrittenResponse({
 
   const promptId = `${data.id}-prompt`;
   const counterId = `${data.id}-counter`;
-  const boundsLabel =
-    data.minWords > 0 ? `${data.minWords}–${data.maxWords} words` : `up to ${data.maxWords} words`;
+  const boundsLabel = s.wordBounds(data.minWords, data.maxWords);
 
   return (
     <form
@@ -461,6 +465,7 @@ export function WrittenResponse({
           renderMode={renderMode}
           {...(mediaBudget !== undefined ? { mediaBudget } : {})}
           {...(mediaStrings !== undefined ? { mediaStrings } : {})}
+          {...(strings !== undefined ? { strings } : {})}
           {...(onInteraction !== undefined ? { onInteraction } : {})}
           {...(locale !== undefined ? { locale } : {})}
         />
@@ -497,7 +502,7 @@ export function WrittenResponse({
         aria-live="polite"
         data-within-bounds={withinBounds}
       >
-        {wordCount} {wordCount === 1 ? 'word' : 'words'} ({boundsLabel})
+        {s.wordCount(wordCount)} ({boundsLabel})
       </div>
       {isReview ? null : (
         <button
@@ -505,11 +510,11 @@ export function WrittenResponse({
           className="lk-wr-submit"
           disabled={inactive || text.trim().length === 0}
         >
-          Submit
+          {s.submit}
         </button>
       )}
       <FeedbackRegion id={`${data.id}-feedback`}>
-        {isReview ? outcome ? <OutcomeSummary outcome={outcome} /> : null : summary}
+        {isReview ? outcome ? <OutcomeSummary outcome={outcome} s={s} /> : null : summary}
       </FeedbackRegion>
     </form>
   );

@@ -6,6 +6,8 @@ import type {
   ResolvedPlaybackPolicy,
 } from '@intellectif/lk-core';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useLkStrings } from '../../i18n/LkIntlProvider.js';
+import type { LkStringsOverride } from '../../i18n/strings.js';
 import type { MediaBudgetBinding, MediaTransportStrings } from '../types.js';
 
 /**
@@ -21,26 +23,6 @@ import type { MediaBudgetBinding, MediaTransportStrings } from '../types.js';
  * assessment property, and a learner in a lab with a locked OS volume has no
  * other lever once the native bar is gone.
  */
-
-const DEFAULT_STRINGS: MediaTransportStrings = {
-  play: 'Play',
-  pause: 'Pause',
-  preparing: 'Preparing…',
-  mute: 'Mute',
-  unmute: 'Unmute',
-  volume: 'Volume',
-  speed: 'Playback speed',
-  seek: 'Seek',
-  playsRemaining: (remaining, max) =>
-    `${remaining} of ${max} play${max === 1 ? '' : 's'} remaining`,
-  noPlaysRemaining: 'No plays remaining',
-  lastPlayConfirm: 'This is your last play. Start it now?',
-  lastPlayStart: 'Start last play',
-  lastPlayCancel: 'Not yet',
-  seekBlocked: 'Rewinding is not available for this recording.',
-  rateBlocked: 'Playback speed is fixed for this recording.',
-  playFailed: 'The recording could not be started. Try again.',
-};
 
 /** A resume is a start within a quarter-second of where playback last stopped. */
 const RESUME_EPSILON = 0.25;
@@ -65,6 +47,8 @@ export interface AudioTransportProps {
   locale?: string;
   mediaBudget?: MediaBudgetBinding;
   mediaStrings?: Partial<MediaTransportStrings>;
+  /** Overrides the SDK's chrome text. See {@link LkIntlProvider}. */
+  strings?: LkStringsOverride;
   onInteraction?: (event: {
     type: string;
     activityId: string;
@@ -81,13 +65,22 @@ export function AudioTransport({
   locale,
   mediaBudget,
   mediaStrings,
+  strings,
   onInteraction,
 }: AudioTransportProps): React.JSX.Element {
   const elementRef = useRef<HTMLAudioElement>(null);
   const statusId = useId();
 
+  // Provider first, then the narrower props that shipped in 0.8.0 — so an
+  // existing `mediaStrings` call site still wins over a provider-wide default
+  // and keeps behaving exactly as it did.
   const suppliedStrings = mediaBudget?.strings ?? mediaStrings;
-  const s: MediaTransportStrings = { ...DEFAULT_STRINGS, ...mediaStrings, ...mediaBudget?.strings };
+  const fromProvider = useLkStrings(strings);
+  const s: MediaTransportStrings = {
+    ...fromProvider.media,
+    ...mediaStrings,
+    ...mediaBudget?.strings,
+  };
 
   const enforced = mediaBudget?.enforced ?? renderMode !== 'review';
   const budgeted = enforced && policy.maxPlays !== null && mediaBudget !== undefined;
@@ -510,7 +503,7 @@ export function AudioTransport({
             step={0.1}
             value={Math.min(elapsed, duration || 0)}
             aria-label={s.seek}
-            aria-valuetext={`${formatTime(elapsed)} of ${formatTime(duration)}`}
+            aria-valuetext={s.timeValue(formatTime(elapsed), formatTime(duration))}
             onChange={(event) => {
               const element = elementRef.current;
               if (element !== null) {

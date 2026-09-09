@@ -1,6 +1,8 @@
 'use client';
 
 import { Component, type ReactNode } from 'react';
+import type { LkStrings } from '../i18n/strings.js';
+import { DEFAULT_STRINGS } from '../i18n/strings.js';
 
 function isProduction(): boolean {
   const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
@@ -10,6 +12,11 @@ function isProduction(): boolean {
 export interface ActivityErrorBoundaryProps {
   /** Shown in the production fallback when a render error occurs. */
   activityTitle?: string;
+  /**
+   * Chrome text. A class component cannot call `useLkStrings`, so the public
+   * wrapper reads the hook and hands the resolved dictionary down.
+   */
+  strings?: LkStrings;
   children: ReactNode;
 }
 
@@ -42,7 +49,7 @@ export class ActivityErrorBoundary extends Component<
     if (!isProduction()) {
       return (
         <div role="alert">
-          <strong>Activity failed to render</strong>
+          <strong>{(this.props.strings ?? DEFAULT_STRINGS).activityFailed}</strong>
           <pre>{error.stack ?? error.message}</pre>
         </div>
       );
@@ -51,8 +58,8 @@ export class ActivityErrorBoundary extends Component<
     return (
       <div role="alert">
         {this.props.activityTitle
-          ? `"${this.props.activityTitle}" could not be displayed.`
-          : 'This activity could not be displayed.'}
+          ? (this.props.strings ?? DEFAULT_STRINGS).activityFailedNamed(this.props.activityTitle)
+          : (this.props.strings ?? DEFAULT_STRINGS).activityFailedUnnamed}
       </div>
     );
   }
