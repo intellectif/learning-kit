@@ -119,50 +119,71 @@ function assertStructurallyComplete(r: ActivityResult): void {
   expect(r.xapiStatement.version).toBe('1.0.3');
 }
 
+/**
+ * Each property below mounts a real component 100 times, and every run does
+ * dev-mode schema validation, scoring, xAPI statement building and statement
+ * validation. That is CPU-bound work proportional to `numRuns`, not a unit
+ * test, and Vitest's 5s default is sized for unit tests: under V8 coverage on a
+ * shared CI runner the MultipleChoice property measured 5.05s and failed on the
+ * clock while every assertion held (about 1.1s locally with coverage). The
+ * budget sits at roughly four times that CI figure, so runner variance cannot
+ * force the property to shrink to fit the timer, while work that genuinely
+ * quadruples still fails here rather than passing slowly.
+ */
+const PROPERTY_TIMEOUT_MS = 20_000;
+
 describe('onComplete payload completeness (Property 10)', () => {
   // Feature: learning-kit-sdk, Property 10: onComplete payload is structurally complete
-  it('Property 10: MultipleChoice onComplete payload is structurally complete', () => {
-    fc.assert(
-      fc.property(mcPair, ({ data, selectedOptionIds }) => {
-        const onComplete = vi.fn();
-        try {
-          const { container } = render(<MultipleChoice data={data} onComplete={onComplete} />);
-          for (const id of selectedOptionIds) {
-            const input = container.querySelector<HTMLInputElement>(`input[value="${id}"]`);
-            if (input) {
-              fireEvent.click(input);
+  it(
+    'Property 10: MultipleChoice onComplete payload is structurally complete',
+    () => {
+      fc.assert(
+        fc.property(mcPair, ({ data, selectedOptionIds }) => {
+          const onComplete = vi.fn();
+          try {
+            const { container } = render(<MultipleChoice data={data} onComplete={onComplete} />);
+            for (const id of selectedOptionIds) {
+              const input = container.querySelector<HTMLInputElement>(`input[value="${id}"]`);
+              if (input) {
+                fireEvent.click(input);
+              }
             }
+            fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+            expect(onComplete).toHaveBeenCalledOnce();
+            assertStructurallyComplete(onComplete.mock.calls[0]?.[0] as ActivityResult);
+          } finally {
+            cleanup();
           }
-          fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
-          expect(onComplete).toHaveBeenCalledOnce();
-          assertStructurallyComplete(onComplete.mock.calls[0]?.[0] as ActivityResult);
-        } finally {
-          cleanup();
-        }
-      }),
-      { numRuns: 100 },
-    );
-  });
+        }),
+        { numRuns: 100 },
+      );
+    },
+    PROPERTY_TIMEOUT_MS,
+  );
 
   // Feature: learning-kit-sdk, Property 10: onComplete payload is structurally complete
-  it('Property 10: FillInTheBlanks onComplete payload is structurally complete', () => {
-    fc.assert(
-      fc.property(fibPair, ({ data, values }) => {
-        const onComplete = vi.fn();
-        try {
-          render(<FillInTheBlanks data={data} onComplete={onComplete} />);
-          const inputs = screen.getAllByRole('textbox');
-          inputs.forEach((input, i) => {
-            fireEvent.change(input, { target: { value: values[i] ?? '' } });
-          });
-          fireEvent.click(screen.getByRole('button', { name: 'Check answers' }));
-          expect(onComplete).toHaveBeenCalledOnce();
-          assertStructurallyComplete(onComplete.mock.calls[0]?.[0] as ActivityResult);
-        } finally {
-          cleanup();
-        }
-      }),
-      { numRuns: 100 },
-    );
-  });
+  it(
+    'Property 10: FillInTheBlanks onComplete payload is structurally complete',
+    () => {
+      fc.assert(
+        fc.property(fibPair, ({ data, values }) => {
+          const onComplete = vi.fn();
+          try {
+            render(<FillInTheBlanks data={data} onComplete={onComplete} />);
+            const inputs = screen.getAllByRole('textbox');
+            inputs.forEach((input, i) => {
+              fireEvent.change(input, { target: { value: values[i] ?? '' } });
+            });
+            fireEvent.click(screen.getByRole('button', { name: 'Check answers' }));
+            expect(onComplete).toHaveBeenCalledOnce();
+            assertStructurallyComplete(onComplete.mock.calls[0]?.[0] as ActivityResult);
+          } finally {
+            cleanup();
+          }
+        }),
+        { numRuns: 100 },
+      );
+    },
+    PROPERTY_TIMEOUT_MS,
+  );
 });
