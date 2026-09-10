@@ -13,9 +13,10 @@
  * key away from a learner, and it is worth proving against the artifact a
  * consumer actually installs.
  */
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const PKG_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -112,6 +113,34 @@ if (typeof core.redact === 'function') {
   }
 }
 
+// The grade-stability corpus, replayed against BOTH builds a consumer can
+// install. The standing rule is that nothing which can change a historical
+// grade ships outside a major. The unit suite asserts scoring numbers too,
+// but against source, and those assertions are edited alongside the code
+// they test; nothing froze them independently, and nothing checked them
+// against the BUILT package. CJS and ESM are both replayed because a
+// divergence between them would grade one way under `require` and another
+// under `import`.
+const corpus = JSON.parse(readFileSync(join(PKG_ROOT, 'vectors', 'scoring.json'), 'utf8'));
+const { replay } = await import(pathToFileURL(join(PKG_ROOT, 'vectors', 'replay.mjs')).href);
+const esm = await import(pathToFileURL(join(PKG_ROOT, 'dist', 'index.js')).href);
+if (!Array.isArray(corpus.vectors) || corpus.vectors.length === 0) {
+  failures.push('vectors/scoring.json holds no vectors, so the grade gate would pass vacuously');
+}
+for (const [label, build] of [
+  ['dist/index.cjs', core],
+  ['dist/index.js', esm],
+]) {
+  for (const result of replay(build, corpus)) {
+    if (!result.ok) {
+      failures.push(
+        `${label}: grade vector ${result.id} changed${result.note ? ` (${result.note})` : ''}` +
+          ` | expected ${result.expected} | actual ${result.actual}`,
+      );
+    }
+  }
+}
+
 if (failures.length > 0) {
   console.error('verify-dist FAILED:\n');
   for (const failure of failures) {
@@ -121,5 +150,6 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `verify-dist OK: ${REQUIRED_EXPORTS.length} documented exports resolve from dist; redaction is fail-closed.`,
+  `verify-dist OK: ${REQUIRED_EXPORTS.length} documented exports resolve from dist; redaction is fail-closed; ` +
+    `${corpus.vectors.length} grade vectors replay identically against CJS and ESM.`,
 );

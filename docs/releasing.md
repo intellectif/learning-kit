@@ -198,6 +198,34 @@ instead of `push`. Until that is done:
 - Practically this is low risk, because the two merges that matter (feature PR and the version PR) both
   run the full CI + E2E gate before you can merge them. Do not skip approving those checks on the bot PR.
 
+## Grade-stability vectors
+
+`packages/lk-core/vectors/scoring.json` freezes what lk-core's scoring functions return for a fixed set of
+calls. It is replayed in three places:
+
+- `src/__tests__/scoring-vectors.test.mjs`, against **source**, in `pnpm test`;
+- `scripts/verify-dist.mjs`, against the **built** package — CJS and ESM — in `pnpm check-packaging`;
+- CI, which runs both on Node 22 and on Node 24, the Node the Release job builds with, for every pull request
+  including the bot's version PR.
+
+**If a vector fails, do not regenerate the corpus to make it pass.** A failing vector means a grade someone
+already stored would come out differently. Either the change is a bug, and the code is what needs fixing, or it
+is intended, and then it is a **package major**: regenerate with
+`node scripts/generate-vectors.mjs --accept-grade-change`, and say in the changeset what the change does to
+grades already recorded and whether they should be recomputed.
+
+To add a vector, add a case to `packages/lk-core/scripts/vector-cases.mjs`, build lk-core, and run
+`node scripts/generate-vectors.mjs`. New vectors need no flag; an existing expectation cannot change or
+disappear without it. Rewording a vector's `note` needs no flag either.
+
+`pnpm test` also fails when the corpus and `vector-cases.mjs` disagree: a case that was never generated, a
+vector deleted from `scoring.json` by hand, or a frozen call whose arguments no longer match its case. What it
+cannot stop is removing a case and its vector together on purpose; that shows up as a deleted vector in review,
+which is where a decision to stop pinning a grade belongs.
+
+This does not change the limitation above: the Release job still runs no checks of its own, so the required
+status checks on the feature PR and the version PR are what stop a moved grade from publishing.
+
 ## Notes & troubleshooting
 
 - `@intellectif/lk-react` declares `@intellectif/lk-core` as a `workspace:^` peer; pnpm/Changesets rewrites it to `^<version>` on publish, and `changeset publish` orders core before react.

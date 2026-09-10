@@ -307,8 +307,34 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   data, `analyzeItem` (facility/discrimination/distractor efficiency).
 - Registry v2: descriptor gains `versions`/`migrations` (`migrateActivity`, lazy on read), `semanticChecks`
   (named, for the repair loop), `plan()` seeded presentation.
-- Non-functionals: publint/attw semver gate in CI; CI matrix includes the release Node version; browser-support
-  statement; consumer parity test-vector suite for `countWords`/graders.
+- ✅ **Grade-stability vectors, and the non-functionals that had gone stale** — the consumer parity
+  test-vector suite shipped as `packages/lk-core/vectors/`: 231 calls across every path that decides a grade,
+  frozen by executing 0.8.1 rather than written by hand, replayed against source in `pnpm test` and against the
+  built CJS and ESM in `verify-dist`, on Node 22 and 24. It was chosen on a workaround, not on the roadmap line:
+  an integrating application had written its own golden scoring spec whose header said nothing else asserted a
+  single number, and it persists a client-computed word count that this SDK's own contract says never to trust.
+  The corpus ships in the tarball with its replayer and is deliberately NOT an export — an export is a lk-core
+  minor, which forces a lk-react major for test data — and a probe confirmed a lk-core patch cascades no lk-react
+  bump. **The first cut left grade paths unpinned, and an external audit named four:** `scoredItemsFromPlan`'s
+  missing-outcome default; the legacy per-blank `caseSensitive`/`trimWhitespace` flags; the written-response
+  count, where every fixture's client `wordCount` matched its text so trusting it looked identical, together with
+  inclusive word bounds; and a gate that never compared the corpus with its inputs, so a hand-deleted vector
+  passed. Rather than patch four and wait for the next audit, the scoring source was mutation-tested with an
+  in-process harness that rebuilds lk-core through esbuild for each mutant. Against the first corpus the
+  audit's eight exact mutations all survived, and so did 73 of 260 valid operator mutations. After a case for
+  every survivor that can reach a grade, all eight are killed and 37 of 260 survive, each classified: not a
+  grade (feedback prose, xAPI patterns, an `isAnswered` hook lk-core never calls), equivalent, type-only, or
+  reachable only by passing a float epsilon itself. `pnpm test` now fails when a case was never generated, a
+  vector was deleted by hand, or a frozen call's arguments no longer match its case. Found while freezing, and
+  pinned rather than changed: `gradeFromRubric` with no activity compares against a literal `0.7`; a paper
+  whose graded sections all weigh 0 records a final fail; `ignorePunctuation` alone leaves the space a removed
+  mark stood beside, so "hola !" does not match "hola". Of the original non-functionals line: publint/attw
+  already ran in CI; the matrix now includes Node 24, the Node the Release job builds with, and the packaging
+  checks run on it; the browser floor is stated (`Object.hasOwn`: Chrome/Edge 93, Firefox 92, Safari 15.4).
+  **Still open:** an API surface report for a real semver gate (nothing like api-extractor exists);
+  `engines: { node: '>=20' }` is still published although CI retired Node 20 in `e17f5fa` for pnpm 11
+  compatibility; the Release job itself still runs no checks; and the mutation harness lives outside the
+  repository, so coverage is not re-checked automatically when scoring changes.
 
 ### v0.5 — "types and content acquisition"
 

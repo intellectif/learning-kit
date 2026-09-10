@@ -110,6 +110,7 @@ Full detail: **[docs/authoring.md](./docs/authoring.md)** · **[docs/styling.md]
 - **[Upgrading](./docs/upgrading.md)** — the `lk-core` ↔ `lk-react` release map, and **read it first if you are below `lk-core@0.6`**: two of the changes there close paths that put a wrong number in front of a learner.
 - **[Authoring & content storage](./docs/authoring.md)** — data model, validation, the fetch → validate → render → xAPI flow, retry/persistence patterns, the shared-responsibility boundary.
 - **[Styling](./docs/styling.md)** — token system, the optional skin, overriding it, dark mode, Tailwind.
+- **[Grade-stability vectors](./packages/lk-core/vectors/README.md)** — lk-core's grading frozen as data: replayed in CI against every build, and runnable in your own test suite.
 - **[Internationalisation](./docs/i18n.md)** — the full string surface, precedence, plurals as functions, RTL, and what is deliberately not translated.
 - **[Releasing & publishing](./docs/releasing.md)** — npm token setup, GitHub Actions release, manual publish.
 - **Storybook** — `pnpm --filter @intellectif/lk-storybook dev` (or `pnpm dev`), then open `http://localhost:6006`.
@@ -117,7 +118,7 @@ Full detail: **[docs/authoring.md](./docs/authoring.md)** · **[docs/styling.md]
 
 ## Requirements
 
-- Node.js 20 or 22 · pnpm 11+ · React 19 (for `lk-react`)
+- Node.js 22 or 24 · pnpm 11+ · React 19 (for `lk-react`)
 
 ## Monorepo development
 
