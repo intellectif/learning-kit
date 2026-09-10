@@ -76,6 +76,7 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist",
+    "vectors",
     "CHANGELOG.md",
     "LICENSE"
   ],

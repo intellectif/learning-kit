@@ -681,3 +681,5 @@ All activity components carry `'use client'` and render correctly inside an RSC 
 ## Versioning
 
 Every activity carries `schemaVersion: "1.0"`. V1 ships a single version; a migration framework is introduced only when the first breaking schema change lands.
+
+Scoring carries a stronger contract than the schema: anything that can change a historical grade is a package major. That rule is enforced rather than promised. `@intellectif/lk-core` ships a corpus of frozen grading calls in `vectors/`, replays it against every build in CI, and you can replay the same corpus against the build you install — see [Grade-stability vectors](../packages/lk-core/vectors/README.md).

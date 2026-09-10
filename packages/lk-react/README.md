@@ -106,7 +106,7 @@ export function Demo() {
 | `@intellectif/lk-react/theme/skin.css` | Optional polished skin |
 
 ESM + CJS + `.d.ts` for every JS entry (the two `.css` entries are plain stylesheets).
-Tree-shakeable. Node >= 20, React `^19`.
+Tree-shakeable. Node >= 20, React `^19`. In browsers, the SDK's own code needs `Object.hasOwn` — Chrome and Edge 93, Firefox 92, Safari 15.4 — because output targets ES2022 and nothing is polyfilled.
 
 `asRenderable`, `asRenderableSequence`, `RenderMode`, `ActivityProps` and the other
 shared types are exported from the **barrel** (`@intellectif/lk-react`); they have no

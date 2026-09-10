@@ -4,7 +4,7 @@ Thanks for contributing! This guide covers local setup, the test suite, how to a
 
 ## Prerequisites
 
-- **Node.js 20 or 22** (the CI matrix; Vite 8 requires `^20.19 || >=22.12`)
+- **Node.js 22 or 24** (the versions CI runs)
 - **pnpm 11+** (`npm install -g pnpm`)
 - React 19 is used throughout.
 
@@ -79,7 +79,7 @@ The full plugin/registry architecture (`registerActivity`) is Phase 3 — for no
    ```bash
    pnpm changeset
    ```
-5. Open the PR. CI runs the build/test/lint matrix (Node 20 & 22), coverage, bundle-size limits, and Playwright e2e. The PR must pass all checks and keep coverage thresholds.
+5. Open the PR. CI runs the build/test/lint matrix (Node 22 & 24), coverage, bundle-size limits, packaging checks including lk-core's grade-stability corpus, and Playwright e2e. The PR must pass all checks and keep coverage thresholds.
 6. On merge to `main`, the Changesets release workflow versions and publishes affected packages.
 
 ## Reporting issues
