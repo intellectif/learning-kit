@@ -71,6 +71,7 @@ if (checked === 0) {
 // Load the BUILT modules: a source-level export test cannot see a bundler or
 // exports-map regression.
 const REQUIRED_EXPORTS = {
+  'dist/components/ActivityPreview.js': ['ActivityPreview'],
   'dist/theme/ThemeProvider.js': [
     'ThemeProvider',
     'createTailwindTheme',
@@ -87,6 +88,7 @@ const REQUIRED_EXPORTS = {
     'useLkStrings',
   ],
   'dist/index.js': [
+    'ActivityPreview',
     'ActivitySequence',
     'DEFAULT_STRINGS',
     'LkIntlProvider',

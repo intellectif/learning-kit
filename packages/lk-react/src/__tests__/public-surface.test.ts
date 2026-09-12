@@ -16,6 +16,7 @@ import * as themeEntry from '../theme/ThemeProvider.js';
  */
 describe('published export surface', () => {
   const barrelExports = [
+    'ActivityPreview',
     'ActivitySequence',
     'FillInTheBlanks',
     'MultipleChoice',

@@ -1,5 +1,16 @@
 [
   {
+    "name": "ActivityPreview",
+    "path": "packages/lk-react/dist/components/ActivityPreview.js",
+    "import": "{ ActivityPreview }",
+    "ignore": [
+      "react",
+      "react-dom",
+      "@intellectif/lk-core"
+    ],
+    "limit": "50 kB"
+  },
+  {
     "name": "ActivitySequence",
     "path": "packages/lk-react/dist/components/ActivitySequence.js",
     "import": "{ ActivitySequence }",
