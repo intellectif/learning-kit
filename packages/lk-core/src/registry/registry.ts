@@ -1,5 +1,6 @@
 import type { z } from 'zod/v4';
 import type { DeferredScoringPartial, ScoringResult } from '../types/activity.js';
+import type { DraftContext, DraftIssue } from '../types/authoring.js';
 
 /** ScoringResult without `passed` — the public `score()` / `evaluate()` fill that in. */
 export type PartialScoringResult = Omit<ScoringResult, 'passed'>;
@@ -66,11 +67,48 @@ export type ActivityTypeScoring<TData, TResponse> =
     };
 
 /**
+ * Authoring support for an activity type: the empty draft an editor starts
+ * from, and the rules that tell a draft that is unfinished from one that is
+ * wrong. Both are optional. Without `checkDraft`, `validateDraft` still works
+ * and reports every schema failure as `invalid`; without `createDraft`,
+ * `createDraft()` throws for the type.
+ */
+export interface ActivityTypeAuthoring<TData> {
+  /**
+   * A new draft: every required field present, nothing authored yet. It must
+   * come back from `validateDraft` as `incomplete` — never `invalid`, and never
+   * `complete` — so a freshly added question is not reported as an error, and
+   * cannot pass validation before anyone has written it.
+   */
+  readonly createDraft?: (context: DraftContext) => TData;
+  /**
+   * Reports what is missing (`incomplete`) and what is wrong (`invalid`) in a
+   * draft. Receives any plain object and must not throw on one.
+   *
+   * Report each problem at the path the schema reports it. `validateDraft` adds
+   * every schema failure as `invalid` unless an issue returned here sits at that
+   * path or inside it — so an issue at the wrong path leaves the schema's
+   * message standing beside yours, and makes an unfinished draft read as wrong.
+   * An issue inside a path accounts for every failure at that path, a list's
+   * length included, so report a rule about a whole list at the list's own path.
+   * A failure at the root of the draft is accounted for only by an issue at the
+   * root. A `null` the schema refuses, where nothing here reports it, comes back
+   * as `null_not_allowed` — except inside a plain `z.union`, which reports a
+   * failure once, at the union's own path, under its own code.
+   *
+   * A code documented in `docs/authoring.md` is reported with its documented
+   * severity. For a code of your own, a severity other than `'incomplete'` is
+   * reported as `invalid`.
+   */
+  readonly checkDraft?: (draft: Readonly<Record<string, unknown>>) => DraftIssue[];
+}
+
+/**
  * A value-level description of an activity type: its contract (schema), its
  * grading, its redaction policy, and its interop facts. Registering a
- * descriptor makes `validateActivity`, `score`, `evaluate`, `redact`, and
- * `jsonSchemaFor` work for the type — an activity type is a value, not a
- * hardcoded union member (R1).
+ * descriptor makes `validateActivity`, `validateDraft`, `score`, `evaluate`,
+ * `redact`, and `jsonSchemaFor` work for the type — an activity type is a value,
+ * not a hardcoded union member (R1).
  */
 export interface ActivityTypeDescriptor<TData extends { type: string }, TResponse> {
   /** The `type` discriminator string (kebab-case by convention). */
@@ -93,6 +131,8 @@ export interface ActivityTypeDescriptor<TData extends { type: string }, TRespons
   readonly interop?: ActivityTypeInterop<TData>;
   /** The interaction-event kinds components for this type emit. */
   readonly interactions?: readonly string[];
+  /** Draft support for authoring tools. See {@link ActivityTypeAuthoring}. */
+  readonly authoring?: ActivityTypeAuthoring<TData>;
 }
 
 /**
@@ -117,6 +157,7 @@ export interface RegisteredActivityTypeDescriptor {
   readonly redactedSchema?: z.ZodType<unknown>;
   readonly interop?: ActivityTypeInterop<unknown>;
   readonly interactions?: readonly string[];
+  readonly authoring?: ActivityTypeAuthoring<unknown>;
 }
 
 /**

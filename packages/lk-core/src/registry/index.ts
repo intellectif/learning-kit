@@ -6,6 +6,7 @@ import './builtins.js';
 
 export { fillInTheBlanksType, multipleChoiceType, writtenResponseType } from './builtins.js';
 export {
+  type ActivityTypeAuthoring,
   type ActivityTypeDescriptor,
   type ActivityTypeInterop,
   type ActivityTypeScoring,

@@ -2,8 +2,12 @@ import { z } from 'zod/v4';
 import { FeedbackSchema } from './feedback.js';
 import { MediaSchema } from './media.js';
 
-/** Matches `{{ blank_id }}` placeholders in a passage, capturing the trimmed id. */
-const PLACEHOLDER_RE = /\{\{\s*([^{}]+?)\s*\}\}/g;
+/**
+ * Matches `{{ blank_id }}` placeholders in a passage, capturing the trimmed id.
+ * Exported for the draft checks in `authoring/`, which must read a passage
+ * exactly as this schema does. It is not re-exported from the package.
+ */
+export const PLACEHOLDER_RE = /\{\{\s*([^{}]+?)\s*\}\}/g;
 
 /**
  * Zod schema for a `TextMatchPolicy` — the opt-in matching tolerances a blank
