@@ -183,9 +183,9 @@ export interface ActivitySequenceProps {
    * surfaces before a learner sits the paper. A sequence that does not shuffle
    * needs no seed in any mode.
    *
-   * Note the guard does NOT cover an activity's own `data.shuffle`:
-   * `<MultipleChoice>` falls back to a per-mount seed there in every mode, so
-   * pass this whenever any item shuffles its options.
+   * The guard covers an activity's own `data.shuffle` too, a group's items
+   * included: `<MultipleChoice>` would otherwise fall back to a per-mount seed,
+   * in every mode.
    *
    * In `practice` mode it stays optional: a random per-mount seed is used,
    * stable within the mount and deliberately not reproducible. That fallback is

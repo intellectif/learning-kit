@@ -9,12 +9,13 @@ Learning Kit is a **runtime + data contract**, not a content-management system.
 | The SDK owns | Your application owns |
 |---|---|
 | Typed activity **schemas** + `validateActivity` + JSON Schema export | The **authoring UI / "hub"** (or hand-authored JSON) |
+| Draft contracts for an editor: `validateDraft`, `createDraft`, `<ActivityPreview>` | The editor's forms, their layout, and what a new question starts with beyond the SDK's empty draft |
 | **Scoring** (pure, deterministic) | **Persistence** (DB, S3) of content, answers, results |
 | **xAPI** statement construction + delivery (`useXAPI`) | **Delivery / CDN** (e.g. CloudFront), the LRS itself |
 | Accessible **components**, theming, optional skin | **Auth**, multi-tenant, learner identity, retry policy |
 | Composition (`ActivitySequence`) | Listing, versioning, publishing workflow |
 
-"Creating an activity" = producing a JSON object that conforms to an activity schema. There is **no GUI** in the SDK (by design — see the requirements "Non-Goals and Shared Responsibility"). You can hand-author JSON, generate a form from the exported JSON Schema, or (Phase 3) generate it with AI.
+"Creating an activity" = producing a JSON object that conforms to an activity schema. There is **no GUI** in the SDK (by design — see the requirements "Non-Goals and Shared Responsibility"). You can hand-author JSON, generate a form from the exported JSON Schema, or (Phase 3) generate it with AI. If you build an editor, the SDK supplies what only it can know about each type — which problems in an unfinished question are still to be written and which are wrong, an empty draft to start from, and a preview that copes with a half-written question: see [Building an editor](#building-an-editor-v09).
 
 ## The data flow
 
@@ -291,6 +292,296 @@ Two composable layers, both authored by you. The SDK never *writes* feedback, bu
 
 The Fill-in-the-Blanks **hint** control renders a default **icon** (the SDK owns the affordance) with a text accessible name (`aria-label` "Show hint"/"Hide hint", `aria-expanded`); restyle/replace the glyph via the `.lk-fib-hint-btn` class — see [styling](./styling.md).
 
+## Building an editor (v0.9)
+
+`validateActivity` answers one question: may this be stored? To that question, a
+question an author added a second ago and a broken one get the same answer — no —
+so an editor that uses it as its only check reports every new question as an
+error. That is how one freshly added, empty question ends up disabling a whole
+form's Save button and blanking its preview. Which problems are "not written yet"
+and which are "wrong" depends on the activity type, so the SDK says which.
+
+```ts
+import { createDraft, validateDraft } from '@intellectif/lk-core';
+
+const draft = createDraft('multiple-choice', { newId: () => crypto.randomUUID() });
+// …the author types into it…
+const result = validateDraft('multiple-choice', draft);
+
+switch (result.status) {
+  case 'complete':   // a valid activity with nothing left to write: result.data
+  case 'incomplete': // every issue is something not written yet
+  case 'invalid':    // at least one issue is wrong in a way writing more cannot fix
+}
+```
+
+**There is no `success` field.** A boolean would have to call an incomplete draft
+either a success — and a half-written answer key would pass anything that checked
+it — or a failure, which is the conflation this exists to remove. Branch on
+`status`.
+
+Each issue is a `ValidationError` — `{ path, message, code }` — plus
+`severity: 'incomplete' | 'invalid'`, so a UI that already lists
+`validateActivity` errors can list these unchanged, and the paths are the ones
+`validateActivity` reports.
+
+**Stricter than `validateActivity`, never looser.** `complete` requires the schema
+to pass, and a draft can fail here that the schema accepts: a title that is only
+whitespace, or a written response with a blank `prompt`. Content stored by an
+earlier build can therefore be valid and still not `complete` when it is opened
+again. `validateActivity` stays the check at your write boundary; `validateDraft`
+is for the editor.
+
+**The messages are English, and address the author.** Translate by `code`. The
+codes in the tables below are a contract, and each is always reported with the
+severity shown, whichever check reports it. Any other code is not. It is the
+schema library's own issue code, passed through with its English message, and
+always `invalid`. It comes back for a value of the wrong kind that no row below
+describes, such as a `mode` of `"bogus"` or a `shuffle` of `"yes"` — and one such
+value can bring more than one issue at the same path — and, for a type you
+register, for any schema failure your own `checkDraft` does not report. Give such
+a code one generic message of your own, placed by its `path`.
+
+### New drafts
+
+`createDraft(type, { newId })` returns an activity with every required field
+present and nothing written, which `validateDraft` reports as `incomplete` and
+`validateActivity` rejects. The SDK invents no ids: `newId` is called once per id
+— the activity's, and each option's on a multiple-choice question — and must
+return a different non-empty string each time. Option ids reach the learner, so
+positional ids such as `"a"` and `"b"` would tell them which option was written
+first.
+
+| Type | A new draft |
+|---|---|
+| `multiple-choice` | `mode: 'single'`, `scoringStrategy: 'all-or-nothing'`, two empty options, **none marked correct** |
+| `fill-in-the-blanks` | an empty passage, no blanks, `scoringStrategy: 'all-or-nothing'` |
+| `written-response` | an empty prompt, `minWords: 0`, `maxWords: 0`, no rubric |
+
+Three of those are decisions:
+
+- **No option is marked correct.** Marking one by default would let an author
+  write both options, never touch the correctness control, and hold a `complete`
+  question whose answer key is whichever option the default happened to mark.
+- **`all-or-nothing`** is the less generous strategy. Partial credit is the
+  author's to give.
+- **No word limits and no rubric criteria** — those are teaching decisions.
+  `maxWords: 0` reads as "not set yet". `minWords: 0` is a real setting, no lower
+  limit, and is never reported.
+
+Anything else a new question should start with — `shuffle`, default rubric
+criteria, a match policy on new blanks — is yours to spread over the draft.
+
+### What each type reports
+
+Every registered type, reported by `validateDraft` itself:
+
+| Code | Severity | Path | When |
+|---|---|---|---|
+| `null_not_allowed` | invalid | the field's own path | `null` where the schema accepts none and no code below applies: an optional field, or an entry in a list — an `undefined` entry too, which JSON writes as `null` |
+
+Every built-in activity:
+
+| Code | Severity | Path | When |
+|---|---|---|---|
+| `schema_version_invalid` | invalid | `schemaVersion` | Not `"1.0"`, or missing |
+| `type_mismatch` | invalid | `type` | Not the type being checked, or missing |
+| `id_required` | invalid | `id` | The activity has no id |
+| `title_required` | incomplete | `title` | Absent, or only whitespace |
+| `scoring_strategy_required` | incomplete | `scoringStrategy` | Not set, empty, or only whitespace (multiple choice and fill in the blanks) |
+| `pass_threshold_invalid` | invalid | `passThreshold` | Present, and not a number from 0 to 1 |
+| `difficulty_level_invalid` | invalid | `difficultyLevel` | Present, and not a whole number from 1 to 5 |
+| `feedback_empty` | incomplete | `feedback.correct`, `feedback.incorrect` | An empty string, or only whitespace |
+| `redacted_data` | invalid | `redacted` | `redacted: true`: what `redact()` produces for a learner, with the answer key gone, is not a draft |
+| `media_type_required` | incomplete | `media.type` | Not chosen yet |
+| `media_url_required` | incomplete | `media.url`, `media.captionsUrl` | No address yet: a `url` that is absent, empty or only whitespace, or a `captionsUrl` that is empty or only whitespace |
+| `media_url_invalid` | invalid | `media.url`, `media.captionsUrl` | An address the media URL policy refuses, or an embed address that is not absolute http(s) |
+| `media_alt_required` | incomplete | `media.alt` | An image or embed with no description, or any media whose description is an empty string or only whitespace |
+| `media_playback_invalid` | invalid | `media.playback…` | A playback policy the schema refuses; the message is the schema's |
+| `media_invalid` | invalid | `media…` | Any other media problem; the message is the schema's |
+
+`multiple-choice`:
+
+| Code | Severity | Path | When |
+|---|---|---|---|
+| `mc_question_required` | incomplete | `question` | Absent, or only whitespace |
+| `mc_mode_required` | incomplete | `mode` | Not set, empty, or only whitespace |
+| `mc_options_too_few` | incomplete | `options` | Fewer than 2 options |
+| `mc_options_too_many` | invalid | `options` | More than 26 options |
+| `mc_option_text_required` | incomplete | `options.N.text` | Absent, or only whitespace |
+| `mc_option_id_required` | invalid | `options.N.id` | Absent, or empty |
+| `mc_option_id_duplicate` | invalid | `options` | Two options share an id |
+| `mc_option_correctness_required` | incomplete | `options.N.isCorrect` | Not set: nobody has said whether the option is correct |
+| `mc_correct_option_required` | incomplete | `options` | No option is marked correct |
+| `mc_single_mode_one_correct` | invalid | `options` | `mode: 'single'` with more than one correct option |
+
+`fill-in-the-blanks`:
+
+| Code | Severity | Path | When |
+|---|---|---|---|
+| `fib_passage_required` | incomplete | `passage` | Absent, or only whitespace |
+| `fib_blanks_required` | incomplete | `blanks` | No blanks |
+| `fib_blank_id_required` | invalid | `blanks.N.id` | Absent, or empty |
+| `fib_accepted_answers_required` | incomplete | `blanks.N.acceptedAnswers` | No accepted answers |
+| `fib_accepted_answer_empty` | incomplete | `blanks.N.acceptedAnswers.M` | An accepted answer that is empty or only whitespace |
+| `fib_levenshtein_invalid` | invalid | `blanks.N.match.levenshtein` | Not a whole number of 0 or more, or larger than `Number.MAX_SAFE_INTEGER` |
+| `fib_match_locale_invalid` | invalid | `blanks.N.match.locale` | A non-empty locale that is not a language tag, such as `"en_US"`. Scoring would throw on it |
+| `fib_match_invalid` | invalid | `blanks.N.match…` | Any other matching value the schema refuses, such as a `normalize` of `""`; the message is the schema's |
+| `fib_blank_missing` | incomplete | `passage` | A `{{id}}` in the passage with no blank |
+| `fib_placeholder_missing` | incomplete | `passage` | A blank whose `{{id}}` is not in the passage |
+| `fib_placeholder_duplicate` | invalid | `passage` | The same `{{id}}` more than once |
+| `fib_blank_id_duplicate` | invalid | `passage` | Two blanks share an id |
+| `fib_blanks_mismatch` | invalid | `passage` | The blanks and placeholders fail to pair one to one in a way no code above names — a blank with no id beside correctly paired ones, for example |
+
+The pairing codes are reported at `passage` because that is where the schema
+reports its pairing rule. Each message names the id, except
+`fib_blanks_mismatch`'s, which has no single id to name.
+
+`written-response`:
+
+| Code | Severity | Path | When |
+|---|---|---|---|
+| `wr_prompt_required` | incomplete | `prompt` | Absent, or only whitespace — **even when `promptHtml` is set**, because the plain prompt is what `<WrittenResponse>` renders without a sanitiser |
+| `wr_min_words_required` | incomplete | `minWords` | Not set |
+| `wr_min_words_invalid` | invalid | `minWords` | Not a whole number of 0 or more, or larger than `Number.MAX_SAFE_INTEGER` |
+| `wr_max_words_required` | incomplete | `maxWords` | Not set, or `0` |
+| `wr_max_words_invalid` | invalid | `maxWords` | Not a whole number of 1 or more, or larger than `Number.MAX_SAFE_INTEGER` |
+| `wr_word_bounds_order` | invalid | `maxWords` | Below `minWords`; the bounds are inclusive, so equal is fine |
+| `wr_rubric_criteria_required` | incomplete | `rubric.criteria` | A rubric with no criteria |
+| `wr_criterion_name_required` | incomplete | `rubric.criteria.N.name` | Absent, or only whitespace |
+| `wr_criterion_weight_required` | incomplete | `rubric.criteria.N.weight` | Not set |
+| `wr_criterion_weight_invalid` | invalid | `rubric.criteria.N.weight` | Not a finite number of 0 or more |
+| `wr_rubric_weights_zero` | incomplete | `rubric.criteria` | Every weight is 0, so `gradeFromRubric` cannot compute a weighted total |
+| `wr_rubric_weights_too_large` | invalid | `rubric.criteria` | The weights add up to more than a number can hold, so `gradeFromRubric` cannot compute a weighted total either |
+
+A rubric weight above 1 is fine: weights are normalised by their sum.
+
+**`null` is a value, not an absence.** A required field that is `null` counts as
+not set and gets that field's own code: `title: null` is `title_required`. So does
+a field a type requires only sometimes, where it is required: `alt: null` on an
+image or an embed is `media_alt_required`. Any other `null` the schema refuses is
+`null_not_allowed`, whatever the field's own code would say, because
+`validateActivity` would reject the draft. Leave the field out instead. That holds
+for optional fields, for entries in lists — an `undefined` entry too, which JSON
+writes as `null` — and for every type you register, with two exceptions that keep
+the schema's own code: a rule of your type's own that points at a field holding a
+`null` the schema accepts, and a `null` inside a member of a plain `z.union`,
+which the schema library reports once, at the union's own path, without saying
+which member was meant. A `null` inside a member of a `z.discriminatedUnion` is
+named.
+
+### Your own activity types
+
+Add `authoring` to a descriptor to give a registered type the same support:
+
+```ts
+registerActivityType(defineActivityType<MatchingData, MatchingResponse>({
+  type: 'matching',
+  schema: MatchingSchema,
+  scoring: { kind: 'sync', score: scoreMatching },
+  authoring: {
+    createDraft: ({ newId }) => ({
+      schemaVersion: '1.0', type: 'matching', id: newId(), title: '', pairs: [],
+    }),
+    // The schema requires a title, so the check reports a missing one: a new
+    // draft must come back `incomplete`, never `invalid`.
+    checkDraft: (draft) => [
+      ...(typeof draft.title !== 'string' || draft.title.trim() === ''
+        ? [{ code: 'title_required', severity: 'incomplete' as const, path: ['title'], message: 'Add a title.' }]
+        : []),
+      ...(Array.isArray(draft.pairs) && draft.pairs.length === 0
+        ? [{ code: 'pairs_required', severity: 'incomplete' as const, path: ['pairs'], message: 'Add a pair.' }]
+        : []),
+    ],
+  },
+}));
+```
+
+Both functions are optional. Without `checkDraft`, `validateDraft` reports every
+schema failure as `invalid`. With it, a schema failure is still added, as
+`invalid`, unless `checkDraft` reported an issue at that path or inside it — so
+report each problem at the path the schema reports it, or an unfinished draft
+reads as a wrong one. An issue inside a path accounts for every failure at that
+path, a list's length included, so report a rule about a whole list — too many
+entries, say — at the list's own path: an issue about one unfinished entry would
+otherwise let an over-long list pass for merely unfinished. A failure at the root
+of the draft, such as a `.refine()` given no `path`, is accounted for only by an
+issue at the root, since every path is inside the root. A `null` the schema
+refuses that your check does not report is `null_not_allowed`. `checkDraft`
+receives any plain object and must not throw on one. A code from the tables above
+is reported with the severity they give it, whatever your check says; for a code
+of your own, a severity other than `'incomplete'` is reported as `invalid`.
+Calling `createDraft` for a type with no `authoring.createDraft` throws.
+
+For TypeScript to accept your type's name in `validateDraft` and `createDraft`,
+add the type to `ActivityDataMap` too, as
+[Custom activity types end to end](#custom-activity-types-end-to-end) shows.
+
+`validateDraft` and `createDraft` throw `UnknownActivityTypeError` for a type that
+is not registered — including `'item-group'`, which has no draft support.
+
+### Previewing a draft
+
+```tsx
+import { ActivityPreview } from '@intellectif/lk-react/components/ActivityPreview';
+
+<ActivityPreview
+  draft={draft}                        // whatever the editor holds, finished or not
+  renderMode="review"                  // 'practice' | 'exam' | 'review'
+  response={{ type: 'multiple-choice', selectedOptionIds: [wrongOptionId] }}
+  fallback={(result) => <IssueList issues={result.issues} />}
+/>
+```
+
+`<ActivityPreview>` (lk-react 8.0.0) runs `validateDraft` before anything renders.
+While the draft is not complete it renders `fallback`, or without one a short
+notice from the translatable `previewIncomplete` and `previewInvalid` strings, so
+each question previews on its own the moment it is complete instead of a whole
+preview waiting on every question. It never renders the issue messages: they are
+English, and `fallback` is the place to list them in your own words.
+
+A complete draft renders through the same components a learner sees:
+
+- In `practice` and `exam`, `response` seeds the answer and the author can keep
+  answering. Nothing is recorded — no callback is wired.
+- In `review`, `response` is shown as submitted and marked with `evaluate()`, so
+  an author sees exactly how a wrong answer is marked. A written response has no
+  score to compute and shows as awaiting its grade; pass `outcome` — for example
+  `outcomeFromGrade(grade)` — to preview a returned grade. A response that
+  `evaluate()` throws on shows the activity's error fallback, as a failure inside
+  the activity would.
+- A recording with a play limit enforces it in `practice` and `exam`, counted in
+  the preview's memory and stored nowhere, so an author hears the budget a
+  learner gets. `review` enforces nothing, as a review never does.
+
+A different `response` or `renderMode` mounts the activity afresh, play count
+included, and so does a different recording or playback policy; a new description
+of the recording does not. Any other change to the draft's content returns the
+answer to what `response` seeds, and keeps the play count.
+
+The draft is compared by content, on every render. A new object holding the same
+content changes nothing, whatever order its keys are in, so an editor that
+rebuilds its payload on every edit, or reads it back from a JSON column, does not
+interrupt the question an author is trying out, and a draft changed in place is
+checked again. A key holding `undefined` is content: `{ hint: undefined }` and no
+`hint` at all are different drafts. A value JSON cannot describe, such as an
+instance of a class or a function, is compared by identity.
+
+A shuffled multiple-choice question uses a fixed seed unless you pass
+`shuffleSeed`, so its options hold still while their text is edited; adding or
+removing an option deals them again, because the shuffle orders by position.
+`renderers` works as it does on `<ActivitySequence>`, and there as here a renderer
+is given no seed.
+
+A draft with no string `type`, an unregistered type, and a `response` of a
+different type from the draft all throw — the last as soon as it is passed,
+however unfinished the draft.
+
+**Not in the SDK:** the form fields, their order and grouping, and any content a
+new question starts with beyond the drafts above. There is no field metadata to
+generate a form from; the exported JSON Schema is the structural description of
+each type.
+
 ## Question sets — `ActivitySequence`
 
 To present several questions with in-place navigation (no scrolling):
@@ -316,7 +607,7 @@ It renders one question at a time with **Previous / Next**, a "Question X of N" 
 
 `shuffleSeed` is **required in `exam` and `review` mode**: shuffling without one throws at render, because an order nobody can reproduce cannot be reconciled with the attempt the server recorded, and render time is the last moment that mistake is cheap. In `practice` it stays optional — the pager falls back to a random per-mount seed, stable within the mount and deliberately not reproducible. That fallback is not SSR-safe (server and client would invent different orders and hydration would mismatch), so pass a seed for any server-rendered sequence whatever the mode.
 
-**One gap to know about.** The seed requirement is enforced for *sequence-level* shuffling — `shuffle="entries"`, and a group's `shuffle: 'within-group'`. It is **not** enforced for an activity's own `data.shuffle`: `<MultipleChoice>` invents a per-mount seed whenever `data.shuffle` is set and no `shuffleSeed` reaches it, in **every** render mode including `exam`. That renders without complaint and produces a different option order on each mount, which the server cannot rebuild. Until the guard covers it, pass `shuffleSeed` on any sequence whose items set `data.shuffle` — do not rely on the throw.
+**An activity's own shuffle counts too.** The seed requirement covers every shuffle a sequence can show, not only the ones it performs: an activity that sets `data.shuffle`, a group's items included, also makes `<ActivitySequence>` throw without a `shuffleSeed` in `exam` and `review`. A `<MultipleChoice>` rendered on its own has no such guard: it invents a per-mount seed whenever `data.shuffle` is set and no `shuffleSeed` reaches it, in **every** render mode including `exam`. That renders without complaint and produces a different option order on each mount, which the server cannot rebuild, so pass `shuffleSeed` to a standalone `<MultipleChoice>` that shuffles.
 
 **Not in V1:** auto-advance, submit-gating, aggregate-score UI (compute it with `composeAssessmentScore` from the `onFinished` items).
 
@@ -364,7 +655,7 @@ const slots = flattenSequence(entries, { shuffleEntries: true, seed: attemptId }
 
 **`version` is only reachable on a direct call.** `flattenSequence`, `planAttempt`, within-group shuffling and `<MultipleChoice>`'s option order all call `seededShuffle` without it and therefore always use version 1, and none of their option bags exposes the setting. So version 2 applies today only to content you order yourself, before handing it to the SDK — passing it to `flattenSequence` is not possible rather than merely ineffective. Threading it through is tracked in the [roadmap](./roadmap.md).
 
-`slotId` is derived from the **authored** position (`"2"` for the third entry, `"2.1"` for the second item of a group in that entry), so it is unique and stable under shuffling — the same activity in two entries is two slots. Record `slots` on the server when the attempt starts, and feed `slotId` to `composeAssessmentScore`. The pager reports the same `slotId` on every `SequenceItemOutcome` and on `onActivityComplete`. `flattenSequence` **requires** a seed whenever anything shuffles and never invents one; the pager's practice-mode fallback and `<MultipleChoice>`'s own option shuffle are the two places a seed is invented (see the shuffling section above). It also **refuses an empty group**: contributing no slots would delete a whole section — stimulus and questions — from a sequence that still looked well-formed, and `composeAssessmentScore` would then report a `final` grade over whatever survived.
+`slotId` is derived from the **authored** position (`"2"` for the third entry, `"2.1"` for the second item of a group in that entry), so it is unique and stable under shuffling — the same activity in two entries is two slots. Record `slots` on the server when the attempt starts, and feed `slotId` to `composeAssessmentScore`. The pager reports the same `slotId` on every `SequenceItemOutcome` and on `onActivityComplete`. `flattenSequence` **requires** a seed whenever anything shuffles and never invents one; the pager's practice-mode fallback and `<MultipleChoice>`'s own option shuffle are the two places a seed is invented (see the shuffling section above), and `<ActivityPreview>` supplies a fixed one of its own when given none. It also **refuses an empty group**: contributing no slots would delete a whole section — stimulus and questions — from a sequence that still looked well-formed, and `composeAssessmentScore` would then report a `final` grade over whatever survived.
 
 > **`slotId` is positional by default — declare `slotKey` for anything you persist.** A `slotKey` is assembly metadata, not content: it survives `redact()`, so an exam client rendering a redacted paper derives the same slot ids the server's plan recorded, and it is excluded from `contentHash` so annotating an item with one is not reported as a content edit. A positional id is stable under shuffling but is an index into *one particular* entries array: insert a question at the top of a published exam and every id below it shifts, so rows stored as `"3"` silently start naming a different question. Give each entry (and each item in a group) an explicit `slotKey` and it is used verbatim, surviving insertion, deletion and re-ordering. Two entries sharing a key is an error, not a merge.
 
@@ -383,9 +674,7 @@ import { asRenderableSequence } from '@intellectif/lk-react';
 />;
 ```
 
-`renderMode` is not optional here in practice: the default `practice` mode grades locally, so `<MultipleChoice>` and `<FillInTheBlanks>` throw at **render** when handed redacted data in it, rather than failing inside the submit handler after the learner has answered — where React error boundaries cannot reach.
-
-**`<WrittenResponse>` is the exception, and it is silent.** It never grades on the client, so it carries no such guard: a redacted essay renders and stays answerable in `practice`, and `evaluate()` returns `deferred` rather than throwing. An all-essay redacted paper mounted without `renderMode` therefore looks entirely healthy while running the practice submit path — including a client-side xAPI statement. Set `renderMode` explicitly; do not rely on a mis-wired exam being loud.
+`renderMode` is not optional here in practice: all three built-in activities throw at **render** when handed redacted data in the default `practice` mode. `<MultipleChoice>` and `<FillInTheBlanks>` grade locally, so they would otherwise fail inside the submit handler after the learner has answered — where React error boundaries cannot reach. `<WrittenResponse>` never grades on the client, but `practice` still runs its local submit path and emits a practice-mode xAPI statement for work the server is meant to grade, so since lk-react 7.0.0 it refuses redacted data there too.
 
 **Media in a group stops when the learner leaves it.** The pager keeps every question and every stimulus mounted, so answers survive back-navigation; hidden panes are `display: none`, which does **not** stop playback on its own. So the pager pauses any `<audio>`/`<video>` in a pane as that pane hides, preserving `currentTime` — a recording keeps its position between questions of its own group, stops when the learner navigates out of the group, and never auto-resumes. A provider `embed` cannot be controlled this way (that needs the provider's own JS API, and the author supplies the URL), so use `audio`/`video` media for anything that must stop.
 

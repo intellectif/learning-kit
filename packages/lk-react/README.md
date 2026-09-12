@@ -75,6 +75,7 @@ export function Demo() {
 - **`asRenderable()` / `asRenderableSequence()`** — the one documented bridge from a server's `redact()` projection to the `data` prop, so `as unknown as` stays out of your code.
 - **`shuffleSeed`** — one seed drives question order *and* each item's option order, so a review render reproduces exactly the arrangement the learner sat. Shuffling in `exam` / `review` mode **requires** it.
 - **`<StimulusPanel>`** — a shared passage / recording / image (an item group's stimulus) as a landmark region; the sequence uses it, and a custom runner can too.
+- **`<ActivityPreview>`** — an editor's preview. Renders a draft in any `renderMode` with a simulated `response` (marked with `evaluate()` in `review`), and a translatable notice — or your `fallback`, handed the issues — while `validateDraft` says the draft is not finished. Nothing it renders is recorded, and a recording's play limit is counted in memory only.
 - **Custom activity types** — `renderers={{ 'my-type': MyRenderer }}` on the sequence; a key matching a built-in overrides it, so you can replace a bundled renderer without forking the sequencer.
 - **Rich text, opt-in** — `sanitizeHtml` renders author-supplied `questionHtml` / `promptHtml`. The SDK ships **no** sanitiser and injects no HTML without one; without it the escaped plain-text field is used. (`FillInTheBlanks` ignores `passageHtml` by design — its passage hosts the answer inputs.)
 - **Media per question** — optional `image` / `audio` / `video` / `embed` (YouTube/Vimeo iframe) above the question; alt-text required for `image`/`embed` (WCAG).
@@ -84,7 +85,7 @@ export function Demo() {
 - **`useActivityState()`** — `idle → in-progress → completed → reviewing` machine with `getTimeSpent()`.
 - **`<ThemeProvider>` + `defaults.css`** — `--lk-*` design-token system; automatic dark mode via `prefers-color-scheme` (SSR-safe with `useSyncExternalStore`).
 - **`createTailwindTheme(theme)`** — optional Tailwind interop; consume the SDK palette from your own utilities.
-- **`<LkIntlProvider>`** — all 50 strings the SDK's own chrome renders, replaceable in one place, with a per-component `strings` prop for the exceptions. Interpolation and plurals are **functions**, not format strings, so your `Intl.PluralRules` does the work and TypeScript checks the arity. `locale` sets `lang` and derives `dir`; the skin uses logical properties, so RTL follows. The SDK ships the mechanism and **English only** — see [docs/i18n.md](https://github.com/intellectif/learning-kit/blob/main/docs/i18n.md).
+- **`<LkIntlProvider>`** — all 52 strings the SDK's own chrome renders, replaceable in one place, with a per-component `strings` prop for the exceptions. Interpolation and plurals are **functions**, not format strings, so your `Intl.PluralRules` does the work and TypeScript checks the arity. `locale` sets `lang` and derives `dir`; the skin uses logical properties, so RTL follows. The SDK ships the mechanism and **English only** — see [docs/i18n.md](https://github.com/intellectif/learning-kit/blob/main/docs/i18n.md).
 - **WCAG 2.2 AA** — axe-clean unit + Playwright e2e tests; full keyboard operability; numerically-verified contrast.
 - **RSC-compatible** — every component carries `'use client'` and hydrates inside a React Server Component tree.
 
@@ -96,6 +97,7 @@ export function Demo() {
 | `@intellectif/lk-react/components/MultipleChoice` | `<MultipleChoice>` (boundary-wrapped) |
 | `@intellectif/lk-react/components/FillInTheBlanks` | `<FillInTheBlanks>` (boundary-wrapped) |
 | `@intellectif/lk-react/components/WrittenResponse` | `<WrittenResponse>` (boundary-wrapped) |
+| `@intellectif/lk-react/components/ActivityPreview` | `<ActivityPreview>` draft preview for editors |
 | `@intellectif/lk-react/components/ActivitySequence` | `<ActivitySequence>` question-set pager |
 | `@intellectif/lk-react/components/StimulusPanel` | `<StimulusPanel>` shared-stimulus region |
 | `@intellectif/lk-react/hooks/useActivityState` | Lifecycle + timing |
@@ -125,7 +127,7 @@ subpath of their own.
 | **i18n** | Every SDK-rendered string is replaceable through `<LkIntlProvider>` or a per-component `strings` prop (lk-react 7.1.0); `locale` sets `lang` and names xAPI statements. **No locale but English is bundled** — the SDK ships the mechanism and the English defaults, because it cannot review a translation it does not speak. RTL is supported: the provider derives `dir` from the locale — and declares neither `lang` nor `dir` when you supplied neither, so it cannot flip an RTL host back — and the skin uses logical properties throughout. Thrown errors stay English on purpose — they address the developer, not the learner. |
 | **Media** | `<audio>` / `<video>` are paused when the pager navigates away, preserving `currentTime` so a group resumes where the learner left it; nothing ever auto-plays. A provider `embed` (iframe) **cannot** be paused this way — controlling a third-party player needs its own JS API. Use `audio` / `video` for anything that must stop when the learner navigates. |
 | **Playback policy** | Audio only. `maxPlays` / `seek` / `rate` are enforced by the SDK's own transport — a refused play is stopped inside the browser's `play` event, before a sample is audible. `nativeControlHints` is **advisory**: it emits `controlsList`, which some engines ignore, and never prevents a download. A budget is durable only if you persist it through `mediaBudget.onPlayConsumed`; the SDK stores nothing. Nothing here survives devtools. Not implemented for `video` or `embed`. |
-| **Authoring / content storage / CDN / auth** | Consumer responsibility — typed schemas + `validateActivity` + JSON Schema export are provided for you to build authoring on. |
+| **Authoring / content storage / CDN / auth** | Consumer responsibility. The contracts to build an editor on are provided: typed schemas, `validateActivity` and JSON Schema export, `validateDraft` / `createDraft` in `lk-core`, and `<ActivityPreview>` here. |
 | **SSR / RSC** | Fully supported; every component carries `'use client'`. |
 
 ### Versioning note

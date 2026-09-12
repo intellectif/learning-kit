@@ -17,6 +17,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.8.0 | 7.0.0 | Media playback policy for listening papers: `media.playback` (`maxPlays` / `seek` / `rate` / `nativeControlHints`), the SDK's own audio transport, `MediaPlayLedger`, `mediaBudget` on the pager. **Also two new render-time throws and one grade-affecting match fix** — the only release in this table that asks you to do something |
 | 0.8.1 | 7.0.1 | Patch: two further fail-open leaks in `redact()`, a play budget that never bound on an essay slot, and three guards that could not fail |
 | 0.8.1 | 7.1.0 | `<LkIntlProvider>`: every string the SDK renders itself is overridable, `lang` / `dir` derived from the locale, RTL-safe skin. **No `lk-core` change** — a `lk-react` minor on the same peer range as 7.0.1 |
+| 0.9.0 | 8.0.0 | Authoring: `validateDraft` (incomplete vs invalid), `createDraft`, per-type `authoring` descriptors, `<ActivityPreview>`. **Additive** — the major is the peer bump, plus one new component and two new strings |
 
 Every behavioural change here is opt-in, per the
 [grade-stability rule](./roadmap.md#5-standing-decisions) — with **one
@@ -30,6 +31,7 @@ were.
 - On **0.3.x / 0.4.x / 0.5.x**? Start with [Grade-correctness first](#grade-correctness-first).
 - On **0.6.x**? Skip to [0.6 → 0.7](#06--07-lk-core--5x--6x-lk-react).
 - On **0.7.x**? Skip to [0.7 → 0.8](#07--08-lk-core--6x--7x-lk-react) — it has two new render-time throws and one grade-affecting fix.
+- On **0.8.x**? See [0.8 → 0.9](#08--09-lk-core--7x--8x-lk-react) — additive, with one possible type error.
 
 ---
 
@@ -220,6 +222,39 @@ the learner actually saw.
 
 ---
 
+## 0.8 → 0.9 (`lk-core`) / 7.x → 8.x (`lk-react`)
+
+Additive. Upgrade and change no code, and nothing you render, validate or score
+behaves differently. 8.0.0 is a major because `lk-core` is a peer and moved a
+minor; it also adds one component.
+
+### An editor can tell unfinished from wrong *(0.9.0 / 8.0.0)*
+
+`validateDraft(type, draft)` reports `complete`, `incomplete` or `invalid`, with
+issues that carry a `severity` and a `code`, documented for every problem the
+draft checks recognise. `createDraft(type, { newId })`
+returns an empty draft to start from, and `<ActivityPreview>` renders a draft in
+any mode with a simulated response — or a notice, while it is unfinished. See
+[Building an editor](./authoring.md#building-an-editor-v09).
+
+If you keep draft checks of your own beside `validateActivity`, compare before
+you replace them. `validateDraft` is stricter than the schema: it reports a blank
+written-response `prompt` even when `promptHtml` is set, a rubric criterion name
+that is only whitespace, and a rubric whose weights are all 0 or add up to more
+than a number can hold. It does not adopt
+rules that belong to a product rather than to the activity type: `minWords: 0`
+(no lower limit) is complete, and a rubric weight above 1 is fine. If your
+storage writes `null` for a field nobody filled in, expect `null_not_allowed`
+wherever the field is optional: the schema accepts no `null` there, so leave the
+field out.
+
+### One thing that can stop a build *(8.0.0)*
+
+`LkStrings` gained `previewIncomplete` and `previewInvalid`. A translation passed
+as a partial override — an `LkStringsOverride`, or an object literal handed
+straight to `strings` — is unaffected. A dictionary declared as a complete
+`LkStrings` does not type-check until it supplies both.
+
 ## 0.7 → 0.8 (`lk-core`) / 6.x → 7.x (`lk-react`)
 
 7.1.0 is additive: upgrade to it from 7.0.x and change nothing. **0.8.0 / 7.0.0
@@ -279,7 +314,7 @@ the file itself must not be kept.
 
 ### The UI speaks your language *(7.1.0)*
 
-Every string the SDK renders itself — 47 of them — is replaceable through
+Every string the SDK renders itself — 50 of them — is replaceable through
 `<LkIntlProvider>` or a per-component `strings` prop, and the provider sets `lang`
 and derives `dir` from the locale. **Only English is bundled**; the mechanism
 ships and the translations are yours.
