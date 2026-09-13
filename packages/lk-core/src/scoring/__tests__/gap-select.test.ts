@@ -193,10 +193,57 @@ describe('gap-select — scoring', () => {
     expect(result.score).toBe(0.5);
   });
 
+  it('scores a gap that carries its own choices, with no bank in sight', () => {
+    // The other half of the choice-source rule. Every fixture above draws from
+    // a shared bank, so without this the inline path was validated but never
+    // actually marked.
+    const { banks: _unused, ...withoutBanks } = activity;
+    const inline: GapSelectData = {
+      ...withoutBanks,
+      passage: 'The sky is {{a}} and the grass is {{b}}.',
+      gaps: [
+        {
+          id: 'a',
+          choices: [
+            { id: 'blue', text: 'blue' },
+            { id: 'red', text: 'red' },
+          ],
+          correctChoiceId: 'blue',
+        },
+        {
+          id: 'b',
+          choices: [
+            { id: 'green', text: 'green' },
+            { id: 'purple', text: 'purple' },
+          ],
+          correctChoiceId: 'green',
+        },
+      ],
+    };
+    expect(score('gap-select', inline, respond({ a: 'blue', b: 'green' })).score).toBe(1);
+    expect(score('gap-select', inline, respond({ a: 'blue', b: 'purple' })).score).toBe(0.5);
+    // Each gap is scored against its OWN list: `green` answers b, not a.
+    expect(score('gap-select', inline, respond({ a: 'green', b: 'green' })).score).toBe(0.5);
+    expect(
+      score('gap-select', inline, respond({ a: 'green', b: 'green' })).details?.[0]?.outcome,
+    ).toBe('incorrect-omission');
+  });
+
   it('scores nothing rather than throwing when a bank has gone missing', () => {
     const orphaned = { ...activity, banks: [] };
     const result = score('gap-select', orphaned, respond({ a: 'from', b: 'from' }));
     expect(result.score).toBe(0);
+  });
+
+  it('scores nothing rather than throwing when the banks array is gone entirely', () => {
+    // Distinct from the empty-array case above: content edited after an attempt
+    // can drop `banks` altogether while the gaps still name one. Marking must
+    // still produce a paper — a grade of zero is defensible at an appeal, a
+    // thrown scorer is not.
+    const { banks: _unused, ...noBanks } = activity;
+    const result = score('gap-select', noBanks as GapSelectData, respond({ a: 'from', b: 'from' }));
+    expect(result.score).toBe(0);
+    expect(result.details?.every((detail) => detail.outcome === 'incorrect-omission')).toBe(true);
   });
 
   it('never reports a choice id the learner could not have picked as the key', () => {

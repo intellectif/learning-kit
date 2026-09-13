@@ -1308,3 +1308,68 @@ describe('validateDraft: registered types, as their schemas report', () => {
     ]);
   });
 });
+
+describe('validateDraft: gap-select values of the wrong type', () => {
+  const gs = (over: Fields = {}): Fields => ({
+    schemaVersion: '1.0',
+    type: 'gap-select',
+    id: 'g1',
+    title: 'Prepositions',
+    passage: "I'm {{a}} Spain.",
+    scoringStrategy: 'partial',
+    gaps: [
+      {
+        id: 'a',
+        choices: [
+          { id: 'from', text: 'from' },
+          { id: 'of', text: 'of' },
+        ],
+        correctChoiceId: 'from',
+      },
+    ],
+    ...over,
+  });
+
+  it('accepts the baseline fixture, so the cases below isolate one change each', () => {
+    expect(validateDraft('gap-select', gs()).status).toBe('complete');
+  });
+
+  it('leaves a correctChoiceId of the wrong type to the schema', () => {
+    // The draft checks claim no code for a value of another type: the schema
+    // refuses it, and validateDraft reports that refusal as `invalid`. What
+    // must NOT happen is a check inventing its own diagnostic for it.
+    const result = validateDraft(
+      'gap-select',
+      gs({
+        gaps: [
+          {
+            id: 'a',
+            choices: [
+              { id: 'from', text: 'from' },
+              { id: 'of', text: 'of' },
+            ],
+            correctChoiceId: 7,
+          },
+        ],
+      }),
+    );
+    expect(result.status).toBe('invalid');
+    expect(result.issues.some((found) => found.code.startsWith('gs_correct_choice'))).toBe(false);
+    expect(result.issues.some((found) => found.path.join('.') === 'gaps.0.correctChoiceId')).toBe(
+      true,
+    );
+  });
+
+  it('leaves a choices field that is not a list to the schema', () => {
+    const result = validateDraft(
+      'gap-select',
+      gs({ gaps: [{ id: 'a', choices: 'from, of', correctChoiceId: 'from' }] }),
+    );
+    expect(result.status).toBe('invalid');
+    // No `gs_choices_too_few`: a string is not a short list, it is the wrong
+    // kind of value, and saying "add more choices" would send an author to fix
+    // the wrong thing.
+    expect(result.issues.some((found) => found.code === 'gs_choices_too_few')).toBe(false);
+    expect(result.issues.some((found) => found.severity === 'invalid')).toBe(true);
+  });
+});
