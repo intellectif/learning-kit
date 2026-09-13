@@ -437,6 +437,38 @@ The pairing codes are reported at `passage` because that is where the schema
 reports its pairing rule. Each message names the id, except
 `fib_blanks_mismatch`'s, which has no single id to name.
 
+`gap-select`:
+
+| Code | Severity | Path | When |
+|---|---|---|---|
+| `gs_passage_required` | incomplete | `passage` | Absent, or only whitespace |
+| `gs_gaps_required` | incomplete | `gaps` | No gaps |
+| `gs_gap_id_required` | invalid | `gaps.N.id` | Absent, or empty |
+| `gs_gap_id_duplicate` | invalid | `gaps` | Two gaps share an id |
+| `gs_gap_missing` | incomplete | `passage` | A `{{id}}` in the passage with no gap |
+| `gs_placeholder_missing` | incomplete | `passage` | A gap whose `{{id}}` is not in the passage |
+| `gs_placeholder_duplicate` | invalid | `passage` | The same `{{id}}` more than once |
+| `gs_gaps_mismatch` | invalid | `passage` | The gaps and placeholders fail to pair one to one in a way no code above names |
+| `gs_presentation_invalid` | invalid | `presentation` | Anything but `"dropdown"`, the only presentation that exists yet |
+| `gs_bank_id_required` | invalid | `banks.N.id` | Absent, or empty |
+| `gs_bank_id_duplicate` | invalid | `banks` | Two word banks share an id |
+| `gs_bank_unknown` | invalid | `gaps` | A gap's `bankId` names no word bank |
+| `gs_choice_source_required` | incomplete | `gaps`, `gaps.N.bankId` | A gap has neither its own `choices` nor a `bankId`; or its `bankId` is blank, which is the bank selector still on its placeholder |
+| `gs_choice_source_conflict` | invalid | `gaps` | A gap has both — which list the learner sees is then undecidable |
+| `gs_choices_too_few` | incomplete | `gaps.N.choices`, `banks.N.choices` | Fewer than 2 choices to pick from |
+| `gs_choice_id_required` | invalid | `…choices.M.id` | Absent, or empty |
+| `gs_choice_id_duplicate` | invalid | `…choices` | Two choices in one list share an id |
+| `gs_choice_text_required` | incomplete | `…choices.M.text` | Absent, or only whitespace |
+| `gs_correct_choice_required` | incomplete | `gaps.N.correctChoiceId` | No choice is marked correct for a gap |
+| `gs_correct_choice_unknown` | invalid | `gaps` | `correctChoiceId` names a choice the gap does not offer |
+
+A new `gap-select` draft marks **no** choice correct, for the reason a new
+multiple-choice draft marks no option correct: a pre-marked one lets an author
+write four plausible choices, never open the correctness control, and hold a
+`complete` question whose answer key is whatever was listed first. The gap-level
+rules are reported at `gaps` rather than at the gap, because that is where the
+schema reports them.
+
 `written-response`:
 
 | Code | Severity | Path | When |

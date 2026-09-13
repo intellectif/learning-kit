@@ -26,7 +26,12 @@ import { DRAFT_ISSUE_SEVERITY } from '../issues.js';
  * outside an enumeration (a `mode` of `"bogus"`).
  */
 
-const BUILT_IN: ActivityType[] = ['multiple-choice', 'fill-in-the-blanks', 'written-response'];
+const BUILT_IN: ActivityType[] = [
+  'multiple-choice',
+  'fill-in-the-blanks',
+  'written-response',
+  'gap-select',
+];
 
 /** Many runs: each is two schema parses and a check, all pure and fast. */
 const RUNS = { numRuns: 1000 };
@@ -288,10 +293,73 @@ const writtenResponseDraft = fc
   })
   .map(compact);
 
+/** A choice, with every field absent, null, blank or written. */
+const choiceArb = entry(
+  fc
+    .record({
+      id: fc.constantFrom<unknown>(undefined, null, '', 'of', 'from', 'to'),
+      text: text,
+    })
+    .map(compact),
+);
+
+const choiceListArb = orUnset(fc.array(choiceArb, { maxLength: 4 }));
+
+const gapArb = entry(
+  fc
+    .record({
+      id: fc.constantFrom<unknown>(undefined, null, '', 'a', 'b'),
+      // Both, neither, or one — so the one-choice-source rule is exercised in
+      // every direction rather than only the happy one.
+      choices: choiceListArb,
+      bankId: fc.constantFrom<unknown>(undefined, null, '', 'prep', 'ghost'),
+      correctChoiceId: fc.constantFrom<unknown>(undefined, null, '', 'from', 'nobody'),
+      feedback: optionalText,
+    })
+    .map(compact),
+);
+
+const bankArb = entry(
+  fc
+    .record({
+      id: fc.constantFrom<unknown>(undefined, null, '', 'prep'),
+      choices: choiceListArb,
+    })
+    .map(compact),
+);
+
+/** Passages that pair with the gap ids above, and several that do not. */
+const gapPassageArb = fc.constantFrom<unknown>(
+  undefined,
+  null,
+  '',
+  '   ',
+  'Where are you {{a}}?',
+  "Where are you {{a}}? I'm {{b}} Spain.",
+  'Twice over {{a}} and {{a}}.',
+  'A stranger {{ghost}} here.',
+  'No placeholders at all.',
+);
+
+const gapSelectDraft = fc
+  .record({
+    ...envelope('gap-select'),
+    passage: gapPassageArb,
+    passageHtml: optionalText,
+    gaps: orUnset(fc.array(gapArb, { maxLength: 3 })),
+    banks: orUnset(fc.array(bankArb, { maxLength: 2 })),
+    scoringStrategy: fc.constantFrom<unknown>(undefined, null, '', 'all-or-nothing', 'partial'),
+    presentation: fc.constantFrom<unknown>(undefined, null, '', 'dropdown', 'drag'),
+    shuffleChoices: optionalBool,
+    ...sharedArbs,
+  })
+  .map(compact);
+
 const EDITOR_DRAFTS: [ActivityType, fc.Arbitrary<Record<string, unknown>>][] = [
   ['multiple-choice', multipleChoiceDraft],
   ['fill-in-the-blanks', fillInTheBlanksDraft],
   ['written-response', writtenResponseDraft],
+  ['gap-select', gapSelectDraft],
 ];
 
 /** A well-formed response for each type, to score a complete draft with. */
@@ -299,6 +367,7 @@ const RESPONSES: Record<string, LearnerResponse> = {
   'multiple-choice': { type: 'multiple-choice', selectedOptionIds: ['a'] },
   'fill-in-the-blanks': { type: 'fill-in-the-blanks', answers: { a: 'Went', b: '' } },
   'written-response': { type: 'written-response', text: 'I went home.', wordCount: 3 },
+  'gap-select': { type: 'gap-select', selections: { a: 'from', b: '' } },
 };
 
 describe('validateDraft properties', () => {
