@@ -35,6 +35,8 @@ const REQUIRED_EXPORTS = [
   // schemas + registry
   'validateActivity',
   'validateItemGroup',
+  'validateDraft',
+  'createDraft',
   'jsonSchemaFor',
   'defineActivityType',
   'registerActivityType',
@@ -113,6 +115,32 @@ if (typeof core.redact === 'function') {
   }
 }
 
+// The draft contract, proven against the built artifact. A new draft must come
+// back `incomplete`: never `complete`, which would let an unwritten question
+// pass for a finished one, and never `invalid`, which is the failure the
+// contract exists to remove. And the result must carry no `success` field,
+// whose truthiness an editor could test instead of `status`.
+if (typeof core.createDraft === 'function' && typeof core.validateDraft === 'function') {
+  let issued = 0;
+  const newId = () => {
+    issued += 1;
+    return `probe-${issued}`;
+  };
+  for (const type of ['multiple-choice', 'fill-in-the-blanks', 'written-response']) {
+    const draft = core.createDraft(type, { newId });
+    const { status } = core.validateDraft(type, draft);
+    if (status !== 'incomplete') {
+      failures.push(`validateDraft(createDraft('${type}')) is "${status}", not "incomplete"`);
+    }
+    if (core.validateActivity(type, draft).success) {
+      failures.push(`validateActivity accepted an unwritten ${type} draft`);
+    }
+  }
+  if ('success' in core.validateDraft('multiple-choice', activity)) {
+    failures.push('validateDraft results carry a `success` field');
+  }
+}
+
 // The grade-stability corpus, replayed against BOTH builds a consumer can
 // install. The standing rule is that nothing which can change a historical
 // grade ships outside a major. The unit suite asserts scoring numbers too,
@@ -151,5 +179,6 @@ if (failures.length > 0) {
 
 console.log(
   `verify-dist OK: ${REQUIRED_EXPORTS.length} documented exports resolve from dist; redaction is fail-closed; ` +
+    'new drafts are incomplete; ' +
     `${corpus.vectors.length} grade vectors replay identically against CJS and ESM.`,
 );

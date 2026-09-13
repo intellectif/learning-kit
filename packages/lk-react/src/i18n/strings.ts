@@ -94,6 +94,15 @@ export interface LkStrings {
   /** Shown when no renderer is registered for an activity type. */
   unsupportedActivity: string;
 
+  // ── Authoring preview ──────────────────────────────────────────────────
+  /**
+   * `<ActivityPreview>`, in place of a draft that still has something missing.
+   * Author-facing, not learner-facing — but an editor is translated too.
+   */
+  previewIncomplete: string;
+  /** `<ActivityPreview>`, in place of a draft with something wrong in it. */
+  previewInvalid: string;
+
   // ── Embedded media ────────────────────────────────────────────────────────
   /**
    * Accessible name of a provider iframe whose author supplied no `alt`.
@@ -175,6 +184,9 @@ export const DEFAULT_STRINGS: LkStrings = {
   next: 'Next',
   questionProgress: (index, total) => `Question ${index} of ${total}`,
   unsupportedActivity: 'This activity type has no renderer. Supply one through the renderers prop.',
+
+  previewIncomplete: 'This activity is not finished yet, so it cannot be previewed.',
+  previewInvalid: 'This activity has a problem to fix before it can be previewed.',
 
   embeddedMedia: 'Embedded media',
 

@@ -277,7 +277,7 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   real rather than claimed: the provider derives `dir` from the locale, and four physical CSS properties
   that put the per-blank feedback gap and the blank's tooltip on the wrong edge were found only because the
   new `e2e/rtl-layout.spec.ts` measures geometry in both directions. Coverage is enforced structurally —
-  `src/i18n/__tests__/translation-coverage.test.tsx` overrides all 50 strings with sentinels and renders
+  `src/i18n/__tests__/translation-coverage.test.tsx` overrides every string with sentinels and renders
   the real components, so a key that no component reads fails by name, and `verify-dist` pins
   `docs/i18n.md` against the BUILT dictionary so the table a consumer types their translation against
   cannot drift. **The first cut of that sweep did not earn the claim.** It mounted `exam` mode without
@@ -300,8 +300,48 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   consumer's exam renderer + redactor), headless `useActivity` layer, `LkIntlProvider` (`en`/`es`/`pt`/`ar`) +
   RTL, CSS-based dark mode + no-flash SSR, full reduced-motion pass. `ActivitySequence` written-response
   dispatch (requires the widened results type).
-- Authoring slice (R8): per-type authoring descriptors, `validateDraft()` with `incomplete` vs `invalid`,
-  preview harness.
+- ✅ **Authoring slice (R8)** — `validateDraft()` with `incomplete` vs `invalid`, per-type `authoring`
+  descriptors (`createDraft`, `checkDraft`), and `<ActivityPreview>` as the preview harness. The failure it
+  fixes was confirmed in an integrating editor rather than taken from the roadmap line: its Save button and
+  its entire preview were gated on `validateActivity`, so one freshly added question — invalid by
+  construction — disabled both, and it kept a stricter validator of its own for written responses because
+  nothing else could say "not finished yet". The result has **no `success` field**: a boolean would have to
+  call an incomplete draft one thing or the other. It is stricter than `validateActivity` and never looser,
+  which a property test holds over generated editor-shaped drafts, together with the guarantee that every
+  issue for such input carries a documented `code`; each code's severity is fixed in one table that a test
+  pins to `docs/authoring.md`. Three choices went against the obvious default: a new multiple-choice
+  draft marks **no** option correct, since a pre-marked one lets an untouched control become the answer key;
+  `minWords: 0` stays complete, because `<WrittenResponse>` already renders it as "up to N words"; and a
+  blank `prompt` is incomplete even beside `promptHtml`, as a stimulus's `bodyHtml` already requires `body`.
+  **An external review then found those guarantees narrower than claimed, and it was right.** The property
+  test never generated an option with no `isCorrect`, a `null` optional field, an unchosen `<select>` or a
+  missing `schemaVersion`, and each of those came back as a raw zod code at `invalid`: an unfinished question
+  reading as a broken one. A complete draft could also still break, two ways. A `match.locale` that is not a
+  language tag made scoring throw inside the preview's review marking, outside any error boundary, and a
+  recording with `maxPlays` could not be previewed in `exam` at all. The fixes: `null` where the schema
+  accepts none is one documented code, `null_not_allowed`, for every registered type; an unset `isCorrect`
+  or media `type`, a wrong `schemaVersion` or `type`, `redacted: true` and a refused match value each have
+  their own; the preview binds a recording to a budget kept in memory, and validates on the draft's content
+  rather than its identity. The arbitraries now generate absent, `null` and empty values for every field,
+  and a property asserts that a complete draft always scores. **A second, adversarial round then ran against
+  the built packages** — about two million generated editor-shaped drafts, every preview claim rendered in
+  jsdom and on the server, every changed statement in the docs — and found more, each reproduced before it
+  was fixed. A whole number past `Number.MAX_SAFE_INTEGER` leaked zod's `too_big`. A registered type's own
+  refinement pointing at a field holding a `null` the schema accepts was relabelled `null_not_allowed` and
+  lost its message, so the rule now reads the value zod's failing check was given and names only a `null` the
+  schema itself refused. A check could give a documented code another severity, or keep a misspelled one. A
+  blank captions address read as wrong, and rubric weights whose sum overflows read as complete though no
+  grade could be computed (`wr_rubric_weights_too_large`). The preview keyed content on JSON key order, so a
+  draft read back from a JSON column reset the author's answer; it never re-checked a draft changed in place,
+  kept a spent play count across a change of recording, and let a scorer that threw in `review` take down the
+  page around it. Mutation-tested by hand after both rounds: 90 of 92 mutants of the draft checks are killed
+  and the other 2 are equivalent, and all 32 of the preview's are killed — the three survivors that were not
+  equivalent each exposed a test that could not tell the difference. A survivor of the first preview sweep
+  had already exposed one divergence — a review response
+  passed as `value` where `<ActivitySequence>` passes `defaultValue` — so the preview seeds in every mode. **Cut from the
+  sketch:** field metadata, ordering and grouping for generating forms — no consumer evidence, and the JSON
+  Schema export already describes structure — and default content beyond an empty draft, which is pedagogy.
+  **Still open:** draft support for item groups.
 - `@intellectif/lk-ai` (ports only): `LlmBridge`, `generateActivities` + named-semantic-check repair loop +
   `AiProvenance`, `lintActivity` (item-writing critic), `gradeFreeText` + `RubricConfig` + CEFR descriptor
   data, `analyzeItem` (facility/discrimination/distractor efficiency).

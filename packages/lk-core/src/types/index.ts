@@ -30,6 +30,14 @@ export type {
 export type { AttemptPlan, AttemptPlanDrift, AttemptPlanSlot } from './attempt-plan.js';
 export type { AttemptState, ResponseDiffEntry } from './attempt-state.js';
 export type {
+  DraftComplete,
+  DraftContext,
+  DraftIssue,
+  DraftNotComplete,
+  DraftSeverity,
+  DraftValidationResult,
+} from './authoring.js';
+export type {
   CriterionScore,
   GradeRecord,
   Grader,

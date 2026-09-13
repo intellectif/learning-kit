@@ -43,6 +43,16 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./components/ActivityPreview": {
+      "import": {
+        "types": "./dist/components/ActivityPreview.d.ts",
+        "default": "./dist/components/ActivityPreview.js"
+      },
+      "require": {
+        "types": "./dist/components/ActivityPreview.d.cts",
+        "default": "./dist/components/ActivityPreview.cjs"
+      }
+    },
     "./components/ActivitySequence": {
       "import": {
         "types": "./dist/components/ActivitySequence.d.ts",

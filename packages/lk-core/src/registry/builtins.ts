@@ -1,4 +1,7 @@
 import type { z } from 'zod/v4';
+import { fillInTheBlanksAuthoring } from '../authoring/fill-in-the-blanks.js';
+import { multipleChoiceAuthoring } from '../authoring/multiple-choice.js';
+import { writtenResponseAuthoring } from '../authoring/written-response.js';
 import { countWords } from '../count-words.js';
 import { FillInTheBlanksDataSchema } from '../schemas/fill-in-the-blanks.js';
 import { MultipleChoiceDataSchema } from '../schemas/multiple-choice.js';
@@ -209,6 +212,7 @@ export const multipleChoiceType = defineActivityType<
     ],
   },
   interactions: ['option-selected', 'option-deselected', 'submitted'],
+  authoring: multipleChoiceAuthoring,
 });
 
 /** Built-in Fill-in-the-Blanks descriptor. */
@@ -234,6 +238,7 @@ export const fillInTheBlanksType = defineActivityType<
     ],
   },
   interactions: ['blank-filled', 'hint-requested', 'submitted'],
+  authoring: fillInTheBlanksAuthoring,
 });
 
 /**
@@ -270,6 +275,7 @@ export const writtenResponseType = defineActivityType<
     correctResponsesPattern: () => [],
   },
   interactions: ['text-changed', 'submitted'],
+  authoring: writtenResponseAuthoring,
 });
 
 registerActivityType(multipleChoiceType);

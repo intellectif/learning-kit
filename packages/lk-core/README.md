@@ -16,7 +16,8 @@ npm install @intellectif/lk-core
 
 - **Activity schemas** for `multiple-choice`, `fill-in-the-blanks` and `written-response`, with semantic refinements (e.g. *at least one correct option*, *single-select ⇒ exactly one correct*, *passage ↔ blank-id bijection*, *image/embed require `alt`*). Loose at every level, so your sidecar fields survive validation.
 - **`validateActivity(type, data)`** — the authoritative runtime validator. Returns a typed `{ success, data }` or a structured `{ success: false, errors[] }`, and **throws `UnknownActivityTypeError` if `type` is not registered** — so guard it when validating a content bank that may carry types this build does not know. `validateItemGroup(data)` is the equivalent for a `Stimulus` + `ItemGroup` container, which `validateActivity` cannot take.
-- **An open type system** — `defineActivityType` / `registerActivityType` make an activity type a *value*, not a hard-coded union member: register one and `validateActivity`, `score`, `evaluate`, `redact` and `jsonSchemaFor` all work for it, with no SDK release.
+- **`validateDraft(type, draft)`** — for editors. Reports `complete`, `incomplete` (something not written yet) or `invalid` (something wrong), each issue with a `severity` and a `code` — documented for every problem the checks recognise — and deliberately no `success` boolean to misread. Stricter than `validateActivity`, never looser. **`createDraft(type, { newId })`** returns an empty draft to start from; a multiple-choice draft marks no option correct.
+- **An open type system** — `defineActivityType` / `registerActivityType` make an activity type a *value*, not a hard-coded union member: register one and `validateActivity`, `validateDraft`, `score`, `evaluate`, `redact` and `jsonSchemaFor` all work for it, with no SDK release. An `authoring` block on the descriptor gives it draft support.
 - **JSON Schema (Draft-7) export** — `jsonSchemaFor(type)` for any registered type (plus the static per-type exports), suitable for form generators or AI prompting.
 - **Scoring engine** — `score(activityType, data, response)` returning `{ score ∈ [0,1], maxScore: 1, passed, feedback, details }`. Pure, deterministic, 100 % test coverage enforced. It **throws** rather than inventing a number: `DeferredScoringError` for a deferred-graded type (`written-response`), and `RedactedScoringError` when handed a `redact()` projection, which has no answer key. Both are on the documented exam path — use `evaluate()` there, which returns `deferred` / `unscorable` instead of throwing.
 - **`evaluate(data, response)` → `ItemOutcome`** — the resilient result: `scored`, `deferred` (graded later by an AI or a human), `graded` (the grade came back), or `unscorable`. "Not graded yet" is expressible in the type system and is never conflated with a zero.
@@ -114,8 +115,8 @@ result.passed;   // boolean, or null while provisional. Never record a provision
 | `@intellectif/lk-core/xapi` | `xAPIBuilder`, `XAPIVerb`, `validateXAPIStatement` |
 
 The barrel re-exports everything, and it is the **only** entry point for attempt
-plans, attempt state, item groups, redaction, the type registry and content
-hashing — those have no subpath of their own.
+plans, attempt state, item groups, redaction, the type registry, authoring drafts
+and content hashing — those have no subpath of their own.
 
 All exports ship as ESM + CJS with `.d.ts` types. Tree-shakeable; `sideEffects: false`. Node >= 20. In browsers, the SDK's own code needs `Object.hasOwn` — Chrome and Edge 93, Firefox 92, Safari 15.4 — because output targets ES2022 and nothing is polyfilled.
 Zod is the single runtime dependency: the package depends on `zod@^3.25` and imports the **Zod 4 API** from its `zod/v4` subpath, so it coexists with an app still on Zod 3.
@@ -125,7 +126,7 @@ Zod is the single runtime dependency: the package depends on `zod@^3.25` and imp
 - [Upgrading](https://github.com/intellectif/learning-kit/blob/main/docs/upgrading.md) — start here on any upgrade from 0.3.x, 0.4.x or 0.5.x.
 - [Changelog](https://github.com/intellectif/learning-kit/blob/main/packages/lk-core/CHANGELOG.md) — every release, with the reasoning.
 - [Grade-stability vectors](https://github.com/intellectif/learning-kit/blob/main/packages/lk-core/vectors/README.md) — the package's grading frozen as data; replay it against the build you install.
-- [Authoring & content storage](https://github.com/intellectif/learning-kit/blob/main/docs/authoring.md) — data model, validation, fetch → validate → render flow.
+- [Authoring & content storage](https://github.com/intellectif/learning-kit/blob/main/docs/authoring.md) — data model, validation, fetch → validate → render flow, and building an editor (the draft issue codes).
 - [Project README](https://github.com/intellectif/learning-kit#readme) — the full picture, including the React renderers.
 - [Contributing](https://github.com/intellectif/learning-kit/blob/main/CONTRIBUTING.md) — adding a new activity type.
 

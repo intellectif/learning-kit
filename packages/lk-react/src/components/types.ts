@@ -214,14 +214,11 @@ export function asRenderable<TData extends ActivityData>(
  * />
  * ```
  *
- * Pass `renderMode="exam"` (or `"review"`). Redacted data has no answer key,
- * and the default `practice` mode grades locally — so `<MultipleChoice>` and
- * `<FillInTheBlanks>` throw at render rather than fail at submit time.
- *
- * `<WrittenResponse>` is the exception: it never grades on the client and has
- * no such guard, so a redacted essay renders and stays answerable in
- * `practice`. A mis-wired essay item is therefore SILENT — set `renderMode`
- * explicitly rather than relying on the throw.
+ * Pass `renderMode="exam"` (or `"review"`). Redacted data has no answer key, and
+ * all three built-in activities throw at render in the default `practice` mode
+ * rather than fail later: `<MultipleChoice>` and `<FillInTheBlanks>` because
+ * they grade locally, and `<WrittenResponse>` because `practice` still runs its
+ * local submit path and emits a practice-mode xAPI statement.
  */
 export function asRenderableSequence(
   entries: readonly (RedactedActivityData | RedactedItemGroupData)[],

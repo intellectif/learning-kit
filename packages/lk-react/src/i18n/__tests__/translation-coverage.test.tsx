@@ -15,6 +15,7 @@ import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActivityErrorBoundary } from '../../components/ActivityErrorBoundary.js';
+import { ActivityPreview } from '../../components/ActivityPreview/index.js';
 import { ActivitySequence } from '../../components/ActivitySequence/index.js';
 import { FillInTheBlanks } from '../../components/FillInTheBlanks/index.js';
 import { MultipleChoice } from '../../components/MultipleChoice/index.js';
@@ -298,6 +299,16 @@ describe('translation coverage', () => {
     // ── Sequence: pager chrome, and the note for an unregistered type ───────
     const unsupported = { ...mc, id: 'q9', type: 'matching' } as unknown as ActivityData;
     sweep(<ActivitySequence activities={[unsupported, mc]} />);
+    cleanup();
+
+    // ── Authoring preview: the notice for an unfinished and for a wrong draft ─
+    sweep(<ActivityPreview draft={{ ...mc, title: '' }} />);
+    cleanup();
+    sweep(
+      <ActivityPreview
+        draft={{ ...mc, options: mc.options.map((option) => ({ ...option, isCorrect: true })) }}
+      />,
+    );
     cleanup();
 
     // ── Stimulus: an unnamed region per kind, plus the range label ──────────
