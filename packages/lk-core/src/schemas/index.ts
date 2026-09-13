@@ -8,6 +8,12 @@ export {
   FillInTheBlanksDataSchema,
   TextMatchPolicySchema,
 } from './fill-in-the-blanks.js';
+export {
+  GapSelectBankSchema,
+  GapSelectChoiceSchema,
+  GapSelectDataSchema,
+  GapSelectGapSchema,
+} from './gap-select.js';
 export type { RedactedStimulus } from './item-group.js';
 export {
   ItemGroupSchema,
@@ -18,6 +24,7 @@ export {
 } from './item-group.js';
 export {
   fillInTheBlanksJsonSchema,
+  gapSelectJsonSchema,
   itemGroupJsonSchema,
   jsonSchemaFor,
   multipleChoiceJsonSchema,
@@ -36,6 +43,10 @@ export type {
   RedactedActivity,
   RedactedBlankConfig,
   RedactedFillInTheBlanksData,
+  RedactedGapSelectBank,
+  RedactedGapSelectChoice,
+  RedactedGapSelectData,
+  RedactedGapSelectGap,
   RedactedMultipleChoiceData,
   RedactedMultipleChoiceOption,
   RedactedWrittenResponseData,
@@ -43,6 +54,10 @@ export type {
 export {
   RedactedBlankConfigSchema,
   RedactedFillInTheBlanksDataSchema,
+  RedactedGapSelectBankSchema,
+  RedactedGapSelectChoiceSchema,
+  RedactedGapSelectDataSchema,
+  RedactedGapSelectGapSchema,
   RedactedMultipleChoiceDataSchema,
   RedactedMultipleChoiceOptionSchema,
   RedactedWrittenResponseDataSchema,

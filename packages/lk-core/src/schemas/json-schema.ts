@@ -2,6 +2,7 @@ import { z } from 'zod/v4';
 import { UnknownActivityTypeError } from '../errors.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
 import { FillInTheBlanksDataSchema } from './fill-in-the-blanks.js';
+import { GapSelectDataSchema } from './gap-select.js';
 import { ItemGroupSchema, StimulusSchema } from './item-group.js';
 import { MultipleChoiceDataSchema } from './multiple-choice.js';
 import { WrittenResponseDataSchema } from './written-response.js';
@@ -31,6 +32,17 @@ export const itemGroupJsonSchema = z.toJSONSchema(ItemGroupSchema, { target: 'dr
  * `additionalProperties: false` — the JSON Schema and `validateActivity` now
  * agree on unknown-key handling.
  */
+/**
+ * JSON Schema (Draft 7) representation of the Gap Select activity data
+ * contract. Structural contract only: the six semantic guards — the
+ * passage/gap bijection, id uniqueness, the one-choice-source rule, and an
+ * answer key that names a choice the gap offers — are Zod-only, as they are
+ * for the other types.
+ */
+export const gapSelectJsonSchema = z.toJSONSchema(GapSelectDataSchema, {
+  target: 'draft-7',
+});
+
 export const multipleChoiceJsonSchema = z.toJSONSchema(MultipleChoiceDataSchema, {
   target: 'draft-7',
 });

@@ -126,7 +126,7 @@ if (typeof core.createDraft === 'function' && typeof core.validateDraft === 'fun
     issued += 1;
     return `probe-${issued}`;
   };
-  for (const type of ['multiple-choice', 'fill-in-the-blanks', 'written-response']) {
+  for (const type of ['multiple-choice', 'fill-in-the-blanks', 'written-response', 'gap-select']) {
     const draft = core.createDraft(type, { newId });
     const { status } = core.validateDraft(type, draft);
     if (status !== 'incomplete') {

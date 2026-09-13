@@ -15,7 +15,12 @@ const counter = () => {
   };
 };
 
-const BUILT_IN: ActivityType[] = ['multiple-choice', 'fill-in-the-blanks', 'written-response'];
+const BUILT_IN: ActivityType[] = [
+  'multiple-choice',
+  'fill-in-the-blanks',
+  'written-response',
+  'gap-select',
+];
 
 describe('createDraft', () => {
   it.each(BUILT_IN)('gives %s a draft that is incomplete — not invalid, not storable', (type) => {
@@ -27,6 +32,43 @@ describe('createDraft', () => {
     expect(result.issues.every((found) => found.severity === 'incomplete')).toBe(true);
     // And the other direction: nothing unwritten passes the write boundary.
     expect(validateActivity(type, draft).success).toBe(false);
+  });
+
+  it('gives gap-select no gaps and no answer key to inherit', () => {
+    const draft = createDraft('gap-select', { newId: counter() });
+    expect(draft.id).toBe('id-1');
+    expect(draft.gaps).toEqual([]);
+    expect(draft.passage).toBe('');
+    // `all-or-nothing` is the less generous strategy: partial credit is a
+    // decision, not a default.
+    expect(draft.scoringStrategy).toBe('all-or-nothing');
+  });
+
+  it('holds a gap-select draft incomplete until a choice is marked correct', () => {
+    const draft = {
+      ...createDraft('gap-select', { newId: counter() }),
+      title: 'Prepositions',
+      passage: "I'm {{a}} Spain.",
+      gaps: [
+        {
+          id: 'a',
+          choices: [
+            { id: 'from', text: 'from' },
+            { id: 'of', text: 'of' },
+          ],
+          correctChoiceId: '',
+        },
+      ],
+    };
+    const unmarked = validateDraft('gap-select', draft);
+    expect(unmarked.status).toBe('incomplete');
+    expect(unmarked.issues.map((found) => found.code)).toContain('gs_correct_choice_required');
+
+    const marked = validateDraft('gap-select', {
+      ...draft,
+      gaps: [{ ...draft.gaps[0], correctChoiceId: 'from' }],
+    });
+    expect(marked.status).toBe('complete');
   });
 
   it('takes every id from newId, in order, and invents none', () => {

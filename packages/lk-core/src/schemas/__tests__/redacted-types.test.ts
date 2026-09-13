@@ -2,17 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { redact } from '../../redact.js';
 import type {
   FillInTheBlanksData,
+  GapSelectData,
   MultipleChoiceData,
   WrittenResponseData,
 } from '../../types/activity.js';
 import type {
   RedactedActivity,
   RedactedFillInTheBlanksData,
+  RedactedGapSelectData,
   RedactedMultipleChoiceData,
   RedactedWrittenResponseData,
 } from '../index.js';
 import {
   RedactedFillInTheBlanksDataSchema,
+  RedactedGapSelectDataSchema,
   RedactedMultipleChoiceDataSchema,
   RedactedWrittenResponseDataSchema,
 } from '../index.js';
@@ -53,6 +56,30 @@ const wr: WrittenResponseData = {
   rubric: { criteria: [{ name: 'Task', weight: 1 }] },
 };
 
+const gs: GapSelectData = {
+  schemaVersion: '1.0',
+  type: 'gap-select',
+  id: 'q4',
+  title: 'Prepositions',
+  passage: "Where are you {{a}}? I'm {{b}} Spain.",
+  banks: [
+    {
+      id: 'prep',
+      choices: [
+        { id: 'of', text: 'of' },
+        { id: 'from', text: 'from' },
+        { id: 'to', text: 'to' },
+        { id: 'on', text: 'on' },
+      ],
+    },
+  ],
+  gaps: [
+    { id: 'a', bankId: 'prep', correctChoiceId: 'from', feedback: 'from + place of origin' },
+    { id: 'b', bankId: 'prep', correctChoiceId: 'from' },
+  ],
+  scoringStrategy: 'partial',
+};
+
 /**
  * The point of deriving these types with `z.infer` is that they cannot drift
  * from the validator. These tests pin the other half: that what `redact()`
@@ -85,11 +112,30 @@ describe('derived redacted types match redact() output', () => {
     expect(typed.rubric?.criteria[0]?.name).toBe('Task');
   });
 
+  it('types a redacted gap select, keeping every choice the learner picks from', () => {
+    const typed: RedactedGapSelectData = RedactedGapSelectDataSchema.parse(redact(gs));
+    // The inversion that makes this a separate type: the candidate answers
+    // survive redaction here, where Fill-in-the-Blanks strips them.
+    expect(typed.banks?.[0]?.choices.map((choice) => choice.text)).toEqual([
+      'of',
+      'from',
+      'to',
+      'on',
+    ]);
+    expect(typed.gaps.map((gap) => gap.id)).toEqual(['a', 'b']);
+    // And the one field that must not: no gap carries a correctChoiceId.
+    for (const gap of typed.gaps) {
+      expect(gap).not.toHaveProperty('correctChoiceId');
+      expect(gap).not.toHaveProperty('feedback');
+    }
+  });
+
   it('narrows the RedactedActivity union on `type`, like ActivityData does', () => {
     const items: RedactedActivity[] = [
       RedactedMultipleChoiceDataSchema.parse(redact(mc)),
       RedactedFillInTheBlanksDataSchema.parse(redact(fib)),
       RedactedWrittenResponseDataSchema.parse(redact(wr)),
+      RedactedGapSelectDataSchema.parse(redact(gs)),
     ];
 
     const described = items.map((item) => {
@@ -99,10 +145,13 @@ describe('derived redacted types match redact() output', () => {
       if (item.type === 'fill-in-the-blanks') {
         return `${item.blanks.length} blanks`;
       }
+      if (item.type === 'gap-select') {
+        return `${item.gaps.length} gaps`;
+      }
       // Narrowed to the written response by elimination — no cast needed.
       return `${item.minWords}-${item.maxWords} words`;
     });
 
-    expect(described).toEqual(['2 options', '1 blanks', '10-50 words']);
+    expect(described).toEqual(['2 options', '1 blanks', '10-50 words', '2 gaps']);
   });
 });

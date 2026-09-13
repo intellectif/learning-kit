@@ -1,21 +1,27 @@
 import type { z } from 'zod/v4';
 import { fillInTheBlanksAuthoring } from '../authoring/fill-in-the-blanks.js';
+import { gapSelectAuthoring } from '../authoring/gap-select.js';
 import { multipleChoiceAuthoring } from '../authoring/multiple-choice.js';
 import { writtenResponseAuthoring } from '../authoring/written-response.js';
 import { countWords } from '../count-words.js';
 import { FillInTheBlanksDataSchema } from '../schemas/fill-in-the-blanks.js';
+import { GapSelectDataSchema } from '../schemas/gap-select.js';
 import { MultipleChoiceDataSchema } from '../schemas/multiple-choice.js';
 import {
   RedactedFillInTheBlanksDataSchema,
+  RedactedGapSelectDataSchema,
   RedactedMultipleChoiceDataSchema,
   RedactedWrittenResponseDataSchema,
 } from '../schemas/redacted.js';
 import { WrittenResponseDataSchema } from '../schemas/written-response.js';
 import { scoreFillInTheBlanks } from '../scoring/activity-scorers/fill-in-the-blanks.js';
+import { scoreGapSelect } from '../scoring/activity-scorers/gap-select.js';
 import { scoreMultipleChoice } from '../scoring/activity-scorers/multiple-choice.js';
 import type {
   FillInTheBlanksData,
   FillInTheBlanksLearnerResponse,
+  GapSelectData,
+  GapSelectLearnerResponse,
   MultipleChoiceData,
   MultipleChoiceLearnerResponse,
   WrittenResponseData,
@@ -128,6 +134,38 @@ const MULTIPLE_CHOICE_FIELD_POLICY: FieldPolicy = {
     id: 'public',
     text: 'public',
     isCorrect: 'answer-key',
+    feedback: 'answer-key',
+  },
+};
+
+/**
+ * Gap Select, where the sensitivity of "the candidate answers" INVERTS.
+ *
+ * Fill-in-the-Blanks classifies `acceptedAnswers` as answer-key, because the
+ * list of things that would be accepted IS the key. Here the same-shaped data
+ * is the opposite: a learner who cannot see `choices` cannot answer at all, so
+ * every choice — and every shared bank — is `public`, and `correctChoiceId` is
+ * the single field withheld. Copying the Fill-in-the-Blanks policy across would
+ * have produced an exam nobody could sit, which is why the two types do not
+ * share one.
+ */
+const GAP_SELECT_FIELD_POLICY: FieldPolicy = {
+  ...SHARED_PUBLIC_FIELDS,
+  passage: 'public',
+  passageHtml: 'public',
+  presentation: 'public',
+  shuffleChoices: 'public',
+  scoringStrategy: 'answer-key',
+  feedback: FEEDBACK_FIELD_POLICY,
+  banks: {
+    id: 'public',
+    choices: { id: 'public', text: 'public' },
+  },
+  gaps: {
+    id: 'public',
+    bankId: 'public',
+    choices: { id: 'public', text: 'public' },
+    correctChoiceId: 'answer-key',
     feedback: 'answer-key',
   },
 };
@@ -278,6 +316,33 @@ export const writtenResponseType = defineActivityType<
   authoring: writtenResponseAuthoring,
 });
 
+/** Built-in Gap Select descriptor. */
+export const gapSelectType = defineActivityType<GapSelectData, GapSelectLearnerResponse>({
+  type: 'gap-select',
+  schema: GapSelectDataSchema as unknown as z.ZodType<GapSelectData>,
+  scoring: { kind: 'sync', score: scoreGapSelect },
+  isAnswered: (response) =>
+    Object.values(response?.selections ?? {}).some((choiceId) => choiceId !== ''),
+  fieldPolicy: GAP_SELECT_FIELD_POLICY,
+  redactedSchema: RedactedGapSelectDataSchema,
+  interop: {
+    xapiActivityTypeIri: 'http://adlnet.gov/expapi/activities/cmi.interaction',
+    // `matching`, not `choice` or `fill-in`. The learner pairs a set of sources
+    // (the gaps) with a set of targets (the choices), which is exactly what the
+    // xAPI matching interaction describes, and it is the only built-in type
+    // whose pattern can name WHICH gap took which answer. `fill-in` — what the
+    // Fill-in-the-Blanks descriptor uses — would flatten the gaps into an
+    // ordered list of strings and lose that.
+    xapiInteractionType: 'matching',
+    correctResponsesPattern: (data) => [
+      data.gaps.map((gap) => `${gap.id}[.]${gap.correctChoiceId}`).join('[,]'),
+    ],
+  },
+  interactions: ['gap-selected', 'submitted'],
+  authoring: gapSelectAuthoring,
+});
+
 registerActivityType(multipleChoiceType);
 registerActivityType(fillInTheBlanksType);
 registerActivityType(writtenResponseType);
+registerActivityType(gapSelectType);

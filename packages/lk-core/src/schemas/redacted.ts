@@ -64,6 +64,51 @@ export const RedactedFillInTheBlanksDataSchema = z.strictObject({
   blanks: z.array(RedactedBlankConfigSchema).min(1),
 });
 
+/** A redacted choice: exactly what it always was. Which one is correct was never stored here. */
+export const RedactedGapSelectChoiceSchema = z.strictObject({
+  id: z.string().min(1),
+  text: z.string().min(1),
+});
+
+/** A redacted word bank: every choice survives, because the learner picks from them. */
+export const RedactedGapSelectBankSchema = z.strictObject({
+  id: z.string().min(1),
+  choices: z.array(RedactedGapSelectChoiceSchema).min(2),
+});
+
+/** A redacted gap: its choice source survives; `correctChoiceId` and feedback do not. */
+export const RedactedGapSelectGapSchema = z.strictObject({
+  id: z.string().min(1),
+  choices: z.array(RedactedGapSelectChoiceSchema).min(2).optional(),
+  bankId: z.string().min(1).optional(),
+});
+
+/**
+ * Redacted Gap Select data — the type where redaction **inverts** the
+ * Fill-in-the-Blanks rule, and the reason this is a separate schema rather than
+ * a variant of it.
+ *
+ * In Fill-in-the-Blanks the candidate answers ARE the key, so `acceptedAnswers`
+ * is stripped. Here the learner cannot answer at all without seeing every
+ * choice, so `choices` and `banks` must survive in full and `correctChoiceId`
+ * is the only field withheld. A policy that treated "the list of candidate
+ * answers" as answer-key for both types would ship an unanswerable exam.
+ *
+ * `scoringStrategy` stays answer-key for the same reason it does on the other
+ * two: knowing whether marking is partial tells a learner whether guessing at a
+ * gap is free.
+ */
+export const RedactedGapSelectDataSchema = z.strictObject({
+  ...redactedBase,
+  type: z.literal('gap-select'),
+  passage: z.string().min(1),
+  passageHtml: z.string().optional(),
+  gaps: z.array(RedactedGapSelectGapSchema).min(1),
+  banks: z.array(RedactedGapSelectBankSchema).optional(),
+  presentation: z.literal('dropdown').optional(),
+  shuffleChoices: z.boolean().optional(),
+});
+
 /**
  * Redacted Written Response data: the prompt, word bounds and rubric are
  * learner-visible (a rubric tells the learner what they are graded on);
@@ -104,6 +149,14 @@ export type RedactedBlankConfig = z.infer<typeof RedactedBlankConfigSchema>;
 export type RedactedFillInTheBlanksData = z.infer<typeof RedactedFillInTheBlanksDataSchema>;
 /** A Written Response item; the rubric survives, because it tells the learner what is assessed. */
 export type RedactedWrittenResponseData = z.infer<typeof RedactedWrittenResponseDataSchema>;
+/** A selectable choice, unchanged by redaction. */
+export type RedactedGapSelectChoice = z.infer<typeof RedactedGapSelectChoiceSchema>;
+/** A word bank, unchanged by redaction — the learner picks from it. */
+export type RedactedGapSelectBank = z.infer<typeof RedactedGapSelectBankSchema>;
+/** A gap with its `correctChoiceId` removed; every choice it offers survives. */
+export type RedactedGapSelectGap = z.infer<typeof RedactedGapSelectGapSchema>;
+/** A Gap Select item the learner can still answer: choices intact, answer key gone. */
+export type RedactedGapSelectData = z.infer<typeof RedactedGapSelectDataSchema>;
 
 /**
  * Discriminated union of every built-in redacted activity. Narrow it on
@@ -120,4 +173,5 @@ export type RedactedWrittenResponseData = z.infer<typeof RedactedWrittenResponse
 export type RedactedActivity =
   | RedactedMultipleChoiceData
   | RedactedFillInTheBlanksData
-  | RedactedWrittenResponseData;
+  | RedactedWrittenResponseData
+  | RedactedGapSelectData;

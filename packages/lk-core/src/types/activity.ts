@@ -21,6 +21,7 @@ export interface ActivityDataMap {
   'multiple-choice': MultipleChoiceData;
   'fill-in-the-blanks': FillInTheBlanksData;
   'written-response': WrittenResponseData;
+  'gap-select': GapSelectData;
 }
 
 /**
@@ -200,6 +201,120 @@ export interface BlankConfig {
 }
 
 /** Data contract for a Fill-in-the-Blanks activity. */
+/** One selectable option in a Gap Select activity. */
+export interface GapSelectChoice {
+  /** Unique identifier within the choice set the gap resolves to. */
+  id: string;
+  /** The text the learner reads in the selector. */
+  text: string;
+}
+
+/**
+ * A named set of choices several gaps can draw from — a word bank.
+ *
+ * A bank is what makes distractors possible: three gaps sharing a bank of five
+ * choices means every selector offers all five, and two of them answer no gap
+ * at all. That is the difference between a reading-comprehension item and a
+ * sequence of three-way guesses, so it is modelled once here rather than
+ * retrofitted after per-gap lists ship.
+ */
+export interface GapSelectBank {
+  /** Unique identifier referenced by {@link GapSelectGap.bankId}. */
+  id: string;
+  /** The choices every gap on this bank offers. */
+  choices: GapSelectChoice[];
+}
+
+/**
+ * One gap in the passage, matching a `{{gap_id}}` placeholder.
+ *
+ * Its choices come from exactly one place: `choices` for a list of its own, or
+ * `bankId` for a shared word bank. Both, or neither, is an authoring error the
+ * schema rejects — with two sources a reader cannot tell which list the learner
+ * is offered, and the answer key means nothing without one.
+ */
+export interface GapSelectGap {
+  /** Unique identifier matching the `{{gap_id}}` placeholder in the passage. */
+  id: string;
+  /** This gap's own choices. Mutually exclusive with {@link bankId}. */
+  choices?: GapSelectChoice[];
+  /** The {@link GapSelectBank} this gap draws from. Mutually exclusive with {@link choices}. */
+  bankId?: string;
+  /** The `id` of the one choice that is correct. Must exist in the resolved choice set. */
+  correctChoiceId: string;
+  /** Optional feedback shown inline next to this gap after submission. */
+  feedback?: string;
+}
+
+/**
+ * Data contract for a Gap Select activity: a passage whose gaps the learner
+ * fills by choosing from a list rather than typing.
+ *
+ * It is deliberately **not** a mode of {@link FillInTheBlanksData}, though the
+ * passage and its `{{id}}` placeholders are authored the same way. A learner
+ * picking from a selector cannot mistype, so the whole `TextMatchPolicy`
+ * surface — diacritic folding, typo tolerance, locale-aware case — is not just
+ * unused but misleading. Scoring is identity comparison of a choice id.
+ * Redaction inverts too: in Fill-in-the-Blanks the candidate answers ARE the
+ * key, while here the learner must be shown every choice and only
+ * `correctChoiceId` is withheld.
+ */
+export interface GapSelectData {
+  schemaVersion: '1.0';
+  type: 'gap-select';
+  /** Unique identifier for this activity. */
+  id: string;
+  /** Human-readable title used in xAPI statements and error boundaries. */
+  title: string;
+  /** Passage text containing `{{gap_id}}` placeholders. */
+  passage: string;
+  /**
+   * Optional sanitised rich-HTML rendering of the passage. Carried and redacted
+   * as learner-visible content; not rendered by the SDK, for the same reason
+   * `FillInTheBlanksData.passageHtml` is not — slicing sanitised HTML at the
+   * placeholders to host the selectors is both lossy and unsafe.
+   */
+  passageHtml?: string;
+  /** Every gap in the passage, one per distinct `{{id}}` placeholder. */
+  gaps: GapSelectGap[];
+  /** Shared word banks. Only needed by gaps that set `bankId`. */
+  banks?: GapSelectBank[];
+  /** Scoring algorithm applied when the learner submits. */
+  scoringStrategy: 'all-or-nothing' | 'partial';
+  /**
+   * How the choices are presented. Only `'dropdown'` exists today, and it is
+   * the default.
+   *
+   * The field is here rather than assumed because a drag-and-drop presentation
+   * is the obvious next request, and WCAG 2.5.7 requires that a drag interface
+   * always keep a non-drag path — so the choice has to be expressible in the
+   * content, not decided by a component prop. `'drag'` is NOT accepted yet:
+   * shipping a value nothing renders would freeze an API this repository has
+   * not validated. Widening the union later is additive.
+   */
+  presentation?: 'dropdown';
+  /**
+   * Whether the SDK shuffles each selector's choices. Off by default.
+   *
+   * Like `MultipleChoiceData.shuffle`, this needs a seed to be reproducible at
+   * a remark — `<ActivitySequence>` refuses to shuffle without one outside
+   * `practice` mode.
+   */
+  shuffleChoices?: boolean;
+  /** Optional media shown above the passage. */
+  media?: ActivityMedia;
+  /** Optional authored overall feedback shown after submission. */
+  feedback?: ActivityFeedback;
+  /** Minimum scaled score [0–1] required to pass. Defaults to {@link DEFAULT_PASS_THRESHOLD} (0.7) when absent. */
+  passThreshold?: number;
+  /** BCP 47 language tag for the activity content. */
+  locale?: string;
+  /** IRI references to learning objectives addressed by this activity. */
+  learningObjectives?: string[];
+  /** Subjective difficulty on a 1–5 scale. */
+  difficultyLevel?: 1 | 2 | 3 | 4 | 5;
+}
+
 export interface FillInTheBlanksData {
   schemaVersion: '1.0';
   type: 'fill-in-the-blanks';
@@ -306,6 +421,7 @@ export interface LearnerResponseMap {
   'multiple-choice': MultipleChoiceLearnerResponse;
   'fill-in-the-blanks': FillInTheBlanksLearnerResponse;
   'written-response': WrittenResponseLearnerResponse;
+  'gap-select': GapSelectLearnerResponse;
 }
 
 /** Union of all learner response shapes. */
@@ -323,6 +439,21 @@ export interface FillInTheBlanksLearnerResponse {
   type: 'fill-in-the-blanks';
   /** Map of blank ID to the learner's typed answer. */
   answers: Record<string, string>;
+}
+
+/**
+ * Learner response for a Gap Select activity.
+ *
+ * A gap the learner has not answered is **absent from the map, or holds an
+ * empty string** — the two are equivalent, because a `<select>` whose
+ * placeholder is still showing submits `''`. Neither is a wrong answer: the
+ * scorer reports it as `incorrect-omission`, which is how a blank the learner
+ * never reached is told apart from one they got wrong.
+ */
+export interface GapSelectLearnerResponse {
+  type: 'gap-select';
+  /** Map of gap ID to the ID of the choice the learner selected. */
+  selections: Record<string, string>;
 }
 
 /** Learner response for a Written Response activity. */
