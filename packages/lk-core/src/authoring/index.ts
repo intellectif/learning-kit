@@ -3,6 +3,7 @@ import { getActivityTypeDescriptor } from '../registry/index.js';
 import type { ActivityDataMap, ActivityType } from '../types/activity.js';
 import type { DraftContext, DraftIssue, DraftValidationResult } from '../types/authoring.js';
 import {
+  covers,
   DRAFT_ISSUE_SEVERITY,
   type DraftIssueCode,
   isRecord,
@@ -176,17 +177,4 @@ function normalise(found: DraftIssue): DraftIssue {
   };
 }
 
-/**
- * Whether a check issue at `reported` accounts for a schema failure at `failed`:
- * at the same path, or inside it. The root is the exception. Every path is inside
- * the root, so a root-level failure is accounted for only by a root-level issue.
- */
-function covers(reported: readonly string[], failed: readonly string[]): boolean {
-  if (failed.length === 0) {
-    return reported.length === 0;
-  }
-  // Each segment of the failed path matches the reported path at the same
-  // position. A failed path longer than the reported one cannot: the reported
-  // path runs out, and no segment is ever undefined.
-  return failed.every((segment, index) => reported[index] === segment);
-}
+export { createItemGroupDraft, validateItemGroupDraft } from './item-group.js';

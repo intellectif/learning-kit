@@ -54,6 +54,22 @@ export const DRAFT_ISSUE_SEVERITY = {
   fib_placeholder_missing: 'incomplete',
   fib_placeholder_duplicate: 'invalid',
   fib_blanks_mismatch: 'invalid',
+  // item-group (the testlet container, via validateItemGroupDraft)
+  ig_not_an_object: 'invalid',
+  ig_stimulus_required: 'incomplete',
+  ig_stimulus_id_required: 'invalid',
+  ig_stimulus_kind_required: 'incomplete',
+  ig_stimulus_kind_invalid: 'invalid',
+  ig_stimulus_body_required: 'incomplete',
+  ig_stimulus_media_required: 'incomplete',
+  ig_stimulus_media_kind: 'invalid',
+  ig_items_required: 'incomplete',
+  ig_item_id_required: 'invalid',
+  ig_item_id_duplicate: 'invalid',
+  ig_item_type_required: 'incomplete',
+  ig_item_type_unknown: 'invalid',
+  ig_item_nested_group: 'invalid',
+  ig_shuffle_invalid: 'invalid',
   // gap-select
   gs_passage_required: 'incomplete',
   gs_gaps_required: 'incomplete',
@@ -370,4 +386,19 @@ export function checkMedia(
     );
   }
   return issues;
+}
+
+/**
+ * Whether a check issue at `reported` accounts for a schema failure at `failed`:
+ * at the same path, or inside it. The root is the exception. Every path is inside
+ * the root, so a root-level failure is accounted for only by a root-level issue.
+ */
+export function covers(reported: readonly string[], failed: readonly string[]): boolean {
+  if (failed.length === 0) {
+    return reported.length === 0;
+  }
+  // Each segment of the failed path matches the reported path at the same
+  // position. A failed path longer than the reported one cannot: the reported
+  // path runs out, and no segment is ever undefined.
+  return failed.every((segment, index) => reported[index] === segment);
 }

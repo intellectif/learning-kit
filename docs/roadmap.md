@@ -341,7 +341,16 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   passed as `value` where `<ActivitySequence>` passes `defaultValue` — so the preview seeds in every mode. **Cut from the
   sketch:** field metadata, ordering and grouping for generating forms — no consumer evidence, and the JSON
   Schema export already describes structure — and default content beyond an empty draft, which is pedagogy.
-  **Still open:** draft support for item groups.
+  ✅ **Draft support for item groups closed** in 0.12.0, as `validateItemGroupDraft` /
+  `createItemGroupDraft` — a separate pair rather than an `'item-group'` activity type, because
+  `validateDraft('item-group', …)` throws on purpose and that guard is what lets `isItemGroup` and
+  `flattenSequence` trust their own container. Items are checked by `validateDraft` for their own type and
+  their issues re-pathed under `items.N.…`, so a question inside a testlet reports the codes a standalone
+  one does and cannot drift from them; an unregistered item type is reported rather than thrown, the choice
+  `validateItemGroup` already makes. The editor-shaped property test found two leaks before it shipped:
+  an unrecognised stimulus kind returned early and left the stimulus's own media to the schema, and a
+  cleared rich-text body — an empty string, not an absent field — tripped the schema's rule and not ours,
+  while a `text` stimulus carrying rich text and no plain text reported the same path twice.
 - `@intellectif/lk-ai` (ports only): `LlmBridge`, `generateActivities` + named-semantic-check repair loop +
   `AiProvenance`, `lintActivity` (item-writing critic), `gradeFreeText` + `RubricConfig` + CEFR descriptor
   data, `analyzeItem` (facility/discrimination/distractor efficiency).

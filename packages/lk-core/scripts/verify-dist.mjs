@@ -37,6 +37,8 @@ const REQUIRED_EXPORTS = [
   'validateItemGroup',
   'validateDraft',
   'createDraft',
+  'validateItemGroupDraft',
+  'createItemGroupDraft',
   'jsonSchemaFor',
   'defineActivityType',
   'registerActivityType',
