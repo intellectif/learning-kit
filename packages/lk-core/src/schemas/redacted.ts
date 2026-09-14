@@ -27,9 +27,26 @@ const redactedBase = {
 };
 
 /** A redacted Multiple Choice option: id and display text only — no `isCorrect`, no feedback. */
+export const RedactedMultipleChoiceOptionMediaSchema = z.strictObject({
+  type: z.enum(['image', 'audio']),
+  url: z.string().min(1),
+  alt: z.string().min(1).optional(),
+  captionsUrl: z.string().min(1).optional(),
+});
+
+/**
+ * A redacted Multiple Choice option: id, display text and its picture or
+ * recording — no `isCorrect`, no feedback.
+ *
+ * The media survives intact for the reason a gap-select choice does: it is the
+ * option the learner is being asked to pick, and an exam that stripped it would
+ * show a row of blanks. Nothing in it is an answer key — the key is `isCorrect`,
+ * which is gone.
+ */
 export const RedactedMultipleChoiceOptionSchema = z.strictObject({
   id: z.string().min(1),
   text: z.string().min(1),
+  media: RedactedMultipleChoiceOptionMediaSchema.optional(),
 });
 
 /**
@@ -141,6 +158,10 @@ export const RedactedWrittenResponseDataSchema = z.strictObject({
  * a renderer that must never see an answer key.
  */
 export type RedactedMultipleChoiceOption = z.infer<typeof RedactedMultipleChoiceOptionSchema>;
+/** An option's picture or recording, unchanged by redaction — it is what the learner picks. */
+export type RedactedMultipleChoiceOptionMedia = z.infer<
+  typeof RedactedMultipleChoiceOptionMediaSchema
+>;
 /** A Multiple Choice item with the answer key, feedback and strategy removed. */
 export type RedactedMultipleChoiceData = z.infer<typeof RedactedMultipleChoiceDataSchema>;
 /** A blank with its accepted answers and matching rules removed; the hint survives. */

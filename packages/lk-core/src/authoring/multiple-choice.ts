@@ -1,8 +1,10 @@
 import type { ActivityTypeAuthoring } from '../registry/registry.js';
+import { MultipleChoiceOptionMediaSchema } from '../schemas/multiple-choice.js';
 import type { MultipleChoiceData } from '../types/activity.js';
 import type { DraftIssue } from '../types/authoring.js';
 import {
   checkIdentity,
+  checkMedia,
   checkScoringStrategy,
   checkSharedOptional,
   type DraftFields,
@@ -113,6 +115,9 @@ function checkMultipleChoiceDraft(draft: DraftFields): DraftIssue[] {
       if (option.isCorrect === true) {
         correct += 1;
       }
+      if (isRecord(option.media)) {
+        issues.push(...checkOptionMedia(option.media, index, ordinal));
+      }
     }
     for (const id of repeated) {
       issues.push(
@@ -142,4 +147,33 @@ function checkMultipleChoiceDraft(draft: DraftFields): DraftIssue[] {
 
   issues.push(...checkSharedOptional(draft));
   return issues;
+}
+
+/**
+ * An option's picture or recording, checked through the SAME rules as the
+ * media above the question — one code per problem, wherever it appears, so a
+ * consumer translating `media_alt_required` handles both.
+ *
+ * The one thing an option adds is the kind it refuses. `video` and `embed` are
+ * valid above a question and impossible on an option: each renders a control
+ * surface that swallows the click meant to select it, so an author who writes
+ * one is told why rather than shown zod's enum message.
+ */
+function checkOptionMedia(
+  media: Readonly<Record<string, unknown>>,
+  index: number,
+  ordinal: number,
+): DraftIssue[] {
+  const path = ['options', index, 'media'];
+  const kind = media.type;
+  if (kind === 'video' || kind === 'embed') {
+    return [
+      issue(
+        'mc_option_media_kind',
+        [...path, 'type'],
+        `Option ${ordinal} carries ${kind === 'embed' ? 'an embedded player' : 'a video'}, which cannot be an option: its controls swallow the click that selects the answer. Use a picture or a recording.`,
+      ),
+    ];
+  }
+  return checkMedia(media, path, MultipleChoiceOptionMediaSchema);
 }

@@ -14,7 +14,7 @@ import {
   xAPIBuilder,
   xapiDefinitionFor,
 } from '@intellectif/lk-core';
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useActivityState } from '../../hooks/useActivityState.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStrings } from '../../i18n/strings.js';
@@ -351,8 +351,17 @@ export function MultipleChoice({
     } else if (reveal) {
       correctness = String(option.isCorrect);
     }
-    return (
-      <label key={option.id} className="lk-mc-option" data-correct={correctness}>
+    const media = option.media;
+    // A picture goes INSIDE the label: it has no controls of its own, clicking
+    // it is how a learner picks that option, and its `alt` joins the option's
+    // accessible name. A recording cannot — see below.
+    const picture =
+      media?.type === 'image' ? (
+        <img className="lk-mc-option-image" src={media.url} alt={media.alt ?? ''} />
+      ) : null;
+
+    const label = (
+      <label className="lk-mc-option" data-correct={correctness}>
         <input
           type={isSingle ? 'radio' : 'checkbox'}
           name={isSingle ? `${data.id}-options` : undefined}
@@ -365,12 +374,40 @@ export function MultipleChoice({
           }
         />
         <span>{option.text}</span>
+        {picture}
         {reveal && option.feedback ? (
           <span className="lk-mc-option-feedback" role="note">
             {option.feedback}
           </span>
         ) : null}
       </label>
+    );
+
+    if (media?.type !== 'audio') {
+      return <Fragment key={option.id}>{label}</Fragment>;
+    }
+
+    // A recording sits OUTSIDE the label, deliberately. A <label> activates its
+    // control for any click inside it, so an <audio> nested in one would select
+    // the option the moment the learner pressed play — and a listening item is
+    // answered by comparing all the recordings before choosing any of them.
+    // Selecting an option must stay something the learner does on purpose.
+    return (
+      <div className="lk-mc-option-media" key={option.id}>
+        {label}
+        {/* biome-ignore lint/a11y/useMediaCaption: captions are optional in the data contract — a <track> is rendered when captionsUrl is provided; absence is the author's documented choice (Req 14.5) */}
+        <audio
+          className="lk-mc-option-audio"
+          src={media.url}
+          controls
+          preload="none"
+          aria-label={media.alt ?? option.text}
+        >
+          {media.captionsUrl ? (
+            <track kind="captions" src={media.captionsUrl} label={media.alt ?? option.text} />
+          ) : null}
+        </audio>
+      </div>
     );
   });
 

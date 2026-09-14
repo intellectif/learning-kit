@@ -37,6 +37,7 @@ export const DRAFT_ISSUE_SEVERITY = {
   mc_option_id_duplicate: 'invalid',
   mc_option_text_required: 'incomplete',
   mc_option_correctness_required: 'incomplete',
+  mc_option_media_kind: 'invalid',
   mc_correct_option_required: 'incomplete',
   mc_single_mode_one_correct: 'invalid',
   // fill-in-the-blanks
@@ -297,9 +298,14 @@ const EMBED_URL =
  * description nobody has given yet is `incomplete`; one that is given and
  * refused is `invalid`.
  */
-function checkMedia(media: DraftFields): DraftIssue[] {
+export function checkMedia(
+  media: DraftFields,
+  prefix: readonly (string | number)[] = ['media'],
+  schema: { safeParse: typeof MediaSchema.safeParse } = MediaSchema,
+): DraftIssue[] {
   const issues: DraftIssue[] = [];
-  const parsed = MediaSchema.safeParse(media, { reportInput: true });
+  const at = (...rest: (string | number)[]) => [...prefix, ...rest];
+  const parsed = schema.safeParse(media, { reportInput: true });
   // A refused `null` inside the media block is `validateDraft`'s to report, as
   // `null_not_allowed` — unless a check below reads it as a field not set yet.
   const schemaIssues = parsed.success
@@ -309,26 +315,18 @@ function checkMedia(media: DraftFields): DraftIssue[] {
 
   const typeUnset = isUnwritten(media.type);
   if (typeUnset) {
-    issues.push(
-      issue('media_type_required', ['media', 'type'], 'Choose what kind of media this is.'),
-    );
+    issues.push(issue('media_type_required', at('type'), 'Choose what kind of media this is.'));
   }
 
   if (isUnwritten(media.url)) {
-    issues.push(
-      issue('media_url_required', ['media', 'url'], 'Add the address of the media file.'),
-    );
+    issues.push(issue('media_url_required', at('url'), 'Add the address of the media file.'));
   } else {
     const refused = refusal('url');
     if (refused !== undefined) {
       // The only refinement on `url` is the embed rule; every other refusal is
       // the address policy itself, which zod reports only as "Invalid input".
       issues.push(
-        issue(
-          'media_url_invalid',
-          ['media', 'url'],
-          refused.code === 'custom' ? EMBED_URL : URL_POLICY,
-        ),
+        issue('media_url_invalid', at('url'), refused.code === 'custom' ? EMBED_URL : URL_POLICY),
       );
     }
   }
@@ -336,9 +334,7 @@ function checkMedia(media: DraftFields): DraftIssue[] {
   const needsAlt = media.type === 'image' || media.type === 'embed';
   const alt = media.alt;
   if ((needsAlt && isUnwritten(alt)) || (typeof alt === 'string' && alt.trim() === '')) {
-    issues.push(
-      issue('media_alt_required', ['media', 'alt'], 'Add a text description of the media.'),
-    );
+    issues.push(issue('media_alt_required', at('alt'), 'Add a text description of the media.'));
   }
 
   const captions = media.captionsUrl;
@@ -347,12 +343,12 @@ function checkMedia(media: DraftFields): DraftIssue[] {
     issues.push(
       issue(
         'media_url_required',
-        ['media', 'captionsUrl'],
+        at('captionsUrl'),
         'Add the address of the captions file, or remove the captions.',
       ),
     );
   } else if (refusal('captionsUrl') !== undefined) {
-    issues.push(issue('media_url_invalid', ['media', 'captionsUrl'], URL_POLICY));
+    issues.push(issue('media_url_invalid', at('captionsUrl'), URL_POLICY));
   }
 
   for (const schemaIssue of schemaIssues) {
@@ -368,7 +364,7 @@ function checkMedia(media: DraftFields): DraftIssue[] {
     issues.push(
       issue(
         field === 'playback' ? 'media_playback_invalid' : 'media_invalid',
-        ['media', ...schemaIssue.path.map(String)],
+        at(...schemaIssue.path.map(String)),
         schemaIssue.message,
       ),
     );

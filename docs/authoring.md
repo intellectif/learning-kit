@@ -189,6 +189,59 @@ Optional `media` on either activity, rendered above the question/passage:
 - `video`/`audio` use native controls; provide `captionsUrl` (WebVTT) for captions.
 - **URL-only**: the SDK never hosts media. Hosting/CDN is yours.
 
+### Media on a multiple-choice option (v0.10)
+
+An option can carry a picture or a recording of its own — the A1/A2
+picture-choice item, and the minimal-pair listening item:
+
+```jsonc
+{
+  "options": [
+    { "id": "a", "text": "Picture 1", "isCorrect": true,
+      "media": { "type": "image", "url": "https://cdn.example/cat.png", "alt": "a small tabby cat" } },
+    { "id": "b", "text": "Picture 2", "isCorrect": false,
+      "media": { "type": "image", "url": "https://cdn.example/dog.png", "alt": "a brown dog" } }
+  ]
+}
+```
+
+`text` stays **required** on every option, media or not. It names the option in
+the accessible name and in the xAPI statement, and it is what the learner sees
+if a picture fails to load. For a pure picture-choice item, a neutral label
+("Picture 1") keeps the naming out of the answer.
+
+**Only `image` and `audio`.** `video` and `embed` are refused, and not out of
+caution: both render a control surface that swallows the click meant to select
+the option, so a learner could not choose it at all. There is also **no
+`playback` policy** on an option — `maxPlays` binds per slot through a
+`MediaBudgetBinding`, and nothing has decided yet whether four recordings in one
+question share a budget or hold one each, so a policy written here is refused
+rather than silently ignored on a paper that believes it is enforced.
+
+How each kind renders, and why they differ:
+
+| Kind | Where it sits | Clicking it |
+|---|---|---|
+| `image` | **inside** the option's label | selects the option — that is how a picture-choice item is answered |
+| `audio` | **outside** the label, directly beneath it | plays the recording and selects nothing |
+
+A recording has to sit outside, because a `<label>` activates its control for
+any click inside it: nested, pressing play would commit the learner to that
+answer before they had heard the others. A picture has no controls, so it
+belongs inside and its `alt` joins the option's accessible name.
+
+> **`alt` on an option is part of the item.** On "which picture shows a cat?",
+> an `alt` of "a cat" hands a screen-reader user the answer a sighted learner
+> has to work out. That is a property of picture-choice items, not something a
+> schema can fix. The SDK requires a non-empty `alt` on an image so an option is
+> never *silently* inaccessible, and leaves the wording — and the item's
+> validity for assistive technology — to you. Where an item cannot be made
+> equivalent, the accommodation is a different item, not different alt text.
+
+Redaction keeps option media intact: it is what the learner picks, and stripping
+it would ship a paper of blank rows. Only `isCorrect` and per-option `feedback`
+are removed.
+
 ### Playback policy (v0.8)
 
 A listening paper usually needs the recording played on the paper's terms, not
@@ -393,12 +446,12 @@ Every built-in activity:
 | `difficulty_level_invalid` | invalid | `difficultyLevel` | Present, and not a whole number from 1 to 5 |
 | `feedback_empty` | incomplete | `feedback.correct`, `feedback.incorrect` | An empty string, or only whitespace |
 | `redacted_data` | invalid | `redacted` | `redacted: true`: what `redact()` produces for a learner, with the answer key gone, is not a draft |
-| `media_type_required` | incomplete | `media.type` | Not chosen yet |
-| `media_url_required` | incomplete | `media.url`, `media.captionsUrl` | No address yet: a `url` that is absent, empty or only whitespace, or a `captionsUrl` that is empty or only whitespace |
-| `media_url_invalid` | invalid | `media.url`, `media.captionsUrl` | An address the media URL policy refuses, or an embed address that is not absolute http(s) |
-| `media_alt_required` | incomplete | `media.alt` | An image or embed with no description, or any media whose description is an empty string or only whitespace |
+| `media_type_required` | incomplete | `media.type`, `options.N.media.type` | Not chosen yet |
+| `media_url_required` | incomplete | `media.url`, `media.captionsUrl`, and the same two under `options.N.media` | No address yet: a `url` that is absent, empty or only whitespace, or a `captionsUrl` that is empty or only whitespace |
+| `media_url_invalid` | invalid | `media.url`, `media.captionsUrl`, and the same two under `options.N.media` | An address the media URL policy refuses, or an embed address that is not absolute http(s) |
+| `media_alt_required` | incomplete | `media.alt`, `options.N.media.alt` | An image or embed with no description, or any media whose description is an empty string or only whitespace |
 | `media_playback_invalid` | invalid | `media.playback…` | A playback policy the schema refuses; the message is the schema's |
-| `media_invalid` | invalid | `media…` | Any other media problem; the message is the schema's |
+| `media_invalid` | invalid | `media…`, `options.N.media…` | Any other media problem; the message is the schema's |
 
 `multiple-choice`:
 
@@ -412,6 +465,7 @@ Every built-in activity:
 | `mc_option_id_required` | invalid | `options.N.id` | Absent, or empty |
 | `mc_option_id_duplicate` | invalid | `options` | Two options share an id |
 | `mc_option_correctness_required` | incomplete | `options.N.isCorrect` | Not set: nobody has said whether the option is correct |
+| `mc_option_media_kind` | invalid | `options.N.media.type` | An option carrying a `video` or an `embed`. Both render controls that swallow the click selecting the option, so only `image` and `audio` are accepted |
 | `mc_correct_option_required` | incomplete | `options` | No option is marked correct |
 | `mc_single_mode_one_correct` | invalid | `options` | `mode: 'single'` with more than one correct option |
 

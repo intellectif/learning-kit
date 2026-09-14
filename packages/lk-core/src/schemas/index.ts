@@ -38,7 +38,11 @@ export {
   NativeControlHintSchema,
   RedactedMediaSchema,
 } from './media.js';
-export { MultipleChoiceDataSchema, MultipleChoiceOptionSchema } from './multiple-choice.js';
+export {
+  MultipleChoiceDataSchema,
+  MultipleChoiceOptionMediaSchema,
+  MultipleChoiceOptionSchema,
+} from './multiple-choice.js';
 export type {
   RedactedActivity,
   RedactedBlankConfig,
@@ -49,6 +53,7 @@ export type {
   RedactedGapSelectGap,
   RedactedMultipleChoiceData,
   RedactedMultipleChoiceOption,
+  RedactedMultipleChoiceOptionMedia,
   RedactedWrittenResponseData,
 } from './redacted.js';
 export {
@@ -59,6 +64,7 @@ export {
   RedactedGapSelectDataSchema,
   RedactedGapSelectGapSchema,
   RedactedMultipleChoiceDataSchema,
+  RedactedMultipleChoiceOptionMediaSchema,
   RedactedMultipleChoiceOptionSchema,
   RedactedWrittenResponseDataSchema,
 } from './redacted.js';
