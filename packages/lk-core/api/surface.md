@@ -66,6 +66,7 @@ function computePassThreshold: declare function computePassThreshold(activityDat
 function contentHash: declare function contentHash(value: unknown): string;
 function countWords: declare function countWords(text: string): number;
 function createDraft: declare function createDraft<T extends ActivityType>(type: T, context: DraftContext): ActivityDataMap[T];
+function createItemGroupDraft: declare function createItemGroupDraft(context: DraftContext): ItemGroup;
 function defineActivityType: declare function defineActivityType<TData extends { type: string; }, TResponse>(descriptor: ActivityTypeDescriptor<TData, TResponse>): ActivityTypeDescriptor<TData, TResponse>;
 function diffResponses: declare function diffResponses(before: Pick<AttemptState, 'responses'>, after: Pick<AttemptState, 'responses'>): ResponseDiffEntry[];
 function entryKeyOf: declare function entryKeyOf(slotId: string): string;
@@ -102,6 +103,7 @@ function stimulusMediaKey: declare function stimulusMediaKey(slotId: string): st
 function validateActivity: declare function validateActivity<T extends ActivityType>(type: T, data: unknown): ValidationResult<ActivityDataMap[T]>;
 function validateDraft: declare function validateDraft<T extends ActivityType>(type: T, draft: unknown): DraftValidationResult<ActivityDataMap[T]>;
 function validateItemGroup: declare function validateItemGroup(data: unknown): ValidationResult<ItemGroup>;
+function validateItemGroupDraft: declare function validateItemGroupDraft(draft: unknown): DraftValidationResult<ItemGroup>;
 function validateXAPIStatement: declare function validateXAPIStatement(statement: XAPIStatement): void;
 function verifyAttemptPlan: declare function verifyAttemptPlan(plan: AttemptPlan, current: AttemptPlan): AttemptPlanDrift;
 function xapiDefinitionFor: declare function xapiDefinitionFor(data: { type: string; }): Partial<XAPIObjectParams>;

@@ -5,6 +5,7 @@ import { evaluate } from '../../scoring/index.js';
 import type { ActivityData, ActivityType, LearnerResponse } from '../../types/activity.js';
 import { validateDraft } from '../index.js';
 import { DRAFT_ISSUE_SEVERITY } from '../issues.js';
+import { validateItemGroupDraft } from '../item-group.js';
 
 /**
  * The guarantees `validateDraft` makes, over drafts nobody wrote by hand.
@@ -419,6 +420,61 @@ describe('validateDraft properties', () => {
         expect(result.status === 'invalid').toBe(
           result.issues.some((found) => found.severity === 'invalid'),
         );
+      }),
+      RUNS,
+    );
+  });
+
+  it('never throws on any input for an item group', () => {
+    // The container has no registered descriptor to guard it — `item-group` is
+    // reserved precisely so it cannot be registered — so this is the only thing
+    // standing between an editor and a thrown error on a half-typed testlet.
+    fc.assert(
+      fc.property(fc.anything(), (draft) => {
+        const result = validateItemGroupDraft(draft);
+        expect(['complete', 'incomplete', 'invalid']).toContain(result.status);
+      }),
+      RUNS,
+    );
+  });
+
+  it('gives every item-group issue a documented code and severity', () => {
+    const stimulus = fc
+      .record({
+        id: fc.constantFrom<unknown>(undefined, null, '', 's1'),
+        kind: fc.constantFrom<unknown>(undefined, null, '', 'text', 'audio', 'image', 'bogus'),
+        body: fc.constantFrom<unknown>(undefined, null, '', '   ', 'A passage.'),
+        bodyHtml: fc.constantFrom<unknown>(undefined, null, '', '<p>A passage.</p>'),
+        media: fc.constantFrom<unknown>(
+          undefined,
+          null,
+          { type: 'audio', url: '/a.mp3' },
+          { type: 'image', url: '/a.png', alt: 'a picture' },
+          { type: 'image', url: 'javascript:alert(1)', alt: 'x' },
+        ),
+      })
+      .map(compact);
+    const groups = fc
+      .record({
+        schemaVersion: fc.constantFrom<unknown>(undefined, '1.0', '2.0'),
+        type: fc.constantFrom<unknown>(undefined, 'item-group', 'multiple-choice'),
+        id: fc.constantFrom<unknown>(undefined, null, '', 'g1'),
+        stimulus: orUnset(stimulus),
+        items: orUnset(fc.array(entry(multipleChoiceDraft), { maxLength: 2 })),
+        shuffle: fc.constantFrom<unknown>(undefined, null, '', 'none', 'within-group', 'bogus'),
+      })
+      .map(compact);
+
+    fc.assert(
+      fc.property(groups, (draft) => {
+        const result = validateItemGroupDraft(draft);
+        const undocumented = result.issues.filter(
+          (found) =>
+            !Object.hasOwn(DRAFT_ISSUE_SEVERITY, found.code) ||
+            DRAFT_ISSUE_SEVERITY[found.code as keyof typeof DRAFT_ISSUE_SEVERITY] !==
+              found.severity,
+        );
+        expect(undocumented).toEqual([]);
       }),
       RUNS,
     );

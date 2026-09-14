@@ -605,6 +605,59 @@ which the schema library reports once, at the union's own path, without saying
 which member was meant. A `null` inside a member of a `z.discriminatedUnion` is
 named.
 
+### Item groups — a testlet's own draft contract
+
+A reading or listening group is a **container**, not an activity, so it has its
+own pair beside `validateDraft` / `createDraft`:
+
+```ts
+import { createItemGroupDraft, validateItemGroupDraft } from '@intellectif/lk-core';
+
+const group = createItemGroupDraft({ newId: () => crypto.randomUUID() });
+const result = validateItemGroupDraft(group); // 'complete' | 'incomplete' | 'invalid'
+```
+
+They are separate functions rather than a `'item-group'` activity type because
+`validateDraft('item-group', …)` **throws**, deliberately: `item-group` is
+reserved in the registry so it can never be registered as an activity, which is
+what lets `isItemGroup` and `flattenSequence` trust their own container.
+Widening `validateDraft` to accept it would have meant weakening that guard.
+
+Each item is checked by `validateDraft` **for its own type**, and its issues are
+re-pathed under `items.N.…` — so a multiple-choice question inside a testlet
+reports exactly the codes a standalone one does, and your translation table
+covers both. An item whose type nobody registered is reported, never thrown: an
+author fixing a six-item group wants all six problems, not the first one that
+blew up. The group is `complete` only when the container passes, every item
+passes its own schema, **and** every item is itself `complete`.
+
+| Code | Severity | Path | When |
+|---|---|---|---|
+| `ig_not_an_object` | invalid | the root | The draft is not an object at all |
+| `ig_stimulus_required` | incomplete | `stimulus` | No passage, recording or image yet |
+| `ig_stimulus_id_required` | invalid | `stimulus.id` | Absent, or empty |
+| `ig_stimulus_kind_required` | incomplete | `stimulus.kind` | Not chosen yet |
+| `ig_stimulus_kind_invalid` | invalid | `stimulus.kind` | A string that is not `text`, `audio`, `video`, `image` or `mixed` |
+| `ig_stimulus_body_required` | incomplete | `stimulus.body` | A `text` or `mixed` stimulus with no body — or a `bodyHtml` with no plain-text fallback |
+| `ig_stimulus_media_required` | incomplete | `stimulus.media` | Any kind but `text` with no media yet |
+| `ig_stimulus_media_kind` | invalid | `stimulus.media.type` | The media does not fit the kind: audio needs audio; video needs video or embed; image needs image |
+| `ig_items_required` | incomplete | `items` | No questions yet |
+| `ig_item_id_required` | invalid | `items.N.id` | Absent, or empty |
+| `ig_item_id_duplicate` | invalid | `items` | Two questions share an id |
+| `ig_item_type_required` | incomplete | `items.N.type` | Not chosen yet |
+| `ig_item_type_unknown` | invalid | `items.N.type` | A type nobody registered |
+| `ig_item_nested_group` | invalid | `items.N.type` | Groups do not nest |
+| `ig_shuffle_invalid` | invalid | `shuffle` | Anything but `none` or `within-group` |
+
+The stimulus's media reports under the codes media already uses
+(`media_url_required`, `media_alt_required`, `media_url_invalid`,
+`media_invalid`), pathed under `stimulus.media`.
+
+A new group from `createItemGroupDraft` has a `text` stimulus with an empty body
+and no items — `text` is the only kind that needs no uploaded file to be a valid
+draft, so an author writing a passage can start typing and one building a
+listening item changes `kind` before uploading.
+
 ### Your own activity types
 
 Add `authoring` to a descriptor to give a registered type the same support:
