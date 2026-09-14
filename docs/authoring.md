@@ -189,6 +189,55 @@ Optional `media` on either activity, rendered above the question/passage:
 - `video`/`audio` use native controls; provide `captionsUrl` (WebVTT) for captions.
 - **URL-only**: the SDK never hosts media. Hosting/CDN is yours.
 
+### Gap Select — the dropdown cloze (v0.10 / 0.11)
+
+A passage whose gaps the learner fills by **choosing**, not typing:
+
+```jsonc
+{
+  "schemaVersion": "1.0", "type": "gap-select", "id": "q1", "title": "Prepositions",
+  "passage": "Where are you {{a}}? I'm {{b}} Spain.",
+  "banks": [
+    { "id": "prep", "choices": [
+      { "id": "of", "text": "of" }, { "id": "from", "text": "from" },
+      { "id": "to", "text": "to" }, { "id": "on", "text": "on" }
+    ] }
+  ],
+  "gaps": [
+    { "id": "a", "bankId": "prep", "correctChoiceId": "from" },
+    { "id": "b", "bankId": "prep", "correctChoiceId": "from" }
+  ],
+  "scoringStrategy": "partial"
+}
+```
+
+Each gap draws from **exactly one** source: its own `choices`, or a `bankId`. A
+shared bank is what makes distractors possible — three gaps on a bank of five
+means two choices answer no gap at all, which is the difference between a
+comprehension item and three three-way guesses.
+
+**It is not a mode of Fill-in-the-Blanks**, though the `{{id}}` passage is
+authored the same way. A learner picking from a list cannot mistype, so there is
+no `match` policy here and none would mean anything. Redaction inverts too: the
+candidate answers ARE the key in Fill-in-the-Blanks, while here every choice must
+survive or the item is unanswerable — only `correctChoiceId` is withheld.
+
+**The empty first entry is part of the contract.** It is how a learner leaves a
+gap alone and how they take an answer back, so "not answered" stays
+distinguishable from "answered wrongly" — the scorer reports it as
+`incorrect-omission`, and `validateDraft` calls the gap incomplete rather than
+wrong. Its label is the translatable `gapPlaceholder` string.
+
+`shuffleChoices` seeds per gap, so two gaps on one bank are never dealt the same
+order — otherwise the distractors line up column-wise and the second gap is
+easier than the first. Like every shuffle, `<ActivitySequence>` **requires** a
+`shuffleSeed` for it in `exam` and `review`.
+
+`presentation` accepts only `'dropdown'` today. WCAG 2.5.7 requires that a drag
+interface always keep a non-drag path, so the choice belongs in the content
+rather than in a component prop — but a `'drag'` value nothing renders would be
+API frozen before it was validated. Widening the union later is additive.
+
 ### Media on a multiple-choice option (v0.10)
 
 An option can carry a picture or a recording of its own — the A1/A2

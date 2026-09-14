@@ -1,5 +1,6 @@
 import type {
   FillInTheBlanksData,
+  GapSelectData,
   ItemGroup,
   MultipleChoiceData,
   SequenceEntry,
@@ -89,6 +90,36 @@ export const sampleFibSet: FillInTheBlanksData[] = [sampleFillInTheBlanks, sampl
  * group is a CONTAINER, not an activity — the pager flattens it into
  * consecutive questions and keeps the passage on screen beside each of them.
  */
+/**
+ * The dropdown cloze. One shared word bank across both gaps, so two of its four
+ * prepositions answer no gap at all — the distractors that make it a
+ * comprehension item rather than two coin flips.
+ */
+export const sampleGapSelect: GapSelectData = {
+  schemaVersion: '1.0',
+  type: 'gap-select',
+  id: 'gs-prepositions',
+  title: 'Prepositions of origin',
+  passage: "Where are you {{a}}? I'm {{b}} Spain, but I live {{c}} Berlin.",
+  banks: [
+    {
+      id: 'prep',
+      choices: [
+        { id: 'of', text: 'of' },
+        { id: 'from', text: 'from' },
+        { id: 'to', text: 'to' },
+        { id: 'in', text: 'in' },
+      ],
+    },
+  ],
+  gaps: [
+    { id: 'a', bankId: 'prep', correctChoiceId: 'from' },
+    { id: 'b', bankId: 'prep', correctChoiceId: 'from', feedback: 'from + your place of origin' },
+    { id: 'c', bankId: 'prep', correctChoiceId: 'in', feedback: 'in + the city you live in' },
+  ],
+  scoringStrategy: 'partial',
+};
+
 export const sampleReadingGroup: ItemGroup = {
   schemaVersion: '1.0',
   type: 'item-group',

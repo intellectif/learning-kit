@@ -19,6 +19,7 @@ describe('published export surface', () => {
     'ActivityPreview',
     'ActivitySequence',
     'FillInTheBlanks',
+    'GapSelect',
     'MultipleChoice',
     'StimulusPanel',
     'WrittenResponse',

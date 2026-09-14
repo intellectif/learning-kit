@@ -1,11 +1,12 @@
 import type { ActivityResult } from '@intellectif/lk-core';
 import { ActivitySequence } from '@intellectif/lk-react/components/ActivitySequence';
+import { GapSelect } from '@intellectif/lk-react/components/GapSelect';
 import { MultipleChoice } from '@intellectif/lk-react/components/MultipleChoice';
 import { useXAPI } from '@intellectif/lk-react/hooks/useXAPI';
 import { ThemeProvider } from '@intellectif/lk-react/theme/ThemeProvider';
 import { useState } from 'react';
 import { LRS_ENDPOINT } from './config';
-import { sampleMultipleChoice, sampleQuestionSet } from './sample-data';
+import { sampleGapSelect, sampleMultipleChoice, sampleQuestionSet } from './sample-data';
 
 export function App(): React.JSX.Element {
   const [log, setLog] = useState<{ id: string; text: string }[]>([]);
@@ -40,15 +41,15 @@ export function App(): React.JSX.Element {
       <main style={{ maxWidth: 680, margin: '0 auto', padding: 24 }}>
         <h1>learning-kit — Vite + React 19 example</h1>
         <p>
-          A single Multiple Choice activity, plus a question set shown via the in-place pager
-          (Previous / Next, no scrolling): two Fill-in-the-Blanks questions, then a reading
-          comprehension group whose passage stays on screen beside each of its questions. Submitting
-          scores locally and POSTs an xAPI statement to the mock LRS (MSW).
+          A single Multiple Choice activity and a Gap Select cloze, plus a question set shown via
+          the in-place pager (Previous / Next, no scrolling): two Fill-in-the-Blanks questions, then
+          a reading comprehension group whose passage stays on screen beside each of its questions.
+          Submitting scores locally and POSTs an xAPI statement to the mock LRS (MSW).
         </p>
         <h3>Answer key:</h3>
         <p>
-          Tokyo, evaporation, precipitation, condensation, groundwater; twice a day, when the sun
-          and the moon line up, moon
+          Tokyo; from, from, in; evaporation, precipitation, condensation, groundwater; twice a day,
+          when the sun and the moon line up, moon
         </p>
 
         <section aria-labelledby="mc-heading">
@@ -57,6 +58,11 @@ export function App(): React.JSX.Element {
             data={sampleMultipleChoice}
             onComplete={handleComplete('Multiple Choice')}
           />
+        </section>
+
+        <section aria-labelledby="gs-heading">
+          <h2 id="gs-heading">Gap Select</h2>
+          <GapSelect data={sampleGapSelect} onComplete={handleComplete('Gap Select')} />
         </section>
 
         <section aria-labelledby="set-heading">

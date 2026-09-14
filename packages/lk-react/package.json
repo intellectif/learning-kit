@@ -1,7 +1,7 @@
 {
   "name": "@intellectif/lk-react",
   "version": "9.0.0",
-  "description": "Accessible React 19 assessment components — multiple choice, fill-in-the-blanks, written response — with a resumable exam/review pager, theming, and xAPI delivery.",
+  "description": "Accessible React 19 assessment components \u2014 multiple choice, fill-in-the-blanks, written response \u2014 with a resumable exam/review pager, theming, and xAPI delivery.",
   "keywords": [
     "react",
     "react19",
@@ -81,6 +81,16 @@
       "require": {
         "types": "./dist/components/FillInTheBlanks.d.cts",
         "default": "./dist/components/FillInTheBlanks.cjs"
+      }
+    },
+    "./components/GapSelect": {
+      "import": {
+        "types": "./dist/components/GapSelect.d.ts",
+        "default": "./dist/components/GapSelect.js"
+      },
+      "require": {
+        "types": "./dist/components/GapSelect.d.cts",
+        "default": "./dist/components/GapSelect.cjs"
       }
     },
     "./components/StimulusPanel": {

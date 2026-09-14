@@ -21,6 +21,7 @@ import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStringsOverride } from '../../i18n/strings.js';
 import { randomSessionId } from '../_internal.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
+import { GapSelect } from '../GapSelect/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { StimulusPanel } from '../StimulusPanel/index.js';
 import type {
@@ -335,7 +336,11 @@ function SequencePane({
  * of the sequence entry contract.
  */
 function shufflesItsOwnOptions(entry: unknown): boolean {
-  return (entry as { shuffle?: unknown } | null)?.shuffle === true;
+  const item = entry as { shuffle?: unknown; shuffleChoices?: unknown } | null;
+  // Two content fields, one question: does this item deal an order of its own?
+  // `shuffle` is MultipleChoice's; `shuffleChoices` is Gap Select's. A type
+  // added without being named here shuffles unseeded in an exam.
+  return item?.shuffle === true || item?.shuffleChoices === true;
 }
 
 export function ActivitySequence({
@@ -743,6 +748,19 @@ export function ActivitySequence({
     }
     if (activity.type === 'fill-in-the-blanks') {
       return <FillInTheBlanks data={activity} {...childProps} />;
+    }
+    if (activity.type === 'gap-select') {
+      return (
+        <GapSelect
+          data={activity}
+          // The sequence seed reaches the per-gap choice shuffle too, for the
+          // same reason it reaches MultipleChoice's options: a resumed or
+          // reviewed item that dealt a fresh order would show the learner
+          // their answers against an arrangement they never sat.
+          {...(shuffleSeed !== undefined ? { shuffleSeed } : {})}
+          {...childProps}
+        />
+      );
     }
     if (activity.type === 'written-response') {
       // Derived from the SAME bag the other two get, minus the one prop this

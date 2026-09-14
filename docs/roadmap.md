@@ -378,18 +378,70 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
 
 ### v0.5 — "types and content acquisition"
 
+**Shipped so far in the v0.5 line:** `gap-select` (0.10.0 core / 0.11.0 renderer) and media on
+multiple-choice options (0.10.0). Next: `true-false`, the other P0.
+
 > **Reordered 2026-08-19 from evidence in a production corpus**, not from a theoretical gap analysis. The
 > earlier ordering (matching first, true/false retired as "a UI variant of MC") did not survive contact with
 > real content: in a 76-container / 408-item legacy corpus, `matching` appears **zero** times, while
 > true/false carries an entire reading testlet and 41% of authored stems are gap-fill sentences faked as
 > multiple-choice. Frequency in real item banks beats taxonomy completeness.
 
-- **`gap-select` (dropdown cloze) — P0.** The single most-faked type: authors write `___` gap sentences and
-  encode them as multiple-choice because nothing better exists. Keep `presentation: 'dropdown' | 'drag'` at the
-  schema level (WCAG 2.5.7 requires a non-drag path), and support a **shared word bank at group level**.
+- ✅ **`gap-select` (dropdown cloze) — P0, SHIPPED** across 0.10.0 and 0.11.0. The single most-faked type:
+  authors write `___` gap sentences and encode them as multiple-choice because nothing better exists, which is
+  41% of the corpus's authored stems. A second, independent confirmation arrived from the integrating school's
+  own Moodle instance, which was already delivering the type in production.
+
+  It is a type of its own rather than a mode of `fill-in-the-blanks`, and the reasons are the three places they
+  differ: a learner picking from a list cannot mistype, so the whole `TextMatchPolicy` surface is not merely
+  unused but misleading; redaction **inverts**, because the candidate answers are the key in one and the thing
+  the learner must see in the other — a shared policy would have shipped an unanswerable exam; and only
+  `gap-select` has distractors. Word banks were modelled from the start rather than retrofitted, since three
+  gaps sharing a bank of five is what separates a comprehension item from three three-way guesses. The empty
+  first entry of each selector is part of the contract, not chrome: it is how a gap is left alone and how an
+  answer is taken back, so "not answered" stays distinguishable from "answered wrongly" through the scorer
+  (`incorrect-omission`), `ItemOutcome`, and `validateDraft`.
+
+  `presentation` is carried but accepts only `'dropdown'`. WCAG 2.5.7's non-drag requirement means the choice
+  belongs in content rather than in a component prop — but shipping a `'drag'` value nothing renders would have
+  frozen API this repository had not validated, and widening the union later is additive. **The editor-shaped
+  property arbitrary paid for itself immediately**, finding three defects before the first commit, each one a
+  check reported at a path the schema does not fail at, so zod's raw code stood beside ours and an unfinished
+  draft read as a broken one.
+
+  **It then shipped half-done, and that is the lesson worth keeping.** `lk-core@0.10.0` registered the type —
+  validating, scoring, redacting, with full draft support — while `lk-react` had no renderer, no dispatch in
+  `ActivitySequence`, and none in `ActivityPreview`. An authored item validated and scored perfectly and
+  rendered "This activity type has no renderer" on a published package, and the types were not exported from
+  the public barrel either, so a consumer could not even name `GapSelectData`. Nothing caught it: every gate is
+  per-package, and none of them asks whether a registered type can reach a screen. 0.11.0 closes it with
+  `<GapSelect>`, both dispatch branches, the sequence's seed guard extended to `shuffleChoices`, and the public
+  types exported. The guard against a repeat is a test that renders a `gap-select` item through
+  `<ActivitySequence>` and asserts the unsupported notice is NOT what comes back.
 - **`true-false` — P0 (reinstated).** Previously retired as an MC variant; it is the backbone of real reading
   testlets, and collapsing it into MC loses the authoring ergonomics and the interop mapping that make a
   20-item testlet tractable.
+- ✅ **Media as multiple-choice options — SHIPPED** in 0.10.0, out of order and on consumer evidence rather
+  than the queue. Picture-choice (A1/A2 vocabulary) and minimal-pair listening had no expression at all:
+  `media` sat above the question, one asset per activity. `MultipleChoiceOption.media` is additive, and
+  `text` stays required, because it names the option in the accessible name and the xAPI statement and is
+  what a learner sees when a picture 404s.
+
+  Only `image` and `audio` are accepted, and the refusals are functional rather than cautious: a `<label>`
+  activates its control for any click inside it, so an `embed`'s iframe or a `video`'s control bar swallows
+  the click that selects the option and the learner cannot choose it. The same rule decides where each
+  accepted kind renders — a picture **inside** the label, where clicking it selects and its `alt` joins the
+  accessible name; a recording **outside** it, so pressing play does not commit a learner to an answer before
+  they have heard the others. No `playback` policy on an option, refused rather than ignored, because
+  `maxPlays` binds per slot and nothing has decided whether four recordings in one question share a budget or
+  hold one each.
+
+  Stated plainly in the authoring guide rather than papered over: on a picture-choice item the `alt` is part
+  of the item, and "a cat" hands a screen-reader user the answer a sighted learner has to work out. The SDK
+  requires it so an option is never *silently* inaccessible and leaves the wording to the author; where an
+  item cannot be made equivalent, the accommodation is a different item. **A first cut was rejected by an
+  existing invariant test** — the schema was strict, and a test counting closed objects in the exported JSON
+  Schema caught that strictness would start rejecting the consumer sidecars B7 exists to preserve.
 - **`dictation` — P1**, and it depends on the media playback policy below.
 - **`mark-the-words`, `ordering`, `short-answer` — P1/P2**, on evidence of demand.
 - **`matching` — demoted to P2.** No production evidence of use; build it when an item bank asks for it.
