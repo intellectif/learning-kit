@@ -72,6 +72,7 @@ if (checked === 0) {
 // exports-map regression.
 const REQUIRED_EXPORTS = {
   'dist/components/ActivityPreview.js': ['ActivityPreview'],
+  'dist/components/GapSelect.js': ['GapSelect'],
   'dist/theme/ThemeProvider.js': [
     'ThemeProvider',
     'createTailwindTheme',

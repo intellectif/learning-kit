@@ -160,6 +160,64 @@
     color: var(--lk-color-text-muted);
   }
 
+  /* ── Gap select ───────────────────────────────────────────────────────
+     A cloze answered from a list. The passage flows as text and each gap is
+     an inline selector, so the sentence stays readable at any width.  */
+  .lk-gs-passage {
+    line-height: 2.2;
+  }
+
+  .lk-gs-gap {
+    display: inline;
+    white-space: normal;
+  }
+
+  .lk-gs-select {
+    display: inline-block;
+    max-inline-size: 100%;
+    margin-inline: 0.15em;
+    padding: 0.15em 0.4em;
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    background: var(--lk-color-surface);
+    color: var(--lk-color-text);
+    font: inherit;
+    /* The selector is the answer field: give it the same marked states the
+       fill-in-the-blanks input has, so a learner reads one visual language. */
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-gs-select:disabled {
+    opacity: 1;
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface-raised);
+  }
+
+  .lk-gs-select[data-correct="true"] {
+    border-color: var(--lk-color-success);
+    box-shadow: inset 0 0 0 1px var(--lk-color-success);
+  }
+
+  .lk-gs-select[data-correct="false"] {
+    border-color: var(--lk-color-error);
+    box-shadow: inset 0 0 0 1px var(--lk-color-error);
+  }
+
+  .lk-gs-gap-feedback {
+    display: block;
+    margin-block-start: var(--lk-spacing-xs);
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-gs-gap-feedback[data-correct="true"] {
+    color: var(--lk-color-success);
+  }
+
+  .lk-gs-gap-feedback[data-correct="false"] {
+    color: var(--lk-color-error);
+  }
+
   /* ── Multiple choice options ─────────────────────────────────────────── */
   .lk-mc-option {
     display: flex;

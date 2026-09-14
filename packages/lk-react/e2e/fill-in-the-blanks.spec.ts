@@ -13,7 +13,10 @@ test('fill blanks → submit fires onComplete and POSTs a valid xAPI statement',
   const requestPromise = page.waitForRequest(
     (r) => r.url() === LRS_ENDPOINT && r.method() === 'POST',
   );
-  await page.getByRole('button', { name: 'Check answers' }).click();
+  await page
+    .getByRole('form', { name: 'The Water Cycle' })
+    .getByRole('button', { name: 'Check answers' })
+    .click();
   const statement = (await requestPromise).postDataJSON();
 
   expect(statement.version).toBe('1.0.3');
@@ -40,7 +43,10 @@ test('keyboard-only: type answers and submit with Enter', async ({ page }) => {
   const requestPromise = page.waitForRequest(
     (r) => r.url() === LRS_ENDPOINT && r.method() === 'POST',
   );
-  await page.getByRole('button', { name: 'Check answers' }).press('Enter');
+  await page
+    .getByRole('form', { name: 'The Water Cycle' })
+    .getByRole('button', { name: 'Check answers' })
+    .press('Enter');
   await requestPromise;
 
   await expect(page.getByText(/Question 1 \[slot 0\]: scored 100%/)).toBeVisible();

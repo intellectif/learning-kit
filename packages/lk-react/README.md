@@ -85,7 +85,7 @@ export function Demo() {
 - **`useActivityState()`** — `idle → in-progress → completed → reviewing` machine with `getTimeSpent()`.
 - **`<ThemeProvider>` + `defaults.css`** — `--lk-*` design-token system; automatic dark mode via `prefers-color-scheme` (SSR-safe with `useSyncExternalStore`).
 - **`createTailwindTheme(theme)`** — optional Tailwind interop; consume the SDK palette from your own utilities.
-- **`<LkIntlProvider>`** — all 52 strings the SDK's own chrome renders, replaceable in one place, with a per-component `strings` prop for the exceptions. Interpolation and plurals are **functions**, not format strings, so your `Intl.PluralRules` does the work and TypeScript checks the arity. `locale` sets `lang` and derives `dir`; the skin uses logical properties, so RTL follows. The SDK ships the mechanism and **English only** — see [docs/i18n.md](https://github.com/intellectif/learning-kit/blob/main/docs/i18n.md).
+- **`<LkIntlProvider>`** — all 54 strings the SDK's own chrome renders, replaceable in one place, with a per-component `strings` prop for the exceptions. Interpolation and plurals are **functions**, not format strings, so your `Intl.PluralRules` does the work and TypeScript checks the arity. `locale` sets `lang` and derives `dir`; the skin uses logical properties, so RTL follows. The SDK ships the mechanism and **English only** — see [docs/i18n.md](https://github.com/intellectif/learning-kit/blob/main/docs/i18n.md).
 - **WCAG 2.2 AA** — axe-clean unit + Playwright e2e tests; full keyboard operability; numerically-verified contrast.
 - **RSC-compatible** — every component carries `'use client'` and hydrates inside a React Server Component tree.
 
@@ -96,6 +96,7 @@ export function Demo() {
 | `@intellectif/lk-react` | Everything (barrel) |
 | `@intellectif/lk-react/components/MultipleChoice` | `<MultipleChoice>` (boundary-wrapped) |
 | `@intellectif/lk-react/components/FillInTheBlanks` | `<FillInTheBlanks>` (boundary-wrapped) |
+| `@intellectif/lk-react/components/GapSelect` | `<GapSelect>` dropdown cloze (boundary-wrapped) |
 | `@intellectif/lk-react/components/WrittenResponse` | `<WrittenResponse>` (boundary-wrapped) |
 | `@intellectif/lk-react/components/ActivityPreview` | `<ActivityPreview>` draft preview for editors |
 | `@intellectif/lk-react/components/ActivitySequence` | `<ActivitySequence>` question-set pager |

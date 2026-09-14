@@ -62,6 +62,15 @@ export interface LkStrings {
   // ── Fill-in-the-Blanks ─────────────────────────────────────────────────
   /** Accessible name of a blank's input. `ordinal` is 1-based. */
   blankLabel: (ordinal: number) => string;
+
+  // ── Gap select ────────────────────────────────────────────────────────────
+  /** Accessible name of the selector for one gap in a Gap Select passage. */
+  gapLabel: (ordinal: number) => string;
+  /**
+   * The empty first entry of a gap's selector — how a learner leaves a gap
+   * alone, and how they take an answer back. Never a real choice.
+   */
+  gapPlaceholder: string;
   showHint: string;
   hideHint: string;
 
@@ -168,6 +177,9 @@ export const DEFAULT_STRINGS: LkStrings = {
   hideFeedback: 'Hide feedback',
 
   blankLabel: (ordinal) => `Fill in blank ${ordinal}`,
+
+  gapLabel: (ordinal) => `Choose the answer for gap ${ordinal}`,
+  gapPlaceholder: 'Choose…',
   showHint: 'Show hint',
   hideHint: 'Hide hint',
 

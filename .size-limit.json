@@ -53,5 +53,16 @@
       "@intellectif/lk-core"
     ],
     "limit": "50 kB"
+  },
+  {
+    "name": "GapSelect",
+    "path": "packages/lk-react/dist/components/GapSelect.js",
+    "import": "{ GapSelect }",
+    "ignore": [
+      "react",
+      "react-dom",
+      "@intellectif/lk-core"
+    ],
+    "limit": "50 kB"
   }
 ]

@@ -16,6 +16,7 @@ import type { LkStringsOverride } from '../../i18n/strings.js';
 import { ActivityErrorBoundary } from '../ActivityErrorBoundary.js';
 import type { ActivityRenderer } from '../ActivitySequence/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
+import { GapSelect } from '../GapSelect/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import type { HtmlSanitizer, MediaBudgetBinding, RenderMode } from '../types.js';
 import { WrittenResponse } from '../WrittenResponse/index.js';
@@ -246,6 +247,15 @@ export function ActivityPreview({
       );
     case 'fill-in-the-blanks':
       return <FillInTheBlanks key={key} data={data} {...shared} />;
+    case 'gap-select':
+      return (
+        <GapSelect
+          key={key}
+          data={data}
+          shuffleSeed={shuffleSeed ?? PREVIEW_SHUFFLE_SEED}
+          {...shared}
+        />
+      );
     case 'written-response':
       return <WrittenResponse key={key} data={data} {...shared} />;
     default:

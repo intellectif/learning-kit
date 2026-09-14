@@ -1,6 +1,7 @@
 export * from './components/ActivityPreview/index.js';
 export * from './components/ActivitySequence/index.js';
 export * from './components/FillInTheBlanks/index.js';
+export * from './components/GapSelect/index.js';
 export * from './components/MultipleChoice/index.js';
 export * from './components/StimulusPanel/index.js';
 export * from './components/types.js';

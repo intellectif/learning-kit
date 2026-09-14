@@ -2,6 +2,7 @@ import type {
   ActivityData,
   ActivityMedia as ActivityMediaData,
   FillInTheBlanksData,
+  GapSelectData,
   GradeRecord,
   ItemOutcome,
   LearnerResponse,
@@ -18,6 +19,7 @@ import { ActivityErrorBoundary } from '../../components/ActivityErrorBoundary.js
 import { ActivityPreview } from '../../components/ActivityPreview/index.js';
 import { ActivitySequence } from '../../components/ActivitySequence/index.js';
 import { FillInTheBlanks } from '../../components/FillInTheBlanks/index.js';
+import { GapSelect } from '../../components/GapSelect/index.js';
 import { MultipleChoice } from '../../components/MultipleChoice/index.js';
 import { StimulusPanel } from '../../components/StimulusPanel/index.js';
 import { ActivityMedia } from '../../components/shared/ActivityMedia.js';
@@ -299,6 +301,47 @@ describe('translation coverage', () => {
     // ── Sequence: pager chrome, and the note for an unregistered type ───────
     const unsupported = { ...mc, id: 'q9', type: 'matching' } as unknown as ActivityData;
     sweep(<ActivitySequence activities={[unsupported, mc]} />);
+    cleanup();
+
+    // ── Gap select: the selector's name and its empty first entry ──────────
+    const gs = {
+      schemaVersion: '1.0',
+      type: 'gap-select',
+      id: 'gs1',
+      title: 'Prepositions',
+      passage: "I'm {{a}} Spain.",
+      gaps: [
+        {
+          id: 'a',
+          choices: [
+            { id: 'from', text: 'from' },
+            { id: 'of', text: 'of' },
+          ],
+          correctChoiceId: 'from',
+          feedback: 'from + place of origin',
+        },
+      ],
+      scoringStrategy: 'partial',
+    } satisfies GapSelectData;
+    sweep(<GapSelect data={gs} onComplete={vi.fn()} />);
+    // The selector's own name and its empty first entry.
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: sentinel('gapLabel(1)') }),
+      'from',
+    );
+    keep(document.body);
+    // Submitted too, not just mounted: the marked state and the feedback
+    // toggle live only on that path, and the sweep that missed three literals
+    // last time was the one that never submitted.
+    await user.click(screen.getByRole('button', { name: sentinel('checkAnswers') }));
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('hideFeedback') }));
+    keep(document.body);
+    cleanup();
+
+    sweep(<GapSelect data={gs} renderMode="exam" onSubmit={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: sentinel('submitAnswers') }));
+    keep(document.body);
     cleanup();
 
     // ── Authoring preview: the notice for an unfinished and for a wrong draft ─
