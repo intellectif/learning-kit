@@ -1,5 +1,12 @@
 # @intellectif/lk-react
 
+## 12.0.0
+
+### Patch Changes
+
+- Updated dependencies [30b3e79]
+  - @intellectif/lk-core@0.12.0
+
 ## 11.0.0
 
 ### Minor Changes
