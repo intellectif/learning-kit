@@ -135,6 +135,18 @@ const MULTIPLE_CHOICE_FIELD_POLICY: FieldPolicy = {
     text: 'public',
     isCorrect: 'answer-key',
     feedback: 'answer-key',
+    // Public, and classified key by key rather than as one leaf — the lesson
+    // `media`, `rubric` and `feedback` each taught: a scalar classification
+    // assigns the author's object by reference without recursing, so an
+    // unclassified key parked inside it survives redact() AND assertRedacted().
+    // An option's picture or recording IS the thing the learner picks, so
+    // stripping it would ship a row of blank options.
+    media: {
+      type: 'public',
+      url: 'public',
+      alt: 'public',
+      captionsUrl: 'public',
+    },
   },
 };
 

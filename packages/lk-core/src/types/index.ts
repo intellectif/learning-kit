@@ -17,6 +17,7 @@ export type {
   MultipleChoiceData,
   MultipleChoiceLearnerResponse,
   MultipleChoiceOption,
+  MultipleChoiceOptionMedia,
   ScoringDetail,
   ScoringOutcome,
   ScoringResult,

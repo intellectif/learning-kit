@@ -117,15 +117,65 @@ export interface ActivityFeedback {
 }
 
 /** A single selectable option within a Multiple Choice activity. */
+/**
+ * A picture or a recording carried by ONE multiple-choice option — the
+ * A1/A2 picture-choice item, and the minimal-pair listening item.
+ *
+ * Narrower than {@link ActivityMedia}, which sits above the question, and
+ * deliberately so. An option is a click target, and two of the activity-level
+ * kinds cannot be one:
+ *
+ * - **`embed` is refused.** A provider iframe swallows pointer events, so
+ *   clicking the option would play the video instead of selecting the answer.
+ *   The learner could not choose it at all.
+ * - **`video` is refused** for the same reason one step down: a native control
+ *   bar inside the option's label eats the clicks meant for the radio.
+ * - **No `playback` policy.** `maxPlays` binds per slot through a
+ *   `MediaBudgetBinding`, and four recordings in one question raise a question
+ *   nothing has answered yet — whether the budget belongs to the option or to
+ *   the item. Until something asks, an option plays through the browser's own
+ *   bar and counts nothing.
+ *
+ * `alt` follows the same rule {@link ActivityMedia} uses, so there is only one
+ * rule to learn: required and non-empty for an image, optional for audio, where
+ * it becomes the player's accessible label.
+ *
+ * **On an image option, `alt` is part of the item.** It joins the option's
+ * `text` in the radio's accessible name, so on "which picture shows a cat?" an
+ * `alt` of "a cat" hands a screen-reader user the answer that a sighted learner
+ * has to work out. That is a property of picture-choice items, not something a
+ * schema can fix — the SDK requires `alt` so an option is never SILENTLY
+ * inaccessible, and leaves the wording, and the item's validity, to the author.
+ */
+export interface MultipleChoiceOptionMedia {
+  /** `image` for a picture-choice option, `audio` for a listening option. */
+  type: 'image' | 'audio';
+  /** Address of the file. Same scheme allow-list as {@link ActivityMedia}. */
+  url: string;
+  /** Required and non-empty for `image`; an optional accessible label for `audio`. */
+  alt?: string;
+  /** WebVTT captions for an audio option, rendered as a `<track>`. */
+  captionsUrl?: string;
+}
+
 export interface MultipleChoiceOption {
   /** Unique identifier for this option within the activity. */
   id: string;
-  /** Display text shown to the learner. */
+  /**
+   * Display text shown to the learner.
+   *
+   * Required even when the option carries {@link media}: it names the option in
+   * the radio's accessible name and in the xAPI statement, and it is what the
+   * learner sees if a picture fails to load. For a pure picture-choice option,
+   * a neutral label ("Picture 1") keeps the naming out of the answer.
+   */
   text: string;
   /** Whether this option is part of the correct answer. */
   isCorrect: boolean;
   /** Optional per-option feedback shown after submission. */
   feedback?: string;
+  /** An optional picture or recording shown as part of this option. */
+  media?: MultipleChoiceOptionMedia;
 }
 
 /** Data contract for a Multiple Choice activity. */

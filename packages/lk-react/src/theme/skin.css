@@ -194,6 +194,58 @@
     overflow-wrap: anywhere;
   }
 
+  /* ── Option media ─────────────────────────────────────────────────────
+     A picture sits inside the option's label, so clicking it selects the
+     option; a recording sits outside, so pressing play does not. The option
+     keeps its own border in both cases — `.lk-mc-option-media` is a wrapper
+     for the pair, never a second box around one.  */
+  .lk-mc-option-image {
+    max-inline-size: 100%;
+    block-size: auto;
+    max-block-size: 12rem;
+    border-radius: var(--lk-radius-base);
+    /* An option's picture carries meaning; never let it collapse to nothing. */
+    min-inline-size: 3rem;
+    object-fit: contain;
+  }
+
+  /* With a picture the label stacks, so the image is the prominent part and
+     the radio keeps its own line with the text beside it. */
+  .lk-mc-option:has(.lk-mc-option-image) {
+    flex-wrap: wrap;
+  }
+
+  .lk-mc-option:has(.lk-mc-option-image) > span:first-of-type {
+    flex: 0 1 auto;
+  }
+
+  .lk-mc-option:has(.lk-mc-option-image) .lk-mc-option-image {
+    flex: 1 0 100%;
+  }
+
+  .lk-mc-option-media {
+    margin-bottom: var(--lk-spacing-sm);
+  }
+
+  /* The label already carries the gap below it; collapse the inner one so the
+     recording reads as part of the same option rather than a separate row. */
+  .lk-mc-option-media > .lk-mc-option {
+    margin-bottom: 0;
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+  }
+
+  .lk-mc-option-audio {
+    display: block;
+    inline-size: 100%;
+    padding: var(--lk-spacing-sm);
+    border: 1px solid var(--lk-color-border);
+    border-block-start: none;
+    border-end-start-radius: var(--lk-radius-base);
+    border-end-end-radius: var(--lk-radius-base);
+    background: var(--lk-color-surface);
+  }
+
   /* -- Post-submit marking ---------------------------------------------
      Hue says correctness; weight says whether the LEARNER chose it. Both
      correct states are green, because it is the same fact, but only the
