@@ -51,3 +51,6 @@ Thumbs.db
 
 # pnpm virtual store (generated)
 .pnpm-store/
+
+# Scratch tree for scripts/mutate.mjs; removed on a clean run, left behind by an interrupted one.
+.mutants/

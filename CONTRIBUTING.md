@@ -46,7 +46,48 @@ The full gate that CI enforces:
 
 ```bash
 pnpm turbo run build lint test coverage e2e
+pnpm api-check   # the public API surface matches the committed report
+pnpm size        # bundle budgets
 ```
+
+`pnpm verify-release` runs the whole lot in one command. It is what `pnpm
+release` runs before publishing, so the last gate before bytes reach npm is the
+same gate a pull request passes — the Release job used to publish after a bare
+build.
+
+### The public API surface
+
+`packages/*/api/surface.md` is the public type surface of each package, frozen
+from the BUILT `.d.ts`. `pnpm api-check` fails when a build and the committed
+report disagree.
+
+**A diff is not an error** — it is the semver question asked while someone can
+still answer it. A parameter becoming required, a return type narrowing, a field
+leaving an exported interface: each passed every other check until a consumer's
+build broke. When the report changes, run `pnpm api-report`, read the diff, and
+commit it with the changeset that says whether it is a patch, a minor or a
+major. Doc comments are stripped, so rewording JSDoc never fails the gate.
+
+### Mutation testing the scoring engine
+
+```bash
+pnpm mutate                      # the whole scoring engine (~250 mutants)
+pnpm mutate --filter text-match  # one file
+pnpm mutate --limit 25           # a quick sample
+```
+
+100% coverage on `src/scoring/**` means every line RAN, not that anything would
+notice if the line were wrong. `scripts/mutate.mjs` changes one operator or
+literal at a time — placed with the TypeScript AST, so a `+` inside a string is
+never touched — rebuilds lk-core through esbuild, and replays the
+grade-stability corpus as the oracle. A mutant the corpus still accepts is a
+**survivor**: a change to grading every test here would wave through.
+
+Run it when you touch scoring, and triage every survivor. The honest answers
+are: it does not reach a grade (feedback prose, an xAPI pattern), it is
+equivalent, it is type-only, or **the corpus needs a vector** — add the case to
+`packages/lk-core/scripts/vector-cases.mjs`, regenerate, and check the run
+reports `0 changed`. Anything else means a stored grade just moved.
 
 Conventions:
 

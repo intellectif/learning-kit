@@ -348,7 +348,8 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
 - Registry v2: descriptor gains `versions`/`migrations` (`migrateActivity`, lazy on read), `semanticChecks`
   (named, for the repair loop), `plan()` seeded presentation.
 - ✅ **Grade-stability vectors, and the non-functionals that had gone stale** — the consumer parity
-  test-vector suite shipped as `packages/lk-core/vectors/`: 231 calls across every path that decides a grade,
+  test-vector suite shipped as `packages/lk-core/vectors/`: 231 calls across every path that decides a grade
+  (243 today — see the v0.5 line),
   frozen by executing 0.8.1 rather than written by hand, replayed against source in `pnpm test` and against the
   built CJS and ESM in `verify-dist`, on Node 22 and 24. It was chosen on a workaround, not on the roadmap line:
   an integrating application had written its own golden scoring spec whose header said nothing else asserted a
@@ -371,10 +372,41 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   mark stood beside, so "hola !" does not match "hola". Of the original non-functionals line: publint/attw
   already ran in CI; the matrix now includes Node 24, the Node the Release job builds with, and the packaging
   checks run on it; the browser floor is stated (`Object.hasOwn`: Chrome/Edge 93, Firefox 92, Safari 15.4).
-  **Still open:** an API surface report for a real semver gate (nothing like api-extractor exists);
-  `engines: { node: '>=20' }` is still published although CI retired Node 20 in `e17f5fa` for pnpm 11
-  compatibility; the Release job itself still runs no checks; and the mutation harness lives outside the
-  repository, so coverage is not re-checked automatically when scoring changes.
+  ✅ **All four of that line's open items are now closed.** `scripts/api-report.mjs` freezes the public
+  surface of both packages from the BUILT `.d.ts` — 398 exported symbols with their declarations — and
+  `pnpm api-check` fails CI when a build and the committed report disagree; api-extractor was passed over
+  because it wants a per-package config and a rollup `.d.ts` convention this monorepo does not follow, to
+  answer a question the installed TypeScript answers directly. Doc comments are stripped from the report on
+  purpose: a gate that fails on a reworded JSDoc is a gate people learn to ignore. `engines` is `>=22`, which
+  is what CI has actually been proving since Node 20 was retired and went end-of-life. The Release job no
+  longer publishes after a bare build: `pnpm release` runs `verify-release` first — build, test, lint,
+  typecheck, publint, attw, verify-dist, the API surface and the size budgets — so the last gate before bytes
+  go public is the same gate a PR passes. And the mutation harness is in the repository at last, as
+  `scripts/mutate.mjs`: it places single-token mutations with the TypeScript AST (never a regular expression,
+  so a `+` in a string is never touched), rebuilds lk-core through esbuild per mutant, and replays the
+  grade-stability corpus as the oracle.
+
+  **It earned its place immediately, and the corpus was thinner than the last audit left it.** Every hole
+  below was reproduced by hand against a real build before being fixed, and every regeneration reported
+  `0 changed`, so nothing that already scored moved. `allOrNothingStrategy` was never exercised RETURNING 1:
+  every all-or-nothing vector scoring full marks is multiple-choice, and `scoreMultipleChoice` inlines its own
+  all-or-nothing logic rather than calling the shared strategy, so `? 1 : 0` could become `? 0 : 0` — zeroing
+  every fill-in-the-blanks and gap-select paper marked that way — with all 231 vectors still green.
+  `gap-select`, registered in 0.10.0, had **no vector of any kind**: a type that decides grades sat outside
+  the one artifact that exists to stop grades moving. `levenshteinDistance` was never called with a
+  single-character string, so both of its early exits could be broken unseen. A returned grade was never
+  `maxScore`-scaled by anything but 1, so the denominator guard in `earned()` was free to change. And no
+  section in any compose vector carried a `title`, so the spread that carries one could be inverted and drop
+  it. Twenty vectors close all five; the corpus stands at 251.
+
+  **The survivors that remain are classified, not ignored** — 233 of 247 mutants killed on the first full
+  sweep, 237 once those vectors landed, and all ten that remain triaged one at a time. `rounding.ts` keeps three that are reachable only by passing a
+  value exactly one float epsilon from a threshold, and three more that the epsilon nudge makes equivalent in
+  both directions. `text-match.ts` keeps three: `rowMin = value` re-assigned when it is already that value;
+  the levenshtein branch taken with `maxDistance === 0`, which only accepts a distance of 0 that the exact
+  stage already returned; and starting the distance matrix at row 0, where `a[-1]` is `undefined`, never
+  matches, and the recurrence over an all-mismatch row reproduces the identity row exactly. None of the three
+  can move a grade.
 
 ### v0.5 — "types and content acquisition"
 

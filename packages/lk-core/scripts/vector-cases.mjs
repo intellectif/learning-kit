@@ -93,6 +93,33 @@ const fib = (over = {}) => ({
   ...over,
 });
 
+const gs = (over = {}) => ({
+  schemaVersion: '1.0',
+  type: 'gap-select',
+  id: 'gs-prepositions',
+  title: 'Prepositions',
+  passage: "Where are you {{a}}? I'm {{b}} Spain.",
+  banks: [
+    {
+      id: 'prep',
+      choices: [
+        { id: 'of', text: 'of' },
+        { id: 'from', text: 'from' },
+        { id: 'to', text: 'to' },
+        { id: 'on', text: 'on' },
+      ],
+    },
+  ],
+  gaps: [
+    { id: 'a', bankId: 'prep', correctChoiceId: 'from' },
+    { id: 'b', bankId: 'prep', correctChoiceId: 'from' },
+  ],
+  scoringStrategy: 'partial',
+  ...over,
+});
+
+const choose = (selections) => ({ type: 'gap-select', selections });
+
 const oneBlank = (acceptedAnswers, match) =>
   fib({
     passage: 'Answer: {{b1}}.',
@@ -143,6 +170,23 @@ const gradedOutcome = (score) => {
   const grade = { score, maxScore: 1, passed: score >= 0.7, feedback: null };
   return { status: 'graded', grade, score, maxScore: 1, passed: score >= 0.7, feedback: null };
 };
+
+/**
+ * A returned grade on a scale that is not 0..1 and not a whole number.
+ *
+ * `earned()` divides by `outcome.maxScore > 0 ? outcome.maxScore : 1`, and every
+ * other graded vector uses a maxScore of exactly 1 — so mutating that `0` to a
+ * `1` changed nothing the corpus could see, while a grader reporting 0.4 out of
+ * 0.5 would have been re-scaled against the wrong denominator.
+ */
+const gradedOutOf = (score, maxScore) => ({
+  status: 'graded',
+  grade: { score, maxScore, passed: score / maxScore >= 0.7, feedback: null },
+  score,
+  maxScore,
+  passed: score / maxScore >= 0.7,
+  feedback: null,
+});
 
 const item = (slotId, points, outcome) => ({ slotId, points, outcome });
 const section = (id, weight, items, over = {}) => ({ id, weight, items, ...over });
@@ -312,6 +356,103 @@ export const CASES = [
     fn: 'score',
     args: ['fill-in-the-blanks', fib(), fill({ b1: 'a', b2: 'the', b3: 'wrong' })],
     note: 'A non-terminating ratio (2/3), pinned exactly rather than approximately.',
+  },
+  {
+    // The shared allOrNothingStrategy returning 1. Every other all-or-nothing
+    // vector scoring full marks is multiple-choice, which inlines its own
+    // logic and never reaches the strategy — so the mutation harness could
+    // turn `? 1 : 0` into `? 0 : 0`, silently zeroing every fill-in-the-blanks
+    // and gap-select paper marked that way, and all 231 vectors still passed.
+    id: 'score/fib/all-or-nothing/every-blank-right',
+    fn: 'score',
+    args: [
+      'fill-in-the-blanks',
+      fib({ scoringStrategy: 'all-or-nothing' }),
+      fill({ b1: 'a', b2: 'the', b3: 'the' }),
+    ],
+  },
+  {
+    id: 'score/fib/all-or-nothing/empty-blank-list',
+    fn: 'score',
+    args: [
+      'fill-in-the-blanks',
+      fib({ scoringStrategy: 'all-or-nothing', passage: 'Nothing to fill.', blanks: [] }),
+      fill({}),
+    ],
+  },
+  // -- Gap select. Registered in 0.10.0 and frozen here for the first time: a
+  //    type that decides grades had no vector of any kind, so nothing stopped
+  //    a change to scoreGapSelect from re-marking stored papers.
+  {
+    id: 'score/gs/partial/both-right',
+    fn: 'score',
+    args: ['gap-select', gs(), choose({ a: 'from', b: 'from' })],
+  },
+  {
+    id: 'score/gs/partial/one-right',
+    fn: 'score',
+    args: ['gap-select', gs(), choose({ a: 'from', b: 'to' })],
+  },
+  {
+    id: 'score/gs/partial/unanswered-gap',
+    fn: 'score',
+    args: ['gap-select', gs(), choose({ a: 'from' })],
+  },
+  {
+    id: 'score/gs/partial/empty-string-is-unanswered',
+    fn: 'score',
+    args: ['gap-select', gs(), choose({ a: 'from', b: '' })],
+  },
+  {
+    id: 'score/gs/partial/choice-never-offered',
+    fn: 'score',
+    args: ['gap-select', gs(), choose({ a: 'smuggled', b: 'from' })],
+  },
+  {
+    id: 'score/gs/all-or-nothing/both-right',
+    fn: 'score',
+    args: [
+      'gap-select',
+      gs({ scoringStrategy: 'all-or-nothing' }),
+      choose({ a: 'from', b: 'from' }),
+    ],
+  },
+  {
+    id: 'score/gs/all-or-nothing/one-wrong',
+    fn: 'score',
+    args: ['gap-select', gs({ scoringStrategy: 'all-or-nothing' }), choose({ a: 'from', b: 'to' })],
+  },
+  {
+    id: 'score/gs/own-choices-not-a-bank',
+    fn: 'score',
+    args: [
+      'gap-select',
+      gs({
+        passage: 'The sky is {{a}}.',
+        banks: undefined,
+        gaps: [
+          {
+            id: 'a',
+            choices: [
+              { id: 'blue', text: 'blue' },
+              { id: 'red', text: 'red' },
+            ],
+            correctChoiceId: 'blue',
+          },
+        ],
+      }),
+      choose({ a: 'blue' }),
+    ],
+  },
+  {
+    id: 'score/gs/missing-bank-scores-zero',
+    fn: 'score',
+    args: ['gap-select', gs({ banks: [] }), choose({ a: 'from', b: 'from' })],
+  },
+  {
+    id: 'evaluate/gs/scored',
+    fn: 'evaluate',
+    args: [gs(), choose({ a: 'from', b: 'from' })],
   },
   {
     id: 'score/fib/all-or-nothing/two-of-three',
@@ -602,6 +743,20 @@ export const CASES = [
     note: 'Deliberate and documented: distance 1 against a one-character answer accepts ANY single character.',
   },
 
+  // The two early exits, and the loop's first row. Every other levenshtein
+  // vector compares strings of 3 characters or more, so `a.length === 0` could
+  // become `=== 1`, `b.length === 0` the same, and the row counter could start
+  // at 0 instead of 1, with the whole corpus still green.
+  { id: 'levenshteinDistance/one-char-vs-longer', fn: 'levenshteinDistance', args: ['a', 'ab', 2] },
+  { id: 'levenshteinDistance/longer-vs-one-char', fn: 'levenshteinDistance', args: ['ab', 'a', 2] },
+  { id: 'levenshteinDistance/one-char-each', fn: 'levenshteinDistance', args: ['a', 'b', 2] },
+  { id: 'levenshteinDistance/empty-vs-one-char', fn: 'levenshteinDistance', args: ['', 'a', 2] },
+  { id: 'levenshteinDistance/one-char-vs-empty', fn: 'levenshteinDistance', args: ['a', '', 2] },
+  {
+    id: 'matchText/levenshtein/one-char-typo',
+    fn: 'matchText',
+    args: ['a', ['b'], { levenshtein: 1 }],
+  },
   { id: 'levenshteinDistance/classic', fn: 'levenshteinDistance', args: ['kitten', 'sitting', 10] },
   { id: 'levenshteinDistance/identical', fn: 'levenshteinDistance', args: ['abc', 'abc', 5] },
   {
@@ -973,6 +1128,20 @@ export const CASES = [
   },
 
   // Whole-assessment composition.
+  {
+    // A section that HAS a title. Every other compose vector leaves it out, so
+    // the conditional spread that carries it could be inverted — dropping an
+    // authored section title from the result — with nothing to notice.
+    id: 'composeAssessmentScore/section-with-title',
+    fn: 'composeAssessmentScore',
+    args: [[section('a', 1, [item('a1', 1, scoredOutcome(1))], { title: 'Reading' })], policy()],
+  },
+  {
+    // A grader reporting a grade out of 0.5, not out of 1 or 100.
+    id: 'composeAssessmentScore/graded/max-score-below-one',
+    fn: 'composeAssessmentScore',
+    args: [[section('a', 1, [item('a1', 1, gradedOutOf(0.4, 0.5))])], policy()],
+  },
   {
     id: 'composeAssessmentScore/weights/2-and-3',
     fn: 'composeAssessmentScore',

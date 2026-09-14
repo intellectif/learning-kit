@@ -54,6 +54,16 @@ jobs:
         if: matrix.node-version == '22'
         run: pnpm size
 
+      # Public API surface gate. `verify-dist` proves the documented exports
+      # RESOLVE; it says nothing about their shapes, so a parameter becoming
+      # required, a return type narrowing, or a field leaving an exported
+      # interface passed every check until a consumer's build broke. The
+      # committed report is regenerated with `pnpm api-report`; a diff here is
+      # the semver question asked while someone can still answer it.
+      - name: Public API surface
+        if: matrix.node-version == '22'
+        run: pnpm api-check
+
       # Package-correctness gate. Catches the class of defect that only shows
       # up after publish: a broken exports map, a declaration that resolves as
       # the wrong module format, missing files in the tarball. Both packages
