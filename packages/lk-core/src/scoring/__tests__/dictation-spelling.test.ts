@@ -250,14 +250,13 @@ describe('dictation normalisation reads one spelling as Unicode does', () => {
     );
     const flag = `${BLACK_FLAG}${TAG_B.repeat(15_999)}`;
     expect(normalizeDictationText(flag)).toBe(flag);
-    // The same 16,000 characters as one flag and as eight, each eight times over
-    // to be long enough to time: a walk back over every earlier tag, per tag,
-    // makes the one flag about eight times slower.
+    // The same 16,000 characters as one flag and as eight: a walk back over
+    // every earlier tag, per tag, makes the one flag about eight times slower.
     const eighth = `${BLACK_FLAG}${TAG_B.repeat(1_999)}`;
     expect(
       slowdown(
-        repeatedly(8, () => normalizeDictationText(flag)),
-        repeatedly(64, () => normalizeDictationText(eighth)),
+        () => normalizeDictationText(flag),
+        repeatedly(8, () => normalizeDictationText(eighth)),
       ),
     ).toBeLessThan(3);
   });

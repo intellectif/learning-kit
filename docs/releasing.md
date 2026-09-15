@@ -193,8 +193,10 @@ dependency on the CI job. GitHub's `needs:` only orders jobs **within one workfl
 workflows requires restructuring Release to trigger on `workflow_run` (completed + conclusion == success)
 instead of `push`. Until that is done:
 
-- A red test suite does **not** block a publish. The safety net is the required status check on the PR —
-  keep `main` protected and never push to it directly.
+- A red CI run does **not** block a publish.
+  - Release runs its own `verify-release`, so a failure there stops the publish.
+  - A check only CI runs does not: coverage, and E2E.
+  - The safety net is the required status check on the PR. Keep `main` protected and never push to it directly.
 - Practically this is low risk, because the two merges that matter (feature PR and the version PR) both
   run the full CI + E2E gate before you can merge them. Do not skip approving those checks on the bot PR.
 
@@ -223,14 +225,24 @@ vector deleted from `scoring.json` by hand, or a frozen call whose arguments no 
 cannot stop is removing a case and its vector together on purpose; that shows up as a deleted vector in review,
 which is where a decision to stop pinning a grade belongs.
 
-This does not change the limitation above: the Release job still runs no checks of its own, so the required
-status checks on the feature PR and the version PR are what stop a moved grade from publishing.
+This does not change the limitation above: Release is not gated on CI. It does verify before it publishes.
+`pnpm release` runs `verify-release` first, on Node 24:
+
+- build, test, lint, typecheck, publint, attw and verify-dist, in one turbo run;
+- then `api-check` and `size`.
+
+A moved grade therefore fails the Release job before `changeset publish`. That run is not the one a pull request
+passes, though. CI splits those tasks into steps and runs `api-check` and `size` on Node 22 only. So the required
+status checks on the feature PR and the version PR are still where a problem should first show, and a task that
+reads another task's output without declaring it in `turbo.json` can pass them and fail only in Release.
 
 ## Notes & troubleshooting
 
-- `@intellectif/lk-react` declares `@intellectif/lk-core` as a `workspace:^` peer; pnpm/Changesets rewrites it to `^<version>` on publish, and `changeset publish` orders core before react.
+- `@intellectif/lk-react` declares `@intellectif/lk-core` as a `workspace:^` peer, which pnpm/Changesets rewrites to `^<version>` on publish.
+  - `changeset publish` publishes every unpublished package at once, not core first, so lk-react's new version can reach npm moments before the lk-core version its peer range asks for.
+  - If one of them fails to publish, re-run the Release job: `changeset publish` skips a version already on npm and publishes only the rest.
 - Provenance: Trusted Publishing emits a signed provenance attestation automatically (visible on the npm package page) — extra supply-chain assurance for consumers, free.
 - `403`/scope errors on first publish → the `@intellectif` scope/org doesn't exist or your account lacks write access to it.
-- OIDC publish fails in CI → confirm the Trusted Publisher is configured for that exact package + repo + `release.yml`, the job has `id-token: write`, and npm is ≥ 11.5 (the workflow's "Use OIDC-capable npm" step handles the last one).
+- OIDC publish fails in CI → confirm the Trusted Publisher is configured for that exact package + repo + `release.yml`, the job has `id-token: write`, and npm is ≥ 11.5 (the Node 24 the workflow sets up ships with it; the workflow deliberately has no npm self-upgrade step).
 - Token expiry / rotation: **not applicable** — there is no stored token by design.
 - Never commit a real token; never use a 2FA-bypass token for routine automation; if you must use a token as a last resort, scope it to `@intellectif`, keep it short-lived, and remove it after.

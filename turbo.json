@@ -59,6 +59,12 @@
       "dependsOn": [
         "^build"
       ]
+    },
+    "@intellectif/lk-react#typecheck": {
+      "dependsOn": [
+        "^build",
+        "build"
+      ]
     }
   }
 }

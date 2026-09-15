@@ -18,7 +18,12 @@ jobs:
       fail-fast: false
       matrix:
         # 22 is the LTS consumers run. 24 is the Node the Release job builds the
-        # published tarball on, and that job runs no checks of its own.
+        # published tarball on. That job runs `pnpm release`, which runs
+        # `verify-release` first: one turbo run of build, test, lint, typecheck
+        # and the packaging checks, then api-check and size. This job splits
+        # those steps and runs api-check and size on 22 only, so a task that
+        # reads another's output without declaring it in turbo.json can pass
+        # here and fail the release.
         node-version: [22, 24]
     steps:
       - uses: actions/checkout@v6
