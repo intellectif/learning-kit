@@ -3,6 +3,12 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     passWithNoTests: true,
+    // CI runs this suite on a shared runner beside the other packages' builds
+    // and lint, several times slower than a development machine: a property
+    // test that takes one second on one took six on CI and failed the default
+    // five-second timeout. A timeout here is a guard against a hang, so it is
+    // sized for the slowest machine the suite runs on.
+    testTimeout: 30_000,
     // `scripts/mutate.mjs` builds a scratch copy of src/ here. It excludes test
     // directories, so this is the second line of defence for a run killed
     // mid-flight — a collected copy fails on its own relative imports.

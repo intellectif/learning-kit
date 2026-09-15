@@ -2,12 +2,14 @@ import { UnknownActivityTypeError } from '../errors.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
 import type { ActivityDataMap, ActivityType } from '../types/activity.js';
 import type { DraftContext, DraftIssue, DraftValidationResult } from '../types/authoring.js';
+import { withValidationScope } from '../validation-scope.js';
 import {
-  covers,
+  coveredPathsOf,
   DRAFT_ISSUE_SEVERITY,
   type DraftIssueCode,
   isRecord,
   issue,
+  pathKey,
   refusesEmpty,
 } from './issues.js';
 
@@ -52,6 +54,15 @@ export function validateDraft<T extends ActivityType>(
   type: T,
   draft: unknown,
 ): DraftValidationResult<ActivityDataMap[T]> {
+  // The type's checks and its schema read the same strings: one scope lets the
+  // expensive normalisation behind both run once.
+  return withValidationScope(() => validateDraftInScope(type, draft));
+}
+
+function validateDraftInScope<T extends ActivityType>(
+  type: T,
+  draft: unknown,
+): DraftValidationResult<ActivityDataMap[T]> {
   const descriptor = getActivityTypeDescriptor(type);
   if (descriptor === undefined) {
     throw new UnknownActivityTypeError(String(type));
@@ -67,10 +78,11 @@ export function validateDraft<T extends ActivityType>(
   // how a refused `null` is told apart from a rule that merely points at one.
   const parsed = descriptor.schema.safeParse(draft, { reportInput: true });
   if (!parsed.success) {
+    const covered = coveredPathsOf(reported);
     const reportedEmpty = new Set<string>();
     for (const schemaIssue of parsed.error.issues) {
       const path = schemaIssue.path.map(String);
-      if (reported.some((known) => covers(known.path, path))) {
+      if (covered.has(pathKey(path))) {
         continue;
       }
       // `null` is how many editors and databases spell "no value". Where the

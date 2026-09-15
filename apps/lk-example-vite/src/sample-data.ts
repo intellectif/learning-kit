@@ -1,4 +1,5 @@
 import type {
+  DictationData,
   FillInTheBlanksData,
   GapSelectData,
   ItemGroup,
@@ -118,6 +119,96 @@ export const sampleGapSelect: GapSelectData = {
     { id: 'c', bankId: 'prep', correctChoiceId: 'in', feedback: 'in + the city you live in' },
   ],
   scoringStrategy: 'partial',
+};
+
+/**
+ * A real, silent WAV as a data URI, built here so the demo needs no hosted
+ * audio and carries no multi-kilobyte literal. Two different lengths give the
+ * dictation two DIFFERENT files — the schema refuses one recording standing in
+ * for both the normal and the slow version — and Chromium plays a silent WAV,
+ * so "starting one pauses the other" can be exercised for real.
+ */
+function silentWavDataUri(seconds: number): string {
+  const rate = 8000;
+  const frames = Math.round(rate * seconds);
+  const buffer = new ArrayBuffer(44 + frames);
+  const view = new DataView(buffer);
+  const ascii = (offset: number, text: string): void => {
+    for (let i = 0; i < text.length; i += 1) {
+      view.setUint8(offset + i, text.charCodeAt(i));
+    }
+  };
+  ascii(0, 'RIFF');
+  view.setUint32(4, 36 + frames, true);
+  ascii(8, 'WAVE');
+  ascii(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, rate, true);
+  view.setUint32(28, rate, true); // byte rate: 8-bit mono
+  view.setUint16(32, 1, true); // block align
+  view.setUint16(34, 8, true); // bits per sample
+  ascii(36, 'data');
+  view.setUint32(40, frames, true);
+  new Uint8Array(buffer, 44).fill(128); // 8-bit PCM silence sits at 128
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return `data:audio/wav;base64,${btoa(binary)}`;
+}
+
+/**
+ * The English contraction preset from the authoring guide: sixteen whole-word
+ * rewrites applied to both sides before comparing, so "isn't" and "is not"
+ * score alike. It is content, not scorer code — an author adds `let's` here
+ * without changing any historical grade.
+ */
+const ENGLISH_CONTRACTIONS: DictationData['tolerance'] = {
+  equivalences: [
+    { from: "what's", to: 'what is' },
+    { from: "you're", to: 'you are' },
+    { from: "i'm", to: 'i am' },
+    { from: "he's", to: 'he is' },
+    { from: "she's", to: 'she is' },
+    { from: "it's", to: 'it is' },
+    { from: "we're", to: 'we are' },
+    { from: "they're", to: 'they are' },
+    { from: "don't", to: 'do not' },
+    { from: "doesn't", to: 'does not' },
+    { from: "won't", to: 'will not' },
+    { from: "can't", to: 'cannot' },
+    { from: "isn't", to: 'is not' },
+    { from: "aren't", to: 'are not' },
+    { from: "wasn't", to: 'was not' },
+    { from: "weren't", to: 'were not' },
+  ],
+};
+
+/**
+ * Listen and type. Two recordings (the slow one follows the same locked
+ * scrubber and fixed speed), progressive word hints, and the contraction
+ * preset — so "The cat isn't on the mat" and "The cat is not on the mat" both
+ * score 100.
+ */
+export const sampleDictation: DictationData = {
+  schemaVersion: '1.0',
+  type: 'dictation',
+  id: 'demo-dictation-cat',
+  title: 'Listen and type the sentence',
+  transcript: "The cat isn't on the mat.",
+  media: {
+    type: 'audio',
+    url: silentWavDataUri(0.5),
+    alt: 'Recording',
+    playback: { seek: 'none', rate: 'fixed' },
+  },
+  slowMedia: { type: 'audio', url: silentWavDataUri(1), alt: 'Recording, slow' },
+  hints: { mode: 'progressive-words' },
+  tolerance: ENGLISH_CONTRACTIONS,
+  feedback: { correct: 'Well heard!', incorrect: 'Play it once more and listen for every word.' },
 };
 
 export const sampleReadingGroup: ItemGroup = {

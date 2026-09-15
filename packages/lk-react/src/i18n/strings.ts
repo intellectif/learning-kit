@@ -103,6 +103,48 @@ export interface LkStrings {
   /** Shown when no renderer is registered for an activity type. */
   unsupportedActivity: string;
 
+  // ── Dictation ──────────────────────────────────────────────────────────
+  /** Accessible name of the box the learner types the recording into. */
+  dictationInputLabel: string;
+  /** Accessible name of the group holding the recording. */
+  dictationRecording: string;
+  /** Accessible name of the group holding the slower recording, and its default `alt`. */
+  dictationSlowRecording: string;
+  /** The progressive-hint button, with how many transcript words are shown so far. */
+  dictationRevealNextWord: (revealed: number, total: number) => string;
+  /** Hides every revealed hint word again. */
+  dictationResetHints: string;
+  /** The solution toggle: shows the transcript after the attempt is marked. */
+  showSolution: string;
+  hideSolution: string;
+  /** Accessible name of the revealed transcript. */
+  dictationSolutionLabel: string;
+  /** Accessible name of the word-by-word marked result. */
+  dictationMarksLabel: string;
+  /** Tells the learner the marks compare the normalised text, not what they typed. */
+  dictationDiffNote: string;
+  /**
+   * The four sentences a screen reader hears for a marked word — the only
+   * channel the marks have for assistive technology; the glyphs and the
+   * character diff are decoration.
+   */
+  dictationWordCorrect: (word: string) => string;
+  dictationWordWrong: (word: string, expected: string) => string;
+  dictationWordMissing: (expected: string) => string;
+  dictationWordExtra: (word: string) => string;
+  /** The legend rows; the character-level marks reuse the same four. */
+  dictationLegendCorrect: string;
+  dictationLegendWrong: string;
+  dictationLegendMissing: string;
+  dictationLegendExtra: string;
+  /** Marked result of an attempt with no words in it once punctuation and spacing are ignored, an empty one included. */
+  dictationNothingTyped: string;
+  /**
+   * Appended to the score announcement, e.g. "4 of 6 words correct." — a whole
+   * sentence, because authored feedback may follow it.
+   */
+  dictationWordsSummary: (correct: number, total: number) => string;
+
   // ── Authoring preview ──────────────────────────────────────────────────
   /**
    * `<ActivityPreview>`, in place of a draft that still has something missing.
@@ -196,6 +238,29 @@ export const DEFAULT_STRINGS: LkStrings = {
   next: 'Next',
   questionProgress: (index, total) => `Question ${index} of ${total}`,
   unsupportedActivity: 'This activity type has no renderer. Supply one through the renderers prop.',
+
+  dictationInputLabel: 'Type what you hear',
+  dictationRecording: 'Recording',
+  dictationSlowRecording: 'Slow recording',
+  dictationRevealNextWord: (revealed, total) =>
+    `Reveal the next word (${revealed} of ${total} shown)`,
+  dictationResetHints: 'Reset hints',
+  showSolution: 'Show solution',
+  hideSolution: 'Hide solution',
+  dictationSolutionLabel: 'Solution',
+  dictationMarksLabel: 'Your answer, word by word',
+  dictationDiffNote: 'Compared after ignoring case, punctuation and extra spaces.',
+  dictationWordCorrect: (word) => `“${word}” is correct`,
+  dictationWordWrong: (word, expected) => `“${word}” should be “${expected}”`,
+  dictationWordMissing: (expected) => `“${expected}” is missing`,
+  dictationWordExtra: (word) => `“${word}” is extra`,
+  dictationLegendCorrect: 'Correct',
+  dictationLegendWrong: 'Wrong',
+  dictationLegendMissing: 'Missing',
+  dictationLegendExtra: 'Extra',
+  dictationNothingTyped: 'Nothing to compare: no words were entered.',
+  dictationWordsSummary: (correct, total) =>
+    `${correct} of ${total} ${total === 1 ? 'word' : 'words'} correct.`,
 
   previewIncomplete: 'This activity is not finished yet, so it cannot be previewed.',
   previewInvalid: 'This activity has a problem to fix before it can be previewed.',

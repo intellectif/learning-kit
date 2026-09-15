@@ -1,9 +1,11 @@
 import type { ActivityMedia as ActivityMediaData, InteractionEvent } from '@intellectif/lk-core';
 import { resolvePlaybackPolicy } from '@intellectif/lk-core';
+import { useRef } from 'react';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStringsOverride } from '../../i18n/strings.js';
 import type { MediaBudgetBinding, MediaTransportStrings, RenderMode } from '../types.js';
 import { AudioTransport } from './AudioTransport.js';
+import { pausePlaybackGroupOthers, usePlaybackGroup } from './playback-group.js';
 
 /**
  * Presentational media block shown above a question or passage. URL-only:
@@ -28,14 +30,25 @@ export interface ActivityMediaProps {
   /** Overrides the SDK's chrome text. See {@link LkIntlProvider}. */
   strings?: LkStringsOverride;
   onInteraction?: (event: InteractionEvent) => void;
+  /**
+   * Recordings that share a name never play together: starting this one
+   * pauses every other audio element mounted under the same `playbackGroup`.
+   * A dictation names one group per mount, so its normal and slow recordings
+   * take turns. Pausing charges no play budget. Audio only.
+   */
+  playbackGroup?: string;
 }
 
 export function ActivityMedia(props: ActivityMediaProps): React.JSX.Element {
-  const { media, renderMode = 'practice' } = props;
+  const { media, renderMode = 'practice', playbackGroup } = props;
   // Read before the branches: every return below is conditional, and the one
   // string this component owns itself (the embed's accessible name) is on the
   // last of them.
   const s = useLkStrings(props.strings);
+  // The native audio bar's membership of a playback group. Registered from the
+  // ref rather than from an id so two mounts of one recording stay distinct.
+  const audioRef = useRef<HTMLAudioElement>(null);
+  usePlaybackGroup(audioRef, media.type === 'audio' ? playbackGroup : undefined);
 
   if (media.type === 'image') {
     return (
@@ -76,9 +89,16 @@ export function ActivityMedia(props: ActivityMediaProps): React.JSX.Element {
       <figure className="lk-media">
         {/* biome-ignore lint/a11y/useMediaCaption: captions are optional in the data contract — a <track> is rendered when captionsUrl is provided; absence is the author's documented choice (Req 14.5) */}
         <audio
+          ref={audioRef}
           className="lk-media-el"
           controls
           aria-label={media.alt || undefined}
+          {...(playbackGroup !== undefined
+            ? {
+                onPlay: (event: React.SyntheticEvent<HTMLAudioElement>) =>
+                  pausePlaybackGroupOthers(playbackGroup, event.currentTarget),
+              }
+            : {})}
           {...(hints.length > 0
             ? {
                 controlsList: hints

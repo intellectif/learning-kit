@@ -1,6 +1,7 @@
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { checkA11y } from '../../../test-support/a11y.js';
+import { stubMediaElement } from '../../../test-support/media.js';
 import { ActivityMedia } from '../ActivityMedia.js';
 
 describe('ActivityMedia', () => {
@@ -100,5 +101,88 @@ describe('ActivityMedia budget guard', () => {
 
   it('does not refuse in review, where nothing is enforced', () => {
     expect(() => render(<ActivityMedia media={budgeted} renderMode="review" />)).not.toThrow();
+  });
+});
+
+/**
+ * `playbackGroup`: recordings that share a name never play together. Both the
+ * native bar and the SDK transport join the group, and leaving a group on
+ * unmount keeps a stale element from being paused by name later.
+ */
+describe('ActivityMedia playbackGroup', () => {
+  const clip = (url: string) => ({ type: 'audio', url, alt: `Clip ${url}` }) as never;
+  const audios = () => [...document.querySelectorAll('audio')] as HTMLAudioElement[];
+
+  it('pauses the other members of the group when one native bar starts', () => {
+    stubMediaElement();
+    render(
+      <>
+        <ActivityMedia media={clip('/a.mp3')} playbackGroup="pair" />
+        <ActivityMedia media={clip('/b.mp3')} playbackGroup="pair" />
+        <ActivityMedia media={clip('/c.mp3')} />
+      </>,
+    );
+    const [a, b, c] = audios() as [HTMLAudioElement, HTMLAudioElement, HTMLAudioElement];
+    act(() => {
+      void a.play();
+      void c.play();
+    });
+    expect(a.paused).toBe(false);
+    act(() => {
+      void b.play();
+    });
+    expect(b.paused).toBe(false);
+    expect(a.paused).toBe(true);
+    // Not in the group: untouched.
+    expect(c.paused).toBe(false);
+  });
+
+  it('leaves the group on unmount', () => {
+    stubMediaElement();
+    const { unmount } = render(<ActivityMedia media={clip('/a.mp3')} playbackGroup="pair" />);
+    const [a] = audios() as [HTMLAudioElement];
+    const pause = vi.spyOn(a, 'pause');
+    act(() => {
+      void a.play();
+    });
+    unmount();
+    render(<ActivityMedia media={clip('/b.mp3')} playbackGroup="pair" />);
+    act(() => {
+      void (audios()[0] as HTMLAudioElement).play();
+    });
+    expect(pause).not.toHaveBeenCalled();
+  });
+
+  it('keeps a player in its group when the same mount swaps the transport for the native bar', () => {
+    stubMediaElement();
+    const locked = {
+      type: 'audio',
+      url: '/a.mp3',
+      alt: 'Clip a',
+      playback: { seek: 'none' },
+    } as never;
+    const pair = (renderMode: 'practice' | 'review') => (
+      <>
+        <ActivityMedia media={locked} renderMode={renderMode} playbackGroup="pair" />
+        <ActivityMedia media={clip('/b.mp3')} renderMode={renderMode} playbackGroup="pair" />
+      </>
+    );
+    const { rerender } = render(pair('practice'));
+    // Practice renders the SDK transport for a locked scrubber; review always
+    // renders the native bar — a new <audio> behind the same component.
+    const transportElement = audios()[0] as HTMLAudioElement;
+    expect(transportElement.closest('[data-controls="minimal"]')).not.toBeNull();
+    rerender(pair('review'));
+    const [a, b] = audios() as [HTMLAudioElement, HTMLAudioElement];
+    expect(a).not.toBe(transportElement);
+    expect(a.closest('[data-controls="minimal"]')).toBeNull();
+    act(() => {
+      void a.play();
+    });
+    act(() => {
+      void b.play();
+    });
+    expect(a.paused).toBe(true);
+    expect(b.paused).toBe(false);
   });
 });

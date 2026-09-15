@@ -1,7 +1,12 @@
+import {
+  GROUP_CAPTIONS_REVEAL_DICTATION,
+  groupCaptionsRevealDictation,
+} from '../schemas/dictation.js';
 import { ItemGroupSchema, validateItemGroup } from '../schemas/item-group.js';
 import type { ActivityType } from '../types/activity.js';
 import type { DraftContext, DraftIssue, DraftValidationResult } from '../types/authoring.js';
 import type { ItemGroup } from '../types/item-group.js';
+import { withValidationScope } from '../validation-scope.js';
 import { validateDraft } from './index.js';
 import {
   checkMedia,
@@ -71,6 +76,12 @@ export function createItemGroupDraft(context: DraftContext): ItemGroup {
  * own schema, and every item is itself `complete`.
  */
 export function validateItemGroupDraft(draft: unknown): DraftValidationResult<ItemGroup> {
+  // Every item is checked as a draft and then again as part of the group: one
+  // scope lets the expensive normalisation behind both run once.
+  return withValidationScope(() => validateItemGroupDraftInScope(draft));
+}
+
+function validateItemGroupDraftInScope(draft: unknown): DraftValidationResult<ItemGroup> {
   const issues: DraftIssue[] = [];
   if (!isRecord(draft)) {
     issues.push(
@@ -92,6 +103,15 @@ export function validateItemGroupDraft(draft: unknown): DraftValidationResult<It
     );
   }
   issues.push(...checkItems(draft));
+  if (groupCaptionsRevealDictation(draft, (captionsUrl) => !isUnwritten(captionsUrl))) {
+    issues.push(
+      issue(
+        'dc_captions_not_allowed',
+        ['stimulus', 'media', 'captionsUrl'],
+        GROUP_CAPTIONS_REVEAL_DICTATION,
+      ),
+    );
+  }
 
   // Every container failure the checks above did not already account for, added
   // as `invalid` — the same rule `validateDraft` follows, so a rule nobody

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStringsOverride } from '../../i18n/strings.js';
 import type { MediaBudgetBinding, MediaTransportStrings } from '../types.js';
+import { pausePlaybackGroupOthers, usePlaybackGroup } from './playback-group.js';
 
 /**
  * The SDK's own audio player, used whenever a policy has something to enforce.
@@ -55,6 +56,8 @@ export interface AudioTransportProps {
     timestamp: number;
     payload: Record<string, unknown>;
   }) => void;
+  /** Starting this player pauses every other audio element in the named group. */
+  playbackGroup?: string;
 }
 
 export function AudioTransport({
@@ -67,9 +70,11 @@ export function AudioTransport({
   mediaStrings,
   strings,
   onInteraction,
+  playbackGroup,
 }: AudioTransportProps): React.JSX.Element {
   const elementRef = useRef<HTMLAudioElement>(null);
   const statusId = useId();
+  usePlaybackGroup(elementRef, playbackGroup);
 
   // Provider first, then the narrower props that shipped in 0.8.0 — so an
   // existing `mediaStrings` call site still wins over a provider-wide default
@@ -327,6 +332,12 @@ export function AudioTransport({
       element.pause();
       return;
     }
+    // Before the budget: whichever recording starts silences the others in
+    // its group, and a refused start below still leaves them paused — two
+    // recordings of one sentence must never sound at once.
+    if (playbackGroup !== undefined) {
+      pausePlaybackGroupOthers(playbackGroup, element);
+    }
     if (selfStartRef.current) {
       selfStartRef.current = false;
       setPlaying(true);
@@ -352,7 +363,7 @@ export function AudioTransport({
     }
     setPlaying(true);
     claimAndStart(element, true);
-  }, [disabled, isResume, budgeted, remaining, refuse, claimAndStart]);
+  }, [disabled, playbackGroup, isResume, budgeted, remaining, refuse, claimAndStart]);
 
   const handlePause = useCallback(() => {
     const element = elementRef.current;

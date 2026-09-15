@@ -48,6 +48,19 @@ const TOOLTIP = `
   </p>
 `;
 
+/**
+ * A dictation's revealed solution and hint, as `<Dictation>` renders them: both
+ * carry a start-side accent bar, and the solution's alternatives list indents
+ * from the start side. A physical `border-left` / `padding-left` would put the
+ * bar on the wrong edge of a right-to-left answer.
+ */
+const DICTATION = `
+  <form class="lk-dc" style="width: 600px">
+    <p class="lk-dc-hint" id="hint" role="status">كلمة …</p>
+    <blockquote class="lk-dc-solution" id="solution"><p>النص</p><ul class="lk-dc-solution-alternatives"><li id="alt">بديل</li></ul></blockquote>
+  </form>
+`;
+
 async function boxes(page: import('@playwright/test').Page, dir: 'ltr' | 'rtl', body: string) {
   await page.setContent(
     `<!doctype html><meta charset="utf-8"><style>${CSS}</style><div dir="${dir}">${body}</div>`,
@@ -57,7 +70,9 @@ async function boxes(page: import('@playwright/test').Page, dir: 'ltr' | 'rtl', 
       const r = (document.getElementById(id) as HTMLElement).getBoundingClientRect();
       return { left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width) };
     };
-    const ids = ['input', 'note', 'blank', 'tip'].filter((id) => document.getElementById(id));
+    const ids = ['input', 'note', 'blank', 'tip', 'hint', 'solution', 'alt'].filter((id) =>
+      document.getElementById(id),
+    );
     return Object.fromEntries(ids.map((id) => [id, rect(id)])) as Record<
       string,
       { left: number; right: number; width: number }
@@ -88,5 +103,45 @@ test.describe('the skin follows the writing direction', () => {
 
     const rtl = await boxes(page, 'rtl', TOOLTIP);
     expect(Math.abs(rtl.tip.right - rtl.blank.right)).toBeLessThan(4);
+  });
+
+  test("a dictation's hint bar and solution bar sit on the edge the text starts from", async ({
+    page,
+  }) => {
+    // `border-inline-start` on the hint and the solution, `padding-inline-start`
+    // on the alternatives: read as border widths and as the alternatives' inset
+    // from each edge, in both directions.
+    const measure = (dir: 'ltr' | 'rtl') =>
+      boxes(page, dir, DICTATION).then(async (rects) => {
+        const borders = await page.evaluate(() => {
+          const read = (id: string) => {
+            const cs = getComputedStyle(document.getElementById(id) as HTMLElement);
+            return {
+              left: Number.parseFloat(cs.borderLeftWidth),
+              right: Number.parseFloat(cs.borderRightWidth),
+            };
+          };
+          return { hint: read('hint'), solution: read('solution') };
+        });
+        return { rects, borders };
+      });
+
+    const ltr = await measure('ltr');
+    expect(ltr.borders.hint.left).toBeGreaterThan(0);
+    expect(ltr.borders.hint.right).toBe(0);
+    expect(ltr.borders.solution.left).toBeGreaterThan(0);
+    expect(ltr.borders.solution.right).toBe(0);
+    const ltrInset = ltr.rects.alt.left - ltr.rects.solution.left;
+
+    const rtl = await measure('rtl');
+    expect(rtl.borders.hint.right).toBeGreaterThan(0);
+    expect(rtl.borders.hint.left).toBe(0);
+    expect(rtl.borders.solution.right).toBeGreaterThan(0);
+    expect(rtl.borders.solution.left).toBe(0);
+    const rtlInset = rtl.rects.solution.right - rtl.rects.alt.right;
+
+    // The alternatives indent from the start edge by the same amount either way.
+    expect(ltrInset).toBeGreaterThan(8);
+    expect(Math.abs(rtlInset - ltrInset)).toBeLessThan(4);
   });
 });

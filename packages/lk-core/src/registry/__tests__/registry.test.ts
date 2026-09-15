@@ -39,11 +39,22 @@ const testCustomType = defineActivityType<TestCustomData, TestCustomResponse>({
 });
 
 describe('registry built-ins', () => {
-  it('registers the three built-in activity types', () => {
-    const types = registeredActivityTypes();
-    expect(types).toContain('multiple-choice');
-    expect(types).toContain('fill-in-the-blanks');
-    expect(types).toContain('written-response');
+  it('registers the five built-in activity types, in order, before anything else', () => {
+    // The registry is one module-scoped map and this file registers a type of
+    // its own below, so the built-ins are pinned as a prefix, not as the list.
+    expect(registeredActivityTypes().slice(0, 5)).toEqual([
+      'multiple-choice',
+      'fill-in-the-blanks',
+      'written-response',
+      'gap-select',
+      'dictation',
+    ]);
+  });
+
+  it('returns the dictation descriptor with sync scoring', () => {
+    const descriptor = getActivityTypeDescriptor('dictation');
+    expect(descriptor?.type).toBe('dictation');
+    expect(descriptor?.scoring.kind).toBe('sync');
   });
 
   it('returns the multiple-choice descriptor with sync scoring', () => {

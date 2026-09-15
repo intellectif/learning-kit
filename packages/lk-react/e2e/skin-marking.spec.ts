@@ -163,6 +163,130 @@ test.describe('post-submit marking colours', () => {
   });
 });
 
+test.describe('dictation word marks', () => {
+  /**
+   * A marked word list as `<Dictation>` renders it after submit: a wrong word
+   * rebuilt from stored details is plain text; a wrong word the component
+   * compared itself is drawn as its character marks.
+   */
+  const WORDS = `
+    <form class="lk-dc">
+      <ol class="lk-dc-words">
+        <li class="lk-dc-word" data-state="correct" id="correct"><span class="lk-dc-word-text" aria-hidden="true">cat</span></li>
+        <li class="lk-dc-word" data-state="incorrect" id="incorrect"><span class="lk-dc-word-text" aria-hidden="true">cta</span></li>
+        <li class="lk-dc-word" data-state="incorrect" id="incorrect-marked"><span class="lk-dc-word-text" aria-hidden="true" data-marks="characters"><span class="lk-dc-op" data-op="equal">c</span><span class="lk-dc-op" data-op="substitute">t</span><span class="lk-dc-op" data-op="equal">a</span></span></li>
+        <li class="lk-dc-word" data-state="missing" id="missing"><span class="lk-dc-word-text" aria-hidden="true">sat</span></li>
+        <li class="lk-dc-word" data-state="extra" id="extra"><span class="lk-dc-word-text" aria-hidden="true">now</span></li>
+      </ol>
+    </form>
+  `;
+
+  test('each state has its own colour, decoration and glyph, so none is colour alone', async ({
+    page,
+  }) => {
+    await page.setContent(`<!doctype html><meta charset="utf-8"><style>${CSS}</style>${WORDS}`);
+    const seen = await page.evaluate(() => {
+      const token = (name: string) =>
+        getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      const read = (id: string) => {
+        const text = document.querySelector(`#${id} .lk-dc-word-text`) as HTMLElement;
+        const cs = getComputedStyle(text);
+        return {
+          color: cs.color,
+          decoration: cs.textDecorationLine,
+          style: cs.textDecorationStyle,
+          outline: cs.outlineStyle,
+          glyph: getComputedStyle(text, '::before').content,
+        };
+      };
+      return {
+        tokens: { success: token('--lk-color-success'), error: token('--lk-color-error') },
+        // Drawn as its character marks, a wrong word carries no underline of
+        // its own, so the substituted character's is the only one.
+        marked: {
+          word: getComputedStyle(
+            document.querySelector('#incorrect-marked .lk-dc-word-text') as HTMLElement,
+          ).textDecorationLine,
+          ops: [...document.querySelectorAll('#incorrect-marked .lk-dc-op')].map((op) => {
+            const cs = getComputedStyle(op);
+            return `${cs.display}/${cs.textDecorationLine}/${cs.textDecorationStyle}`;
+          }),
+        },
+        correct: read('correct'),
+        incorrect: read('incorrect'),
+        missing: read('missing'),
+        extra: read('extra'),
+      };
+    });
+
+    expect(seen.correct.color).toBe(toRgb(seen.tokens.success));
+    expect(seen.correct.decoration).toBe('none');
+    expect(seen.correct.glyph).toContain('✓');
+
+    expect(seen.incorrect.decoration).toContain('underline');
+    expect(seen.incorrect.style).toBe('wavy');
+    expect(seen.incorrect.glyph).toContain('✗');
+    expect(seen.marked.word).toBe('none');
+    expect(seen.marked.ops).toEqual([
+      'inline/none/solid',
+      'inline/underline/wavy',
+      'inline/none/solid',
+    ]);
+
+    expect(seen.missing.outline).toBe('dotted');
+    expect(seen.missing.glyph).toContain('∅');
+
+    expect(seen.extra.decoration).toContain('line-through');
+    expect(seen.extra.glyph).toContain('+');
+
+    // Four states, four distinct decoration signatures.
+    const signatures = new Set(
+      [seen.correct, seen.incorrect, seen.missing, seen.extra].map(
+        (state) => `${state.decoration}/${state.style}/${state.outline}/${state.glyph}`,
+      ),
+    );
+    expect(signatures.size).toBe(4);
+  });
+
+  /**
+   * Computed style cannot show what is painted — a decoration an inline-block
+   * blocks still reads as "underline" — so this compares pixels: each mark with
+   * and without decorations, in the band where an underline is drawn.
+   */
+  test('a wrong character is drawn with its own mark, and the right ones beside it with none', async ({
+    page,
+  }) => {
+    await page.setContent(
+      // On the words themselves: `.lk-dc-word` sets its own size, so an
+      // enlargement on the form would never reach the characters measured.
+      `<!doctype html><meta charset="utf-8"><style>${CSS} .lk-dc-word { font-size: 48px; }</style>${WORDS}`,
+    );
+    const band = async (selector: string) => {
+      const box = await page.locator(selector).first().boundingBox();
+      if (box === null) {
+        throw new Error(`${selector} has no box`);
+      }
+      // Clear of the neighbouring characters, and deep enough for the underline.
+      return { x: box.x + 3, y: box.y, width: Math.max(1, box.width - 6), height: box.height + 24 };
+    };
+    const right = await band('#incorrect-marked .lk-dc-op[data-op="equal"]');
+    const wrong = await band('#incorrect-marked .lk-dc-op[data-op="substitute"]');
+    const before = {
+      right: await page.screenshot({ clip: right }),
+      wrong: await page.screenshot({ clip: wrong }),
+    };
+    await page.addStyleTag({
+      content: '.lk-dc-word-text, .lk-dc-op { text-decoration: none !important; }',
+    });
+    const after = {
+      right: await page.screenshot({ clip: right }),
+      wrong: await page.screenshot({ clip: wrong }),
+    };
+    expect(before.wrong.equals(after.wrong), 'the wrong character is underlined').toBe(false);
+    expect(before.right.equals(after.right), 'a right character carries no underline').toBe(true);
+  });
+});
+
 test.describe('option layout on a narrow screen', () => {
   test.use({ viewport: { width: 375, height: 700 } });
 

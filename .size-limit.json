@@ -64,5 +64,16 @@
       "@intellectif/lk-core"
     ],
     "limit": "50 kB"
+  },
+  {
+    "name": "Dictation",
+    "path": "packages/lk-react/dist/components/Dictation.js",
+    "import": "{ Dictation }",
+    "ignore": [
+      "react",
+      "react-dom",
+      "@intellectif/lk-core"
+    ],
+    "limit": "50 kB"
   }
 ]

@@ -22,6 +22,7 @@ export interface ActivityDataMap {
   'fill-in-the-blanks': FillInTheBlanksData;
   'written-response': WrittenResponseData;
   'gap-select': GapSelectData;
+  dictation: DictationData;
 }
 
 /**
@@ -464,6 +465,110 @@ export interface WrittenResponseData {
 }
 
 /**
+ * A second, slower recording of a dictation — a separate file (a text-to-speech
+ * render at reduced speed, or a slower human reading), not a `playbackRate`
+ * change. It carries no `captionsUrl` (a caption track of a dictation is the
+ * transcript on screen) and no `playback` policy of its own: it follows the
+ * policy on `media`, except the play budget, which it never has.
+ */
+export interface DictationSlowMedia {
+  type: 'audio';
+  /** Source URL, under the same policy as {@link ActivityMedia.url}. */
+  url: string;
+  /** Accessible label — a description ("Recording, slow"), never a transcription. */
+  alt?: string;
+}
+
+/**
+ * A whole-word rewrite applied to BOTH the transcript and the attempt before
+ * they are compared. `from` and `to` are literal text: a rule is applied to
+ * every whole-word occurrence, exactly once, in the order the rules are listed,
+ * after spacing is collapsed and before punctuation is ignored — so a rule may
+ * name a symbol (`{ from: '&', to: 'and' }`) and a multi-word `from` matches
+ * across any whitespace.
+ */
+export interface DictationEquivalence {
+  /** What to rewrite: at least one code point that survives case, quote and whitespace folding. */
+  from: string;
+  /** What it becomes: 1..200 code points, something of which survives normalisation. A rule cannot delete a word. */
+  to: string;
+}
+
+/** Grading tolerances for a dictation. Part of the answer key. */
+export interface DictationTolerance {
+  /** Whole-word rewrites, applied in listed order, each exactly once. */
+  equivalences?: DictationEquivalence[];
+}
+
+/**
+ * Data contract for a Dictation activity: the learner listens to a recording
+ * and types what they hear; the grade is how close their text is to the
+ * transcript.
+ *
+ * Scoring is character-level similarity over the whole sentence —
+ * `(length − edit distance) / length` over NFC code points after case,
+ * punctuation and spacing are ignored — with one {@link ScoringDetail} per
+ * transcript word carrying that word's own {@link ScoringDetail.score}. It is
+ * deliberately not a mode of {@link FillInTheBlanksData}: a blank is right or
+ * wrong, a dictation is graded on a continuum, and the whole `TextMatchPolicy`
+ * surface (typo tolerance, diacritic folding) would be a second, competing
+ * notion of "close enough".
+ */
+export interface DictationData {
+  schemaVersion: '1.0';
+  type: 'dictation';
+  /** Unique identifier for this activity. */
+  id: string;
+  /**
+   * Human-readable title used in xAPI statements and error boundaries. It is
+   * the stem the learner sees, so it must not contain the transcript.
+   */
+  title: string;
+  /**
+   * What the learner is expected to type. ANSWER KEY. 1..2000 code points,
+   * before and after its equivalences are applied, and something must survive
+   * normalisation.
+   */
+  transcript: string;
+  /**
+   * Alternative transcriptions accepted at full credit — a regional spelling, a
+   * numeral, a whole-sentence contraction variant. ANSWER KEY. At most 10, each
+   * 1..2000 code points, none normalising equal to the transcript or to each
+   * other. The attempt is scored against every candidate and the best
+   * similarity wins; a tie goes to `transcript`.
+   */
+  acceptedTranscripts?: string[];
+  /**
+   * The recording. Audio only, never with captions. Optional in the schema — a
+   * dictation inside an item group may draw on the group's stimulus recording —
+   * but required whenever `slowMedia` is present. Budgeted per slot like any
+   * other activity media, with the usual playback policy.
+   */
+  media?: ActivityMedia;
+  /** A second, slower recording. See {@link DictationSlowMedia}. */
+  slowMedia?: DictationSlowMedia;
+  /**
+   * Progressive word hints, in `practice` only (the transcript is absent in
+   * `exam` mode, so there is nothing to reveal). Public: it reveals nothing by
+   * itself. `progressive-words` reveals the transcript's words left to right,
+   * one per request; a revealed hint never changes the score.
+   */
+  hints?: { mode: 'progressive-words' };
+  /** Grading tolerances. ANSWER KEY. */
+  tolerance?: DictationTolerance;
+  /** Optional authored overall feedback shown after submission. */
+  feedback?: ActivityFeedback;
+  /** Minimum scaled score [0–1] required to pass. Defaults to {@link DEFAULT_PASS_THRESHOLD} (0.7) when absent. */
+  passThreshold?: number;
+  /** BCP 47 language tag for the activity content. Presentation only: scoring never reads it. */
+  locale?: string;
+  /** IRI references to learning objectives addressed by this activity. */
+  learningObjectives?: string[];
+  /** Subjective difficulty on a 1–5 scale. */
+  difficultyLevel?: 1 | 2 | 3 | 4 | 5;
+}
+
+/**
  * Maps each ActivityType string to its learner-response shape. Open for
  * extension via module augmentation, mirroring {@link ActivityDataMap}.
  */
@@ -472,6 +577,7 @@ export interface LearnerResponseMap {
   'fill-in-the-blanks': FillInTheBlanksLearnerResponse;
   'written-response': WrittenResponseLearnerResponse;
   'gap-select': GapSelectLearnerResponse;
+  dictation: DictationLearnerResponse;
 }
 
 /** Union of all learner response shapes. */
@@ -516,18 +622,35 @@ export interface WrittenResponseLearnerResponse {
 }
 
 /**
+ * Learner response for a Dictation activity.
+ *
+ * `text` is exactly what the learner typed; every normalisation happens in the
+ * scorer. `hintsRevealed` is client-reported telemetry — how many hint words
+ * were shown before submitting — that the scorer ignores and a consumer may
+ * log or penalise, knowing it cannot be verified.
+ */
+export interface DictationLearnerResponse {
+  type: 'dictation';
+  /** The learner's text, as typed. */
+  text: string;
+  /** Hint words revealed before submitting (practice only). Absent or 0 means none. */
+  hintsRevealed?: number;
+}
+
+/**
  * Fine-grained outcome of the learner's action on a single item, replacing the
  * ambiguous {@link ScoringDetail.correct}:
  * - `correct` — the learner selected/entered the right answer.
  * - `incorrect` — the learner selected/entered a wrong answer.
  * - `correct-omission` — the learner correctly left a non-answer unselected (multiple-choice only).
- * - `incorrect-omission` — the learner failed to select a correct answer (multiple-choice only).
+ * - `incorrect-omission` — a correct answer the learner did not give: an unselected
+ *   correct option, an unanswered gap, a missing dictation word.
  */
 export type ScoringOutcome = 'correct' | 'incorrect' | 'correct-omission' | 'incorrect-omission';
 
 /** Per-item scoring breakdown returned by the scoring engine. */
 export interface ScoringDetail {
-  /** ID of the option or blank this detail refers to. */
+  /** ID of the option, blank, gap or dictation word (`w1`…`wN`) this detail refers to. */
   itemId: string;
   /**
    * @deprecated Ambiguous: for multiple-choice this means "the learner acted
@@ -540,8 +663,8 @@ export interface ScoringDetail {
   /**
    * Unambiguous outcome of the learner's action on this item. Optional in the
    * type so 0.2-era consumer-constructed literals keep compiling, but ALWAYS
-   * written by both built-in scorers since 0.3.0; becomes required in v1.0
-   * when the deprecated `correct` is removed.
+   * written by every built-in scorer (by the first two since 0.3.0); becomes
+   * required in v1.0 when the deprecated `correct` is removed.
    */
   outcome?: ScoringOutcome;
   /** The learner's actual response for this item. */
@@ -549,10 +672,17 @@ export interface ScoringDetail {
   /** The expected correct response(s) for this item. */
   correctResponse: string | string[];
   /**
-   * Weight applied to this item's contribution to the overall score. Both
-   * built-in scorers currently weight every item equally and write `1`.
+   * Weight applied to this item's contribution to the overall score. Every
+   * built-in scorer currently weights every item equally and writes `1`.
    */
   weight?: number;
+  /**
+   * The item's own scaled score in [0, 1], for a type that grades its items on
+   * a continuum rather than right or wrong. Written by the dictation scorer
+   * (the similarity of each transcript word to what was typed for it) and by
+   * nothing else today. Absent, an item is right or wrong: read `outcome`.
+   */
+  score?: number;
 }
 
 /** Full scoring result returned by the scoring engine. */

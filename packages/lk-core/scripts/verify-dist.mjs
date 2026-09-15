@@ -32,6 +32,15 @@ const REQUIRED_EXPORTS = [
   'gradeFromRubric',
   'outcomeFromGrade',
   'roundGrade',
+  // dictation
+  'alignDictation',
+  'diffDictationChars',
+  'dictationReferenceWords',
+  'DICTATION_MAX_TEXT_LENGTH',
+  'DICTATION_MAX_TRANSCRIPT_LENGTH',
+  'DICTATION_MAX_EQUIVALENCE_LENGTH',
+  'DICTATION_MAX_EQUIVALENCES',
+  'DICTATION_MAX_ACCEPTED_TRANSCRIPTS',
   // schemas + registry
   'validateActivity',
   'validateItemGroup',
@@ -42,6 +51,11 @@ const REQUIRED_EXPORTS = [
   'jsonSchemaFor',
   'defineActivityType',
   'registerActivityType',
+  'dictationType',
+  'gapSelectType',
+  'DictationDataSchema',
+  'RedactedDictationDataSchema',
+  'dictationJsonSchema',
   'MediaSchema',
   'MediaPlaybackSchema',
   'NativeControlHintSchema',
@@ -128,7 +142,13 @@ if (typeof core.createDraft === 'function' && typeof core.validateDraft === 'fun
     issued += 1;
     return `probe-${issued}`;
   };
-  for (const type of ['multiple-choice', 'fill-in-the-blanks', 'written-response', 'gap-select']) {
+  for (const type of [
+    'multiple-choice',
+    'fill-in-the-blanks',
+    'written-response',
+    'gap-select',
+    'dictation',
+  ]) {
     const draft = core.createDraft(type, { newId });
     const { status } = core.validateDraft(type, draft);
     if (status !== 'incomplete') {

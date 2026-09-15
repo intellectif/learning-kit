@@ -1,10 +1,16 @@
-// Importing builtins registers the three built-in activity types on the
-// default registry as a module-evaluation effect. Every registry consumer
+// Importing builtins registers the built-in activity types on the default
+// registry as a module-evaluation effect. Every registry consumer
 // (validateActivity, score, evaluate, redact, jsonSchemaFor) imports THIS
 // barrel, so built-ins are always registered before any lookup.
 import './builtins.js';
 
-export { fillInTheBlanksType, multipleChoiceType, writtenResponseType } from './builtins.js';
+export {
+  dictationType,
+  fillInTheBlanksType,
+  gapSelectType,
+  multipleChoiceType,
+  writtenResponseType,
+} from './builtins.js';
 export {
   type ActivityTypeAuthoring,
   type ActivityTypeDescriptor,

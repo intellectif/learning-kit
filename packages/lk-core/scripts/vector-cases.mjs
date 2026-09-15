@@ -128,6 +128,202 @@ const oneBlank = (acceptedAnswers, match) =>
 
 const fill = (answers) => ({ type: 'fill-in-the-blanks', answers });
 
+// -- Dictation ---------------------------------------------------------------
+
+const ZERO_WIDTH_SPACE = String.fromCodePoint(0x200b);
+const ACUTE_ACCENT = String.fromCodePoint(0xb4); // used as an apostrophe by some keyboards
+const UNICODE_HYPHEN = String.fromCodePoint(0x2010);
+const DOTTED_CAPITAL_I = String.fromCodePoint(0x130); // LATIN CAPITAL LETTER I WITH DOT ABOVE
+const GRINNING_FACE = String.fromCodePoint(0x1f600); // one code point, two UTF-16 units
+const SMILING_FACE = String.fromCodePoint(0x1f603);
+const LONE_SURROGATE = String.fromCharCode(0xd800);
+const J_WITH_CARON = String.fromCodePoint(0x1f0); // the NFC form of j + COMBINING CARON
+const CAPITAL_J_CARON = `J${String.fromCodePoint(0x30c)}`; // lowercases to j + caron, which NFC composes
+const CAFE_SPLIT = `cafe${ZERO_WIDTH_SPACE}${String.fromCodePoint(0x301)}`; // a format character between e and its accent
+const NULL_CHARACTER = String.fromCodePoint(0x0); // a control character
+const BELL = String.fromCodePoint(0x7); // a control character
+const NEXT_LINE = String.fromCodePoint(0x85); // a control character that is a line break
+const AATH = String.fromCodePoint(0x906, 0x920); // Devanagari "eight"
+const AATHON = String.fromCodePoint(0x906, 0x920, 0x94b, 0x902); // "all eight": AATH, then a vowel sign and a nasal mark
+const DIN = String.fromCodePoint(0x926, 0x93f, 0x928); // Devanagari "day"
+const AATE = String.fromCodePoint(0x906, 0x924, 0x947); // ends in a vowel sign, a combining mark
+const JAATE = String.fromCodePoint(0x91c, 0x93e, 0x924, 0x947);
+const HEAVY_HEART = String.fromCodePoint(0x2764);
+const EMOJI_PRESENTATION = String.fromCodePoint(0xfe0f); // VARIATION SELECTOR-16
+const GRAPHEME_JOINER = String.fromCodePoint(0x34f); // COMBINING GRAPHEME JOINER, default-ignorable
+const HANGUL_FILLER = String.fromCodePoint(0x3164); // a letter, and default-ignorable
+const ZWNJ = String.fromCodePoint(0x200c); // ZERO WIDTH NON-JOINER
+const ZWJ = String.fromCodePoint(0x200d); // ZERO WIDTH JOINER
+const MI = String.fromCodePoint(0x645, 0x6cc); // the Persian verb prefix mi-
+const KHAHAM = String.fromCodePoint(0x62e, 0x648, 0x627, 0x647, 0x645); // "(I) want"
+const KSHA_WITH_JOINER = String.fromCodePoint(0x915, 0x94d, 0x200d, 0x937); // Devanagari k + virama + ZWJ + ss
+const KSHA = String.fromCodePoint(0x915, 0x94d, 0x937); // the same letters, conjunct
+const NOM = String.fromCodePoint(0x1828, 0x1823, 0x182e); // Mongolian "nom"
+const MONGOLIAN_VOWEL_SEPARATOR = String.fromCodePoint(0x180e);
+const MONGOLIAN_A = String.fromCodePoint(0x1820);
+const MONGOLIAN_GA = String.fromCodePoint(0x182d);
+const FVS1 = String.fromCodePoint(0x180b); // MONGOLIAN FREE VARIATION SELECTOR ONE
+const FVS2 = String.fromCodePoint(0x180c);
+const tagged = (letters) =>
+  String.fromCodePoint(
+    0x1f3f4,
+    ...[...letters].map((letter) => 0xe0000 + letter.charCodeAt(0)),
+    0xe007f,
+  );
+const FLAG_SCOTLAND = tagged('gbsct');
+const FLAG_ENGLAND = tagged('gbeng');
+const TAG_LATIN_B = String.fromCodePoint(0xe0062);
+const KEYCAP_HASH = String.fromCodePoint(0x23, 0xfe0f, 0x20e3);
+const KEYCAP_ASTERISK = String.fromCodePoint(0x2a, 0xfe0f, 0x20e3);
+const MIDDLE_DOT = String.fromCodePoint(0xb7);
+const HEBREW_CHIPS_GERESH = String.fromCodePoint(0x5e6, 0x5f3, 0x5d9, 0x5e4, 0x5e1); // with a geresh
+const HEBREW_CHIPS_APOSTROPHE = String.fromCodePoint(0x5e6, 0x27, 0x5d9, 0x5e4, 0x5e1);
+const HEBREW_SCHOOL_MAQAF = String.fromCodePoint(0x5d1, 0x5d9, 0x5ea, 0x5be, 0x5e1, 0x5e4, 0x5e8);
+const HEBREW_SCHOOL_HYPHEN = String.fromCodePoint(0x5d1, 0x5d9, 0x5ea, 0x2d, 0x5e1, 0x5e4, 0x5e8);
+const ARMENIAN_HYPHENATED = String.fromCodePoint(
+  0x57d,
+  0x565,
+  0x582,
+  0x58a,
+  0x57d,
+  0x57a,
+  0x56b,
+  0x57f,
+  0x561,
+  0x56f,
+);
+const ARMENIAN_ASCII_HYPHEN = String.fromCodePoint(
+  0x57d,
+  0x565,
+  0x582,
+  0x2d,
+  0x57d,
+  0x57a,
+  0x56b,
+  0x57f,
+  0x561,
+  0x56f,
+);
+const TIBETAN_TASHI = String.fromCodePoint(0xf56, 0xf40, 0xfb2, 0xf0b, 0xf64, 0xf72, 0xf66); // two syllables, a tsheg between
+const TIBETAN_TASHI_UNBROKEN = String.fromCodePoint(
+  0xf56,
+  0xf40,
+  0xfb2,
+  0xf0c,
+  0xf64,
+  0xf72,
+  0xf66,
+); // the non-breaking tsheg
+const TIBETAN_TASHI_RUN_ON = String.fromCodePoint(0xf56, 0xf40, 0xfb2, 0xf64, 0xf72, 0xf66);
+const MARHABA = String.fromCodePoint(0x645, 0x631, 0x62d, 0x628, 0x627); // Arabic "hello"
+const MARHABA_STRETCHED = String.fromCodePoint(
+  0x645,
+  0x631,
+  0x62d,
+  0x640,
+  0x640,
+  0x640,
+  0x628,
+  0x627,
+); // with three tatweels
+const FULLWIDTH_PERCENT = String.fromCodePoint(0xff05);
+const KATAKANA_PERCENT = String.fromCodePoint(0x30d1, 0x30fc, 0x30bb, 0x30f3, 0x30c8); // "paasento"
+const LINEAR_B_A = String.fromCodePoint(0x10000); // a letter; the first surrogate pair, D800 DC00
+const BOLD_A = String.fromCodePoint(0x1d400); // MATHEMATICAL BOLD CAPITAL A: a letter with no lowercase
+const BOLD_A_HIGH = String.fromCharCode(0xd835); // the high half of BOLD_A
+const BOLD_A_LOW = String.fromCharCode(0xdc00); // the low half of BOLD_A
+const PLANE_16_LAST = String.fromCodePoint(0x10ffff); // the last surrogate pair, DBFF DFFF
+const HIGH_FIRST = String.fromCharCode(0xd800);
+const HIGH_LAST = String.fromCharCode(0xdbff);
+const LOW_FIRST = String.fromCharCode(0xdc00);
+const LOW_LAST = String.fromCharCode(0xdfff);
+const CYRILLIC_A = String.fromCodePoint(0x430);
+const CYRILLIC_BE = String.fromCodePoint(0x431);
+const CYRILLIC_VE = String.fromCodePoint(0x432);
+const CYRILLIC_I = String.fromCodePoint(0x438); // "and"
+const MODIFIER_APOSTROPHE = String.fromCodePoint(0x2bc);
+const NOT_SLASH = String.fromCodePoint(0x338); // COMBINING LONG SOLIDUS OVERLAY: = + it composes to U+2260
+const COMBINING_ACUTE = String.fromCodePoint(0x301);
+const ROOZHA = String.fromCodePoint(0x631, 0x648, 0x632, 0x647, 0x627); // Persian "days", after a right-joining letter
+const ROOZHA_HALF_SPACE = String.fromCodePoint(0x631, 0x648, 0x632, 0x200c, 0x647, 0x627);
+const SRI = String.fromCodePoint(0xdc1, 0xdca, 0x200d, 0xdbb, 0xdd3); // Sinhala Sri, a conjunct through a joiner
+const SRI_EXPLICIT = String.fromCodePoint(0xdc1, 0xdca, 0xdbb, 0xdd3);
+const ARABIC_HEH_TEH_JOINED = String.fromCodePoint(0x647, 0x200d, 0x62a);
+const MALAYALAM_PAL_LEGACY = String.fromCodePoint(0xd2a, 0xd3e, 0xd32, 0xd4d, 0x200d); // chillu l as consonant, virama, joiner
+const MALAYALAM_PAL = String.fromCodePoint(0xd2a, 0xd3e, 0xd7d); // with the atomic chillu
+const BENGALI_UTSAB_LEGACY = String.fromCodePoint(0x989, 0x9a4, 0x9cd, 0x200d, 0x9b8, 0x9ac);
+const BENGALI_UTSAB = String.fromCodePoint(0x989, 0x9ce, 0x9b8, 0x9ac); // with the khanda ta
+const MARATHI_EYELASH_RA = String.fromCodePoint(0x935, 0x93e, 0x930, 0x94d, 0x200d, 0x92f);
+const MARATHI_EYELASH_RRA = String.fromCodePoint(0x935, 0x93e, 0x931, 0x94d, 0x92f);
+const THAI_NAM_SPLIT = String.fromCodePoint(0xe19, 0xe49, 0xe4d, 0xe32); // water, SARA AM typed as two parts
+const THAI_NAM = String.fromCodePoint(0xe19, 0xe49, 0xe33);
+const FULLWIDTH_2024 = String.fromCodePoint(0xff12, 0xff10, 0xff12, 0xff14, 0x5e74);
+const LIGATURE_FI = String.fromCodePoint(0xfb01);
+const KANGXI_MAN = String.fromCodePoint(0x2f08);
+const HAN_MAN = String.fromCodePoint(0x4eba);
+const FATHATAN_ISOLATED = String.fromCodePoint(0xfe70);
+const TWO_BOOKS = String.fromCodePoint(0x6211, 0x6709, 0x4e24, 0x672c, 0x4e66); // "I have two books"
+const HAN_TWO = String.fromCodePoint(0x4e24);
+const THAI_MI = String.fromCodePoint(0xe21, 0xe35); // ma + sara ii
+const THAI_MA = String.fromCodePoint(0xe21);
+const TUESDAY = String.fromCodePoint(0x633, 0x647, 0x200c, 0x634, 0x646, 0x628, 0x647); // Persian, with its half-space
+const SE = String.fromCodePoint(0x633, 0x647); // "three"
+const PERSIAN_THREE = String.fromCodePoint(0x6f3);
+const HAN_MIDDLE = String.fromCodePoint(0x4e2d);
+const COFFEE_AND_CAKE = String.fromCodePoint(
+  0x30b3,
+  0x30fc,
+  0x30d2,
+  0x30fc,
+  0x26,
+  0x30b1,
+  0x30fc,
+  0x30ad,
+);
+/** `count` copies of `word`, one space apart. */
+const repeatedWord = (word, count) => Array.from({ length: count }, () => word).join(' ');
+
+invariant(
+  /\p{Cc}/u.test(NEXT_LINE) && !/\s/.test(NEXT_LINE),
+  'NEXT LINE is not a control character outside \\s',
+);
+invariant(
+  AATHON.startsWith(AATH) && /^\p{M}+$/u.test(AATHON.slice(AATH.length)),
+  'AATHON is not AATH followed by combining marks',
+);
+invariant(/\p{M}$/u.test(AATE), 'AATE does not end in a combining mark');
+invariant(
+  J_WITH_CARON !== CAPITAL_J_CARON.toLowerCase(),
+  'the j-caron forms were already the same',
+);
+invariant(
+  CAPITAL_J_CARON.toLowerCase().normalize('NFC') === J_WITH_CARON,
+  'lowercase j + caron does not compose to U+01F0',
+);
+invariant(GRINNING_FACE.length === 2, 'the emoji is not an astral character');
+
+const dc = (over = {}) => ({
+  schemaVersion: '1.0',
+  type: 'dictation',
+  id: 'dc-lisbon',
+  title: 'Listen and type the sentence',
+  transcript: "It isn't raining in Lisbon today.",
+  media: { type: 'audio', url: 'https://cdn.example/lisbon.mp3', alt: 'Recording' },
+  ...over,
+});
+
+const typed = (text, hintsRevealed) => ({
+  type: 'dictation',
+  text,
+  ...(hintsRevealed === undefined ? {} : { hintsRevealed }),
+});
+
+const rules = (...pairs) => ({ equivalences: pairs.map(([from, to]) => ({ from, to })) });
+
+/** 2000 characters against 2003 with 601 substitutions: raw 0.69995…, "70%" once rounded. */
+const TIE_TRANSCRIPT = 'a'.repeat(2000);
+const TIE_ATTEMPT = `${'a'.repeat(1402)}${'b'.repeat(601)}`;
+
 const wr = (over = {}) => ({
   schemaVersion: '1.0',
   type: 'written-response',
@@ -1572,5 +1768,1264 @@ export const CASES = [
       policy(),
     ],
     note: 'Sharp edge, pinned rather than fixed: when every graded section weighs 0 the paper records a final 0 and a fail, not a provisional or unscorable result. No weight is ever divided by the zero total.',
+  },
+
+  // -- Dictation: character similarity over the whole sentence -------------
+  // Every default a later release could "improve" — the punctuation rule, the
+  // quote fold, NFC, code points, the single-division similarity, both
+  // alignment tie orders, the caps — is a frozen grade.
+  {
+    id: 'score/dc/exact',
+    fn: 'score',
+    args: ['dictation', dc(), typed("It isn't raining in Lisbon today.")],
+  },
+  {
+    id: 'score/dc/case-and-sentence-punctuation',
+    fn: 'score',
+    args: ['dictation', dc(), typed("it isn't raining in lisbon today")],
+  },
+  { id: 'score/dc/empty-attempt', fn: 'score', args: ['dictation', dc(), typed('')] },
+  {
+    id: 'score/dc/whitespace-only-attempt',
+    fn: 'score',
+    args: ['dictation', dc(), typed(`  \t${NBSP}\n`)],
+  },
+  {
+    id: 'score/dc/punctuation-only-attempt',
+    fn: 'score',
+    args: ['dictation', dc(), typed('... ?!')],
+  },
+  {
+    id: 'score/dc/inner-whitespace-collapsed',
+    fn: 'score',
+    args: ['dictation', dc(), typed(`It  isn't\training\nin${NBSP}Lisbon today.`)],
+    note: 'Extra spaces, tabs, newlines and a no-break space are not spelling. The reference implementation charged an edit for each.',
+  },
+  {
+    id: 'score/dc/nfd-attempt-equals-nfc',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: `caf${COMPOSED_E}` }), typed(`caf${DECOMPOSED_E}`)],
+    note: 'The same letter typed as a base plus a combining accent is the same letter.',
+  },
+  {
+    id: 'score/dc/nfc-after-strip',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: `caf${COMPOSED_E}` }), typed(CAFE_SPLIT)],
+    note: 'A format character between a base letter and its accent is removed, and the two then compose: NFC runs last as well as first.',
+  },
+  {
+    id: 'score/dc/lowercase-then-compose',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: J_WITH_CARON }), typed(CAPITAL_J_CARON)],
+    note: 'Lowercasing J + caron gives j + caron, which NFC composes to one code point; the transcript already holds that code point.',
+  },
+  {
+    id: 'score/dc/curly-apostrophe-folded',
+    fn: 'score',
+    args: ['dictation', dc(), typed(`It isn${CURLY_APOSTROPHE}t raining in Lisbon today.`)],
+  },
+  {
+    id: 'score/dc/acute-accent-as-apostrophe-folded',
+    fn: 'score',
+    args: ['dictation', dc(), typed(`It isn${ACUTE_ACCENT}t raining in Lisbon today.`)],
+    note: 'U+00B4 is a symbol, not punctuation, so it would survive the strip; it is folded to the apostrophe instead.',
+  },
+  {
+    id: 'score/dc/format-char-stripped',
+    fn: 'score',
+    args: ['dictation', dc(), typed(`It${ZERO_WIDTH_SPACE} isn't raining in Lisbon today.`)],
+  },
+  {
+    id: 'score/dc/one-letter-typo',
+    fn: 'score',
+    args: ['dictation', dc(), typed("It isn't raining in Lisbom today.")],
+  },
+  {
+    id: 'score/dc/missing-word',
+    fn: 'score',
+    args: ['dictation', dc(), typed("It isn't raining in today.")],
+  },
+  {
+    id: 'score/dc/extra-word',
+    fn: 'score',
+    args: ['dictation', dc(), typed("It isn't really raining in Lisbon today.")],
+  },
+  {
+    id: 'score/dc/transposed-words',
+    fn: 'score',
+    args: ['dictation', dc(), typed("It isn't raining today in Lisbon.")],
+  },
+  {
+    id: 'score/dc/accent-dropped-partial-credit',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: `${ESTA} bien` }), typed('esta bien')],
+    note: 'A missing accent is one edit, not a wrong word: character similarity is forgiving of it by design, and documented as such.',
+  },
+  {
+    id: 'score/dc/intra-word-hyphen-kept',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: 'a well-known author' }), typed('a wellknown author')],
+  },
+  {
+    id: 'score/dc/unicode-hyphen-folded',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ transcript: 'a well-known author' }),
+      typed(`a well${UNICODE_HYPHEN}known author`),
+    ],
+  },
+  {
+    id: 'score/dc/hyphen-vs-space',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: 'a well-known author' }), typed('a well known author')],
+  },
+  {
+    id: 'score/dc/trailing-apostrophe-stripped',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: "the students' books" }), typed('the students books')],
+    note: 'An apostrophe with no letter after it is punctuation, not spelling.',
+  },
+  {
+    id: 'score/dc/slash-joins-words',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: 'answer yes/no' }), typed('answer yes no')],
+    note: 'A slash is punctuation and is removed without leaving a space, so "yes/no" is one word: pinned as the sharp edge it is.',
+  },
+  {
+    id: 'score/dc/ampersand-is-punctuation',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: 'rock and roll' }), typed('rock & roll')],
+    note: '"&" is Unicode punctuation and is removed; without an equivalence naming it, this attempt is one word short of three.',
+  },
+  {
+    id: 'score/dc/dollar-is-symbol-kept',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: 'it costs $5' }), typed('it costs 5')],
+    note: 'A currency sign is a symbol, never removed, so leaving it out is an edit.',
+  },
+  {
+    id: 'score/dc/number-punctuation-removed',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: 'pi is 3.14' }), typed('pi is 314')],
+  },
+  {
+    id: 'score/dc/equivalence/contraction-both-sides',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ tolerance: rules(["isn't", 'is not']) }),
+      typed('It is not raining in Lisbon today.'),
+    ],
+  },
+  {
+    id: 'score/dc/equivalence/word-boundary-does-not-fire-inside-word',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ transcript: "Roche's office is closed.", tolerance: rules(["he's", 'he is']) }),
+      typed('Roche is office is closed.'),
+    ],
+    note: 'A rule rewrites whole words only. The reference implementation rewrote inside words and awarded full credit here.',
+  },
+  {
+    id: 'score/dc/equivalence/symbol-before-punctuation',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ transcript: 'rock and roll', tolerance: rules(['&', 'and']) }),
+      typed('rock & roll'),
+    ],
+  },
+  {
+    id: 'score/dc/equivalence/multi-word-from-across-double-space',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ tolerance: rules(['is not', "isn't"]) }),
+      typed('It is  not raining in Lisbon today.'),
+    ],
+  },
+  {
+    id: 'score/dc/equivalence/multi-word-from-across-newline',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ tolerance: rules(['is not', "isn't"]) }),
+      typed('It is\nnot raining in Lisbon today.'),
+    ],
+    note: 'Rules run after whitespace is collapsed, so a two-word `from` matches across any whitespace.',
+  },
+  {
+    id: 'score/dc/equivalence/to-is-literal',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ transcript: 'the $$', tolerance: rules(['price', '$$']) }),
+      typed('the price'),
+    ],
+    note: '`to` is inserted as text: `$$` is two dollar signs, not a replacement pattern.',
+  },
+  {
+    id: 'score/dc/equivalence/dollar-ampersand-is-text',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ transcript: 'the $', tolerance: rules(['price', '$&']) }),
+      typed('the price'),
+    ],
+    note: '`$&` inserts a dollar sign, a symbol, and an ampersand, which is punctuation and removed like any other.',
+  },
+  {
+    id: 'score/dc/equivalence/order-matters',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ transcript: 'c', tolerance: rules(['a', 'b'], ['b', 'c']) }),
+      typed('a'),
+    ],
+    note: 'Rules apply in listed order, each to the output of the one before: a -> b -> c.',
+  },
+  {
+    id: 'score/dc/equivalence/applied-once',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ transcript: 'c', tolerance: rules(['b', 'c'], ['a', 'b']) }),
+      typed('a'),
+    ],
+    note: 'The same rules in the other order: a -> b, and the rule before it never sees the result.',
+  },
+  {
+    id: 'score/dc/accepted-transcript/best-of',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ transcript: 'The colour of the sky.', acceptedTranscripts: ['The color of the sky.'] }),
+      typed('the color of the sky'),
+    ],
+  },
+  {
+    id: 'score/dc/accepted-transcript/tie-picks-transcript',
+    fn: 'alignDictation',
+    args: [{ transcript: 'ab', acceptedTranscripts: ['ac'] }, 'ax'],
+    note: 'One edit from each candidate: the transcript wins the tie, so candidateIndex is 0.',
+  },
+  {
+    id: 'score/dc/astral-code-point',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: `I love it ${GRINNING_FACE}` }), typed('I love it')],
+    note: 'The emoji is one code point (two UTF-16 units): 11 characters, two of them missing (the space before the emoji, and the emoji).',
+  },
+  {
+    id: 'score/dc/lone-surrogate',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: 'ab' }), typed(`a${LONE_SURROGATE}b`)],
+    note: 'A lone surrogate is read as U+FFFD, the replacement character: one character, never rejected.',
+  },
+  {
+    id: 'score/dc/dotted-capital-i-lowercase',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: 'istanbul' }), typed(`${DOTTED_CAPITAL_I}stanbul`)],
+    note: 'Locale-insensitive toLowerCase, as the reference implementation: the dotted capital I lowercases to i plus a combining dot, one edit.',
+  },
+  {
+    id: 'score/dc/both-empty-after-stale-transcript',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: '...' }), typed('')],
+    note: 'Reachable on stale data only (the schema refuses the transcript): no candidate survives, so the score is 0 and there are no details.',
+  },
+  {
+    id: 'score/dc/stale-transcript-accepted-wins',
+    fn: 'alignDictation',
+    args: [{ transcript: '...', acceptedTranscripts: ['the cat'] }, 'the cat'],
+    note: 'candidateIndex is the ORIGINAL position: 1 names acceptedTranscripts[0].',
+  },
+  {
+    id: 'score/dc/truncated-at-max-text-length',
+    fn: 'alignDictation',
+    args: [{ transcript: 'a' }, 'a'.repeat(8001)],
+  },
+  {
+    id: 'score/dc/at-max-text-length-not-truncated',
+    fn: 'alignDictation',
+    args: [{ transcript: 'a' }, 'a'.repeat(8000)],
+    note: 'Exactly the cap is not over it: the boundary of the truncation, pinned.',
+  },
+  {
+    id: 'score/dc/stale-rule-without-a-string-is-ignored',
+    fn: 'alignDictation',
+    args: [
+      {
+        transcript: 'c',
+        tolerance: {
+          equivalences: [
+            { from: 'a', to: 5 },
+            { from: 'b', to: 'c' },
+          ],
+        },
+      },
+      'b',
+    ],
+    note: 'A rule the schema would refuse (stale data) is skipped, never thrown on: the exam scorer must not crash on a stored row.',
+  },
+  {
+    id: 'score/dc/truncated-after-normalisation',
+    fn: 'alignDictation',
+    args: [
+      { transcript: 'x', tolerance: rules(['&', 'x'.repeat(39)]) },
+      '& '.repeat(3999).concat('&'),
+    ],
+    note: '7,999 code points that a rule expands past the working bound: the working cut sets the flag, and the attempt, cut at 8,000 on a space, ends before it with no empty word.',
+  },
+  {
+    id: 'score/dc/chained-rules-are-bounded',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({
+        transcript: 'd',
+        tolerance: rules(
+          ['a', repeatedWord('b', 100)],
+          ['b', repeatedWord('c', 100)],
+          ['c', repeatedWord('d', 100)],
+        ),
+      }),
+      typed('a'),
+    ],
+    note: 'Three rules that would grow one letter to a million words: the working text is cut at twice the attempt cap after every rule, so the scorer finishes.',
+  },
+  {
+    id: 'alignDictation/dc/working-text-cut-is-reported',
+    fn: 'alignDictation',
+    args: [
+      {
+        transcript: 'c',
+        tolerance: rules(['a', repeatedWord('b', 100)], [repeatedWord('b', 100), 'c']),
+      },
+      repeatedWord('a', 4000),
+    ],
+    note: 'The first rule grows 4,000 words past the working bound, which stops the rewrite early and cuts at 16,000; the second shrinks the 80 groups left to 80 words. The result is short, and truncated is still true, because text was cut.',
+  },
+  {
+    id: 'alignDictation/dc/working-text-at-its-bound-is-not-cut',
+    fn: 'alignDictation',
+    args: [
+      {
+        transcript: 'c',
+        tolerance: rules(['a', repeatedWord('b', 100)], [repeatedWord('b', 100), 'c']),
+      },
+      `${'x'.repeat(200)} ${repeatedWord('a', 79)}`,
+    ],
+    note: 'The first rule grows 358 code points to exactly 16,000, twice the attempt cap: at the bound, not past it, so nothing is cut, the second rule shrinks every group, and truncated stays false.',
+  },
+  {
+    id: 'alignDictation/dc/working-text-one-past-its-bound-is-cut',
+    fn: 'alignDictation',
+    args: [
+      {
+        transcript: 'c',
+        tolerance: rules(['a', repeatedWord('b', 100)], [repeatedWord('b', 100), 'c']),
+      },
+      `${'x'.repeat(201)} ${repeatedWord('a', 79)}`,
+    ],
+    note: 'One code point longer: 16,001 is cut to 16,000, which takes the last letter of the last group, so the second rule leaves that group alone; truncated is true because text was cut.',
+  },
+  {
+    id: 'alignDictation/dc/stale-rules-past-the-hundredth-are-ignored',
+    fn: 'alignDictation',
+    args: [
+      {
+        transcript: 'y',
+        tolerance: {
+          equivalences: [
+            ...Array.from({ length: 100 }, (_, index) => ({ from: `q${index}`, to: 'r' })),
+            { from: 'x', to: 'y' },
+          ],
+        },
+      },
+      'x',
+    ],
+    note: 'The 101st rule is not read (the schema refuses more than 100): stale data cannot slow a grading run.',
+  },
+  {
+    id: 'alignDictation/dc/the-hundredth-rule-applies',
+    fn: 'alignDictation',
+    args: [
+      {
+        transcript: 'y',
+        tolerance: {
+          equivalences: [
+            ...Array.from({ length: 99 }, (_, index) => ({ from: `q${index}`, to: 'r' })),
+            { from: 'x', to: 'y' },
+          ],
+        },
+      },
+      'x',
+    ],
+    note: 'The boundary of the rule count, pinned.',
+  },
+  {
+    id: 'alignDictation/dc/stale-rule-with-an-oversized-from-is-ignored',
+    fn: 'alignDictation',
+    args: [{ transcript: 'y', tolerance: rules(['x'.repeat(201), 'y']) }, 'x'.repeat(201)],
+  },
+  {
+    id: 'alignDictation/dc/rule-with-from-at-the-cap-applies',
+    fn: 'alignDictation',
+    args: [{ transcript: 'y', tolerance: rules(['x'.repeat(200), 'y']) }, 'x'.repeat(200)],
+  },
+  {
+    id: 'alignDictation/dc/stale-rule-with-an-oversized-to-is-ignored',
+    fn: 'alignDictation',
+    args: [{ transcript: 'y'.repeat(201), tolerance: rules(['x', 'y'.repeat(201)]) }, 'x'],
+  },
+  {
+    id: 'alignDictation/dc/rule-with-to-at-the-cap-applies',
+    fn: 'alignDictation',
+    args: [{ transcript: 'y'.repeat(200), tolerance: rules(['x', 'y'.repeat(200)]) }, 'x'],
+  },
+  {
+    id: 'alignDictation/dc/astral-rule-at-the-cap-applies',
+    fn: 'alignDictation',
+    args: [
+      { transcript: GRINNING_FACE.repeat(200), tolerance: rules(['x', GRINNING_FACE.repeat(200)]) },
+      'x',
+    ],
+    note: 'Two hundred emoji are 200 code points and 400 UTF-16 units: at the cap, so the rule applies.',
+  },
+  {
+    id: 'alignDictation/dc/a-one-letter-rule-does-not-rewrite-inside-a-word',
+    fn: 'alignDictation',
+    args: [{ transcript: 'ba', tolerance: rules(['a', 'c']) }, 'ba'],
+    note: 'The boundary before a one-letter rule is required too: "a" inside "ba" is not a word.',
+  },
+  {
+    id: 'score/dc/control-characters-are-removed',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ transcript: 'hello world' }),
+      typed(`hel${NULL_CHARACTER}lo${BELL} world`),
+    ],
+  },
+  {
+    id: 'score/dc/next-line-is-spacing',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: 'hello world' }), typed(`hello${NEXT_LINE}world`)],
+  },
+  {
+    id: 'alignDictation/dc/a-rule-does-not-rewrite-a-word-with-combining-marks',
+    fn: 'alignDictation',
+    args: [{ transcript: `${AATHON} ${DIN}`, tolerance: rules([AATH, '8']) }, `8 ${DIN}`],
+    note: 'A combining mark belongs to its word: the rule for "eight" leaves "all eight" alone.',
+  },
+  {
+    id: 'alignDictation/dc/hyphen-after-a-combining-mark-is-spelling',
+    fn: 'alignDictation',
+    args: [{ transcript: `${AATE}-${JAATE}` }, `${AATE}${JAATE}`],
+  },
+  {
+    id: 'alignDictation/dc/a-rewrite-is-inserted-without-its-punctuation',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x', tolerance: rules(['x', 'x!'], ['!', 'bang']) }, 'x'],
+    note: 'The first rule inserts its words only, so the second finds no "!" to rewrite: punctuation in a rewrite is ignored, as it is in the comparison.',
+  },
+  {
+    id: 'alignDictation/dc/stale-rule-that-would-delete-a-word-is-skipped',
+    fn: 'alignDictation',
+    args: [{ transcript: 'a b', tolerance: rules(['a', '...']) }, 'a b'],
+    note: 'A rewrite that normalises to nothing would delete a word; the schema refuses it, and the scorer skips it in stale data.',
+  },
+  {
+    id: 'score/dc/variation-selector-is-invisible',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ transcript: `i ${HEAVY_HEART} you` }),
+      typed(`i ${HEAVY_HEART}${EMOJI_PRESENTATION} you`),
+    ],
+  },
+  {
+    id: 'score/dc/default-ignorable-characters-are-invisible',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ transcript: 'hello' }),
+      typed(`hel${GRAPHEME_JOINER}lo${HANGUL_FILLER}`),
+    ],
+  },
+  {
+    id: 'alignDictation/dc/a-rule-reads-text-composed-after-lowercasing',
+    fn: 'alignDictation',
+    args: [{ transcript: 'jay', tolerance: rules([J_WITH_CARON, 'jay']) }, CAPITAL_J_CARON],
+    note: 'Lowercasing J + COMBINING CARON exposes a pair NFC composes; the rules read the composed letter.',
+  },
+  {
+    id: 'alignDictation/dc/a-symbol-rule-fires-between-letters',
+    fn: 'alignDictation',
+    args: [{ transcript: 'rock and roll', tolerance: rules(['&', 'and']) }, 'rock&roll'],
+    note: 'A boundary is required only at an edge of the rule that is a letter, mark or digit, so "&" fires where it touches letters; its rewrite is set apart from them by spaces, so rock&roll reads as rock and roll.',
+  },
+  {
+    id: 'alignDictation/dc/a-symbol-rewrite-is-set-apart-from-a-digit',
+    fn: 'alignDictation',
+    args: [{ transcript: 'it is 50 percent', tolerance: rules(['%', 'percent']) }, 'it is 50%'],
+  },
+  {
+    id: 'alignDictation/dc/adjacent-symbol-rewrites-are-set-apart',
+    fn: 'alignDictation',
+    args: [{ transcript: 'a and and b', tolerance: rules(['&', 'and']) }, 'a&&b'],
+    note: 'The space before a rewrite is decided by what the output already ends with, so the second "&" is set apart from the first rewrite.',
+  },
+  {
+    id: 'alignDictation/dc/a-suffix-rule-sets-its-rewrite-apart',
+    fn: 'alignDictation',
+    args: [{ transcript: 'he is here', tolerance: rules(["'s", 'is']) }, "he's here"],
+  },
+  {
+    id: 'alignDictation/dc/a-rewrite-in-a-script-without-spaces-is-not-set-apart',
+    fn: 'alignDictation',
+    args: [
+      {
+        transcript: `50${KATAKANA_PERCENT}`,
+        tolerance: rules([FULLWIDTH_PERCENT, KATAKANA_PERCENT]),
+      },
+      `50${FULLWIDTH_PERCENT}`,
+    ],
+    note: 'Japanese is written without spaces, so a rewrite that starts in Katakana is not set apart from the digit before it.',
+  },
+  {
+    id: 'alignDictation/dc/a-rewrite-to-a-symbol-is-not-set-apart',
+    fn: 'alignDictation',
+    args: [{ transcript: 'a+b', tolerance: rules(['&', '+']) }, 'a&b'],
+  },
+  {
+    id: 'alignDictation/dc/a-shorter-rule-first-splits-a-longer-abbreviation',
+    fn: 'alignDictation',
+    args: [
+      { transcript: 'The U.S.A. is big', tolerance: rules(['U.S.', 'United States']) },
+      'The USA is big',
+    ],
+    note: 'A rule whose `from` ends in punctuation needs no boundary after it, so "U.S." fires inside "U.S.A." — list the longer form first.',
+  },
+  {
+    id: 'alignDictation/dc/a-longer-rule-first-keeps-the-abbreviation-whole',
+    fn: 'alignDictation',
+    args: [
+      {
+        transcript: 'The U.S.A. is big',
+        tolerance: rules(['U.S.A.', 'United States of America'], ['U.S.', 'United States']),
+      },
+      'The United States of America is big',
+    ],
+  },
+  {
+    id: 'alignDictation/dc/persian-half-space-is-spelling',
+    fn: 'alignDictation',
+    args: [{ transcript: `${MI}${ZWNJ}${KHAHAM}` }, `${MI}${KHAHAM}`],
+    note: 'A zero-width non-joiner between a letter that joins the next and one that joins the previous (the Persian half-space) is spelling: leaving it out costs an edit.',
+  },
+  {
+    id: 'alignDictation/dc/persian-half-space-typed-as-a-space',
+    fn: 'alignDictation',
+    args: [{ transcript: `${MI}${ZWNJ}${KHAHAM}` }, `${MI} ${KHAHAM}`],
+  },
+  {
+    id: 'alignDictation/dc/persian-half-space-matches-itself',
+    fn: 'alignDictation',
+    args: [{ transcript: `${MI}${ZWNJ}${KHAHAM}` }, `${MI}${ZWNJ}${KHAHAM}`],
+  },
+  {
+    id: 'alignDictation/dc/a-joiner-beside-a-space-is-invisible',
+    fn: 'alignDictation',
+    args: [{ transcript: 'ab c' }, `ab${ZWNJ} ${ZWJ}c`],
+  },
+  {
+    id: 'alignDictation/dc/a-joiner-inside-an-emoji-sequence-is-invisible',
+    fn: 'alignDictation',
+    args: [
+      { transcript: `${GRINNING_FACE}${SMILING_FACE}` },
+      `${GRINNING_FACE}${ZWJ}${SMILING_FACE}`,
+    ],
+  },
+  {
+    id: 'alignDictation/dc/an-indic-joiner-is-spelling',
+    fn: 'alignDictation',
+    args: [{ transcript: KSHA_WITH_JOINER }, KSHA],
+    note: 'A joiner after a virama chooses the half form over the conjunct: a different written word.',
+  },
+  {
+    id: 'alignDictation/dc/mongolian-vowel-separator-is-spelling',
+    fn: 'alignDictation',
+    args: [
+      { transcript: `${NOM}${MONGOLIAN_VOWEL_SEPARATOR}${MONGOLIAN_A}` },
+      `${NOM}${MONGOLIAN_A}`,
+    ],
+  },
+  {
+    id: 'alignDictation/dc/mongolian-free-variation-selectors-differ',
+    fn: 'alignDictation',
+    args: [{ transcript: `${MONGOLIAN_GA}${FVS1}` }, `${MONGOLIAN_GA}${FVS2}`],
+  },
+  {
+    id: 'alignDictation/dc/a-stray-mongolian-selector-is-invisible',
+    fn: 'alignDictation',
+    args: [{ transcript: 'a b' }, `a ${FVS1}${FVS2}b`],
+    note: 'A selector with no letter before it is removed, and so is a second one after it, so normalising twice changes nothing.',
+  },
+  {
+    id: 'alignDictation/dc/subdivision-flags-differ',
+    fn: 'alignDictation',
+    args: [{ transcript: FLAG_SCOTLAND }, FLAG_ENGLAND],
+    note: 'The tag characters after U+1F3F4 spell which flag it is.',
+  },
+  {
+    id: 'alignDictation/dc/stray-tag-characters-are-invisible',
+    fn: 'alignDictation',
+    args: [{ transcript: 'ab' }, `a${TAG_LATIN_B}b`],
+  },
+  {
+    id: 'alignDictation/dc/keycaps-keep-their-base',
+    fn: 'alignDictation',
+    args: [{ transcript: KEYCAP_HASH }, KEYCAP_ASTERISK],
+    note: 'The "#" or "*" of a keycap is not removed as punctuation, so two keycaps are not both the bare enclosing mark.',
+  },
+  {
+    id: 'alignDictation/dc/catalan-middle-dot-is-spelling',
+    fn: 'alignDictation',
+    args: [{ transcript: `col${MIDDLE_DOT}legi` }, 'collegi'],
+  },
+  {
+    id: 'alignDictation/dc/a-middle-dot-between-words-is-punctuation',
+    fn: 'alignDictation',
+    args: [{ transcript: `a ${MIDDLE_DOT} b` }, 'a b'],
+  },
+  {
+    id: 'alignDictation/dc/hebrew-geresh-is-an-apostrophe',
+    fn: 'alignDictation',
+    args: [{ transcript: HEBREW_CHIPS_GERESH }, HEBREW_CHIPS_APOSTROPHE],
+  },
+  {
+    id: 'alignDictation/dc/hebrew-maqaf-is-a-hyphen',
+    fn: 'alignDictation',
+    args: [{ transcript: HEBREW_SCHOOL_MAQAF }, HEBREW_SCHOOL_HYPHEN],
+  },
+  {
+    id: 'alignDictation/dc/armenian-hyphen-is-a-hyphen',
+    fn: 'alignDictation',
+    args: [{ transcript: ARMENIAN_HYPHENATED }, ARMENIAN_ASCII_HYPHEN],
+  },
+  {
+    id: 'alignDictation/dc/tibetan-tsheg-is-spelling',
+    fn: 'alignDictation',
+    args: [{ transcript: TIBETAN_TASHI }, TIBETAN_TASHI_RUN_ON],
+  },
+  {
+    id: 'alignDictation/dc/tibetan-non-breaking-tsheg-is-the-tsheg',
+    fn: 'alignDictation',
+    args: [{ transcript: TIBETAN_TASHI }, TIBETAN_TASHI_UNBROKEN],
+  },
+  {
+    id: 'alignDictation/dc/arabic-tatweel-is-invisible',
+    fn: 'alignDictation',
+    args: [{ transcript: MARHABA }, MARHABA_STRETCHED],
+  },
+  {
+    id: 'alignDictation/dc/a-letter-of-any-script-before-a-rule-is-a-word-character',
+    fn: 'alignDictation',
+    args: [
+      { transcript: 'x', tolerance: rules(['a', 'x']) },
+      `${LINEAR_B_A}a ${BOLD_A}a ${E_GRAVE}a 9a za a`,
+    ],
+    note: 'An astral letter (read as its whole surrogate pair), a letter outside ASCII, and the ASCII edges 9 and z each keep a rule for "a" out of the word they end; only the lone "a" is rewritten.',
+  },
+  {
+    id: 'alignDictation/dc/a-letter-of-any-script-after-a-rule-is-a-word-character',
+    fn: 'alignDictation',
+    args: [
+      { transcript: 'x', tolerance: rules(['a', 'x']) },
+      `a${LINEAR_B_A} a${BOLD_A} a${E_GRAVE} a9 az a`,
+    ],
+  },
+  {
+    id: 'alignDictation/dc/a-rule-passes-over-a-word-of-astral-letters',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x', tolerance: rules(['a', 'x']) }, `${BOLD_A}a${BOLD_A}a a`],
+    note: 'Refused inside a word, the search goes on after the word, stepping over each surrogate pair whole; only the lone "a" is rewritten.',
+  },
+  {
+    id: 'alignDictation/dc/a-rule-ending-in-an-astral-letter-needs-a-boundary-after-it',
+    fn: 'alignDictation',
+    args: [
+      { transcript: 'x', tolerance: rules([`q${BOLD_A}`, 'y']) },
+      `q${BOLD_A}b q${BOLD_A}${LINEAR_B_A} q${BOLD_A}`,
+    ],
+  },
+  {
+    id: 'alignDictation/dc/a-rewrite-is-set-apart-from-letters-of-another-alphabet',
+    fn: 'alignDictation',
+    args: [
+      { transcript: 'x', tolerance: rules(['&', CYRILLIC_I]) },
+      `${CYRILLIC_A}&${CYRILLIC_BE}&${CYRILLIC_VE}`,
+    ],
+    note: 'Cyrillic letters are word characters of a spaced script: each rewrite is set apart from the letters on both sides, including the one between two rewrites.',
+  },
+  {
+    id: 'alignDictation/dc/a-rule-never-matches-half-of-a-surrogate-pair',
+    fn: 'alignDictation',
+    args: [
+      {
+        transcript: 'x',
+        tolerance: rules([LOW_FIRST, 'x'], [LOW_LAST, 'y'], [HIGH_FIRST, 'z'], [HIGH_LAST, 'w']),
+      },
+      `${LINEAR_B_A} ${LOW_FIRST} ${PLANE_16_LAST} ${LOW_LAST} ${HIGH_FIRST} ${HIGH_LAST}`,
+    ],
+    note: 'Every lone surrogate, in a rule and in the text, is U+FFFD: the first rule rewrites all four lone ones, the three after it find nothing left, and neither surrogate pair is touched.',
+  },
+  {
+    id: 'alignDictation/dc/a-lone-surrogate-beside-a-word-is-no-word-character',
+    fn: 'alignDictation',
+    args: [
+      { transcript: 'x', tolerance: rules(['a', 'x']) },
+      `${HIGH_FIRST}a a${LOW_FIRST} ${LOW_LAST}a`,
+    ],
+    note: 'A lone surrogate is U+FFFD, a symbol and no word character: it keeps no rule out of the word beside it.',
+  },
+  {
+    id: 'alignDictation/dc/a-surrogate-pair-split-across-a-rewrite-is-two-replacement-characters',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x', tolerance: rules(['&', `x${BOLD_A_HIGH}`]) }, `&${BOLD_A_LOW}&`],
+    note: 'A rewrite ending in the high half of a pair and text starting with its low half never make the letter: each lone half is U+FFFD, a symbol, so no rewrite is set apart from it.',
+  },
+  {
+    id: 'alignDictation/dc/a-half-space-after-a-right-joining-letter-is-invisible',
+    fn: 'alignDictation',
+    args: [{ transcript: ROOZHA_HALF_SPACE }, ROOZHA],
+    note: 'After a letter that joins nothing after it, a zero-width non-joiner changes nothing drawn: it is removed.',
+  },
+  {
+    id: 'alignDictation/dc/a-joiner-between-latin-letters-is-invisible',
+    fn: 'alignDictation',
+    args: [{ transcript: 'Auflage' }, `Auf${ZWNJ}lage`],
+  },
+  {
+    id: 'alignDictation/dc/a-joiner-after-a-virama-is-spelling',
+    fn: 'alignDictation',
+    args: [{ transcript: SRI }, SRI_EXPLICIT],
+  },
+  {
+    id: 'alignDictation/dc/a-joiner-between-arabic-letters-is-invisible',
+    fn: 'alignDictation',
+    args: [{ transcript: String.fromCodePoint(0x647, 0x62a) }, ARABIC_HEH_TEH_JOINED],
+    note: 'A zero-width joiner is kept only after a virama.',
+  },
+  {
+    id: 'alignDictation/dc/a-modifier-apostrophe-is-folded-before-a-joiner-is-judged',
+    fn: 'alignDictation',
+    args: [{ transcript: "a'b" }, `a${MODIFIER_APOSTROPHE}${ZWJ}b`],
+    note: "U+02BC is an apostrophe by then, so the joiner beside it is judged beside an apostrophe and removed; the attempt reads a'b.",
+  },
+  {
+    id: 'alignDictation/dc/a-mark-composed-by-the-strip-is-settled-again',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x' }, `=.${NOT_SLASH}'${COMBINING_ACUTE}`],
+    note: 'Removing the full stop lets = and the overlay compose into U+2260; the apostrophe, now after that symbol and no letter, mark or digit, is removed in the same normalisation.',
+  },
+  {
+    id: 'alignDictation/dc/a-legacy-malayalam-chillu-is-the-atomic-chillu',
+    fn: 'alignDictation',
+    args: [{ transcript: MALAYALAM_PAL }, MALAYALAM_PAL_LEGACY],
+  },
+  {
+    id: 'alignDictation/dc/a-legacy-bengali-khanda-ta-is-the-khanda-ta',
+    fn: 'alignDictation',
+    args: [{ transcript: BENGALI_UTSAB }, BENGALI_UTSAB_LEGACY],
+  },
+  {
+    id: 'alignDictation/dc/marathi-eyelash-ra-spelled-with-ra-is-the-one-with-rra',
+    fn: 'alignDictation',
+    args: [{ transcript: MARATHI_EYELASH_RRA }, MARATHI_EYELASH_RA],
+  },
+  {
+    id: 'alignDictation/dc/thai-sara-am-typed-as-two-parts-is-sara-am',
+    fn: 'alignDictation',
+    args: [{ transcript: THAI_NAM }, THAI_NAM_SPLIT],
+  },
+  {
+    id: 'alignDictation/dc/fullwidth-digits-compare-as-digits',
+    fn: 'alignDictation',
+    args: [{ transcript: '2024年' }, FULLWIDTH_2024],
+  },
+  {
+    id: 'alignDictation/dc/a-ligature-compares-as-its-letters',
+    fn: 'alignDictation',
+    args: [{ transcript: 'fine' }, `${LIGATURE_FI}ne`],
+  },
+  {
+    id: 'alignDictation/dc/a-kangxi-radical-compares-as-its-ideograph',
+    fn: 'alignDictation',
+    args: [{ transcript: HAN_MAN }, KANGXI_MAN],
+  },
+  {
+    id: 'alignDictation/dc/an-isolated-vowel-mark-form-keeps-its-form',
+    fn: 'alignDictation',
+    args: [{ transcript: `a ${FATHATAN_ISOLATED}` }, `a ${FATHATAN_ISOLATED}`],
+    note: 'Its compatibility form is a space and a combining mark, which would put the mark on nothing.',
+  },
+  {
+    id: 'alignDictation/dc/a-rule-fires-inside-text-written-without-spaces',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x', tolerance: rules([HAN_TWO, '2']) }, TWO_BOOKS],
+    note: 'A rule edge that is a letter of a script written without spaces needs no word boundary.',
+  },
+  {
+    id: 'alignDictation/dc/a-match-never-ends-before-a-combining-mark',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x', tolerance: rules([THAI_MA, 'x']) }, THAI_MI],
+  },
+  {
+    id: 'alignDictation/dc/a-kept-joiner-is-part-of-its-word',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x', tolerance: rules([SE, PERSIAN_THREE]) }, TUESDAY],
+    note: 'The half-space is inside the word, so a rule for "three" leaves "Tuesday" whole.',
+  },
+  {
+    id: 'alignDictation/dc/a-joiner-left-beside-a-digit-is-removed',
+    fn: 'alignDictation',
+    args: [
+      { transcript: 'x' },
+      `${PERSIAN_THREE}${ZWNJ}${String.fromCodePoint(0x634, 0x646, 0x628, 0x647)}`,
+    ],
+  },
+  {
+    id: 'alignDictation/dc/a-letter-of-another-script-is-a-visible-edge',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x', tolerance: rules(['ok', 'x']) }, `ok${HAN_MIDDLE}`],
+  },
+  {
+    id: 'alignDictation/dc/the-japanese-long-vowel-mark-counts-as-kana',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x', tolerance: rules(['&', 'and']) }, COFFEE_AND_CAKE],
+    note: 'U+30FC is Common by script but kana by script extension, so the rewrite is set apart on neither side.',
+  },
+  {
+    id: 'alignDictation/dc/halfwidth-katakana-with-voicing-marks-is-katakana',
+    fn: 'alignDictation',
+    args: [{ transcript: 'ガラス パン' }, 'ｶﾞﾗｽ ﾊﾟﾝ'],
+    note: 'A halfwidth voiced or semi-voiced sound mark is the combining mark on the kana before it, which then composes.',
+  },
+  {
+    id: 'alignDictation/dc/a-voicing-mark-form-with-nothing-before-it-keeps-its-form',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x' }, `${String.fromCodePoint(0xff9e)} x`],
+    note: 'At the start of the text there is nothing to carry the mark: the halfwidth form stays as it is.',
+  },
+  {
+    id: 'alignDictation/dc/an-arabic-mark-form-after-a-letter-is-the-mark',
+    fn: 'alignDictation',
+    args: [
+      { transcript: String.fromCodePoint(0x645, 0x62d, 0x645, 0x64e, 0x651, 0x62f) },
+      String.fromCodePoint(0xfee3, 0xfea4, 0xfee4, 0xfc60, 0xfeaa),
+    ],
+    note: 'Text copied from a PDF: the isolated form of shadda with fatha, after a letter, is those marks on that letter.',
+  },
+  {
+    id: 'alignDictation/dc/halfwidth-hangul-jamo-are-the-letters-a-keyboard-types',
+    fn: 'alignDictation',
+    args: [
+      { transcript: String.fromCodePoint(0x3131, 0x314f) },
+      String.fromCodePoint(0xffa1, 0xffc2),
+    ],
+    note: 'A halfwidth jamo is the compatibility jamo of its name, not a conjoining jamo that would compose into a syllable.',
+  },
+  {
+    id: 'alignDictation/dc/a-latin-digraph-compares-as-its-letters',
+    fn: 'alignDictation',
+    args: [
+      { transcript: 'ljubav col·legi' },
+      `${String.fromCodePoint(0x1c9)}ubav co${String.fromCodePoint(0x140)}legi`,
+    ],
+  },
+  {
+    id: 'alignDictation/dc/a-circled-number-past-twenty-compares-as-its-digits',
+    fn: 'alignDictation',
+    args: [{ transcript: '21 50' }, String.fromCodePoint(0x3251, 0x20, 0x32bf)],
+  },
+  {
+    id: 'alignDictation/dc/the-fullwidth-tilde-is-the-wave-dash',
+    fn: 'alignDictation',
+    args: [
+      { transcript: `10時${String.fromCodePoint(0x301c)}12時` },
+      `10時${String.fromCodePoint(0xff5e)}12時`,
+    ],
+    note: 'Keyboards type either for the same key; both are the wave dash, punctuation, and removed.',
+  },
+  {
+    id: 'alignDictation/dc/an-arabic-number-sign-is-drawn-and-kept',
+    fn: 'alignDictation',
+    args: [
+      { transcript: String.fromCodePoint(0x600, 0x661, 0x662) },
+      String.fromCodePoint(0x661, 0x662),
+    ],
+    note: 'A prepended concatenation mark is a format character that is drawn: leaving it out costs an edit.',
+  },
+  {
+    id: 'alignDictation/dc/malayalam-nta-with-na-is-nta-with-chillu-n',
+    fn: 'alignDictation',
+    args: [
+      { transcript: String.fromCodePoint(0xd0e, 0xd7b, 0xd4d, 0xd31, 0xd46) },
+      String.fromCodePoint(0xd0e, 0xd28, 0xd4d, 0xd31, 0xd46),
+    ],
+  },
+  {
+    id: 'alignDictation/dc/thai-sara-am-parts-with-a-tone-mark-between-are-sara-am',
+    fn: 'alignDictation',
+    args: [
+      { transcript: String.fromCodePoint(0xe19, 0xe49, 0xe33, 0x20, 0xe99, 0xec9, 0xeb3) },
+      String.fromCodePoint(0xe19, 0xe4d, 0xe49, 0xe32, 0x20, 0xe99, 0xecd, 0xec9, 0xeb2),
+    ],
+    note: 'NIKHAHIT, the tone mark, SARA AA — the order that draws like the vowel — in Thai and in Lao.',
+  },
+  {
+    id: 'alignDictation/dc/marathi-eyelash-ra-with-rra-needs-no-joiner',
+    fn: 'alignDictation',
+    args: [
+      { transcript: String.fromCodePoint(0x926, 0x941, 0x938, 0x931, 0x94d, 0x92f, 0x93e) },
+      String.fromCodePoint(0x926, 0x941, 0x938, 0x931, 0x94d, 0x200d, 0x92f, 0x93e),
+    ],
+  },
+  {
+    id: 'alignDictation/dc/a-joiner-before-a-virama-is-spelling',
+    fn: 'alignDictation',
+    args: [
+      { transcript: String.fromCodePoint(0x9b0, 0x200d, 0x9cd, 0x9af, 0x9be, 0x9ac) },
+      String.fromCodePoint(0x9b0, 0x9cd, 0x9af, 0x9be, 0x9ac),
+    ],
+    note: 'The Bengali ya-phalaa after RA, asked for with a joiner before the virama, is not the RA with its reph.',
+  },
+  {
+    id: 'alignDictation/dc/a-repeated-joiner-is-one-joiner',
+    fn: 'alignDictation',
+    args: [
+      { transcript: String.fromCodePoint(0x645, 0x6cc, 0x200c, 0x62e, 0x648, 0x627, 0x647, 0x645) },
+      String.fromCodePoint(0x645, 0x6cc, 0x200c, 0x200c, 0x62e, 0x648, 0x627, 0x647, 0x645),
+    ],
+  },
+  {
+    id: 'alignDictation/dc/a-joiner-after-a-myanmar-asat-is-spelling',
+    fn: 'alignDictation',
+    args: [
+      { transcript: String.fromCodePoint(0x1000, 0x103a, 0x200c, 0x1000) },
+      String.fromCodePoint(0x1000, 0x103a, 0x1000),
+    ],
+    note: 'Every character of canonical combining class 9 is a virama, the Myanmar asat among them.',
+  },
+  {
+    id: 'alignDictation/dc/a-mandaic-half-space-is-spelling',
+    fn: 'alignDictation',
+    args: [
+      { transcript: String.fromCodePoint(0x841, 0x200c, 0x841) },
+      String.fromCodePoint(0x841, 0x841),
+    ],
+    note: 'Mandaic letters join, as Unicode 16 lists them: a non-joiner between two breaks the join.',
+  },
+  {
+    id: 'alignDictation/dc/a-non-joiner-after-a-small-farsi-yeh-is-invisible',
+    fn: 'alignDictation',
+    args: [
+      { transcript: String.fromCodePoint(0x628, 0x8c9, 0x628) },
+      String.fromCodePoint(0x628, 0x8c9, 0x200c, 0x628),
+    ],
+    note: 'U+08C9 joins nothing: a non-joiner after it changes nothing drawn.',
+  },
+  {
+    id: 'alignDictation/dc/a-vowel-separator-after-a-variation-selector-is-kept',
+    fn: 'alignDictation',
+    args: [
+      { transcript: String.fromCodePoint(0x182d, 0x1820, 0x1837, 0x180b, 0x180e, 0x1820) },
+      String.fromCodePoint(0x182d, 0x1820, 0x1837, 0x180b, 0x1820),
+    ],
+  },
+  {
+    id: 'alignDictation/dc/a-middle-dot-in-a-chinese-name-is-punctuation',
+    fn: 'alignDictation',
+    args: [{ transcript: '约翰·史密斯' }, `约翰${String.fromCodePoint(0x30fb)}史密斯`],
+  },
+  {
+    id: 'alignDictation/dc/a-thai-number-is-a-word',
+    fn: 'alignDictation',
+    args: [
+      { transcript: 'x', tolerance: rules([String.fromCodePoint(0xe50), 'x'], ['%', 'percent']) },
+      String.fromCodePoint(0xe51, 0xe50, 0xe50, 0x20, 0xe55, 0xe50, 0x25),
+    ],
+    note: 'A Thai digit is a word character of a spaced script, as an ASCII one is: a rule for zero leaves one hundred alone, and a rewrite is set apart from fifty.',
+  },
+  {
+    id: 'alignDictation/dc/the-space-after-a-rewrite-reads-the-rewrite-after-it',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x', tolerance: rules(['USD.', '$us']) }, 'USD.USD.'],
+    note: 'After the first rewrite comes the second, which starts with a symbol: nothing is set apart.',
+  },
+  {
+    id: 'alignDictation/dc/a-selector-after-the-last-mongolian-letter-is-kept',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x' }, String.fromCodePoint(0x18aa, 0x180b)],
+    note: 'U+18AA, the last Mongolian letter, carries a free variation selector.',
+  },
+  {
+    id: 'alignDictation/dc/a-vowel-separator-is-kept-after-each-selector-and-not-after-a-latin-letter',
+    fn: 'alignDictation',
+    args: [
+      { transcript: 'x' },
+      `${String.fromCodePoint(0x1820, 0x180d, 0x180e, 0x1820)} ${String.fromCodePoint(0x1820, 0x180f, 0x180e, 0x1820)} a${String.fromCodePoint(0x180e, 0x1820)}`,
+    ],
+    note: 'After the third and fourth free variation selectors the separator is kept; after a Latin letter it is removed.',
+  },
+  {
+    id: 'alignDictation/dc/a-half-space-is-read-across-the-marks-beside-it',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x' }, String.fromCodePoint(0x645, 0x650, 0x200c, 0x651, 0x647)],
+    note: 'The letters on either side are found past the combining marks between them and the non-joiner.',
+  },
+  {
+    id: 'alignDictation/dc/a-non-joiner-before-a-letter-that-joins-nothing-before-it-is-invisible',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x' }, String.fromCodePoint(0x628, 0x200c, 0x621)],
+    note: 'The hamza joins no letter, so the non-joiner before it breaks no join.',
+  },
+  {
+    id: 'alignDictation/dc/a-non-joiner-with-only-marks-after-it-is-invisible',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x' }, String.fromCodePoint(0x628, 0x200c, 0x650)],
+  },
+  {
+    id: 'alignDictation/dc/a-vowel-separator-before-a-space-is-invisible',
+    fn: 'alignDictation',
+    args: [
+      { transcript: 'x' },
+      `${String.fromCodePoint(0x1820, 0x180e)} ${String.fromCodePoint(0x1820)}`,
+    ],
+  },
+  {
+    id: 'alignDictation/dc/tag-characters-at-the-start-of-the-text-are-invisible',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x' }, `${String.fromCodePoint(0xe0067, 0xe0062)}ab`],
+  },
+  {
+    id: 'alignDictation/dc/a-tag-space-after-a-flag-is-kept',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x' }, String.fromCodePoint(0x1f3f4, 0xe0020, 0xe007f)],
+    note: 'U+E0020, the first tag character, is part of the run after U+1F3F4.',
+  },
+  {
+    id: 'alignDictation/dc/a-digit-ending-in-the-last-low-surrogate-keeps-a-rule-out-of-its-word',
+    fn: 'alignDictation',
+    args: [
+      { transcript: 'x', tolerance: rules(['a', 'x']) },
+      `${String.fromCodePoint(0x1d7ff)}a a`,
+    ],
+    note: 'U+1D7FF, a digit, is written D835 DFFF: read whole, it is a word character before the first "a".',
+  },
+  {
+    id: 'alignDictation/dc/rewrites-around-a-letter-are-set-apart-from-it',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x', tolerance: rules(['&', 'and']) }, '&a&b'],
+    note: 'The first rewrite ends at the second character; the letter after it, and the one after the next rewrite, are each set apart.',
+  },
+  {
+    id: 'alignDictation/dc/a-rewrite-at-the-start-is-set-apart-from-the-letter-after-it',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x', tolerance: rules(['&', 'and']) }, '&a'],
+  },
+  {
+    id: 'alignDictation/dc/truncated-only-after-normalisation',
+    fn: 'alignDictation',
+    args: [{ transcript: 'x', tolerance: rules(['&', '$$']) }, '&'.repeat(4001)],
+    note: 'The text typed is 4,001 code points and its working text 8,002, inside both bounds; the attempt is cut to 8,000 after normalisation, and that alone sets the flag.',
+  },
+  {
+    id: 'alignDictation/dc/a-lone-high-surrogate-pairs-only-with-a-low-one',
+    fn: 'alignDictation',
+    args: [
+      { transcript: 'x', tolerance: rules(['&', `x${BOLD_A_HIGH}`], ['a', 'y']) },
+      `&b& ${HIGH_FIRST}${E_GRAVE}a`,
+    ],
+    note: 'A lone high surrogate, in a rewrite or in the text, is U+FFFD whatever follows it: a symbol, which sets no rewrite apart and keeps no rule for "a" out of the word after it.',
+  },
+  {
+    id: 'alignDictation/dc/stale-accepted-transcripts-past-the-tenth-are-ignored',
+    fn: 'alignDictation',
+    args: [
+      {
+        transcript: 'zzz',
+        acceptedTranscripts: [...Array.from({ length: 10 }, (_, index) => `decoy${index}`), 'x'],
+      },
+      'x',
+    ],
+  },
+  {
+    id: 'alignDictation/dc/the-tenth-accepted-transcript-counts',
+    fn: 'alignDictation',
+    args: [
+      {
+        transcript: 'zzz',
+        acceptedTranscripts: [...Array.from({ length: 9 }, (_, index) => `decoy${index}`), 'x'],
+      },
+      'x',
+    ],
+  },
+  {
+    id: 'alignDictation/dc/stale-transcript-past-the-cap-is-cut-before-normalising',
+    fn: 'alignDictation',
+    args: [{ transcript: `${'x'.repeat(1999)} a` }, 'x'.repeat(1999)],
+    note: 'Cut at 2000 before normalising, the transcript ends at the space and normalises to 1999 letters; cut only afterwards it would keep a trailing space.',
+  },
+  {
+    id: 'score/dc/pass-threshold/exact-70',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ transcript: 'a'.repeat(10) }),
+      typed(`${'a'.repeat(7)}${'b'.repeat(3)}`),
+    ],
+  },
+  {
+    id: 'score/dc/pass-threshold/authored-exact-tie',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ transcript: 'a'.repeat(100), passThreshold: 0.67 }),
+      typed(`${'a'.repeat(67)}${'b'.repeat(33)}`),
+    ],
+    note: 'Similarity is (max - d) / max, one division: 67/100 is exactly 0.67 and passes. 1 - 33/100 would be 0.6699999999999999 and fail.',
+  },
+  {
+    id: 'score/dc/pass-threshold/raw-tie-2003-fails',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: TIE_TRANSCRIPT }), typed(TIE_ATTEMPT)],
+    note: 'Raw 0.69995… is below 0.7: a fail by default, though it displays as 70%.',
+  },
+  {
+    id: 'score/dc/pass-threshold/raw-tie-2003-rounded-passes',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({ transcript: TIE_TRANSCRIPT }),
+      typed(TIE_ATTEMPT),
+      { rounding: { mode: 'half-up', dp: 2 } },
+    ],
+    note: 'The same attempt with the opt-in rounding option: compared as displayed, it passes.',
+  },
+  {
+    id: 'score/mc/pass-threshold/rounded-option-does-not-move-a-clear-pass',
+    fn: 'score',
+    args: ['multiple-choice', mc(), pick('a', 'c'), { rounding: { mode: 'half-up', dp: 2 } }],
+    note: 'Control: the options parameter changes nothing where the score is not in the rounding band.',
+  },
+  {
+    id: 'score/dc/pass-threshold/authored',
+    fn: 'score',
+    args: ['dictation', dc({ passThreshold: 0.95 }), typed("It isn't raining in Lisbom today.")],
+  },
+  {
+    id: 'score/dc/hints-revealed-ignored',
+    fn: 'score',
+    args: ['dictation', dc(), typed("It isn't raining in Lisbon today.", 6)],
+  },
+  {
+    id: 'score/dc/word-alignment/tail-first-diagonal-tie',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: 'the cat sat' }), typed('thecat sat')],
+    note: 'The pairing is backtracked from the end preferring a pair: "the" is missing and "cat" pairs with "thecat".',
+  },
+  {
+    id: 'score/dc/word-alignment/missing-vs-extra-tie',
+    fn: 'score',
+    args: ['dictation', dc({ transcript: 'the cat the' }), typed('cat the cat')],
+    note: 'A missing transcript word is preferred to an extra typed word when both cost the same: w3 is the omission, the leading "cat" the extra.',
+  },
+  {
+    id: 'score/dc/long-paragraph-three-typos',
+    fn: 'score',
+    args: [
+      'dictation',
+      dc({
+        transcript:
+          'Yesterday the class visited the old harbour, where a guide explained how the tide reshapes the sandbanks twice a day and why the fishing boats leave before dawn.',
+      }),
+      typed(
+        'Yesterday the class visited the old harbor, where a guide explaned how the tide reshapes the sandbanks twice a day and why the fishing boats leaves before dawn.',
+      ),
+    ],
+  },
+  {
+    id: 'evaluate/dc/scored',
+    fn: 'evaluate',
+    args: [dc(), typed("It isn't raining in Lisbon today.")],
+  },
+  {
+    id: 'evaluate/dc/redacted-unscorable',
+    fn: 'evaluate',
+    args: [
+      {
+        redacted: true,
+        schemaVersion: '1.0',
+        type: 'dictation',
+        id: 'dc-lisbon',
+        title: 'Listen and type the sentence',
+        media: { type: 'audio', url: 'https://cdn.example/lisbon.mp3', alt: 'Recording' },
+      },
+      typed('anything'),
+    ],
+    ignore: ['reason'],
+  },
+  {
+    id: 'alignDictation/dc/extra-word-position',
+    fn: 'alignDictation',
+    args: [{ transcript: 'the cat sat' }, 'the big cat sat'],
+  },
+  {
+    id: 'alignDictation/dc/missing-and-substituted',
+    fn: 'alignDictation',
+    args: [{ transcript: 'the cat sat on the mat' }, 'the cat sit on mat'],
+  },
+  {
+    id: 'alignDictation/dc/transcript-absent-yields-empty',
+    fn: 'alignDictation',
+    args: [{}, 'anything at all'],
+    note: 'A redacted projection has no transcript: candidateIndex -1, no words, similarity 0, no throw.',
+  },
+  {
+    id: 'diffDictationChars/dc/char-ops-tie-order',
+    fn: 'diffDictationChars',
+    args: ['ab', 'ba'],
+    note: 'Two substitutions, not a deletion and an insertion: a pair is preferred to a gap.',
+  },
+  {
+    id: 'diffDictationChars/dc/char-ops-missing-vs-extra-tie',
+    fn: 'diffDictationChars',
+    args: ['aaba', 'abab'],
+    note: 'Where a missing and an extra character cost the same, the missing one comes first from the end.',
+  },
+  {
+    id: 'diffDictationChars/dc/astral-one-op',
+    fn: 'diffDictationChars',
+    args: [GRINNING_FACE, SMILING_FACE],
+  },
+  {
+    id: 'dictationReferenceWords/dc/two-candidates',
+    fn: 'dictationReferenceWords',
+    args: [
+      { transcript: 'The colour of the sky.', acceptedTranscripts: ['The color of the sky.'] },
+    ],
+  },
+  { id: 'const/DICTATION_MAX_TRANSCRIPT_LENGTH', const: 'DICTATION_MAX_TRANSCRIPT_LENGTH' },
+  { id: 'const/DICTATION_MAX_TEXT_LENGTH', const: 'DICTATION_MAX_TEXT_LENGTH' },
+  { id: 'const/DICTATION_MAX_EQUIVALENCE_LENGTH', const: 'DICTATION_MAX_EQUIVALENCE_LENGTH' },
+  { id: 'const/DICTATION_MAX_EQUIVALENCES', const: 'DICTATION_MAX_EQUIVALENCES' },
+  {
+    id: 'const/DICTATION_MAX_ACCEPTED_TRANSCRIPTS',
+    const: 'DICTATION_MAX_ACCEPTED_TRANSCRIPTS',
   },
 ];

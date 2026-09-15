@@ -1,5 +1,5 @@
 import { z } from 'zod/v4';
-import { RedactedMediaSchema } from './media.js';
+import { MediaUrlSchema, RedactedMediaSchema } from './media.js';
 import { RedactedWrittenResponseRubricSchema } from './written-response.js';
 
 /**
@@ -142,6 +142,63 @@ export const RedactedWrittenResponseDataSchema = z.strictObject({
   languageTarget: z.string().optional(),
 });
 
+/** A redacted slow recording: unchanged — it is public, and it never carried captions or a policy. */
+export const RedactedDictationSlowMediaSchema = z.strictObject({
+  type: z.literal('audio'),
+  url: MediaUrlSchema,
+  alt: z.string().min(1).optional(),
+});
+
+/**
+ * Redacted Dictation data: the recording(s) and the hint mode survive; the
+ * transcript, the accepted alternatives and the tolerance — the whole answer
+ * key — do not. A `progressive-words` hint mode reveals nothing by itself: the
+ * words it would reveal are the transcript, and that is gone.
+ *
+ * Three rules of the content schema are repeated here, because a projection
+ * built by hand never passed through it: captions on the recording ARE the
+ * answer, so a payload carrying them is not learner-safe; a slow recording
+ * beside a play budget is an unbudgeted copy of the budgeted content; and so is
+ * a slow recording with no recording beside it, which in a group sits beside a
+ * stimulus recording that may be budgeted.
+ */
+export const RedactedDictationDataSchema = z
+  .strictObject({
+    ...redactedBase,
+    type: z.literal('dictation'),
+    slowMedia: RedactedDictationSlowMediaSchema.optional(),
+    hints: z.strictObject({ mode: z.literal('progressive-words') }).optional(),
+  })
+  .check((ctx) => {
+    const data = ctx.value;
+    if (data.media?.captionsUrl !== undefined) {
+      ctx.issues.push({
+        code: 'custom',
+        input: data.media.captionsUrl,
+        message:
+          'A dictation recording cannot carry captions: the captions are the answer, so this payload is not learner-safe.',
+        path: ['media', 'captionsUrl'],
+      });
+    }
+    if (data.slowMedia !== undefined && data.media?.playback?.maxPlays !== undefined) {
+      ctx.issues.push({
+        code: 'custom',
+        input: data.slowMedia,
+        message:
+          'A play budget on `media` cannot coexist with an unbudgeted slow recording of the same content.',
+        path: ['slowMedia'],
+      });
+    }
+    if (data.slowMedia !== undefined && data.media === undefined) {
+      ctx.issues.push({
+        code: 'custom',
+        input: data.slowMedia,
+        message: 'A slow recording accompanies a recording: this payload has no `media`.',
+        path: ['media'],
+      });
+    }
+  });
+
 /**
  * The learner-safe SHAPE of each built-in type, derived from the strict schema
  * above rather than hand-written beside it.
@@ -178,6 +235,10 @@ export type RedactedGapSelectBank = z.infer<typeof RedactedGapSelectBankSchema>;
 export type RedactedGapSelectGap = z.infer<typeof RedactedGapSelectGapSchema>;
 /** A Gap Select item the learner can still answer: choices intact, answer key gone. */
 export type RedactedGapSelectData = z.infer<typeof RedactedGapSelectDataSchema>;
+/** The slower recording of a dictation, unchanged by redaction. */
+export type RedactedDictationSlowMedia = z.infer<typeof RedactedDictationSlowMediaSchema>;
+/** A Dictation item with its transcript, accepted alternatives and tolerances removed. */
+export type RedactedDictationData = z.infer<typeof RedactedDictationDataSchema>;
 
 /**
  * Discriminated union of every built-in redacted activity. Narrow it on
@@ -195,4 +256,5 @@ export type RedactedActivity =
   | RedactedMultipleChoiceData
   | RedactedFillInTheBlanksData
   | RedactedWrittenResponseData
-  | RedactedGapSelectData;
+  | RedactedGapSelectData
+  | RedactedDictationData;

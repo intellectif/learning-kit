@@ -152,8 +152,10 @@ export interface ActivityProps<TData extends ActivityData = ActivityData> {
    * a different one re-declares the language of every SDK string in this
    * subtree without changing the words.
    *
-   * It is NOT `data.locale`, which labels xAPI statements only. Authored
-   * content in another language belongs on `stimulus.locale`, which
+   * It is NOT `data.locale`, which labels xAPI statements — and, on a
+   * dictation, places the dictation's own words: `<Dictation>` puts it, and
+   * the direction it names, on its title, hints, marks and solution. Other
+   * authored content in another language belongs on `stimulus.locale`, which
    * `<StimulusPanel>` puts on the passage alone.
    */
   locale?: string;
@@ -215,10 +217,11 @@ export function asRenderable<TData extends ActivityData>(
  * ```
  *
  * Pass `renderMode="exam"` (or `"review"`). Redacted data has no answer key, and
- * all three built-in activities throw at render in the default `practice` mode
- * rather than fail later: `<MultipleChoice>` and `<FillInTheBlanks>` because
- * they grade locally, and `<WrittenResponse>` because `practice` still runs its
- * local submit path and emits a practice-mode xAPI statement.
+ * every built-in activity throws at render in the default `practice` mode
+ * rather than fail later: `<MultipleChoice>`, `<FillInTheBlanks>`,
+ * `<GapSelect>` and `<Dictation>` because they grade locally, and
+ * `<WrittenResponse>` because `practice` still runs its local submit path and
+ * emits a practice-mode xAPI statement.
  */
 export function asRenderableSequence(
   entries: readonly (RedactedActivityData | RedactedItemGroupData)[],

@@ -1,5 +1,6 @@
 export * from './components/ActivityPreview/index.js';
 export * from './components/ActivitySequence/index.js';
+export * from './components/Dictation/index.js';
 export * from './components/FillInTheBlanks/index.js';
 export * from './components/GapSelect/index.js';
 export * from './components/MultipleChoice/index.js';

@@ -872,3 +872,457 @@
     }
   }
 }
+
+/*
+ * Shared utility: content for assistive technology only. The dictation's
+ * marked words carry one hidden sentence each ("“cta” should be “cat”"),
+ * because the glyphs and character marks beside them are decoration a screen
+ * reader must not spell out. Not `display: none`, which would hide it from
+ * assistive technology too.
+ */
+@layer lk-skin {
+  .lk-visually-hidden {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+/*
+ * Dictation: two recordings, a box to type in, and a word-by-word marked
+ * result. The marks are never colour alone — each of the four states has a
+ * text decoration and a glyph, for words AND for the character-level marks,
+ * and the legend explains both with the same vocabulary. Logical properties
+ * throughout: an Arabic dictation inside a Spanish interface reads correctly.
+ */
+@layer lk-skin {
+  .lk-dc {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-md);
+    font-family: var(--lk-font-family-base);
+    font-size: var(--lk-font-size-base);
+    line-height: var(--lk-line-height-base);
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    padding: var(--lk-spacing-lg);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-lg);
+  }
+
+  .lk-dc * {
+    box-sizing: border-box;
+  }
+
+  .lk-dc fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-inline-size: 0;
+  }
+
+  .lk-dc-title {
+    margin: 0;
+    font-size: var(--lk-font-size-lg);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  /* ── Recordings ────────────────────────────────────────────────────── */
+  .lk-dc-recordings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-sm);
+  }
+
+  .lk-dc-recording-label {
+    padding: 0;
+    margin-block-end: var(--lk-spacing-xs);
+    font-size: var(--lk-font-size-sm);
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-dc-recording .lk-media {
+    margin: 0;
+  }
+
+  /* ── Progressive hints ─────────────────────────────────────────────── */
+  .lk-dc-hints {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--lk-spacing-sm);
+  }
+
+  .lk-dc-hint-btn,
+  .lk-dc-hint-reset,
+  .lk-dc-solution-toggle {
+    padding: var(--lk-spacing-xs) var(--lk-spacing-md);
+    font: inherit;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    cursor: pointer;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-dc-hint-btn:hover:not(:disabled):not([aria-disabled="true"]),
+  .lk-dc-hint-reset:hover:not(:disabled),
+  .lk-dc-solution-toggle:hover {
+    border-color: var(--lk-color-primary);
+  }
+
+  /* Every word shown: aria-disabled rather than disabled, so focus stays. */
+  .lk-dc-hint-btn:disabled,
+  .lk-dc-hint-btn[aria-disabled="true"],
+  .lk-dc-hint-reset:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .lk-dc-hint {
+    flex: 1 0 100%;
+    margin: 0;
+    padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    border-inline-start: 3px solid var(--lk-color-primary);
+    background: var(--lk-color-surface-raised);
+    animation: lk-dc-reveal var(--lk-transition-fast);
+  }
+
+  .lk-dc-hint:empty {
+    display: none;
+  }
+
+  @keyframes lk-dc-reveal {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* ── The answer box ────────────────────────────────────────────────── */
+  .lk-dc-input {
+    display: block;
+    inline-size: 100%;
+    padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    background: var(--lk-color-surface);
+    color: var(--lk-color-text);
+    font-family: var(--lk-font-family-base);
+    font-size: var(--lk-font-size-base);
+    line-height: 1.5;
+    resize: vertical;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-dc-input:disabled {
+    opacity: 1;
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface-raised);
+  }
+
+  /* `data-correct` carries the pass state of the whole answer once it is marked. */
+  .lk-dc-input[data-correct="true"] {
+    border-color: var(--lk-color-success);
+    box-shadow: inset 0 0 0 1px var(--lk-color-success);
+  }
+
+  .lk-dc-input[data-correct="false"] {
+    border-color: var(--lk-color-error);
+    box-shadow: inset 0 0 0 1px var(--lk-color-error);
+  }
+
+  .lk-dc button[type="submit"] {
+    margin-block-start: var(--lk-spacing-md);
+    padding: var(--lk-spacing-sm) var(--lk-spacing-lg);
+    font: inherit;
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-surface);
+    background: var(--lk-color-primary);
+    border: 0;
+    border-radius: var(--lk-radius-base);
+    cursor: pointer;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-dc button[type="submit"]:hover:not(:disabled) {
+    background: var(--lk-color-primary-hover);
+  }
+
+  .lk-dc button[type="submit"]:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  /* ── The marked result ─────────────────────────────────────────────── */
+  .lk-dc-result {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-sm);
+    padding: var(--lk-spacing-md);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    background: var(--lk-color-surface-raised);
+  }
+
+  .lk-dc-nothing {
+    margin: 0;
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-dc-words,
+  .lk-dc-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lk-dc-word {
+    /* The hidden sentence is positioned against the word it describes. */
+    position: relative;
+    font-size: var(--lk-font-size-lg);
+  }
+
+  .lk-dc-word-text {
+    display: inline-block;
+    padding: 0 var(--lk-spacing-xs);
+    border-radius: var(--lk-radius-sm);
+  }
+
+  .lk-dc-legend {
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-dc-legend li {
+    padding: 0 var(--lk-spacing-xs);
+  }
+
+  /* One glyph per state, declared decorative: the translatable announcement
+     is the component's hidden sentence, not the stylesheet's. */
+  .lk-dc-word-text::before,
+  .lk-dc-legend li[data-state]::before {
+    margin-inline-end: 0.3em;
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-dc-word[data-state="correct"] .lk-dc-word-text::before,
+  .lk-dc-legend li[data-state="correct"]::before {
+    content: "✓" / "";
+    color: var(--lk-color-success);
+  }
+
+  .lk-dc-word[data-state="incorrect"] .lk-dc-word-text::before,
+  .lk-dc-legend li[data-state="incorrect"]::before {
+    content: "✗" / "";
+    color: var(--lk-color-error);
+  }
+
+  .lk-dc-word[data-state="missing"] .lk-dc-word-text::before,
+  .lk-dc-legend li[data-state="missing"]::before {
+    content: "∅" / "";
+    color: var(--lk-color-warning);
+  }
+
+  .lk-dc-word[data-state="extra"] .lk-dc-word-text::before,
+  .lk-dc-legend li[data-state="extra"]::before {
+    content: "+" / "";
+    color: var(--lk-color-text-muted);
+  }
+
+  /* The same decoration for a word, for its legend row, and for a character
+     mark inside a wrong word or in the sentence diff — one vocabulary. */
+  .lk-dc-word[data-state="correct"] .lk-dc-word-text,
+  .lk-dc-op[data-op="equal"] {
+    text-decoration: none;
+  }
+
+  .lk-dc-word[data-state="incorrect"] .lk-dc-word-text,
+  .lk-dc-legend li[data-state="incorrect"],
+  .lk-dc-op[data-op="substitute"] {
+    text-decoration: underline wavy;
+    text-decoration-color: var(--lk-color-error);
+    text-underline-offset: 0.2em;
+    /* Drawn through every glyph: skipping ink would break the underline around
+       a descender, a stacked consonant or a subjoined letter — exactly where a
+       wrong character can have nothing else to mark it. */
+    text-decoration-skip-ink: none;
+    color: var(--lk-color-error);
+  }
+
+  .lk-dc-word[data-state="missing"] .lk-dc-word-text,
+  .lk-dc-legend li[data-state="missing"],
+  .lk-dc-op[data-op="missing"] {
+    outline: 1px dotted var(--lk-color-warning);
+    outline-offset: 1px;
+    color: var(--lk-color-warning);
+  }
+
+  .lk-dc-word[data-state="extra"] .lk-dc-word-text,
+  .lk-dc-legend li[data-state="extra"],
+  .lk-dc-op[data-op="extra"] {
+    text-decoration: line-through;
+    text-decoration-color: var(--lk-color-text-muted);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-dc-word[data-state="correct"] .lk-dc-word-text,
+  .lk-dc-legend li[data-state="correct"] {
+    color: var(--lk-color-success);
+  }
+
+  /* A wrong word is shown as its character marks, so its own colour steps
+     back and each mark carries its own. */
+  .lk-dc-word[data-state="incorrect"] .lk-dc-word-text {
+    color: var(--lk-color-text);
+  }
+
+  /* Drawn as its character marks, a wrong word carries no underline of its
+     own: it would run under the right characters as well, and the wrong ones
+     would then differ from them by colour alone — and not at all in forced
+     colours. A wrong word rebuilt from stored details has no marks, and keeps
+     its underline. */
+  .lk-dc-word[data-state="incorrect"] .lk-dc-word-text[data-marks="characters"] {
+    text-decoration: none;
+  }
+
+  /* Inline, never inline-block: a text decoration is not drawn through an
+     atomic inline box, so an inline-block op would hide the wrong word's wavy
+     underline behind its own characters. */
+  .lk-dc-op {
+    display: inline;
+  }
+
+  /* No common ligatures in a run of Latin, Greek or Cyrillic letters marked
+     one by one: a font's "fi" draws two characters as one glyph, and the second
+     one's mark would have no width to be painted on. Only there — the component
+     marks such runs with data-ligatures="decorative" — because other scripts'
+     fonts build required forms from the same feature: Tai Tham stacks its
+     consonants with it, and without it a correct word is drawn wrong. A
+     ligature a script requires, such as the Arabic lam-alef, is left to the
+     font, and the component marks it as one cluster. */
+  .lk-dc-op[data-ligatures="decorative"] {
+    font-variant-ligatures: no-common-ligatures;
+  }
+
+  .lk-dc-op[data-op="missing"] {
+    /* The bullet stands where the character should have been. */
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-dc-diff {
+    margin: 0;
+    padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    border-radius: var(--lk-radius-sm);
+    background: var(--lk-color-surface);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.8;
+  }
+
+  .lk-dc-diff-note {
+    margin: 0;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-dc-solution-toggle {
+    align-self: flex-start;
+  }
+
+  .lk-dc-solution {
+    margin: 0;
+    padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+    border-inline-start: 3px solid var(--lk-color-success);
+    background: var(--lk-color-surface);
+  }
+
+  .lk-dc-solution p {
+    margin: 0;
+  }
+
+  .lk-dc-solution-alternatives {
+    margin: var(--lk-spacing-xs) 0 0;
+    padding-inline-start: var(--lk-spacing-lg);
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-dc :focus-visible {
+    outline: 2px solid var(--lk-color-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .lk-dc > [aria-live] {
+    color: var(--lk-color-text-muted);
+    font-size: var(--lk-font-size-sm);
+  }
+
+  /* ── Reduced motion (WCAG 2.3.3) ─────────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    .lk-dc *,
+    .lk-dc-hint {
+      transition: none;
+      animation: none;
+    }
+  }
+
+  /* ── Forced colours (Windows High Contrast) ─────────────────────────────
+     The system palette replaces every colour above; what must survive is the
+     shape of each mark. The decorations are restated in `CanvasText` so the
+     four states stay distinguishable by underline, outline, strike and
+     glyph, and the bullet that stands in for a missing character stays
+     visible. */
+  @media (forced-colors: active) {
+    .lk-dc-word-text::before,
+    .lk-dc-legend li[data-state]::before,
+    .lk-dc-op[data-op="missing"] {
+      color: CanvasText;
+    }
+
+    .lk-dc-word[data-state="incorrect"] .lk-dc-word-text,
+    .lk-dc-legend li[data-state="incorrect"],
+    .lk-dc-op[data-op="substitute"] {
+      text-decoration: underline wavy;
+      text-decoration-color: CanvasText;
+      text-decoration-skip-ink: none;
+    }
+
+    .lk-dc-word[data-state="missing"] .lk-dc-word-text,
+    .lk-dc-legend li[data-state="missing"],
+    .lk-dc-op[data-op="missing"] {
+      outline: 1px dotted CanvasText;
+    }
+
+    .lk-dc-word[data-state="extra"] .lk-dc-word-text,
+    .lk-dc-legend li[data-state="extra"],
+    .lk-dc-op[data-op="extra"] {
+      text-decoration: line-through;
+      text-decoration-color: CanvasText;
+    }
+
+    .lk-dc-input[data-correct],
+    .lk-dc-solution,
+    .lk-dc-hint {
+      forced-color-adjust: none;
+      border-color: CanvasText;
+      color: CanvasText;
+      background: Canvas;
+    }
+  }
+}
