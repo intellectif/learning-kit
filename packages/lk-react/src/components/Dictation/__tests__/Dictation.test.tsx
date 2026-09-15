@@ -1,4 +1,10 @@
-import { type DictationData, evaluate, type ItemOutcome, redact } from '@intellectif/lk-core';
+import {
+  type DictationData,
+  diffDictationChars,
+  evaluate,
+  type ItemOutcome,
+  redact,
+} from '@intellectif/lk-core';
 import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { hydrateRoot, type Root } from 'react-dom/client';
@@ -6,8 +12,10 @@ import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { checkA11y } from '../../../test-support/a11y.js';
 import { stubMediaElement } from '../../../test-support/media.js';
+import { repeatedly, slowdown } from '../../../test-support/timing.js';
 import { ActivityPreview } from '../../ActivityPreview/index.js';
 import { ActivitySequence } from '../../ActivitySequence/index.js';
+import { bulletDirections } from '../Dictation.js';
 import { Dictation } from '../index.js';
 
 afterEach(cleanup);
@@ -1133,20 +1141,21 @@ describe('<Dictation> marks in every script', () => {
     expect(ops).toContainEqual([cp(0x1a20, 0x1a60, 0x1a27, 0x1a63), null]);
   });
 
-  it('draws the bullets of a long word in linear time', () => {
-    const item: DictationData = { ...data, transcript: cp(0x1f600).repeat(2000) };
-    const value = { type: 'dictation', text: 'x' } as const;
-    const started = performance.now();
-    render(
-      <Dictation
-        data={item}
-        renderMode="review"
-        defaultValue={value}
-        outcome={evaluate(item, value)}
-      />,
-    );
-    // A search per bullet through every character took most of a second here.
-    expect(performance.now() - started).toBeLessThan(400);
+  it('works out the bullets of a long word in linear time', () => {
+    const emoji = cp(0x1f600);
+    const word = diffDictationChars(emoji.repeat(2000), 'x');
+    const eighth = diffDictationChars(emoji.repeat(250), 'x');
+    expect(bulletDirections(word, undefined).size).toBe(1999);
+    // Timed apart from drawing, whose cost would hide it. The same 2,000
+    // missing emoji as one word and as eight: a search per bullet through every
+    // character of its word makes the one word about eight times slower than
+    // the eight. Twenty of each, to be long enough to time.
+    expect(
+      slowdown(
+        repeatedly(20, () => bulletDirections(word, undefined)),
+        repeatedly(160, () => bulletDirections(eighth, undefined)),
+      ),
+    ).toBeLessThan(3);
   });
 
   it.each<[string, string, string, string, string]>([

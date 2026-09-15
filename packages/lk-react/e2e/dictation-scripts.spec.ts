@@ -406,11 +406,26 @@ test('a Central Kurdish dictation lays its words out right to left', async ({ pa
     0x6d5,
   )}`;
   await show(page, reviewOf(sorani, `${sorani} x`, 'ckb'));
-  const xs = await page.evaluate(() =>
-    [...document.querySelectorAll('.lk-dc-word')].map((word) => word.getBoundingClientRect().left),
+  const boxes = await page.evaluate(() =>
+    [...document.querySelectorAll('.lk-dc-word')].map((word) => {
+      const { left, top, bottom } = word.getBoundingClientRect();
+      return { left, top, bottom };
+    }),
   );
-  expect(xs.length).toBeGreaterThan(2);
-  for (let index = 1; index < xs.length; index += 1) {
-    expect(xs[index] as number).toBeLessThan(xs[index - 1] as number);
+  expect(boxes.length).toBeGreaterThan(2);
+  // Right to left is leftwards along a line. Where the platform's fonts draw
+  // the words wider than the box they wrap, and each line starts again at the
+  // right edge, so a word on the next line is below, not to the left.
+  let leftwards = 0;
+  for (let index = 1; index < boxes.length; index += 1) {
+    const before = boxes[index - 1] as (typeof boxes)[number];
+    const word = boxes[index] as (typeof boxes)[number];
+    if (word.top < before.bottom && before.top < word.bottom) {
+      expect(word.left).toBeLessThan(before.left);
+      leftwards += 1;
+    } else {
+      expect(word.top).toBeGreaterThanOrEqual(before.bottom);
+    }
   }
+  expect(leftwards).toBeGreaterThanOrEqual(2);
 });

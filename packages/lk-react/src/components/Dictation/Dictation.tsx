@@ -352,7 +352,7 @@ function isArabicLetter(character: string | undefined): boolean {
  * algorithm would otherwise attach to the wrong side of a number or a word of
  * the other direction.
  */
-function bulletDirections(
+export function bulletDirections(
   ops: readonly DictationCharOp[],
   contentDir: 'ltr' | 'rtl' | undefined,
 ): Map<number, 'ltr' | 'rtl' | undefined> {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { repeatedly, slowdown } from '../../__tests__/timing.js';
 import { validateDraft, validateItemGroupDraft } from '../../authoring/index.js';
 import { dictationType } from '../../registry/index.js';
 import { validateActivity, validateItemGroup } from '../../schemas/index.js';
@@ -237,10 +238,12 @@ describe('dictation — bounded on any input', () => {
   });
 
   it('checks a draft with many malformed rules in linear time', () => {
-    const started = performance.now();
-    validateDraft('dictation', item({ tolerance: { equivalences: Array(20000).fill(5) } }));
-    // Quadratic matching took seconds here; linear matching takes a fraction of one.
-    expect(performance.now() - started).toBeLessThan(2000);
+    const malformed = (count: number) => () =>
+      validateDraft('dictation', item({ tolerance: { equivalences: Array(count).fill(5) } }));
+    // 20,000 malformed rules in one draft and in eight drafts of 2,500: work
+    // that grows with the square of the rules makes the one draft about eight
+    // times slower than the eight together; linear work makes it no slower.
+    expect(slowdown(malformed(20_000), repeatedly(8, malformed(2_500)))).toBeLessThan(3);
   });
 
   it.each<[string, string, string]>([
@@ -401,15 +404,18 @@ describe('dictation — bounded on any input', () => {
 
   it('checks at most ten accepted transcripts in a draft, however many are pasted', () => {
     const title = 'x'.repeat(16_000);
-    const data = item({
-      title,
-      media: { type: 'audio', url: '/a.mp3', alt: title },
-      acceptedTranscripts: Array.from({ length: 50_000 }, (_, index) => `entry number ${index}`),
-    });
-    const started = performance.now();
-    const issues = draftIssues(data);
-    expect(performance.now() - started).toBeLessThan(1500);
-    expect(issues).toEqual([['dc_accepted_transcripts_too_many', 'acceptedTranscripts']]);
+    const pasted = (count: number) => () =>
+      draftIssues(
+        item({
+          title,
+          media: { type: 'audio', url: '/a.mp3', alt: title },
+          acceptedTranscripts: Array.from({ length: count }, (_, index) => `entry number ${index}`),
+        }),
+      );
+    expect(pasted(50_000)()).toEqual([['dc_accepted_transcripts_too_many', 'acceptedTranscripts']]);
+    // Reading a list of 50,000 costs a few times what reading eleven does;
+    // measuring every entry and searching the title for it would cost thousands.
+    expect(slowdown(pasted(50_000), pasted(11))).toBeLessThan(50);
     // Past the cap, an empty entry is still named: the schema refuses it there too.
     const withEmpty = item({
       acceptedTranscripts: [...Array.from({ length: 20 }, (_, index) => `entry ${index}`), ''],
@@ -441,12 +447,18 @@ describe('dictation — bounded on any input', () => {
   });
 
   it('checks a flag with a tag run as long as a title may be in linear time', () => {
-    const flag = `${String.fromCodePoint(0x1f3f4)}${String.fromCodePoint(0xe0067).repeat(15_999)}`;
-    const data = item({ title: flag, media: { type: 'audio', url: '/a.mp3', alt: flag } });
-    const started = performance.now();
-    expect(validateActivity('dictation', data).success).toBe(true);
-    // A walk back over every earlier tag, per tag, took seconds here.
-    expect(performance.now() - started).toBeLessThan(1000);
+    const flagged = (tags: number) => () => {
+      const flag = `${String.fromCodePoint(0x1f3f4)}${String.fromCodePoint(0xe0067).repeat(tags)}`;
+      const data = item({ title: flag, media: { type: 'audio', url: '/a.mp3', alt: flag } });
+      return validateActivity('dictation', data).success;
+    };
+    expect(flagged(15_999)()).toBe(true);
+    // The same 16,000 characters as one flag and as eight, each twice over to be
+    // long enough to time: a walk back over every earlier tag, per tag, makes
+    // the one flag about eight times slower.
+    expect(slowdown(repeatedly(2, flagged(15_999)), repeatedly(16, flagged(1_999)))).toBeLessThan(
+      3,
+    );
   });
 
   it('runs no guard on a field zod left out for a refusal inside it', () => {
@@ -472,30 +484,36 @@ describe('dictation — bounded on any input', () => {
 
   it('finds a transcript in linear time, however a title repeats it', () => {
     const letter = (index: number) => String.fromCharCode(97 + (index % 26));
-    const heavy = (index: number) => {
+    // Each half of a title is `size` letters, and each half of a transcript an eighth of that.
+    const heavy = (index: number, size: number) => {
       const l = letter(index);
+      const eighth = size / 8;
       return item({
         id: `dc-${index}`,
-        title: `${l.repeat(8000)}.${l.repeat(7999 - (index % 10))}`,
-        transcript: `${l.repeat(1000 - (index % 40))}.${l.repeat(999)}`,
+        title: `${l.repeat(size)}.${l.repeat(size - 1 - (index % 10))}`,
+        transcript: `${l.repeat(eighth - (index % 40))}.${l.repeat(eighth - 1)}`,
         acceptedTranscripts: Array.from(
           { length: 10 },
-          (_, k) => `${l.repeat(999 - (index % 40) - k)}.${l.repeat(999)}`,
+          (_, k) => `${l.repeat(eighth - 1 - (index % 40) - k)}.${l.repeat(eighth - 1)}`,
         ),
-        media: { type: 'audio', url: '/a.mp3', alt: `${l.repeat(8000)}.${l.repeat(7998)}` },
+        media: { type: 'audio', url: '/a.mp3', alt: `${l.repeat(size)}.${l.repeat(size - 2)}` },
       });
     };
-    const group = {
-      schemaVersion: '1.0',
-      type: 'item-group',
-      id: 'group',
-      stimulus: { id: 'stimulus', kind: 'text', body: 'Read this.' },
-      items: Array.from({ length: 10 }, (_, index) => heavy(index)),
-    };
-    const started = performance.now();
-    expect(validateItemGroupDraft(group).status).toBe('complete');
-    // A search that restarted after every rejected occurrence took twenty seconds here.
-    expect(performance.now() - started).toBeLessThan(3000);
+    // Each group is checked as it is timed: complete, since no title gives its transcript away.
+    const group = (size: number) => () =>
+      expect(
+        validateItemGroupDraft({
+          schemaVersion: '1.0',
+          type: 'item-group',
+          id: 'group',
+          stimulus: { id: 'stimulus', kind: 'text', body: 'Read this.' },
+          items: Array.from({ length: 5 }, (_, index) => heavy(index, size)),
+        }).status,
+      ).toBe('complete');
+    // The same text as one group with titles of 16,000 characters and as eight
+    // groups with titles of 2,000: a search that restarted after every rejected
+    // occurrence makes the one group about eight times slower than the eight.
+    expect(slowdown(group(8000), repeatedly(8, group(1000)))).toBeLessThan(3);
   });
 
   it('refuses a title or description too long to be searched in full, raw or once its rules apply', () => {

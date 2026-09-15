@@ -1,5 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { repeatedly, slowdown } from '../../__tests__/timing.js';
 import { validateActivity } from '../../schemas/index.js';
 import { normalizeDictationText, preStripNormalize } from '../dictation/normalize.js';
 import { alignDictation } from '../index.js';
@@ -248,9 +249,17 @@ describe('dictation normalisation reads one spelling as Unicode does', () => {
       `${ga}${a}${cp(0x1837)}${FVS1}${MVS}${a}`,
     );
     const flag = `${BLACK_FLAG}${TAG_B.repeat(15_999)}`;
-    const started = performance.now();
     expect(normalizeDictationText(flag)).toBe(flag);
-    expect(performance.now() - started).toBeLessThan(500);
+    // The same 16,000 characters as one flag and as eight, each eight times over
+    // to be long enough to time: a walk back over every earlier tag, per tag,
+    // makes the one flag about eight times slower.
+    const eighth = `${BLACK_FLAG}${TAG_B.repeat(1_999)}`;
+    expect(
+      slowdown(
+        repeatedly(8, () => normalizeDictationText(flag)),
+        repeatedly(64, () => normalizeDictationText(eighth)),
+      ),
+    ).toBeLessThan(3);
   });
 
   it('folds more sequences written two ways: nta, SARA AM with its tone mark between, eyelash ra with a joiner', () => {
@@ -486,8 +495,9 @@ describe('dictation rule matching', () => {
       ),
       { numRuns: 3000 },
     );
-    // Three thousand texts through two normalisers: seconds, not the default five.
-  }, 30_000);
+    // Three thousand texts through two normalisers took fifteen seconds on CI:
+    // twice the suite's timeout for this one.
+  }, 60_000);
 
   it('normalises idempotently over joiners, selectors, tags, keycaps and in-word punctuation', () => {
     const tricky = fc.constantFrom(
@@ -572,5 +582,5 @@ describe('dictation rule matching', () => {
       ),
       { numRuns: 5000 },
     );
-  }, 30_000);
+  });
 });
