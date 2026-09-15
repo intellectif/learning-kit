@@ -20,6 +20,7 @@ import { type ComponentType, useEffect, useMemo, useRef, useState } from 'react'
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStringsOverride } from '../../i18n/strings.js';
 import { randomSessionId } from '../_internal.js';
+import { Dictation } from '../Dictation/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
@@ -240,8 +241,10 @@ export interface ActivitySequenceProps {
    * a different one re-declares the language of every SDK string in this
    * subtree without changing the words.
    *
-   * It is NOT `data.locale`, which labels xAPI statements only. Authored
-   * content in another language belongs on `stimulus.locale`, which
+   * It is NOT `data.locale`, which labels xAPI statements — and, on a
+   * dictation, places the dictation's own words: `<Dictation>` puts it, and
+   * the direction it names, on its title, hints, marks and solution. Other
+   * authored content in another language belongs on `stimulus.locale`, which
    * `<StimulusPanel>` puts on the passage alone.
    */
   locale?: string;
@@ -761,6 +764,11 @@ export function ActivitySequence({
           {...childProps}
         />
       );
+    }
+    if (activity.type === 'dictation') {
+      // Nothing to seed: a dictation shuffles nothing. Outside `practice` its
+      // raw response is recorded through `onSubmit` above, like MC/FIB/GS.
+      return <Dictation data={activity} {...childProps} />;
     }
     if (activity.type === 'written-response') {
       // Derived from the SAME bag the other two get, minus the one prop this

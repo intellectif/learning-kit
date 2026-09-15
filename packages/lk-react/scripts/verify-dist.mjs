@@ -73,6 +73,7 @@ if (checked === 0) {
 const REQUIRED_EXPORTS = {
   'dist/components/ActivityPreview.js': ['ActivityPreview'],
   'dist/components/GapSelect.js': ['GapSelect'],
+  'dist/components/Dictation.js': ['Dictation'],
   'dist/theme/ThemeProvider.js': [
     'ThemeProvider',
     'createTailwindTheme',

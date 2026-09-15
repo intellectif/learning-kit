@@ -56,8 +56,16 @@ a known hazard carry a `note` saying why they exist.
 - **Written-response word counts**, recomputed from the text rather than taken
   from the client's `wordCount`, with inclusive `minWords` / `maxWords` bounds.
 - **`matchText` and `levenshteinDistance`** across every authored policy.
+- **`alignDictation`, `diffDictationChars` and `dictationReferenceWords`**, with
+  the five **`DICTATION_MAX_*`** limits: how a dictation reads the learner's text
+  and each transcript — punctuation, compatibility forms, joiners and other
+  invisible characters, lone surrogates — how equivalence rules rewrite them,
+  which transcript an attempt is compared with when several are accepted and how
+  a tie breaks, the words a transcript is split into, how words and characters
+  are paired, and where each limit cuts.
 - **`computePassThreshold` and `DEFAULT_PASS_THRESHOLD`**, including an authored
-  threshold of `0`.
+  threshold of `0`, and the opt-in `rounding` option of `score`, both where it
+  turns a raw fail in the rounding band into a pass and where it changes nothing.
 - **`roundGrade`, `gte` and `classifyBand`** in every mode, including float
   edges, negative zero, half-even ties and near-ties, and bands that share a
   minimum.

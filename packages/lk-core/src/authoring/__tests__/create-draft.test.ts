@@ -20,6 +20,7 @@ const BUILT_IN: ActivityType[] = [
   'fill-in-the-blanks',
   'written-response',
   'gap-select',
+  'dictation',
 ];
 
 describe('createDraft', () => {
@@ -69,6 +70,33 @@ describe('createDraft', () => {
       gaps: [{ ...draft.gaps[0], correctChoiceId: 'from' }],
     });
     expect(marked.status).toBe('complete');
+  });
+
+  it('gives dictation an empty transcript, no recording and no strategy to choose', () => {
+    const draft = createDraft('dictation', { newId: counter() });
+    expect(draft).toEqual({
+      schemaVersion: '1.0',
+      type: 'dictation',
+      id: 'id-1',
+      title: '',
+      transcript: '',
+    });
+    expect(validateDraft('dictation', draft).issues.map((found) => found.code)).toEqual([
+      'title_required',
+      'dc_transcript_required',
+    ]);
+  });
+
+  it('holds a dictation draft incomplete until the transcript is written', () => {
+    const draft = { ...createDraft('dictation', { newId: counter() }), title: 'Listen and type' };
+    const unwritten = validateDraft('dictation', draft);
+    expect(unwritten.status).toBe('incomplete');
+    expect(unwritten.issues.map((found) => found.code)).toEqual(['dc_transcript_required']);
+    // A recording is not required: a dictation inside a group can draw on the
+    // group's stimulus recording, so the transcript alone completes it.
+    expect(validateDraft('dictation', { ...draft, transcript: 'It is raining.' }).status).toBe(
+      'complete',
+    );
   });
 
   it('takes every id from newId, in order, and invents none', () => {

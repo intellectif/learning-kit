@@ -1,23 +1,34 @@
 import type { z } from 'zod/v4';
+import { dictationAuthoring } from '../authoring/dictation.js';
 import { fillInTheBlanksAuthoring } from '../authoring/fill-in-the-blanks.js';
 import { gapSelectAuthoring } from '../authoring/gap-select.js';
 import { multipleChoiceAuthoring } from '../authoring/multiple-choice.js';
 import { writtenResponseAuthoring } from '../authoring/written-response.js';
 import { countWords } from '../count-words.js';
+import { DictationDataSchema } from '../schemas/dictation.js';
 import { FillInTheBlanksDataSchema } from '../schemas/fill-in-the-blanks.js';
 import { GapSelectDataSchema } from '../schemas/gap-select.js';
 import { MultipleChoiceDataSchema } from '../schemas/multiple-choice.js';
 import {
+  RedactedDictationDataSchema,
   RedactedFillInTheBlanksDataSchema,
   RedactedGapSelectDataSchema,
   RedactedMultipleChoiceDataSchema,
   RedactedWrittenResponseDataSchema,
 } from '../schemas/redacted.js';
 import { WrittenResponseDataSchema } from '../schemas/written-response.js';
+import { scoreDictation } from '../scoring/activity-scorers/dictation.js';
 import { scoreFillInTheBlanks } from '../scoring/activity-scorers/fill-in-the-blanks.js';
 import { scoreGapSelect } from '../scoring/activity-scorers/gap-select.js';
 import { scoreMultipleChoice } from '../scoring/activity-scorers/multiple-choice.js';
+import {
+  DICTATION_MAX_TEXT_LENGTH,
+  normalizeDictationText,
+  truncateCodePoints,
+} from '../scoring/dictation/normalize.js';
 import type {
+  DictationData,
+  DictationLearnerResponse,
   FillInTheBlanksData,
   FillInTheBlanksLearnerResponse,
   GapSelectData,
@@ -200,6 +211,32 @@ const FILL_IN_THE_BLANKS_FIELD_POLICY: FieldPolicy = {
 };
 
 /**
+ * Dictation, where the answer key is the sentence itself.
+ *
+ * `transcript` and `acceptedTranscripts` are the key. So is `tolerance`, and it
+ * is classified as ONE scalar leaf on purpose: `redact()` maps an array element
+ * by element and omits only an empty OBJECT, so a nested policy over
+ * `equivalences` would project two all-answer-key rules to `[{}, {}]` — not
+ * empty, kept under `reveal: 'none'`, and refused by the strict redacted schema,
+ * so every item carrying a rule set would fail to redact. The leaf projects to
+ * nothing under `none` and to the whole object under `after-submit`.
+ *
+ * The slow recording is public, key by key, for the reason a gap-select choice
+ * is: the learner must be able to play it in an exam. The schema refuses it
+ * beside a play budget, so its being public cannot open one. The hint mode is
+ * public because it is inert without the transcript.
+ */
+const DICTATION_FIELD_POLICY: FieldPolicy = {
+  ...SHARED_PUBLIC_FIELDS,
+  transcript: 'answer-key',
+  acceptedTranscripts: 'answer-key',
+  slowMedia: { type: 'public', url: 'public', alt: 'public' },
+  hints: { mode: 'public' },
+  tolerance: 'answer-key',
+  feedback: FEEDBACK_FIELD_POLICY,
+};
+
+/**
  * The rubric classified field by field, not as one opaque leaf.
  *
  * A scalar `Sensitivity` classifies the WHOLE field, so `rubric: 'public'`
@@ -354,7 +391,43 @@ export const gapSelectType = defineActivityType<GapSelectData, GapSelectLearnerR
   authoring: gapSelectAuthoring,
 });
 
+/**
+ * Built-in Dictation descriptor. Graded synchronously: the score is the
+ * character-level similarity of the typed text to the transcript, a pure
+ * computation identical in a browser and on a server.
+ */
+export const dictationType = defineActivityType<DictationData, DictationLearnerResponse>({
+  type: 'dictation',
+  schema: DictationDataSchema as unknown as z.ZodType<DictationData>,
+  scoring: { kind: 'sync', score: scoreDictation },
+  // Whitespace-only or punctuation-only text is no answer. Without the
+  // tolerance, which this signature cannot see: the one gap is an attempt made
+  // ONLY of a symbol an equivalence names, which reads as unanswered here and
+  // is scored as the rewritten word — documented in the authoring guide. The
+  // reverse cannot happen: a rule inserts words, never nothing, and the text is
+  // cut where the scorer cuts, so text past the cap never counts as an answer.
+  isAnswered: (response) =>
+    normalizeDictationText(
+      truncateCodePoints(
+        typeof response?.text === 'string' ? response.text : '',
+        DICTATION_MAX_TEXT_LENGTH,
+      ),
+    ) !== '',
+  fieldPolicy: DICTATION_FIELD_POLICY,
+  redactedSchema: RedactedDictationDataSchema,
+  interop: {
+    xapiActivityTypeIri: 'http://adlnet.gov/expapi/activities/cmi.interaction',
+    // `fill-in`, as for fill-in-the-blanks: a typed answer with a key pattern.
+    // `long-fill-in` is what written-response uses for free text nothing scores.
+    xapiInteractionType: 'fill-in',
+    correctResponsesPattern: (data) => [data.transcript, ...(data.acceptedTranscripts ?? [])],
+  },
+  interactions: ['text-changed', 'hint-requested', 'submitted'],
+  authoring: dictationAuthoring,
+});
+
 registerActivityType(multipleChoiceType);
 registerActivityType(fillInTheBlanksType);
 registerActivityType(writtenResponseType);
 registerActivityType(gapSelectType);
+registerActivityType(dictationType);

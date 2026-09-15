@@ -216,8 +216,8 @@ export function GapSelect({
   // Practice grades locally, and a redacted projection has no answer key to
   // grade against — `score()` would throw RedactedScoringError from the submit
   // handler, where no error boundary can reach it and after the learner has
-  // answered. Fail at render instead, in production too, exactly as the other
-  // three built-ins do.
+  // answered. Fail at render instead, in production too, exactly as every other
+  // built-in does.
   if (data.redacted === true && renderMode === 'practice') {
     throw new Error(
       `Gap Select "${data.id}" received redacted activity data in renderMode "practice", ` +

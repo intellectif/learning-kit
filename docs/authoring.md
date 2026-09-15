@@ -377,6 +377,333 @@ share a recording in an **item group**: one stimulus, one budget.
 again, and taking a learner's scrubber and speed control away while they work out
 what they got wrong helps nobody.
 
+### Dictation — listen and type (v0.13 / 13.0)
+
+The learner hears a sentence and types it; the grade is how close what they
+typed is to the transcript:
+
+```jsonc
+{
+  "schemaVersion": "1.0", "type": "dictation", "id": "dc-lisbon", "title": "Listen and type the sentence",
+  "transcript": "It isn't raining in Lisbon today.",
+  "acceptedTranscripts": ["It isn't raining in Lisboa today."],
+  "media": { "type": "audio", "url": "https://cdn.example/lisbon.mp3", "alt": "Recording, normal speed",
+             "playback": { "seek": "none", "rate": "fixed" } },
+  "slowMedia": { "type": "audio", "url": "https://cdn.example/lisbon-slow.mp3", "alt": "Recording, slow" },
+  "hints": { "mode": "progressive-words" },
+  "tolerance": { "equivalences": [ { "from": "isn't", "to": "is not" } ] },
+  "passThreshold": 0.7
+}
+```
+
+**How it is scored.** Both the transcript and the attempt are normalised the
+same way — a lone surrogate, which is no character, read as U+FFFD; NFC;
+compatibility characters read as the characters they stand for, below;
+invisible characters removed (control characters, format characters that are
+not drawn, variation selectors and the other default-ignorable code points, and
+the letters that only stretch a word; tab, line breaks and NEXT LINE are
+spacing), except the joiners, Mongolian selectors and tag characters; quotes
+and hyphens folded; lowercased; spacing collapsed; NFC; a few sequences written
+two ways folded to one, a joiner typed twice read as one, and each joiner,
+selector or tag character removed unless it is spelling where it stands, below,
+until nothing changes; the `equivalences` applied; every punctuation mark
+removed except an apostrophe, a hyphen, a middle dot or a Tibetan tsheg with a
+letter, a combining mark or a digit on both sides (`cat's`, `well-known` and
+the Catalan `col·legi` are spelling; a middle dot beside a character of a
+script written without spaces, as in the Chinese name `约翰·史密斯`, is not)
+and the `#` or `*` of a keycap; and the folds and the joiner check applied
+again, until nothing changes — and the score
+is `(length − edit distance) / length` over the longer of the two, counting
+characters (code points), so an accent, an emoji or a curly apostrophe is one
+character. A transposed pair of letters costs two edits. The pass line is
+`passThreshold` (0.7 by default) against the raw score; a learner shown "70%"
+for a raw 0.69995 fails by default — pass `{ rounding: { mode: 'half-up', dp: 2 } }`
+to `score()` or `evaluate()` to compare as displayed, and the authored
+feedback follows. A policy with an unknown `mode`, or a `dp` that is not a
+whole number from 0 to 15, throws a `RangeError`; `null` reads as none.
+
+The folds, so that what a phone keyboard types matches what an author typed:
+
+| Typed | Compared as |
+|---|---|
+| U+2018, U+2019, U+201A, U+201B (single quotation marks), U+2032 (prime), U+02BC (modifier letter apostrophe), U+00B4 and U+0060 (acute and grave accents used as apostrophes), U+05F3 (Hebrew geresh) | `'` |
+| U+201C, U+201D, U+201E (double quotation marks), U+2033 (double prime), U+05F4 (Hebrew gershayim) | `"`, then removed as punctuation |
+| U+2010 (hyphen), U+2011 (non-breaking hyphen), U+05BE (Hebrew maqaf), U+058A (Armenian hyphen) | `-` |
+| U+0F0C (Tibetan non-breaking tsheg) | U+0F0B, the tsheg |
+| U+FF5E (fullwidth tilde, which a Japanese keyboard types for the wave dash) | U+301C, the wave dash, then removed as punctuation |
+
+Any other dash punctuation, such as U+2013 or U+2014, is removed; the fullwidth
+and small hyphen-minus (U+FF0D, U+FE63) are compatibility forms of `-`, below,
+and count as a hyphen. The minus sign (U+2212) is a symbol, not punctuation, and
+counts like any other character.
+An emoji is compared as its emoji: a variation selector is ignored, so ❤ and ❤️
+are equal; a sequence joined by U+200D is compared as the separate emoji it
+joins; a keycap keeps its `#` or `*`; and a black flag (U+1F3F4) keeps the tag
+characters after it, which tell the flags of England, Scotland and Wales apart.
+
+Some compatibility characters compare as the characters they stand for (their
+NFKC form): fullwidth and halfwidth forms, which an input method for Chinese,
+Japanese or Korean types by default — `２０２４年` is `2024年`, `ｶﾞﾗｽ` is
+`ガラス`, a fullwidth apostrophe is an apostrophe, and a halfwidth jamo is the
+jamo a Korean keyboard types (`ﾡ` is `ㄱ`); the Latin ligatures and digraphs
+(`ĳ` is `ij`, `ǉ` is `lj`, `ŀ` is `l·`); ligatures and presentation forms,
+which text copied from a PDF carries (`ﬁne` is `fine`); Kangxi radicals, which
+look like the ideographs they are drawn from (`⼈` is `人`); letterlike symbols
+(`℃` is `°c`); Roman numerals (`Ⅻ` is `xii`); vulgar fractions (`½` is
+`1⁄2`); enclosed, parenthesized, superscript and subscript digits, letters and
+signs (`①` and `⑴` are `1`, `㉑` is `21`, `ⓐ` is `a`, `m²` is `m2`, and a
+superscript minus is the minus sign); the micro sign; and the ordinal indicators
+`º` and `ª`. A presentation form of a combining mark — a halfwidth voiced sound
+mark, the isolated or medial form of an Arabic vowel mark — is that mark on the
+character before it; at the start of the text or after a space, with nothing to
+carry it, it keeps its own form. Other compatibility characters, such as the
+mathematical letters (`𝐀`), the squared units (`㎏`) and the Armenian `և`, a
+letter of its own, are compared as themselves.
+
+A few invisible characters are spelling, and are kept only where they change
+what is written — as the rules for joiners in internationalised domain names
+(RFC 5892) read them, with the uses the Unicode Standard's script chapters add:
+a zero-width joiner (U+200D) directly after a virama — an Indic half form, the
+Sinhala conjunct in `ශ්‍රී` — or between a letter and the virama after it, as
+the Bengali `র‍্যাব` asks for a ya-phalaa rather than a reph; a zero-width
+non-joiner (U+200C) directly after a virama, or between a letter that joins the
+letter after it and one that joins the letter before it, combining marks between
+them aside — the Persian half-space in `می‌خواهم`, but not the one after `ز`
+in `روز‌ها`, which joins nothing after it anyway; the Mongolian vowel separator
+(U+180E) after a Mongolian letter, mark or free variation selector and before a
+letter or mark; a Mongolian free variation selector directly after a letter or
+mark; and the tag characters of a flag, above. The viramas are every character
+of canonical combining class 9, and the joining letters are those Unicode 16
+lists: Arabic, Syriac, N'Ko, Mandaic, Mongolian, Phags-pa, Manichaean, Psalter
+Pahlavi, Hanifi Rohingya, Sogdian, Old Uyghur, Chorasmian and Adlam. A joiner
+typed twice is one joiner. Leaving a kept one out, or typing a space for it,
+costs an edit, as leaving out a hyphen does; anywhere else — a non-joiner
+between two Latin letters, a joiner between two Arabic ones — it is removed. The
+format characters that are drawn — the Arabic number signs and end of ayah, the
+Syriac abbreviation mark — are kept, and count like any other character.
+
+A few sequences are written two ways and mean one thing, and compare as the one
+Unicode recommends: the Thai and Lao SARA AM typed as its two parts, with or
+without a tone mark between them; the Malayalam chillu letters and the Bengali
+khanda ta in their older spelling, a consonant, a virama and a zero-width
+joiner; the Malayalam nta written with NA rather than chillu N; and the Marathi
+eyelash ra spelled with RA rather than RRA, or with RRA and a joiner it does not
+need.
+
+The Arabic tatweel and the N'Ko lajanyalan only stretch a word, and are removed.
+An apostrophe at the start or end of a word cannot be told from a quotation
+mark, so it is removed as one: the Afrikaans `'n` and `n` compare equal. A
+Hebrew geresh, which the comparison reads as an apostrophe, and a Tibetan tsheg
+are removed at the edge of a word too, although neither is a quotation mark
+there — `סנדוויץ׳` is `סנדוויץ`, and `ང་།` is `ང།` — and a gershayim is
+removed wherever it stands, so `צה״ל` is `צהל`. A narrow no-break space
+(U+202F), which chooses the shape of a Mongolian suffix, is a space. Persian in
+Arabic presentation forms, as some PDFs carry it, shows a half-space only by the
+shape of the letter before it, which is read as the plain letter: `ﻣﯽﺧﻮﺍﻫﻢ` is
+`میخواهم`, without the half-space. The older Sorani spelling of `ە` as `ه` and
+a non-joiner is two characters, and differs from `ە`. A superscript or
+subscript digit becomes part of the number before it: `2³` is `23`.
+
+The result carries one `ScoringDetail` per transcript word (`w1`…`wN`), each
+with the word the learner typed for it, an outcome (`correct`, `incorrect`, or
+`incorrect-omission` when nothing aligned) and its own `score`, the two words'
+similarity. **The item's score is not the mean of them** — the sentence is
+graded as one string — so a missing "the" costs 4 points in a 94-character
+sentence and 10 in a 39-character one, and a 38-character Portuguese sentence
+with four accents missing still scores 89. That length bias, and the forgiveness of
+character similarity, are the design: this is a listening exercise marked by
+closeness, not a spelling test marked by word.
+
+`alignDictation(data, text)` returns exactly what the scorer read — the
+normalised strings, the candidate it chose (`candidateIndex`: 0 is the
+transcript, n is `acceptedTranscripts[n − 1]`, −1 when the data has no
+transcript, as a redacted projection does not), the word pairings with their
+similarities and status (`correct` / `incorrect` / `missing` / `extra`), and
+whether the text was cut at 8000 characters. `diffDictationChars(reference,
+attempt)` returns the character-level operations for a marked display, and
+`dictationReferenceWords(data)` the `w<n>` ids and normalised words a stored
+result can be checked against. Rebuild a review from the stored activity and
+the stored text with these; never re-implement the arithmetic.
+
+Words are paired the way the reference implementation pairs them: a word-level
+edit distance whose cost ties are broken towards pairing two words, then
+towards a missing transcript word. So a correctly typed word can be marked
+against a neighbour: `the cat sit on mat now` for `The cat sat on the mat.`
+marks `mat` as a wrong `the` and `now` as a wrong `mat`, where `the` missing
+and `now` extra would cost the same. The pairing is in `details` and pinned by
+the grade vectors; the score, the sentence's similarity, does not depend on it.
+
+**Two recordings.** `media` is the recording, audio only, budgeted per slot
+like any other activity media. `slowMedia` is a second, slower **file** — a
+text-to-speech render at reduced speed, or a slower reading — not a
+`playbackRate` change: it follows `media.playback` (`seek`, `rate`, `controls`)
+except the play budget, which it never has, so the schema refuses it beside
+`maxPlays`. A recording that is budgeted can still offer the transport's 0.75×
+speed with `rate: 'allow'`. Neither recording may carry `captionsUrl`: the
+captions are the answer. `media` is optional in the schema — a dictation inside
+an item group may draw on the group's stimulus recording, and `validateItemGroup`
+then refuses captions on that recording too — but required beside `slowMedia`.
+
+**Equivalences, not a contraction table.** `tolerance.equivalences` rewrites
+whole words on both sides before comparing, in listed order, each rule exactly
+once (`[a → b, b → c]` sends `a` to `c`; `[b → c, a → b]` sends `a` to `b`).
+The rules run after spacing is collapsed and before punctuation is removed, so
+a two-word `from` matches across a newline and a rule may name a symbol —
+`rock & roll` against a transcript of `rock and roll` scores 69 unless
+`{ from: '&', to: 'and' }` is authored, because `&` is punctuation to Unicode
+and is removed. `to` is literal text, inserted as its words: its punctuation is
+removed before it is inserted, as the comparison would remove it, so a later
+rule cannot name it — and an apostrophe or hyphen at its edge is dropped even
+where, once inserted, it would stand between letters (`& → 'n'` turns
+`rock&roll` into `rock n roll`, not `rock'n'roll`). A rule cannot delete a word,
+so no set of rules turns a typed word into nothing.
+
+A word, for a rule, is a run of letters, combining marks and digits, with any
+joiner kept inside it. A rule never rewrites part of a longer word — `he's`
+leaves `Roche's` alone, a Hindi rule for "eight" leaves the word for "all
+eight", which adds a vowel sign and a nasal mark, and a Persian rule for "three"
+leaves "Tuesday", which starts with it and a half-space — and no match ends
+before a combining mark. An apostrophe or a hyphen ends a word, so
+`colour → color` also rewrites `colour-blind`. Call a letter or mark of a
+script written with spaces, or a digit of any script, a spaced word character.
+The boundary is required only at an edge of `from` that is a spaced word
+character, and only against a spaced word character: a rule for `&` also
+rewrites `rock&roll`, one for `%` rewrites `50%`, and one for `ok` rewrites
+the `OK` of `OKです`. A rewrite is set apart by a space where its own first or
+last character is a spaced word character and would touch one, so those read as
+`rock and roll` and `50 percent` — while `ok → okay` leaves `okayです`,
+`& → +` leaves `a+b`, and `% → パーセント` leaves `50パーセント`. In a script
+written without spaces (Chinese, Japanese, Thai, Lao, Khmer, Burmese) a word's
+edges cannot be seen, so a rule whose edge is a letter of one needs no boundary
+there: `两 → 2` rewrites `我有两本书` as `我有2本书` — and `ตา → eye`
+rewrites the start of `ตาม` too. A number is a word in every script, so a rule
+for the Thai digit `๐` leaves `๑๐๐` alone. Two more consequences to author
+around: a rule for a punctuation mark rewrites it wherever it stands
+(`- → minus` also rewrites `well-known`), and a `from` that ends in
+punctuation needs no boundary after it, so `U.S. → United States` also fires
+inside `U.S.A.`, which then reads as `united states a`. Rules run in order: put `U.S.A.` before `U.S.`. An
+item carries at most 100 rules, each `from` and `to` at most 200 characters.
+
+Every rule rewrites every occurrence, so rules can multiply text. While they
+run, the text is cut at twice the 8000-character attempt cap, which keeps any
+combination of rules from exhausting the server that grades an exam. That cut
+is part of the normalisation, not a view of what unbounded rules would give: a
+transcript whose rules would grow it past it is refused as too long — even if a
+later rule shrinks it again — and an attempt that needs it is reported by
+`alignDictation().truncated`. The bound is on memory, not on time: scoring or
+validating an item does work in proportion to its rules times the length of each
+text they rewrite, so an item whose 100 rules each rewrite every word of
+16,000-character texts takes hundreds of milliseconds to score or validate, and
+a group validates each of its items. `validateDraft` and
+`validateItemGroupDraft` share that work with the schema they run: each
+transcript, title and recording `alt` is normalised, its rules applied, once,
+however many checks read it. The English contraction preset a language school
+starts from:
+
+| `from` | `to` |
+|---|---|
+| `what's` | `what is` |
+| `you're` | `you are` |
+| `i'm` | `i am` |
+| `he's` | `he is` |
+| `she's` | `she is` |
+| `it's` | `it is` |
+| `we're` | `we are` |
+| `they're` | `they are` |
+| `don't` | `do not` |
+| `doesn't` | `does not` |
+| `won't` | `will not` |
+| `can't` | `cannot` |
+| `isn't` | `is not` |
+| `aren't` | `are not` |
+| `wasn't` | `was not` |
+| `weren't` | `were not` |
+
+Sixteen rows, applied to both sides, so `He's gone` and `He has gone` still
+differ. It lives in content, not in the scorer, so adding `let's` or `I'd`
+changes no historical grade. For a whole sentence that has more than one
+correct form — a numeral, a regional spelling — use `acceptedTranscripts`: the
+attempt is scored against every candidate and the best wins, ties to the
+transcript. At most ten, none normalising equal to another; `validateDraft`
+checks the first ten of a longer list, and reports it as too many.
+
+**Hints** (`hints: { mode: 'progressive-words' }`) reveal the transcript's
+words left to right in `practice`, one per request; they never change the
+score, and the response records how many were shown as `hintsRevealed` —
+client-reported telemetry a consumer may log or penalise, never a grade input.
+In `exam` the transcript is absent, so there is nothing to reveal and nothing
+is recorded. Words are split at spaces in the transcript as written — before
+any equivalence, so with `isn't → is not` the hints count one word fewer than
+the scored words `w1`…`wN` — and a token with nothing spelled in it, such as a
+dash, is revealed with the word before it. A script written without spaces
+(Chinese, Japanese, Thai) is one token, so one request reveals the whole
+sentence: leave hints off for those.
+
+**What the schema refuses**, all of them authoring errors that would reach a
+learner or a grade: a transcript nothing survives of once normalised; a
+transcript over 2000 characters before or after its rules are applied, or one
+its rules grow past 16,000 characters on the way; more than 100 equivalence
+rules, or a `from` or `to` over 200 characters; a title or a recording `alt`
+that contains the whole transcript, or a whole accepted transcript; a title or
+`alt` over 16,000 characters before or after the rules, or grown past 16,000
+by them on the way, which could not be searched in full; a non-audio
+recording; captions; a slow recording on the same file, with its own playback
+policy, without a recording, or beside a play budget. Learner text longer than
+8000 characters is cut, before and after normalisation, and
+`alignDictation().truncated` says so. `assertRedacted` repeats three of these
+on a projection, because a payload built by hand never passed through the
+content schema: captions on the recording, a slow recording beside a play
+budget, and a slow recording with no recording. `assertRedactedItemGroup`
+refuses captions on a stimulus recording that a dictation in the group plays.
+`validateActivity` reports each of these beside a refusal anywhere else in the
+item, except one that reads a field it refused: while the rules fail their own
+checks, nothing that depends on them is checked, and a title that is not text is
+not searched.
+
+**What counts as giving the answer away.** The title and each recording `alt`
+are shown before the learner types, so each is searched for the whole
+transcript and for each whole accepted transcript, all of them normalised.
+Both sides are searched as written and with the item's rules applied, because a
+rule can rewrite a copy differently where it stands: with `la la → lala`, the
+title "Song: la la la land" still gives away `la la land`. They are searched
+for whole words, and again with every punctuation mark read as a space —
+in-word ones included — on either side, a separator inside a number removed
+from both. For the example above, "Recording, normal speed" describes the
+recording, and "Listen:it isn't raining in Lisbon today" and "Listen: It is not
+raining in Lisboa today" transcribe it; so does a title "Listen: Hello, world"
+for a transcript `Hello,world`, and "Listen: well-known fact" for
+`well known fact` — but a title with `1,100 people` or `1'100 people` does not
+give away `100 people`. A space that groups digits is a space, though:
+`Prix : 1 100 dollars` gives away `100 dollars`. A title in fullwidth or
+halfwidth forms is read as what they stand for. Only a whole candidate is looked
+for — "It isn't raining" alone passes — so a title that gives away part of the
+sentence is yours to catch.
+
+In a script written without spaces a word's edges cannot be seen. A transcript
+with four or more characters of such scripts, combining marks and digits aside,
+is found wherever those characters stand, a space beside one of them ignored in
+the transcript and in the title: `听写我爱北京` and `听写：我 爱 北京` give
+away `我爱北京`, and `听写：我有 3 本书` gives away `我有3本书`. In one with
+fewer, such a character at the transcript's edge needs something other than a
+letter, mark or digit beside it — a space, a punctuation mark, the end of the
+text: `听写：你好` gives away `你好`, and `听写你好` does not, because two or
+three such characters often spell part of another word: `เขียนตามคำบอก`, the
+Thai for "dictation", may title a dictation of `ตา` ("eye"), which it contains
+only inside `ตาม` ("follow"). A spaced word character at the transcript's edge
+needs its edge either way: `Book です` does not give away `ok です`, and
+`ราคา ๑,๑๐๐ บาท` does not give away `๑๐๐ บาท`. The transcript is read as it is
+written, whatever its rules rewrite it into: with `三 → 3`,
+`今天是三月三日星期一` still gives away `三月三日`, and with `两 → 2`,
+`我有两本。` still does not give away `两本`.
+
+One curiosity, stated rather than hidden: `isAnswered` cannot see the
+tolerance, so an attempt consisting only of a symbol an equivalence names
+(`&` alone, with `{ from: '&', to: 'and' }`) reads as unanswered to anything
+that calls the descriptor's `isAnswered` (the SDK's own components do not) and
+is scored as the word `and` by the scorer. No rule can turn typed words into
+nothing, and `isAnswered` cuts text at the 8000-character cap as the scorer
+does, so the reverse never happens.
+
 ### Feedback
 
 Two composable layers, both authored by you. The SDK never *writes* feedback, but it does **select** it: since 0.3.0 `score()` and `evaluate()` set `ScoringResult.feedback` to `feedback.correct` or `feedback.incorrect` according to `passed`, so a server scoring headlessly gets the same message the component shows and does not have to reimplement the choice.
@@ -459,6 +786,8 @@ first.
 | `multiple-choice` | `mode: 'single'`, `scoringStrategy: 'all-or-nothing'`, two empty options, **none marked correct** |
 | `fill-in-the-blanks` | an empty passage, no blanks, `scoringStrategy: 'all-or-nothing'` |
 | `written-response` | an empty prompt, `minWords: 0`, `maxWords: 0`, no rubric |
+| `gap-select` | an empty passage, no gaps, `scoringStrategy: 'all-or-nothing'`, **no choice marked correct** |
+| `dictation` | an empty title and an empty transcript; no recording, hints, tolerances or accepted transcripts; no `scoringStrategy` — the type has one strategy |
 
 Three of those are decisions:
 
@@ -590,6 +919,38 @@ schema reports them.
 | `wr_rubric_weights_too_large` | invalid | `rubric.criteria` | The weights add up to more than a number can hold, so `gradeFromRubric` cannot compute a weighted total either |
 
 A rubric weight above 1 is fine: weights are normalised by their sum.
+
+`dictation`:
+
+| Code | Severity | Path | When |
+|---|---|---|---|
+| `dc_transcript_required` | incomplete | `transcript` | Absent, or at most 2000 characters of nothing but spaces and invisible characters (format characters that are not drawn, control and default-ignorable characters) |
+| `dc_transcript_unscorable` | invalid | `transcript` | Written, but nothing survives normalisation — only punctuation |
+| `dc_transcript_too_long` | invalid | `transcript` | More than 2000 characters before or after its equivalences are applied, or grown past 16,000 by them on the way |
+| `dc_accepted_transcript_empty` | incomplete | `acceptedTranscripts.N` | An accepted transcript that is empty, or nothing survives normalisation |
+| `dc_accepted_transcript_too_long` | invalid | `acceptedTranscripts.N` | More than 2000 characters before or after equivalences, or grown past 16,000 by them on the way |
+| `dc_accepted_transcript_duplicate` | invalid | `acceptedTranscripts` | Equal to the transcript, or to another accepted transcript, once case, punctuation and spacing are ignored |
+| `dc_accepted_transcripts_too_many` | invalid | `acceptedTranscripts` | More than 10: only the first 10 are checked, and past them only for an empty entry |
+| `dc_media_kind` | invalid | `media.type` | A recording that is not `audio` |
+| `dc_captions_not_allowed` | invalid | `media.captionsUrl`, `slowMedia.captionsUrl`; `stimulus.media.captionsUrl` from `validateItemGroupDraft` | A captions track on a dictation recording, or on a group's stimulus recording that a dictation without its own recording plays: the captions are the answer |
+| `dc_slow_media_kind` | invalid | `slowMedia.type` | A slow recording that is not `audio` |
+| `dc_slow_media_playback` | invalid | `slowMedia.playback` | A playback policy on the slow recording; it belongs on `media`, and the slow recording follows it |
+| `dc_slow_media_unbudgeted` | invalid | `slowMedia` | A slow recording beside a `media.playback.maxPlays` budget |
+| `dc_slow_media_same_url` | invalid | `slowMedia.url` | The same address as `media.url` |
+| `dc_slow_media_without_media` | incomplete | `media` | A slow recording without the recording it accompanies |
+| `dc_transcript_revealed` | invalid | `title`, `media.alt`, `slowMedia.alt` | The field contains the whole transcript, or a whole accepted transcript, as [What counts as giving the answer away](#dictation--listen-and-type-v013--130) describes |
+| `dc_shown_text_too_long` | invalid | `title`, `media.alt`, `slowMedia.alt` | More than 16,000 characters before or after the equivalences are applied, or grown past 16,000 by them on the way: too long to be searched for the transcript |
+| `dc_hints_mode_required` | incomplete | `hints.mode` | `hints` written without a mode |
+| `dc_hints_mode_invalid` | invalid | `hints.mode` | Anything but `"progressive-words"`, the only hint mode that exists yet |
+| `dc_equivalence_from_required` | incomplete | `tolerance.equivalences.N.from` | Absent, empty, or nothing left after case, quote and whitespace folding (a symbol such as `&` is fine) |
+| `dc_equivalence_to_required` | incomplete | `tolerance.equivalences.N.to` | Absent, empty, or nothing survives normalisation — a rule cannot delete a word |
+| `dc_tolerance_invalid` | invalid | `tolerance…` | Any other tolerance value the schema refuses, such as more than 100 rules, or a `from` or `to` over 200 characters; the message is the schema's |
+
+The slow recording's kind, address and description report under the codes media
+already uses — `media_type_required`, `media_url_required`, `media_url_invalid`,
+`media_alt_required` — at `slowMedia.…` paths, so a translation of those rows
+covers both recordings. A new `dictation` draft has no `scoringStrategy` to choose and
+`scoring_strategy_required` is never reported for it.
 
 **`null` is a value, not an absence.** A required field that is `null` counts as
 not set and gets that field's own code: `title: null` is `title_required`. So does
@@ -862,7 +1223,7 @@ import { asRenderableSequence } from '@intellectif/lk-react';
 />;
 ```
 
-`renderMode` is not optional here in practice: all three built-in activities throw at **render** when handed redacted data in the default `practice` mode. `<MultipleChoice>` and `<FillInTheBlanks>` grade locally, so they would otherwise fail inside the submit handler after the learner has answered — where React error boundaries cannot reach. `<WrittenResponse>` never grades on the client, but `practice` still runs its local submit path and emits a practice-mode xAPI statement for work the server is meant to grade, so since lk-react 7.0.0 it refuses redacted data there too.
+`renderMode` is not optional here in practice: every built-in activity throws at **render** when handed redacted data in the default `practice` mode. `<MultipleChoice>` and `<FillInTheBlanks>` grade locally, so they would otherwise fail inside the submit handler after the learner has answered — where React error boundaries cannot reach. `<WrittenResponse>` never grades on the client, but `practice` still runs its local submit path and emits a practice-mode xAPI statement for work the server is meant to grade, so since lk-react 7.0.0 it refuses redacted data there too.
 
 **Media in a group stops when the learner leaves it.** The pager keeps every question and every stimulus mounted, so answers survive back-navigation; hidden panes are `display: none`, which does **not** stop playback on its own. So the pager pauses any `<audio>`/`<video>` in a pane as that pane hides, preserving `currentTime` — a recording keeps its position between questions of its own group, stops when the learner navigates out of the group, and never auto-resumes. A provider `embed` cannot be controlled this way (that needs the provider's own JS API, and the author supplies the URL), so use `audio`/`video` media for anything that must stop.
 

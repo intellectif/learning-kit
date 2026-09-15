@@ -257,6 +257,25 @@ const TYPES: [string, unknown][] = [
       blanks: [{ id: 'b1', acceptedAnswers: ['Tokyo'] }],
     }),
   ],
+  [
+    'gap-select',
+    audioItem('gap-select', {
+      passage: 'The capital is {{g1}}.',
+      scoringStrategy: 'partial',
+      gaps: [
+        {
+          id: 'g1',
+          choices: [
+            { id: 'tokyo', text: 'Tokyo' },
+            { id: 'osaka', text: 'Osaka' },
+          ],
+          correctChoiceId: 'tokyo',
+        },
+      ],
+    }),
+  ],
+  // One recording only: the schema refuses a play budget beside a slow file.
+  ['dictation', audioItem('dictation', { transcript: 'The capital is Tokyo.' })],
 ];
 
 describe('a budgeted recording binds on every activity type', () => {

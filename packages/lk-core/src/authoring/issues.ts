@@ -104,6 +104,28 @@ export const DRAFT_ISSUE_SEVERITY = {
   wr_criterion_weight_invalid: 'invalid',
   wr_rubric_weights_zero: 'incomplete',
   wr_rubric_weights_too_large: 'invalid',
+  // dictation
+  dc_transcript_required: 'incomplete',
+  dc_transcript_unscorable: 'invalid',
+  dc_transcript_too_long: 'invalid',
+  dc_accepted_transcript_empty: 'incomplete',
+  dc_accepted_transcript_too_long: 'invalid',
+  dc_accepted_transcript_duplicate: 'invalid',
+  dc_accepted_transcripts_too_many: 'invalid',
+  dc_media_kind: 'invalid',
+  dc_captions_not_allowed: 'invalid',
+  dc_slow_media_kind: 'invalid',
+  dc_slow_media_playback: 'invalid',
+  dc_slow_media_unbudgeted: 'invalid',
+  dc_slow_media_same_url: 'invalid',
+  dc_slow_media_without_media: 'incomplete',
+  dc_transcript_revealed: 'invalid',
+  dc_shown_text_too_long: 'invalid',
+  dc_hints_mode_required: 'incomplete',
+  dc_hints_mode_invalid: 'invalid',
+  dc_equivalence_from_required: 'incomplete',
+  dc_equivalence_to_required: 'incomplete',
+  dc_tolerance_invalid: 'invalid',
 } as const satisfies Readonly<Record<string, DraftSeverity>>;
 
 export type DraftIssueCode = keyof typeof DRAFT_ISSUE_SEVERITY;
@@ -401,4 +423,30 @@ export function covers(reported: readonly string[], failed: readonly string[]): 
   // position. A failed path longer than the reported one cannot: the reported
   // path runs out, and no segment is ever undefined.
   return failed.every((segment, index) => reported[index] === segment);
+}
+
+/** A path as one comparable string; the root is `''`. */
+export function pathKey(path: readonly unknown[]): string {
+  return path.length === 0 ? '' : JSON.stringify(path.map(String));
+}
+
+/**
+ * Every path a schema failure is covered at, given the issues already reported
+ * — the lookup form of {@link covers}: each prefix of each reported path, and
+ * the root only when an issue sits at the root. Built once, so matching a
+ * schema's failures costs the depth of each path rather than a pass over every
+ * reported issue, which made a draft with thousands of malformed entries take
+ * seconds.
+ */
+export function coveredPathsOf(reported: readonly { path: readonly unknown[] }[]): Set<string> {
+  const covered = new Set<string>();
+  for (const known of reported) {
+    if (known.path.length === 0) {
+      covered.add('');
+    }
+    for (let length = 1; length <= known.path.length; length += 1) {
+      covered.add(pathKey(known.path.slice(0, length)));
+    }
+  }
+  return covered;
 }

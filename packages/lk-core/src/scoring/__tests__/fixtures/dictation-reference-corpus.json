@@ -1,0 +1,2272 @@
+{
+  "$comment": "Behaviour corpus of the reference implementation this activity type reproduces: (reference, input) pairs with the score as a percentage at two decimals, the pass/fail verdict at 70% and the word pairings that implementation produced. Generated from that implementation, never edited by hand. Every deliberate divergence is listed, by case id and dimension, in dictation.fidelity.test.mjs. Non-ASCII is escaped so a decomposed accent stays visible in review.",
+  "cases": [
+    {
+      "id": "exact",
+      "group": "exact",
+      "reference": "The cat sat on the mat.",
+      "input": "The cat sat on the mat.",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["the", "the", 100],
+          ["cat", "cat", 100],
+          ["sat", "sat", 100],
+          ["on", "on", 100],
+          ["the", "the", 100],
+          ["mat", "mat", 100]
+        ]
+      }
+    },
+    {
+      "id": "exact-no-punct-input",
+      "group": "exact",
+      "reference": "The cat sat on the mat.",
+      "input": "The cat sat on the mat",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["the", "the", 100],
+          ["cat", "cat", 100],
+          ["sat", "sat", 100],
+          ["on", "on", 100],
+          ["the", "the", 100],
+          ["mat", "mat", 100]
+        ]
+      }
+    },
+    {
+      "id": "case-mixed",
+      "group": "case",
+      "reference": "The cat sat on the mat.",
+      "input": "the CAT sat ON the mat",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["the", "the", 100],
+          ["cat", "cat", 100],
+          ["sat", "sat", 100],
+          ["on", "on", 100],
+          ["the", "the", 100],
+          ["mat", "mat", 100]
+        ]
+      }
+    },
+    {
+      "id": "empty-input",
+      "group": "empty",
+      "reference": "The cat sat on the mat.",
+      "input": "",
+      "expected": {
+        "similarity": 0,
+        "passed": false,
+        "words": [
+          ["the", "", 0],
+          ["cat", "", 0],
+          ["sat", "", 0],
+          ["on", "", 0],
+          ["the", "", 0],
+          ["mat", "", 0]
+        ]
+      }
+    },
+    {
+      "id": "whitespace-only",
+      "group": "empty",
+      "reference": "The cat sat on the mat.",
+      "input": "   \t \n ",
+      "expected": {
+        "similarity": 0,
+        "passed": false,
+        "words": [
+          ["the", "", 0],
+          ["cat", "", 0],
+          ["sat", "", 0],
+          ["on", "", 0],
+          ["the", "", 0],
+          ["mat", "", 0]
+        ]
+      }
+    },
+    {
+      "id": "both-empty",
+      "group": "empty",
+      "reference": "",
+      "input": "",
+      "expected": {
+        "similarity": 0,
+        "passed": false,
+        "words": []
+      }
+    },
+    {
+      "id": "inner-double-space",
+      "group": "whitespace",
+      "reference": "the cat sat",
+      "input": "the  cat sat",
+      "expected": {
+        "similarity": 91.67,
+        "passed": true,
+        "words": [["the", "the", 100], ["cat", "cat", 100], ["sat", "sat", 100]]
+      }
+    },
+    {
+      "id": "inner-tab",
+      "group": "whitespace",
+      "reference": "the cat sat",
+      "input": "the\tcat sat",
+      "expected": {
+        "similarity": 90.91,
+        "passed": true,
+        "words": [["the", "the", 100], ["cat", "cat", 100], ["sat", "sat", 100]]
+      }
+    },
+    {
+      "id": "inner-newline",
+      "group": "whitespace",
+      "reference": "the cat sat",
+      "input": "the cat\nsat",
+      "expected": {
+        "similarity": 90.91,
+        "passed": true,
+        "words": [["the", "the", 100], ["cat", "cat", 100], ["sat", "sat", 100]]
+      }
+    },
+    {
+      "id": "outer-whitespace",
+      "group": "whitespace",
+      "reference": "the cat sat",
+      "input": "  the cat sat \n",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["the", "the", 100], ["cat", "cat", 100], ["sat", "sat", 100]]
+      }
+    },
+    {
+      "id": "missing-space",
+      "group": "whitespace",
+      "reference": "the cat sat",
+      "input": "thecat sat",
+      "expected": {
+        "similarity": 90.91,
+        "passed": true,
+        "words": [["the", "", 0], ["cat", "thecat", 50], ["sat", "sat", 100]]
+      }
+    },
+    {
+      "id": "ref-has-double-space",
+      "group": "whitespace",
+      "reference": "the  cat sat",
+      "input": "the cat sat",
+      "expected": {
+        "similarity": 91.67,
+        "passed": true,
+        "words": [["the", "the", 100], ["cat", "cat", 100], ["sat", "sat", 100]]
+      }
+    },
+    {
+      "id": "punct-only-difference",
+      "group": "punctuation",
+      "reference": "Hello, world!",
+      "input": "Hello world",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["hello", "hello", 100], ["world", "world", 100]]
+      }
+    },
+    {
+      "id": "punct-period",
+      "group": "punctuation",
+      "reference": "I am here.",
+      "input": "I am here",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["i", "i", 100], ["am", "am", 100], ["here", "here", 100]]
+      }
+    },
+    {
+      "id": "punct-semicolon-colon",
+      "group": "punctuation",
+      "reference": "Note: first; second.",
+      "input": "Note first second",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["note", "note", 100], ["first", "first", 100], ["second", "second", 100]]
+      }
+    },
+    {
+      "id": "punct-input-adds-punct",
+      "group": "punctuation",
+      "reference": "I am here",
+      "input": "I am here!!!",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["i", "i", 100], ["am", "am", 100], ["here", "here", 100]]
+      }
+    },
+    {
+      "id": "apostrophe-straight-possessive",
+      "group": "punctuation",
+      "reference": "the cat's toy",
+      "input": "the cats toy",
+      "expected": {
+        "similarity": 92.31,
+        "passed": true,
+        "words": [["the", "the", 100], ["cat's", "cats", 80], ["toy", "toy", 100]]
+      }
+    },
+    {
+      "id": "apostrophe-curly-vs-straight",
+      "group": "punctuation",
+      "reference": "the cat's toy",
+      "input": "the cat\u2019s toy",
+      "expected": {
+        "similarity": 92.31,
+        "passed": true,
+        "words": [["the", "the", 100], ["cat's", "cat\u2019s", 80], ["toy", "toy", 100]]
+      }
+    },
+    {
+      "id": "hyphen-vs-space",
+      "group": "punctuation",
+      "reference": "a well-known author",
+      "input": "a well known author",
+      "expected": {
+        "similarity": 94.74,
+        "passed": true,
+        "words": [
+          ["a", "a", 100],
+          ["", "well", 0],
+          ["well-known", "known", 50],
+          ["author", "author", 100]
+        ]
+      }
+    },
+    {
+      "id": "hyphen-dropped",
+      "group": "punctuation",
+      "reference": "a well-known author",
+      "input": "a wellknown author",
+      "expected": {
+        "similarity": 94.74,
+        "passed": true,
+        "words": [["a", "a", 100], ["well-known", "wellknown", 90], ["author", "author", 100]]
+      }
+    },
+    {
+      "id": "double-quotes",
+      "group": "punctuation",
+      "reference": "She said \"hello\".",
+      "input": "She said hello",
+      "expected": {
+        "similarity": 87.5,
+        "passed": true,
+        "words": [["she", "she", 100], ["said", "said", 100], ["\"hello\"", "hello", 71.43]]
+      }
+    },
+    {
+      "id": "curly-double-quotes",
+      "group": "punctuation",
+      "reference": "She said \u201chello\u201d.",
+      "input": "She said hello",
+      "expected": {
+        "similarity": 87.5,
+        "passed": true,
+        "words": [["she", "she", 100], ["said", "said", 100], ["\u201chello\u201d", "hello", 71.43]]
+      }
+    },
+    {
+      "id": "single-quotes",
+      "group": "punctuation",
+      "reference": "He said 'no'.",
+      "input": "He said no",
+      "expected": {
+        "similarity": 83.33,
+        "passed": true,
+        "words": [["he", "he", 100], ["said", "said", 100], ["'no'", "no", 50]]
+      }
+    },
+    {
+      "id": "ellipsis-three-dots",
+      "group": "punctuation",
+      "reference": "Wait... what?",
+      "input": "Wait what",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["wait", "wait", 100], ["what", "what", 100]]
+      }
+    },
+    {
+      "id": "ellipsis-u2026",
+      "group": "punctuation",
+      "reference": "Wait\u2026 what?",
+      "input": "Wait what",
+      "expected": {
+        "similarity": 90,
+        "passed": true,
+        "words": [["wait\u2026", "wait", 80], ["what", "what", 100]]
+      }
+    },
+    {
+      "id": "em-dash",
+      "group": "punctuation",
+      "reference": "Yes \u2014 I know.",
+      "input": "Yes I know",
+      "expected": {
+        "similarity": 83.33,
+        "passed": true,
+        "words": [["yes", "yes", 100], ["\u2014", "", 0], ["i", "i", 100], ["know", "know", 100]]
+      }
+    },
+    {
+      "id": "spanish-inverted-question",
+      "group": "punctuation-nonascii",
+      "reference": "\u00bfC\u00f3mo est\u00e1s?",
+      "input": "C\u00f3mo est\u00e1s",
+      "expected": {
+        "similarity": 90.91,
+        "passed": true,
+        "words": [["\u00bfc\u00f3mo", "c\u00f3mo", 80], ["est\u00e1s", "est\u00e1s", 100]]
+      }
+    },
+    {
+      "id": "spanish-inverted-exclamation",
+      "group": "punctuation-nonascii",
+      "reference": "\u00a1Hola!",
+      "input": "Hola",
+      "expected": {
+        "similarity": 80,
+        "passed": true,
+        "words": [["\u00a1hola", "hola", 80]]
+      }
+    },
+    {
+      "id": "guillemets",
+      "group": "punctuation-nonascii",
+      "reference": "Dijo \u00abhola\u00bb.",
+      "input": "Dijo hola",
+      "expected": {
+        "similarity": 81.82,
+        "passed": true,
+        "words": [["dijo", "dijo", 100], ["\u00abhola\u00bb", "hola", 66.67]]
+      }
+    },
+    {
+      "id": "parentheses",
+      "group": "punctuation",
+      "reference": "the (big) cat",
+      "input": "the big cat",
+      "expected": {
+        "similarity": 84.62,
+        "passed": true,
+        "words": [["the", "the", 100], ["(big)", "big", 60], ["cat", "cat", 100]]
+      }
+    },
+    {
+      "id": "punct-only-input",
+      "group": "punctuation",
+      "reference": "Hello, world!",
+      "input": "...",
+      "expected": {
+        "similarity": 0,
+        "passed": false,
+        "words": [["hello", "", 0], ["world", "", 0]]
+      }
+    },
+    {
+      "id": "ampersand-symbol",
+      "group": "punctuation",
+      "reference": "rock & roll",
+      "input": "rock and roll",
+      "expected": {
+        "similarity": 76.92,
+        "passed": true,
+        "words": [["rock", "rock", 100], ["&", "and", 0], ["roll", "roll", 100]]
+      }
+    },
+    {
+      "id": "slash",
+      "group": "punctuation",
+      "reference": "yes/no",
+      "input": "yes no",
+      "expected": {
+        "similarity": 83.33,
+        "passed": true,
+        "words": [["", "yes", 0], ["yes/no", "no", 33.33]]
+      }
+    },
+    {
+      "id": "contr-whats-vs-what-is",
+      "group": "contraction",
+      "reference": "What's your name?",
+      "input": "What is your name",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["what", "what", 100],
+          ["is", "is", 100],
+          ["your", "your", 100],
+          ["name", "name", 100]
+        ]
+      }
+    },
+    {
+      "id": "contr-what-is-vs-whats",
+      "group": "contraction",
+      "reference": "What is your name?",
+      "input": "What's your name",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["what", "what", 100],
+          ["is", "is", 100],
+          ["your", "your", 100],
+          ["name", "name", 100]
+        ]
+      }
+    },
+    {
+      "id": "contr-youre",
+      "group": "contraction",
+      "reference": "You're late.",
+      "input": "You are late",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["you", "you", 100], ["are", "are", 100], ["late", "late", 100]]
+      }
+    },
+    {
+      "id": "contr-im",
+      "group": "contraction",
+      "reference": "I'm ready.",
+      "input": "I am ready",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["i", "i", 100], ["am", "am", 100], ["ready", "ready", 100]]
+      }
+    },
+    {
+      "id": "contr-hes",
+      "group": "contraction",
+      "reference": "He's tall.",
+      "input": "He is tall",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["he", "he", 100], ["is", "is", 100], ["tall", "tall", 100]]
+      }
+    },
+    {
+      "id": "contr-shes-overlaps-hes-rule",
+      "group": "contraction",
+      "reference": "She's here.",
+      "input": "She is here",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["she", "she", 100], ["is", "is", 100], ["here", "here", 100]]
+      }
+    },
+    {
+      "id": "contr-its",
+      "group": "contraction",
+      "reference": "It's cold.",
+      "input": "It is cold",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["it", "it", 100], ["is", "is", 100], ["cold", "cold", 100]]
+      }
+    },
+    {
+      "id": "contr-were",
+      "group": "contraction",
+      "reference": "We're done.",
+      "input": "We are done",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["we", "we", 100], ["are", "are", 100], ["done", "done", 100]]
+      }
+    },
+    {
+      "id": "contr-theyre",
+      "group": "contraction",
+      "reference": "They're gone.",
+      "input": "They are gone",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["they", "they", 100], ["are", "are", 100], ["gone", "gone", 100]]
+      }
+    },
+    {
+      "id": "contr-dont",
+      "group": "contraction",
+      "reference": "I don't know.",
+      "input": "I do not know",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["i", "i", 100], ["do", "do", 100], ["not", "not", 100], ["know", "know", 100]]
+      }
+    },
+    {
+      "id": "contr-doesnt",
+      "group": "contraction",
+      "reference": "She doesn't care.",
+      "input": "She does not care",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["she", "she", 100],
+          ["does", "does", 100],
+          ["not", "not", 100],
+          ["care", "care", 100]
+        ]
+      }
+    },
+    {
+      "id": "contr-wont",
+      "group": "contraction",
+      "reference": "I won't go.",
+      "input": "I will not go",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["i", "i", 100], ["will", "will", 100], ["not", "not", 100], ["go", "go", 100]]
+      }
+    },
+    {
+      "id": "contr-cant-cannot",
+      "group": "contraction",
+      "reference": "I can't swim.",
+      "input": "I cannot swim",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["i", "i", 100], ["cannot", "cannot", 100], ["swim", "swim", 100]]
+      }
+    },
+    {
+      "id": "contr-cant-can-not",
+      "group": "contraction",
+      "reference": "I can't swim.",
+      "input": "I can not swim",
+      "expected": {
+        "similarity": 92.86,
+        "passed": true,
+        "words": [["i", "i", 100], ["", "can", 0], ["cannot", "not", 50], ["swim", "swim", 100]]
+      }
+    },
+    {
+      "id": "contr-isnt",
+      "group": "contraction",
+      "reference": "It isn't fair.",
+      "input": "It is not fair",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["it", "it", 100], ["is", "is", 100], ["not", "not", 100], ["fair", "fair", 100]]
+      }
+    },
+    {
+      "id": "contr-arent",
+      "group": "contraction",
+      "reference": "They aren't here.",
+      "input": "They are not here",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["they", "they", 100],
+          ["are", "are", 100],
+          ["not", "not", 100],
+          ["here", "here", 100]
+        ]
+      }
+    },
+    {
+      "id": "contr-wasnt",
+      "group": "contraction",
+      "reference": "He wasn't there.",
+      "input": "He was not there",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["he", "he", 100],
+          ["was", "was", 100],
+          ["not", "not", 100],
+          ["there", "there", 100]
+        ]
+      }
+    },
+    {
+      "id": "contr-werent",
+      "group": "contraction",
+      "reference": "We weren't ready.",
+      "input": "We were not ready",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["we", "we", 100],
+          ["were", "were", 100],
+          ["not", "not", 100],
+          ["ready", "ready", 100]
+        ]
+      }
+    },
+    {
+      "id": "contr-hes-meaning-he-has",
+      "group": "contraction",
+      "reference": "He's gone home.",
+      "input": "He has gone home",
+      "expected": {
+        "similarity": 87.5,
+        "passed": true,
+        "words": [
+          ["he", "he", 100],
+          ["is", "has", 33.33],
+          ["gone", "gone", 100],
+          ["home", "home", 100]
+        ]
+      }
+    },
+    {
+      "id": "contr-its-vs-possessive-its",
+      "group": "contraction",
+      "reference": "The dog wagged its tail.",
+      "input": "The dog wagged it's tail",
+      "expected": {
+        "similarity": 92,
+        "passed": true,
+        "words": [
+          ["the", "the", 100],
+          ["dog", "dog", 100],
+          ["wagged", "wagged", 100],
+          ["", "it", 0],
+          ["its", "is", 66.67],
+          ["tail", "tail", 100]
+        ]
+      }
+    },
+    {
+      "id": "contr-possessive-peters",
+      "group": "contraction",
+      "reference": "Peter's book is red.",
+      "input": "Peters book is red",
+      "expected": {
+        "similarity": 94.74,
+        "passed": true,
+        "words": [
+          ["peter's", "peters", 85.71],
+          ["book", "book", 100],
+          ["is", "is", 100],
+          ["red", "red", 100]
+        ]
+      }
+    },
+    {
+      "id": "contr-substring-misfire-roches",
+      "group": "contraction",
+      "reference": "Roche's office is closed.",
+      "input": "Roche is office is closed",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["roche", "roche", 100],
+          ["is", "is", 100],
+          ["office", "office", 100],
+          ["is", "is", 100],
+          ["closed", "closed", 100]
+        ]
+      }
+    },
+    {
+      "id": "contr-substring-misfire-bits",
+      "group": "contraction",
+      "reference": "The bit's gone.",
+      "input": "The bit is gone",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["the", "the", 100],
+          ["bit", "bit", 100],
+          ["is", "is", 100],
+          ["gone", "gone", 100]
+        ]
+      }
+    },
+    {
+      "id": "contr-curly-apostrophe-input",
+      "group": "contraction",
+      "reference": "I don't know.",
+      "input": "I don\u2019t know",
+      "expected": {
+        "similarity": 84.62,
+        "passed": true,
+        "words": [["i", "i", 100], ["do", "", 0], ["not", "don\u2019t", 40], ["know", "know", 100]]
+      }
+    },
+    {
+      "id": "contr-curly-apostrophe-ref-vs-expansion",
+      "group": "contraction",
+      "reference": "I don\u2019t know.",
+      "input": "I do not know",
+      "expected": {
+        "similarity": 84.62,
+        "passed": true,
+        "words": [["i", "i", 100], ["", "do", 0], ["don\u2019t", "not", 40], ["know", "know", 100]]
+      }
+    },
+    {
+      "id": "contr-uppercase",
+      "group": "contraction",
+      "reference": "DON'T STOP",
+      "input": "do not stop",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["do", "do", 100], ["not", "not", 100], ["stop", "stop", 100]]
+      }
+    },
+    {
+      "id": "contr-thats-not-in-list",
+      "group": "contraction",
+      "reference": "That's it.",
+      "input": "That is it",
+      "expected": {
+        "similarity": 80,
+        "passed": true,
+        "words": [["", "that", 0], ["that's", "is", 16.67], ["it", "it", 100]]
+      }
+    },
+    {
+      "id": "contr-lets-not-in-list",
+      "group": "contraction",
+      "reference": "Let's go.",
+      "input": "Let us go",
+      "expected": {
+        "similarity": 77.78,
+        "passed": true,
+        "words": [["", "let", 0], ["let's", "us", 20], ["go", "go", 100]]
+      }
+    },
+    {
+      "id": "contr-im-inside-word",
+      "group": "contraction",
+      "reference": "Kim's here.",
+      "input": "Kim is here",
+      "expected": {
+        "similarity": 81.82,
+        "passed": true,
+        "words": [["", "kim", 0], ["kim's", "is", 40], ["here", "here", 100]]
+      }
+    },
+    {
+      "id": "missing-word",
+      "group": "words",
+      "reference": "the big black cat",
+      "input": "the big cat",
+      "expected": {
+        "similarity": 64.71,
+        "passed": false,
+        "words": [["the", "the", 100], ["big", "big", 100], ["black", "", 0], ["cat", "cat", 100]]
+      }
+    },
+    {
+      "id": "extra-word",
+      "group": "words",
+      "reference": "the big cat",
+      "input": "the big fat cat",
+      "expected": {
+        "similarity": 73.33,
+        "passed": true,
+        "words": [["the", "the", 100], ["big", "big", 100], ["", "fat", 0], ["cat", "cat", 100]]
+      }
+    },
+    {
+      "id": "transposed-words",
+      "group": "words",
+      "reference": "the big cat",
+      "input": "the cat big",
+      "expected": {
+        "similarity": 45.45,
+        "passed": false,
+        "words": [["the", "the", 100], ["big", "cat", 0], ["cat", "big", 0]]
+      }
+    },
+    {
+      "id": "one-letter-typo",
+      "group": "words",
+      "reference": "the big cat",
+      "input": "the bog cat",
+      "expected": {
+        "similarity": 90.91,
+        "passed": true,
+        "words": [["the", "the", 100], ["big", "bog", 66.67], ["cat", "cat", 100]]
+      }
+    },
+    {
+      "id": "two-typos",
+      "group": "words",
+      "reference": "the big black cat",
+      "input": "the bag blak cat",
+      "expected": {
+        "similarity": 88.24,
+        "passed": true,
+        "words": [
+          ["the", "the", 100],
+          ["big", "bag", 66.67],
+          ["black", "blak", 80],
+          ["cat", "cat", 100]
+        ]
+      }
+    },
+    {
+      "id": "completely-different",
+      "group": "words",
+      "reference": "the big cat",
+      "input": "a small dog",
+      "expected": {
+        "similarity": 9.09,
+        "passed": false,
+        "words": [["the", "a", 0], ["big", "small", 0], ["cat", "dog", 0]]
+      }
+    },
+    {
+      "id": "much-shorter-input",
+      "group": "words",
+      "reference": "The quick brown fox jumps over the lazy dog.",
+      "input": "The",
+      "expected": {
+        "similarity": 6.98,
+        "passed": false,
+        "words": [
+          ["the", "", 0],
+          ["quick", "", 0],
+          ["brown", "", 0],
+          ["fox", "", 0],
+          ["jumps", "", 0],
+          ["over", "", 0],
+          ["the", "the", 100],
+          ["lazy", "", 0],
+          ["dog", "", 0]
+        ]
+      }
+    },
+    {
+      "id": "much-longer-input",
+      "group": "words",
+      "reference": "The cat.",
+      "input": "The cat sat on the mat and then it went to sleep for the rest of the afternoon",
+      "expected": {
+        "similarity": 8.97,
+        "passed": false,
+        "words": [
+          ["the", "the", 100],
+          ["cat", "cat", 100],
+          ["", "sat", 0],
+          ["", "on", 0],
+          ["", "the", 0],
+          ["", "mat", 0],
+          ["", "and", 0],
+          ["", "then", 0],
+          ["", "it", 0],
+          ["", "went", 0],
+          ["", "to", 0],
+          ["", "sleep", 0],
+          ["", "for", 0],
+          ["", "the", 0],
+          ["", "rest", 0],
+          ["", "of", 0],
+          ["", "the", 0],
+          ["", "afternoon", 0]
+        ]
+      }
+    },
+    {
+      "id": "shifted-window-tie",
+      "group": "words",
+      "reference": "a b c d",
+      "input": "b c d e",
+      "expected": {
+        "similarity": 42.86,
+        "passed": false,
+        "words": [["a", "", 0], ["b", "b", 100], ["c", "c", 100], ["d", "d", 100], ["", "e", 0]]
+      }
+    },
+    {
+      "id": "repeated-words",
+      "group": "words",
+      "reference": "no no no",
+      "input": "no no",
+      "expected": {
+        "similarity": 62.5,
+        "passed": false,
+        "words": [["no", "", 0], ["no", "no", 100], ["no", "no", 100]]
+      }
+    },
+    {
+      "id": "typo-near-insertion",
+      "group": "words",
+      "reference": "I saw the cat",
+      "input": "saw the cta today",
+      "expected": {
+        "similarity": 52.94,
+        "passed": false,
+        "words": [
+          ["i", "", 0],
+          ["saw", "saw", 100],
+          ["the", "the", 100],
+          ["", "cta", 0],
+          ["cat", "today", 20]
+        ]
+      }
+    },
+    {
+      "id": "single-word-typo",
+      "group": "words",
+      "reference": "necessary",
+      "input": "neccessary",
+      "expected": {
+        "similarity": 90,
+        "passed": true,
+        "words": [["necessary", "neccessary", 90]]
+      }
+    },
+    {
+      "id": "single-word-wrong",
+      "group": "words",
+      "reference": "cat",
+      "input": "dog",
+      "expected": {
+        "similarity": 0,
+        "passed": false,
+        "words": [["cat", "dog", 0]]
+      }
+    },
+    {
+      "id": "es-nfc-exact",
+      "group": "unicode",
+      "reference": "\u00bfD\u00f3nde est\u00e1 la estaci\u00f3n?",
+      "input": "\u00bfD\u00f3nde est\u00e1 la estaci\u00f3n?",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["\u00bfd\u00f3nde", "\u00bfd\u00f3nde", 100],
+          ["est\u00e1", "est\u00e1", 100],
+          ["la", "la", 100],
+          ["estaci\u00f3n", "estaci\u00f3n", 100]
+        ]
+      }
+    },
+    {
+      "id": "es-no-accents-input",
+      "group": "unicode",
+      "reference": "D\u00f3nde est\u00e1 la estaci\u00f3n",
+      "input": "Donde esta la estacion",
+      "expected": {
+        "similarity": 86.36,
+        "passed": true,
+        "words": [
+          ["d\u00f3nde", "donde", 80],
+          ["est\u00e1", "esta", 75],
+          ["la", "la", 100],
+          ["estaci\u00f3n", "estacion", 87.5]
+        ]
+      }
+    },
+    {
+      "id": "es-nfd-input",
+      "group": "unicode",
+      "reference": "est\u00e1",
+      "input": "esta\u0301",
+      "expected": {
+        "similarity": 60,
+        "passed": false,
+        "words": [["est\u00e1", "esta\u0301", 60]]
+      }
+    },
+    {
+      "id": "es-nfd-ref-nfc-input",
+      "group": "unicode",
+      "reference": "esta\u0301",
+      "input": "est\u00e1",
+      "expected": {
+        "similarity": 60,
+        "passed": false,
+        "words": [["esta\u0301", "est\u00e1", 60]]
+      }
+    },
+    {
+      "id": "es-nfd-sentence",
+      "group": "unicode",
+      "reference": "D\u00f3nde est\u00e1 la estaci\u00f3n",
+      "input": "Do\u0301nde esta\u0301 la estacio\u0301n",
+      "expected": {
+        "similarity": 76,
+        "passed": true,
+        "words": [
+          ["d\u00f3nde", "do\u0301nde", 66.67],
+          ["est\u00e1", "esta\u0301", 60],
+          ["la", "la", 100],
+          ["estaci\u00f3n", "estacio\u0301n", 77.78]
+        ]
+      }
+    },
+    {
+      "id": "es-enye",
+      "group": "unicode",
+      "reference": "El ni\u00f1o come.",
+      "input": "El nino come",
+      "expected": {
+        "similarity": 91.67,
+        "passed": true,
+        "words": [["el", "el", 100], ["ni\u00f1o", "nino", 75], ["come", "come", 100]]
+      }
+    },
+    {
+      "id": "es-enye-nfd",
+      "group": "unicode",
+      "reference": "ni\u00f1o",
+      "input": "nin\u0303o",
+      "expected": {
+        "similarity": 60,
+        "passed": false,
+        "words": [["ni\u00f1o", "nin\u0303o", 60]]
+      }
+    },
+    {
+      "id": "pt-cedilla-tilde-stripped",
+      "group": "unicode",
+      "reference": "A informa\u00e7\u00e3o \u00e9 clara.",
+      "input": "A informacao e clara",
+      "expected": {
+        "similarity": 85,
+        "passed": true,
+        "words": [
+          ["a", "a", 100],
+          ["informa\u00e7\u00e3o", "informacao", 80],
+          ["\u00e9", "e", 0],
+          ["clara", "clara", 100]
+        ]
+      }
+    },
+    {
+      "id": "pt-exact",
+      "group": "unicode",
+      "reference": "N\u00e3o posso ir \u00e0 pra\u00e7a.",
+      "input": "N\u00e3o posso ir \u00e0 pra\u00e7a.",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["n\u00e3o", "n\u00e3o", 100],
+          ["posso", "posso", 100],
+          ["ir", "ir", 100],
+          ["\u00e0", "\u00e0", 100],
+          ["pra\u00e7a", "pra\u00e7a", 100]
+        ]
+      }
+    },
+    {
+      "id": "pt-cedilla-nfd",
+      "group": "unicode",
+      "reference": "pra\u00e7a",
+      "input": "prac\u0327a",
+      "expected": {
+        "similarity": 66.67,
+        "passed": false,
+        "words": [["pra\u00e7a", "prac\u0327a", 66.67]]
+      }
+    },
+    {
+      "id": "pt-tilde-nfd",
+      "group": "unicode",
+      "reference": "n\u00e3o",
+      "input": "na\u0303o",
+      "expected": {
+        "similarity": 50,
+        "passed": false,
+        "words": [["n\u00e3o", "na\u0303o", 50]]
+      }
+    },
+    {
+      "id": "emoji-missing",
+      "group": "utf16",
+      "reference": "I love it \ud83d\ude00",
+      "input": "I love it",
+      "expected": {
+        "similarity": 75,
+        "passed": true,
+        "words": [
+          ["i", "i", 100],
+          ["love", "love", 100],
+          ["it", "it", 100],
+          ["\ud83d\ude00", "", 0]
+        ]
+      }
+    },
+    {
+      "id": "emoji-different",
+      "group": "utf16",
+      "reference": "I love it \ud83d\ude00",
+      "input": "I love it \ud83d\ude03",
+      "expected": {
+        "similarity": 91.67,
+        "passed": true,
+        "words": [
+          ["i", "i", 100],
+          ["love", "love", 100],
+          ["it", "it", 100],
+          ["\ud83d\ude00", "\ud83d\ude03", 50]
+        ]
+      }
+    },
+    {
+      "id": "emoji-only-vs-empty",
+      "group": "utf16",
+      "reference": "\ud83d\ude00",
+      "input": "",
+      "expected": {
+        "similarity": 0,
+        "passed": false,
+        "words": [["\ud83d\ude00", "", 0]]
+      }
+    },
+    {
+      "id": "emoji-only-vs-letter",
+      "group": "utf16",
+      "reference": "\ud83d\ude00",
+      "input": "a",
+      "expected": {
+        "similarity": 0,
+        "passed": false,
+        "words": [["\ud83d\ude00", "a", 0]]
+      }
+    },
+    {
+      "id": "emoji-exact",
+      "group": "utf16",
+      "reference": "\ud83d\ude00",
+      "input": "\ud83d\ude00",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["\ud83d\ude00", "\ud83d\ude00", 100]]
+      }
+    },
+    {
+      "id": "turkish-dotted-I",
+      "group": "utf16",
+      "reference": "\u0130stanbul",
+      "input": "Istanbul",
+      "expected": {
+        "similarity": 88.89,
+        "passed": true,
+        "words": [["i\u0307stanbul", "istanbul", 88.89]]
+      }
+    },
+    {
+      "id": "ligature-fi",
+      "group": "unicode",
+      "reference": "\ufb01ne",
+      "input": "fine",
+      "expected": {
+        "similarity": 50,
+        "passed": false,
+        "words": [["\ufb01ne", "fine", 50]]
+      }
+    },
+    {
+      "id": "german-eszett",
+      "group": "unicode",
+      "reference": "Stra\u00dfe",
+      "input": "Strasse",
+      "expected": {
+        "similarity": 71.43,
+        "passed": true,
+        "words": [["stra\u00dfe", "strasse", 71.43]]
+      }
+    },
+    {
+      "id": "digits-vs-words",
+      "group": "numbers",
+      "reference": "I have 2 cats.",
+      "input": "I have two cats",
+      "expected": {
+        "similarity": 80,
+        "passed": true,
+        "words": [["i", "i", 100], ["have", "have", 100], ["2", "two", 0], ["cats", "cats", 100]]
+      }
+    },
+    {
+      "id": "words-vs-digits",
+      "group": "numbers",
+      "reference": "I have two cats.",
+      "input": "I have 2 cats",
+      "expected": {
+        "similarity": 80,
+        "passed": true,
+        "words": [["i", "i", 100], ["have", "have", 100], ["two", "2", 0], ["cats", "cats", 100]]
+      }
+    },
+    {
+      "id": "decimal-point-stripped",
+      "group": "numbers",
+      "reference": "Pi is 3.14.",
+      "input": "Pi is 314",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["pi", "pi", 100], ["is", "is", 100], ["314", "314", 100]]
+      }
+    },
+    {
+      "id": "thousands-comma-stripped",
+      "group": "numbers",
+      "reference": "It costs 1,000 dollars.",
+      "input": "It costs 1000 dollars",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["it", "it", 100],
+          ["costs", "costs", 100],
+          ["1000", "1000", 100],
+          ["dollars", "dollars", 100]
+        ]
+      }
+    },
+    {
+      "id": "time-colon-stripped",
+      "group": "numbers",
+      "reference": "It's 10:30.",
+      "input": "It is 1030",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["it", "it", 100], ["is", "is", 100], ["1030", "1030", 100]]
+      }
+    },
+    {
+      "id": "time-colon-kept-by-user",
+      "group": "numbers",
+      "reference": "It's 10:30.",
+      "input": "It's 10:30",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [["it", "it", 100], ["is", "is", 100], ["1030", "1030", 100]]
+      }
+    },
+    {
+      "id": "long-exact",
+      "group": "long",
+      "reference": "The quick brown fox jumps over the lazy dog while the sun sets slowly behind the distant purple mountains, and a gentle breeze carries the smell of pine needles across the quiet valley where nobody has walked for years, except for one old shepherd who still remembers the songs his grandmother taught him on winter evenings by the fire.",
+      "input": "The quick brown fox jumps over the lazy dog while the sun sets slowly behind the distant purple mountains, and a gentle breeze carries the smell of pine needles across the quiet valley where nobody has walked for years, except for one old shepherd who still remembers the songs his grandmother taught him on winter evenings by the fire.",
+      "expected": {
+        "similarity": 100,
+        "passed": true,
+        "words": [
+          ["the", "the", 100],
+          ["quick", "quick", 100],
+          ["brown", "brown", 100],
+          ["fox", "fox", 100],
+          ["jumps", "jumps", 100],
+          ["over", "over", 100],
+          ["the", "the", 100],
+          ["lazy", "lazy", 100],
+          ["dog", "dog", 100],
+          ["while", "while", 100],
+          ["the", "the", 100],
+          ["sun", "sun", 100],
+          ["sets", "sets", 100],
+          ["slowly", "slowly", 100],
+          ["behind", "behind", 100],
+          ["the", "the", 100],
+          ["distant", "distant", 100],
+          ["purple", "purple", 100],
+          ["mountains", "mountains", 100],
+          ["and", "and", 100],
+          ["a", "a", 100],
+          ["gentle", "gentle", 100],
+          ["breeze", "breeze", 100],
+          ["carries", "carries", 100],
+          ["the", "the", 100],
+          ["smell", "smell", 100],
+          ["of", "of", 100],
+          ["pine", "pine", 100],
+          ["needles", "needles", 100],
+          ["across", "across", 100],
+          ["the", "the", 100],
+          ["quiet", "quiet", 100],
+          ["valley", "valley", 100],
+          ["where", "where", 100],
+          ["nobody", "nobody", 100],
+          ["has", "has", 100],
+          ["walked", "walked", 100],
+          ["for", "for", 100],
+          ["years", "years", 100],
+          ["except", "except", 100],
+          ["for", "for", 100],
+          ["one", "one", 100],
+          ["old", "old", 100],
+          ["shepherd", "shepherd", 100],
+          ["who", "who", 100],
+          ["still", "still", 100],
+          ["remembers", "remembers", 100],
+          ["the", "the", 100],
+          ["songs", "songs", 100],
+          ["his", "his", 100],
+          ["grandmother", "grandmother", 100],
+          ["taught", "taught", 100],
+          ["him", "him", 100],
+          ["on", "on", 100],
+          ["winter", "winter", 100],
+          ["evenings", "evenings", 100],
+          ["by", "by", 100],
+          ["the", "the", 100],
+          ["fire", "fire", 100]
+        ]
+      }
+    },
+    {
+      "id": "long-few-typos",
+      "group": "long",
+      "reference": "The quick brown fox jumps over the lazy dog while the sun sets slowly behind the distant purple mountains, and a gentle breeze carries the smell of pine needles across the quiet valley where nobody has walked for years, except for one old shepherd who still remembers the songs his grandmother taught him on winter evenings by the fire.",
+      "input": "The quik brown fox jumps over the lazy dog while the sun sets slowly behind the distant purple mountians, and a gentle breeze carries the smell of pine needles across the quiet valley where nobody has walked for years, except for one old shepherd who still remembers the songs his grand mother taught him on winter evenings by the fire.",
+      "expected": {
+        "similarity": 98.8,
+        "passed": true,
+        "words": [
+          ["the", "the", 100],
+          ["quick", "quik", 80],
+          ["brown", "brown", 100],
+          ["fox", "fox", 100],
+          ["jumps", "jumps", 100],
+          ["over", "over", 100],
+          ["the", "the", 100],
+          ["lazy", "lazy", 100],
+          ["dog", "dog", 100],
+          ["while", "while", 100],
+          ["the", "the", 100],
+          ["sun", "sun", 100],
+          ["sets", "sets", 100],
+          ["slowly", "slowly", 100],
+          ["behind", "behind", 100],
+          ["the", "the", 100],
+          ["distant", "distant", 100],
+          ["purple", "purple", 100],
+          ["mountains", "mountians", 77.78],
+          ["and", "and", 100],
+          ["a", "a", 100],
+          ["gentle", "gentle", 100],
+          ["breeze", "breeze", 100],
+          ["carries", "carries", 100],
+          ["the", "the", 100],
+          ["smell", "smell", 100],
+          ["of", "of", 100],
+          ["pine", "pine", 100],
+          ["needles", "needles", 100],
+          ["across", "across", 100],
+          ["the", "the", 100],
+          ["quiet", "quiet", 100],
+          ["valley", "valley", 100],
+          ["where", "where", 100],
+          ["nobody", "nobody", 100],
+          ["has", "has", 100],
+          ["walked", "walked", 100],
+          ["for", "for", 100],
+          ["years", "years", 100],
+          ["except", "except", 100],
+          ["for", "for", 100],
+          ["one", "one", 100],
+          ["old", "old", 100],
+          ["shepherd", "shepherd", 100],
+          ["who", "who", 100],
+          ["still", "still", 100],
+          ["remembers", "remembers", 100],
+          ["the", "the", 100],
+          ["songs", "songs", 100],
+          ["his", "his", 100],
+          ["", "grand", 0],
+          ["grandmother", "mother", 54.55],
+          ["taught", "taught", 100],
+          ["him", "him", 100],
+          ["on", "on", 100],
+          ["winter", "winter", 100],
+          ["evenings", "evenings", 100],
+          ["by", "by", 100],
+          ["the", "the", 100],
+          ["fire", "fire", 100]
+        ]
+      }
+    },
+    {
+      "id": "long-missing-clause",
+      "group": "long",
+      "reference": "The quick brown fox jumps over the lazy dog while the sun sets slowly behind the distant purple mountains, and a gentle breeze carries the smell of pine needles across the quiet valley where nobody has walked for years, except for one old shepherd who still remembers the songs his grandmother taught him on winter evenings by the fire.",
+      "input": "The quick brown fox jumps over the lazy dog while the sun sets slowly behind the distant purple mountains, and a gentle breeze carries the smell of pine needles across the quiet valley where nobody has walked for years.",
+      "expected": {
+        "similarity": 65.17,
+        "passed": false,
+        "words": [
+          ["the", "the", 100],
+          ["quick", "quick", 100],
+          ["brown", "brown", 100],
+          ["fox", "fox", 100],
+          ["jumps", "jumps", 100],
+          ["over", "over", 100],
+          ["the", "the", 100],
+          ["lazy", "lazy", 100],
+          ["dog", "dog", 100],
+          ["while", "while", 100],
+          ["the", "the", 100],
+          ["sun", "sun", 100],
+          ["sets", "sets", 100],
+          ["slowly", "slowly", 100],
+          ["behind", "behind", 100],
+          ["the", "the", 100],
+          ["distant", "distant", 100],
+          ["purple", "purple", 100],
+          ["mountains", "mountains", 100],
+          ["and", "and", 100],
+          ["a", "a", 100],
+          ["gentle", "gentle", 100],
+          ["breeze", "breeze", 100],
+          ["carries", "carries", 100],
+          ["the", "the", 100],
+          ["smell", "smell", 100],
+          ["of", "of", 100],
+          ["pine", "pine", 100],
+          ["needles", "needles", 100],
+          ["across", "across", 100],
+          ["the", "the", 100],
+          ["quiet", "quiet", 100],
+          ["valley", "valley", 100],
+          ["where", "where", 100],
+          ["nobody", "nobody", 100],
+          ["has", "has", 100],
+          ["walked", "walked", 100],
+          ["for", "for", 100],
+          ["years", "years", 100],
+          ["except", "", 0],
+          ["for", "", 0],
+          ["one", "", 0],
+          ["old", "", 0],
+          ["shepherd", "", 0],
+          ["who", "", 0],
+          ["still", "", 0],
+          ["remembers", "", 0],
+          ["the", "", 0],
+          ["songs", "", 0],
+          ["his", "", 0],
+          ["grandmother", "", 0],
+          ["taught", "", 0],
+          ["him", "", 0],
+          ["on", "", 0],
+          ["winter", "", 0],
+          ["evenings", "", 0],
+          ["by", "", 0],
+          ["the", "", 0],
+          ["fire", "", 0]
+        ]
+      }
+    },
+    {
+      "id": "rounding-32-chars-1-sub",
+      "group": "rounding",
+      "reference": "abcdefghijklmnopqrstuvwxyz012345",
+      "input": "abcdefghijklmnopqrstuvwxyz01234X",
+      "expected": {
+        "similarity": 96.88,
+        "passed": true,
+        "words": [["abcdefghijklmnopqrstuvwxyz012345", "abcdefghijklmnopqrstuvwxyz01234x", 96.88]]
+      }
+    },
+    {
+      "id": "rounding-160-chars-1-sub",
+      "group": "rounding",
+      "reference": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab",
+      "expected": {
+        "similarity": 99.38,
+        "passed": true,
+        "words": [
+          [
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab",
+            99.38
+          ]
+        ]
+      }
+    },
+    {
+      "id": "rounding-8-chars-1-sub",
+      "group": "rounding",
+      "reference": "abcdefgh",
+      "input": "abcdefgX",
+      "expected": {
+        "similarity": 87.5,
+        "passed": true,
+        "words": [["abcdefgh", "abcdefgx", 87.5]]
+      }
+    },
+    {
+      "id": "rounding-1000-chars-300-deleted-exactly-70",
+      "group": "rounding",
+      "reference": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected": {
+        "similarity": 70,
+        "passed": true,
+        "words": [
+          [
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            70
+          ]
+        ]
+      }
+    },
+    {
+      "id": "rounding-1000-chars-301-deleted-just-below-70",
+      "group": "rounding",
+      "reference": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected": {
+        "similarity": 69.9,
+        "passed": false,
+        "words": [
+          [
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            69.9
+          ]
+        ]
+      }
+    },
+    {
+      "id": "rounding-3333-chars-tie-rounds-up-to-70",
+      "group": "rounding",
+      "reference": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word wor",
+      "input": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word wor",
+      "expected": {
+        "similarity": 70,
+        "passed": true,
+        "words": [
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "", 0],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["word", "word", 100],
+          ["wor", "wor", 100]
+        ]
+      }
+    },
+    {
+      "id": "threshold-10-chars-3-wrong",
+      "group": "rounding",
+      "reference": "abcdefghij",
+      "input": "abcdefgXYZ",
+      "expected": {
+        "similarity": 70,
+        "passed": true,
+        "words": [["abcdefghij", "abcdefgxyz", 70]]
+      }
+    },
+    {
+      "id": "threshold-10-chars-4-wrong",
+      "group": "rounding",
+      "reference": "abcdefghij",
+      "input": "abcdefWXYZ",
+      "expected": {
+        "similarity": 60,
+        "passed": false,
+        "words": [["abcdefghij", "abcdefwxyz", 60]]
+      }
+    }
+  ]
+}

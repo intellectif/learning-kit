@@ -93,6 +93,16 @@
         "default": "./dist/components/GapSelect.cjs"
       }
     },
+    "./components/Dictation": {
+      "import": {
+        "types": "./dist/components/Dictation.d.ts",
+        "default": "./dist/components/Dictation.js"
+      },
+      "require": {
+        "types": "./dist/components/Dictation.d.cts",
+        "default": "./dist/components/Dictation.cjs"
+      }
+    },
     "./components/StimulusPanel": {
       "import": {
         "types": "./dist/components/StimulusPanel.d.ts",

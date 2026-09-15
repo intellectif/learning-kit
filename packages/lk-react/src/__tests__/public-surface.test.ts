@@ -18,6 +18,7 @@ describe('published export surface', () => {
   const barrelExports = [
     'ActivityPreview',
     'ActivitySequence',
+    'Dictation',
     'FillInTheBlanks',
     'GapSelect',
     'MultipleChoice',

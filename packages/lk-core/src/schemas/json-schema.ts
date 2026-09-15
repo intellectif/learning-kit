@@ -1,6 +1,7 @@
 import { z } from 'zod/v4';
 import { UnknownActivityTypeError } from '../errors.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
+import { DictationDataSchema } from './dictation.js';
 import { FillInTheBlanksDataSchema } from './fill-in-the-blanks.js';
 import { GapSelectDataSchema } from './gap-select.js';
 import { ItemGroupSchema, StimulusSchema } from './item-group.js';
@@ -40,6 +41,20 @@ export const itemGroupJsonSchema = z.toJSONSchema(ItemGroupSchema, { target: 'dr
  * for the other types.
  */
 export const gapSelectJsonSchema = z.toJSONSchema(GapSelectDataSchema, {
+  target: 'draft-7',
+});
+
+/**
+ * JSON Schema (Draft 7) representation of the Dictation activity data
+ * contract. Structural contract, plus the raw length caps JSON Schema can
+ * state in code points as zod counts them — `maxLength` 2000 on a transcript
+ * and an accepted transcript, 200 on a rule's `from` and `to`. The twelve
+ * semantic guards — a transcript that survives normalisation, the caps after
+ * equivalences are applied, distinct candidates, audio only, the
+ * slow-recording rules, no captions, no transcript in the title — are
+ * Zod-only, as they are for the other types.
+ */
+export const dictationJsonSchema = z.toJSONSchema(DictationDataSchema, {
   target: 'draft-7',
 });
 

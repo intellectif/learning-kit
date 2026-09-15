@@ -2,6 +2,7 @@ import { z } from 'zod/v4';
 import { getActivityTypeDescriptor } from '../registry/index.js';
 import type { ActivityData, ValidationError, ValidationResult } from '../types/activity.js';
 import type { ItemGroup, StimulusKind } from '../types/item-group.js';
+import { GROUP_CAPTIONS_REVEAL_DICTATION, groupCaptionsRevealDictation } from './dictation.js';
 import { MediaSchema, RedactedMediaSchema } from './media.js';
 
 /**
@@ -142,19 +143,33 @@ export const RedactedStimulusSchema = z.strictObject({
 /**
  * Strict learner-safe item group. Items are left opaque here — each is proven
  * learner-safe by `assertRedacted` against its OWN type's redacted schema,
- * which is the only place that knowledge lives.
+ * which is the only place that knowledge lives. The one exception is the one
+ * rule that spans the container and an item: a captioned stimulus recording
+ * played to a dictation is not learner-safe, because the captions are the
+ * dictation's answer.
  */
-export const RedactedItemGroupSchema = z.strictObject({
-  redacted: z.literal(true),
-  schemaVersion: z.literal('1.0'),
-  type: z.literal('item-group'),
-  id: z.string().min(1),
-  title: z.string().optional(),
-  slotKey: SlotKeySchema.optional(),
-  stimulus: RedactedStimulusSchema,
-  items: z.array(z.unknown()).min(1),
-  shuffle: z.enum(['none', 'within-group']).optional(),
-});
+export const RedactedItemGroupSchema = z
+  .strictObject({
+    redacted: z.literal(true),
+    schemaVersion: z.literal('1.0'),
+    type: z.literal('item-group'),
+    id: z.string().min(1),
+    title: z.string().optional(),
+    slotKey: SlotKeySchema.optional(),
+    stimulus: RedactedStimulusSchema,
+    items: z.array(z.unknown()).min(1),
+    shuffle: z.enum(['none', 'within-group']).optional(),
+  })
+  .check((ctx) => {
+    if (groupCaptionsRevealDictation(ctx.value)) {
+      ctx.issues.push({
+        code: 'custom',
+        input: ctx.value.stimulus.media?.captionsUrl,
+        message: GROUP_CAPTIONS_REVEAL_DICTATION,
+        path: ['stimulus', 'media', 'captionsUrl'],
+      });
+    }
+  });
 
 function toValidationErrors(
   issues: readonly { path: PropertyKey[]; message: string; code: string }[],
@@ -202,6 +217,13 @@ export function validateItemGroup(data: unknown): ValidationResult<ItemGroup> {
     }
     items.push(parsed.data as ActivityData);
   });
+  if (groupCaptionsRevealDictation(container.data)) {
+    errors.push({
+      path: ['stimulus', 'media', 'captionsUrl'],
+      message: GROUP_CAPTIONS_REVEAL_DICTATION,
+      code: 'custom',
+    });
+  }
 
   if (errors.length > 0) {
     return { success: false, errors };

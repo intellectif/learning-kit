@@ -32,6 +32,7 @@ const BUILT_IN: ActivityType[] = [
   'fill-in-the-blanks',
   'written-response',
   'gap-select',
+  'dictation',
 ];
 
 /** Many runs: each is two schema parses and a check, all pure and fast. */
@@ -356,11 +357,119 @@ const gapSelectDraft = fc
   })
   .map(compact);
 
+const LONG_TRANSCRIPT = 'a'.repeat(2001);
+const LONG_REWRITE = 'b'.repeat(201);
+
+/** A transcript, or what an editor holds instead of one. */
+const transcriptArb = fc.constantFrom<unknown>(
+  undefined,
+  null,
+  '',
+  '   ',
+  NBSP,
+  '...',
+  '& ',
+  LONG_TRANSCRIPT,
+  'Tokyo',
+  'It is raining.',
+  "It isn't raining in Lisbon today.",
+);
+
+/** A recording as a dictation may or may not have it: every kind, captions, a description that is the answer. */
+const dictationMediaArb = fc
+  .record({
+    type: fc.constantFrom<unknown>(undefined, null, '', 'image', 'audio', 'video', 'embed'),
+    url: fc.constantFrom<unknown>(
+      undefined,
+      null,
+      '',
+      '/a.mp3',
+      'https://cdn.example/a.mp3',
+      'a.mp3',
+    ),
+    alt: fc.constantFrom<unknown>(
+      undefined,
+      null,
+      '',
+      '  ',
+      'Recording',
+      'It is raining.',
+      'Tokyo',
+    ),
+    captionsUrl: fc.constantFrom<unknown>(undefined, null, '', '/c.vtt'),
+    playback: fc.constantFrom<unknown>(
+      undefined,
+      null,
+      { maxPlays: 2 },
+      { maxPlays: null },
+      { seek: 'none', rate: 'fixed' },
+      { controls: '' },
+    ),
+  })
+  .map(compact);
+
+const slowMediaArb = fc
+  .record({
+    type: fc.constantFrom<unknown>(undefined, null, '', 'audio', 'image'),
+    url: fc.constantFrom<unknown>(undefined, null, '', '/a.mp3', '/slow.mp3', 'slow.mp3'),
+    alt: fc.constantFrom<unknown>(undefined, null, '', 'Recording, slow', 'It is raining.'),
+    captionsUrl: fc.constantFrom<unknown>(undefined, null, '/c.vtt'),
+    playback: fc.constantFrom<unknown>(undefined, null, { rate: 'fixed' }),
+  })
+  .map(compact);
+
+const equivalenceArb = entry(
+  fc
+    .record({
+      from: fc.constantFrom<unknown>(undefined, null, '', '  ', '...', '&', 'is not', "isn't"),
+      to: fc.constantFrom<unknown>(undefined, null, '', '...', 'is not', 'and', "$'", LONG_REWRITE),
+    })
+    .map(compact),
+);
+
+const dictationDraft = fc
+  .record({
+    ...envelope('dictation'),
+    transcript: transcriptArb,
+    acceptedTranscripts: orUnset(
+      fc.oneof(
+        fc.array(fc.constantFrom<unknown>('', '  ', null, undefined, 'It is raining.', 'Tokyo'), {
+          maxLength: 3,
+        }),
+        fc.constant<unknown>(Array.from({ length: 11 }, (_, index) => `Sentence ${index}`)),
+      ),
+    ),
+    slowMedia: orUnset(slowMediaArb),
+    hints: fc.constantFrom<unknown>(
+      undefined,
+      null,
+      {},
+      { mode: 'progressive-words' },
+      { mode: '' },
+      { mode: null },
+      { mode: 'all-at-once' },
+    ),
+    tolerance: fc
+      .constantFrom<unknown>(undefined, null, {}, { equivalences: null })
+      .chain((fixed) =>
+        fixed === undefined
+          ? fc.oneof(
+              fc.constant<unknown>(undefined),
+              fc.array(equivalenceArb, { maxLength: 3 }).map((equivalences) => ({ equivalences })),
+            )
+          : fc.constant(fixed),
+      ),
+    ...sharedArbs,
+    media: orUnset(dictationMediaArb),
+  })
+  .map(compact);
+
 const EDITOR_DRAFTS: [ActivityType, fc.Arbitrary<Record<string, unknown>>][] = [
   ['multiple-choice', multipleChoiceDraft],
   ['fill-in-the-blanks', fillInTheBlanksDraft],
   ['written-response', writtenResponseDraft],
   ['gap-select', gapSelectDraft],
+  ['dictation', dictationDraft],
 ];
 
 /** A well-formed response for each type, to score a complete draft with. */
@@ -369,6 +478,7 @@ const RESPONSES: Record<string, LearnerResponse> = {
   'fill-in-the-blanks': { type: 'fill-in-the-blanks', answers: { a: 'Went', b: '' } },
   'written-response': { type: 'written-response', text: 'I went home.', wordCount: 3 },
   'gap-select': { type: 'gap-select', selections: { a: 'from', b: '' } },
+  dictation: { type: 'dictation', text: 'It is raining.' },
 };
 
 describe('validateDraft properties', () => {

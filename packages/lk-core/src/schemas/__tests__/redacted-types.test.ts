@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { redact } from '../../redact.js';
 import type {
+  DictationData,
   FillInTheBlanksData,
   GapSelectData,
   MultipleChoiceData,
@@ -8,12 +9,14 @@ import type {
 } from '../../types/activity.js';
 import type {
   RedactedActivity,
+  RedactedDictationData,
   RedactedFillInTheBlanksData,
   RedactedGapSelectData,
   RedactedMultipleChoiceData,
   RedactedWrittenResponseData,
 } from '../index.js';
 import {
+  RedactedDictationDataSchema,
   RedactedFillInTheBlanksDataSchema,
   RedactedGapSelectDataSchema,
   RedactedMultipleChoiceDataSchema,
@@ -80,6 +83,32 @@ const gs: GapSelectData = {
   scoringStrategy: 'partial',
 };
 
+// Carries a rule set on purpose: `tolerance` is classified as one scalar leaf,
+// and this is the fixture that would break if it were ever made a nested policy.
+const dc: DictationData = {
+  schemaVersion: '1.0',
+  type: 'dictation',
+  id: 'q5',
+  title: 'Listen and type the sentence',
+  transcript: "It isn't raining in Lisbon today.",
+  acceptedTranscripts: ["It isn't raining in Lisboa today."],
+  media: {
+    type: 'audio',
+    url: 'https://cdn.example/lisbon.mp3',
+    alt: 'Recording, normal speed',
+    playback: { seek: 'none', rate: 'fixed' },
+  },
+  slowMedia: { type: 'audio', url: 'https://cdn.example/lisbon-slow.mp3', alt: 'Recording, slow' },
+  hints: { mode: 'progressive-words' },
+  tolerance: {
+    equivalences: [
+      { from: "isn't", to: 'is not' },
+      { from: "it's", to: 'it is' },
+    ],
+  },
+  feedback: { correct: 'Well heard.', incorrect: 'Listen once more.' },
+};
+
 /**
  * The point of deriving these types with `z.infer` is that they cannot drift
  * from the validator. These tests pin the other half: that what `redact()`
@@ -130,12 +159,37 @@ describe('derived redacted types match redact() output', () => {
     }
   });
 
+  it('types a redacted dictation, keeping both recordings and the hint mode and nothing of the key', () => {
+    // The fixture carries two equivalence rules: the case a nested policy over
+    // `tolerance` projects to `[{}, {}]` on, which is not empty, survives
+    // `reveal: 'none'`, and fails the strict schema — so every item carrying a
+    // rule set would throw here.
+    const projection = redact(dc);
+    const typed: RedactedDictationData = RedactedDictationDataSchema.parse(projection);
+    expect(typed.media?.url).toBe('https://cdn.example/lisbon.mp3');
+    expect(typed.slowMedia).toEqual({
+      type: 'audio',
+      url: 'https://cdn.example/lisbon-slow.mp3',
+      alt: 'Recording, slow',
+    });
+    expect(typed.hints).toEqual({ mode: 'progressive-words' });
+    for (const key of ['transcript', 'acceptedTranscripts', 'tolerance', 'feedback']) {
+      expect(projection).not.toHaveProperty(key);
+    }
+    // The answer key comes back, intact, once the attempt is over.
+    const revealed = redact(dc, { reveal: 'after-submit' });
+    expect(revealed.transcript).toBe(dc.transcript);
+    expect(revealed.acceptedTranscripts).toEqual(dc.acceptedTranscripts);
+    expect(revealed.tolerance).toEqual(dc.tolerance);
+  });
+
   it('narrows the RedactedActivity union on `type`, like ActivityData does', () => {
     const items: RedactedActivity[] = [
       RedactedMultipleChoiceDataSchema.parse(redact(mc)),
       RedactedFillInTheBlanksDataSchema.parse(redact(fib)),
       RedactedWrittenResponseDataSchema.parse(redact(wr)),
       RedactedGapSelectDataSchema.parse(redact(gs)),
+      RedactedDictationDataSchema.parse(redact(dc)),
     ];
 
     const described = items.map((item) => {
@@ -148,10 +202,13 @@ describe('derived redacted types match redact() output', () => {
       if (item.type === 'gap-select') {
         return `${item.gaps.length} gaps`;
       }
+      if (item.type === 'dictation') {
+        return `${item.slowMedia === undefined ? 1 : 2} recordings`;
+      }
       // Narrowed to the written response by elimination — no cast needed.
       return `${item.minWords}-${item.maxWords} words`;
     });
 
-    expect(described).toEqual(['2 options', '1 blanks', '10-50 words', '2 gaps']);
+    expect(described).toEqual(['2 options', '1 blanks', '10-50 words', '2 gaps', '2 recordings']);
   });
 });

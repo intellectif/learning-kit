@@ -18,6 +18,11 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.8.1 | 7.0.1 | Patch: two further fail-open leaks in `redact()`, a play budget that never bound on an essay slot, and three guards that could not fail |
 | 0.8.1 | 7.1.0 | `<LkIntlProvider>`: every string the SDK renders itself is overridable, `lang` / `dir` derived from the locale, RTL-safe skin. **No `lk-core` change** — a `lk-react` minor on the same peer range as 7.0.1 |
 | 0.9.0 | 8.0.0 | Authoring: `validateDraft` (incomplete vs invalid), `createDraft`, per-type `authoring` descriptors, `<ActivityPreview>`. **Additive** — the major is the peer bump, plus one new component and two new strings |
+| 0.10.0 | 9.0.0 | `gap-select` (the dropdown cloze) and multiple-choice option `media`. **Additive** — the peer bump |
+| 0.10.1 | 10.0.0 | `<GapSelect>`, the renderer the type shipped without; `GapSelectData` and friends exported. Two new strings |
+| 0.11.0 | 11.0.0 | Node 22 is the floor, and `engines` says so. **No API change** |
+| 0.12.0 | 12.0.0 | `validateItemGroupDraft` / `createItemGroupDraft`: a testlet's own draft contract. **No React API change** — the peer bump |
+| 0.13.0 | 13.0.0 | `dictation`: `<Dictation>`, `alignDictation`, `diffDictationChars`, `dictationReferenceWords`, `ScoringDetail.score`, an optional `{ rounding }` on `score()` / `evaluate()`, `dictationType` / `gapSelectType` on the barrel, the dictation draft contract. **Additive** — the major is the peer bump, plus one new component and the dictation strings |
 
 Every behavioural change here is opt-in, per the
 [grade-stability rule](./roadmap.md#5-standing-decisions) — with **one
@@ -32,8 +37,79 @@ were.
 - On **0.6.x**? Skip to [0.6 → 0.7](#06--07-lk-core--5x--6x-lk-react).
 - On **0.7.x**? Skip to [0.7 → 0.8](#07--08-lk-core--6x--7x-lk-react) — it has two new render-time throws and one grade-affecting fix.
 - On **0.8.x**? See [0.8 → 0.9](#08--09-lk-core--7x--8x-lk-react) — additive, with one possible type error.
+- On **0.9.x – 0.12.x**? See [0.12 → 0.13](#012--013-lk-core--12x--13x-lk-react) — additive, with the type errors it lists. The releases in between add the same kinds: `gap-select` joined the activity unions in 0.10.0, `gapLabel` and `gapPlaceholder` joined `LkStrings` in 10.0.0, and 0.11.0 needs Node 22 or later.
 
 ---
+
+## 0.12 → 0.13 (`lk-core`) / 12.x → 13.x (`lk-react`)
+
+Additive. Upgrade and change no code, and nothing you render, validate or score
+behaves differently — unless you registered an activity type of your own named
+`dictation`, hold items whose `type` is `dictation` without having registered
+one, or build a type picker from `registeredActivityTypes()` (all three below):
+every grade vector replays unchanged, and the new vectors pin the new type. 13.0.0 is a major because `lk-core` is a peer and
+moved a minor; it also adds one component.
+
+### A learner can be dictated to *(0.13.0 / 13.0.0)*
+
+`dictation` is a built-in type: the learner hears a recording and types it, and
+the grade is the character-level similarity of their text to the transcript —
+`(length − edit distance) / length` over NFC code points, with case,
+punctuation and spacing ignored and typographic apostrophes folded. See
+[Dictation](./authoring.md#dictation--listen-and-type-v013--130) for the data
+contract, the marking, the two recordings and the equivalence rules.
+
+Three things the type adds to shared surfaces, all optional:
+
+- `ScoringDetail.score?: number` — a per-item score in [0, 1]. Written by the
+  dictation scorer (each transcript word's similarity), by nothing else, and
+  ignored by every reader that does not know it.
+- `score(type, data, response, options?)` and `evaluate(data, response,
+  options?)` take an optional `{ rounding: RoundingPolicy }`, which compares
+  the pass line — and selects the authored feedback — the way a score is
+  displayed. Without it, both behave exactly as before. A malformed policy
+  throws a `RangeError`, and `null` reads as none.
+- `ActivityDataMap`, `LearnerResponseMap` and `RedactedActivity` gain a member
+  (and so do `ActivityType` and lk-react's `RenderableActivity`) — see below
+  for the code that notices.
+
+`dictationType` is exported from the barrel, and so — at last — is
+`gapSelectType`, which 0.10.0 registered without exporting. So are
+`MediaPlaybackPolicy`, the type of `ActivityMedia.playback`, which until now
+could only be reached as `NonNullable<ActivityMedia['playback']>`, and
+`NativeControlHint`, the element type of its `nativeControlHints`.
+
+`registeredActivityTypes()` now lists `dictation`, so a type picker built from
+it shows one more entry. Items whose `type` is `dictation`, which this SDK read
+as an unknown type until now, are read as the built-in: `validateActivity`
+validates them instead of throwing `UnknownActivityTypeError`, `evaluate()`
+scores them instead of returning `unscorable` — which changes a composed total
+that counted them as unscorable — and `<ActivitySequence>` renders
+`<Dictation>` where it rendered its unsupported-item note.
+
+### What can stop a build *(0.13.0 / 13.0.0)*
+
+- **A complete `LkStrings`.** `LkStrings` gained the dictation strings. A
+  translation passed as a partial override — an `LkStringsOverride`, or an
+  object literal handed straight to `strings` — is unaffected. A dictionary
+  declared as a complete `LkStrings` does not type-check until it supplies the
+  new keys.
+- **Code that lists every activity type.** A `switch` over `ActivityData`,
+  `LearnerResponse`, `RedactedActivity` or `RenderableActivity` whose
+  `default` asserts `never`, and a table typed `Record<ActivityType, …>`, stop
+  compiling until they have a `dictation` case or key. A `default` that does
+  not assert `never` already covers the new type.
+- **Narrowing by a property one type used to own.** `DictationLearnerResponse`
+  has `text`, as `WrittenResponseLearnerResponse` does, so `'text' in response`
+  no longer picks out a written response: code that then reads `wordCount` stops
+  compiling. Narrow on `response.type` instead.
+
+### If you registered a type named `dictation` *(0.13.0)*
+
+The built-in now owns the name. `registerActivityType` throws at startup for a
+different descriptor under `dictation`, and an `ActivityDataMap` augmentation
+declaring `dictation` stops compiling. Rename your type, and migrate the
+`type` stored on its items, or move the items to the built-in.
 
 ## Grade-correctness first
 
@@ -166,7 +242,7 @@ derived from the strict schemas with `z.infer`, so they cannot drift:
 
 ```ts
 import type {
-  RedactedActivity,               // discriminated union of all three
+  RedactedActivity,               // discriminated union of every built-in type
   RedactedMultipleChoiceData,
   RedactedFillInTheBlanksData,
   RedactedWrittenResponseData,

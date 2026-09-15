@@ -10,6 +10,7 @@ export default defineConfig({
     'components/MultipleChoice': 'src/components/MultipleChoice/index.tsx',
     'components/FillInTheBlanks': 'src/components/FillInTheBlanks/index.tsx',
     'components/GapSelect': 'src/components/GapSelect/index.tsx',
+    'components/Dictation': 'src/components/Dictation/index.tsx',
     'components/WrittenResponse': 'src/components/WrittenResponse/index.tsx',
     'components/StimulusPanel': 'src/components/StimulusPanel/index.tsx',
     'hooks/useActivityState': 'src/hooks/useActivityState.ts',

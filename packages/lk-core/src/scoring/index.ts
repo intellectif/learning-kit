@@ -19,6 +19,22 @@ export type {
   SectionScore,
 } from './compose.js';
 export { composeAssessmentScore } from './compose.js';
+export type {
+  DictationAlignment,
+  DictationCharOp,
+  DictationReference,
+  DictationWordAlignment,
+} from './dictation/index.js';
+export {
+  alignDictation,
+  DICTATION_MAX_ACCEPTED_TRANSCRIPTS,
+  DICTATION_MAX_EQUIVALENCE_LENGTH,
+  DICTATION_MAX_EQUIVALENCES,
+  DICTATION_MAX_TEXT_LENGTH,
+  DICTATION_MAX_TRANSCRIPT_LENGTH,
+  dictationReferenceWords,
+  diffDictationChars,
+} from './dictation/index.js';
 export type { Band, RoundingMode, RoundingPolicy } from './rounding.js';
 export { classifyBand, gte, roundGrade } from './rounding.js';
 export type { TextMatchPolicy, TextMatchResult } from './text-match.js';
@@ -26,6 +42,67 @@ export { levenshteinDistance, matchText } from './text-match.js';
 
 /** Default minimum scaled score required to pass when `passThreshold` is absent. */
 export const DEFAULT_PASS_THRESHOLD = 0.7;
+
+/**
+ * Options for {@link score} and {@link evaluate}. Additive: with none, both
+ * behave exactly as they always have.
+ */
+export interface ScoringOptions {
+  /**
+   * Compare the pass line the way the score is displayed — both sides rounded,
+   * via {@link computePassThreshold} — so an item shown as "70%" is not
+   * recorded as a fail at 69.995. `passed` AND the authored feedback selected by
+   * it follow the rounded comparison. Opt-in, for the reason
+   * {@link computePassThreshold} gives: switching it on moves item-level
+   * pass/fail for scores in the rounding band.
+   *
+   * Checked at the call: `null` reads as no policy, and a policy that cannot be
+   * applied — an unknown `mode`, or a `dp` that is not a whole number from 0 to
+   * 15 — throws a `RangeError` instead of quietly failing every comparison.
+   */
+  rounding?: RoundingPolicy;
+}
+
+const ROUNDING_MODES: readonly unknown[] = ['half-up', 'half-even', 'floor', 'ceil'];
+/** The most decimal places a policy may round to: a scaled grade stays an integer a double holds exactly. */
+const MAX_ROUNDING_DP = 15;
+
+/**
+ * The rounding policy of `options`, or `undefined` for none. A malformed one
+ * would reach {@link gte} as `10 ** undefined` and turn a perfect score into a
+ * fail with no error, so it throws here instead.
+ */
+function roundingOf(options: ScoringOptions | undefined): RoundingPolicy | undefined {
+  const rounding: unknown = options?.rounding;
+  if (rounding === undefined || rounding === null) {
+    return undefined;
+  }
+  const { mode, dp } = rounding as { mode?: unknown; dp?: unknown };
+  if (
+    !ROUNDING_MODES.includes(mode) ||
+    typeof dp !== 'number' ||
+    !Number.isInteger(dp) ||
+    dp < 0 ||
+    dp > MAX_ROUNDING_DP
+  ) {
+    // Described field by field, never serialised: a policy holding a BigInt or
+    // a reference to itself would make the message throw a TypeError first.
+    const describe = (value: unknown): string =>
+      typeof value === 'string'
+        ? JSON.stringify(value)
+        : typeof value === 'number' || value === undefined
+          ? String(value)
+          : typeof value === 'object'
+            ? 'an object'
+            : `a ${typeof value}`;
+    throw new RangeError(
+      `Invalid rounding policy (mode ${describe(mode)}, dp ${describe(dp)}): expected { mode: 'half-up' | 'half-even' | 'floor' | 'ceil', dp: a whole number from 0 to ${MAX_ROUNDING_DP} }.`,
+    );
+  }
+  // The values just checked, not the object they came from: an accessor could
+  // answer differently when the comparison reads it again.
+  return { mode, dp } as RoundingPolicy;
+}
 
 /**
  * Returns `true` iff `score` meets or exceeds the activity's `passThreshold`,
@@ -90,7 +167,9 @@ export function score(
   activityType: ActivityType,
   activityData: ActivityData,
   learnerResponse: LearnerResponse,
+  options?: ScoringOptions,
 ): ScoringResult {
+  const rounding = roundingOf(options);
   const descriptor = getActivityTypeDescriptor(activityType);
   if (descriptor === undefined) {
     throw new UnknownActivityTypeError(String(activityType));
@@ -106,7 +185,7 @@ export function score(
   if (!Number.isFinite(result.score)) {
     throw new RedactedScoringError(descriptor.type);
   }
-  const passed = computePassThreshold(activityData, result.score);
+  const passed = computePassThreshold(activityData, result.score, rounding);
   return { ...result, passed, feedback: result.feedback ?? selectFeedback(activityData, passed) };
 }
 
@@ -127,7 +206,14 @@ export function score(
  * The activity type is read from `data.type` — there is no separate type
  * parameter to disagree with the payload.
  */
-export function evaluate(data: ActivityData, response: LearnerResponse): ItemOutcome {
+export function evaluate(
+  data: ActivityData,
+  response: LearnerResponse,
+  options?: ScoringOptions,
+): ItemOutcome {
+  // A malformed option is the caller's configuration, not the content bank's:
+  // it throws before any item is read, rather than grading every item wrong.
+  const rounding = roundingOf(options);
   const type = (data as { type?: unknown }).type;
   const descriptor = typeof type === 'string' ? getActivityTypeDescriptor(type) : undefined;
 
@@ -169,7 +255,7 @@ export function evaluate(data: ActivityData, response: LearnerResponse): ItemOut
       maxScore: result.maxScore,
     };
   }
-  const passed = computePassThreshold(data, result.score);
+  const passed = computePassThreshold(data, result.score, rounding);
   return {
     status: 'scored',
     score: result.score,

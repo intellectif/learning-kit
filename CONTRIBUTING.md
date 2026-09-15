@@ -71,7 +71,7 @@ major. Doc comments are stripped, so rewording JSDoc never fails the gate.
 ### Mutation testing the scoring engine
 
 ```bash
-pnpm mutate                      # the whole scoring engine (~250 mutants)
+pnpm mutate                      # the whole scoring engine (~700 mutants)
 pnpm mutate --filter text-match  # one file
 pnpm mutate --limit 25           # a quick sample
 ```
@@ -105,10 +105,12 @@ The architecture is contract-first; adding a type touches `lk-core` then `lk-rea
 3. **Scoring** — add `packages/lk-core/src/scoring/activity-scorers/<type>.ts` and give it to the type's descriptor in `registry/builtins.ts`, which is how `score` and `evaluate` reach it. The scorer must be **pure and deterministic**, return `{ score∈[0,1], maxScore: 1, feedback: null, details }`, and reach **100% coverage**.
 4. **Authoring** — add `packages/lk-core/src/authoring/<type>.ts` and put it on the descriptor as `authoring`: a `createDraft` that `validateDraft` reports as `incomplete` (never `invalid`), and a `checkDraft` that reports each problem at the path the schema reports it. Add every new code to `DRAFT_ISSUE_SEVERITY` in `authoring/issues.ts` and to the tables in `docs/authoring.md` — a test holds the two together — and extend the editor-shaped arbitraries in `authoring/__tests__/draft.property.test.ts`, which fail on any schema failure the checks do not name.
 5. **Property tests** — add fast-check arbitraries and properties (score ∈ [0,1], determinism, classification round-trip).
-6. **Component** — add `packages/lk-react/src/components/<Type>/<Type>.tsx` implementing `ActivityProps<…>`: `'use client'`, dev-only `validateActivity` at the boundary, reset-on-`data`-change (Req 3.7), `onInteraction`/`onComplete`, anonymous actor + `urn:` object id, render optional `media` (`ActivityMedia`) and overall `feedback`. Wrap it in `ActivityErrorBoundary` in `index.tsx`.
-7. **Wire it up** — add a tsup entry, a package `exports` subpath, the barrel re-export, and a `data.type` branch in both `ActivitySequence` and `ActivityPreview`.
-8. **Tests & stories** — RTL + axe unit tests, Storybook stories, and (ideally) a Playwright flow. Keep coverage ≥ 80%.
-9. **Specs** — update `requirements.md` / `design.md` / `tasks.md` and add a changeset.
+6. **Vectors** — add the type's cases to `scripts/vector-cases.mjs` (every scoring path, every default a later release could "improve", every tie order the scorer pins), build, `node scripts/generate-vectors.mjs`, then `pnpm mutate --filter <type>` and triage every survivor in the PR. A type that ships without vectors has a grade nobody froze.
+7. **Component** — add `packages/lk-react/src/components/<Type>/<Type>.tsx` implementing `ActivityProps<…>`: `'use client'`, dev-only `validateActivity` at the boundary, reset-on-`data`-change (Req 3.7), `onInteraction`/`onComplete`, anonymous actor + `urn:` object id, render optional `media` (`ActivityMedia`) and overall `feedback`. Wrap it in `ActivityErrorBoundary` in `index.tsx`. A component that renders a revealed projection (`redact(data, { reveal: 'after-submit' })`, which carries `redacted: true` AND the answer key) gates its boundary check on the key, not on the marker — `assertRedacted` refuses such a projection by design.
+8. **Wire it up** — add a tsup entry, a package `exports` subpath, the barrel re-export, and a `data.type` branch in both `ActivitySequence` and `ActivityPreview`.
+9. **Tests & stories** — RTL + axe unit tests, Storybook stories, and (ideally) a Playwright flow. Keep coverage ≥ 80%.
+10. **Join every per-type enumeration** — the lists a new type must appear in, none of which fails on its own when one is missed: `types/index.ts` exports, `registry/index.ts` exports, `schemas/index.ts` (schema, JSON Schema, redacted schema and type, the `RedactedActivity` union), `scripts/verify-dist.mjs` in both packages, `create-draft.test.ts` `BUILT_IN`, `draft.property.test.ts` `BUILT_IN` / `EDITOR_DRAFTS` / `RESPONSES`, `redacted-types.test.ts`, `registry.test.ts`, the example app's sample data, `.size-limit.json`, `public-surface.test.ts`, the i18n coverage sweep and `docs/i18n.md`, `docs/styling.md`, `docs/upgrading.md`'s table, both READMEs, and the "New drafts" table in `docs/authoring.md`.
+11. **Specs** — update `requirements.md` / `design.md` / `tasks.md` and add a changeset.
 
 A type that lives outside this repository needs none of the above: `defineActivityType` and `registerActivityType` register it at runtime, a module augmentation of `ActivityDataMap` and `LearnerResponseMap` lets TypeScript accept its type name, and a `renderers` entry puts it on screen — see [Custom activity types](./docs/authoring.md#custom-activity-types-end-to-end).
 

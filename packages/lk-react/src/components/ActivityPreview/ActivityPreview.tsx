@@ -15,6 +15,7 @@ import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStringsOverride } from '../../i18n/strings.js';
 import { ActivityErrorBoundary } from '../ActivityErrorBoundary.js';
 import type { ActivityRenderer } from '../ActivitySequence/index.js';
+import { Dictation } from '../Dictation/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
@@ -258,6 +259,8 @@ export function ActivityPreview({
       );
     case 'written-response':
       return <WrittenResponse key={key} data={data} {...shared} />;
+    case 'dictation':
+      return <Dictation key={key} data={data} {...shared} />;
     default:
       return (
         <div className="lk-preview-unsupported" role="note">
@@ -276,10 +279,24 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** The recording and its playback policy — not its description, which changes no budget. */
+/**
+ * The recording and its playback policy — not its description, which changes
+ * no budget — plus a dictation's slower file, which follows the same policy and
+ * must remount when it is swapped for another.
+ */
 function recordingKeyOf(data: unknown): string {
   const media = isRecord(data) ? data.media : undefined;
-  return isRecord(media) ? contentKeyOf([media.type, media.url, media.playback]) : '';
+  const slowMedia = isRecord(data) ? data.slowMedia : undefined;
+  const slowUrl = isRecord(slowMedia) ? slowMedia.url : undefined;
+  if (!isRecord(media) && slowUrl === undefined) {
+    return '';
+  }
+  return contentKeyOf([
+    isRecord(media) ? media.type : undefined,
+    isRecord(media) ? media.url : undefined,
+    isRecord(media) ? media.playback : undefined,
+    slowUrl,
+  ]);
 }
 
 const identities = new WeakMap<object, number>();

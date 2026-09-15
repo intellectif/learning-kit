@@ -483,7 +483,186 @@ multiple-choice options (0.10.0). Next: `true-false`, the other P0.
   item cannot be made equivalent, the accommodation is a different item. **A first cut was rejected by an
   existing invariant test** — the schema was strict, and a test counting closed objects in the exported JSON
   Schema caught that strictness would start rejecting the consumer sidecars B7 exists to preserve.
-- **`dictation` — P1**, and it depends on the media playback policy below.
+- ✅ **`dictation` — P1, SHIPPED** in 0.13.0 / 13.0.0, now that the media playback policy it depended on
+  exists. The behaviour was not designed from the roadmap line: it reproduces an existing dictation
+  implementation, whose scoring code was executed over a 111-case corpus — every punctuation mark,
+  contraction, accent form, spacing variant and length that implementation handles — and that corpus is now a
+  fixture the SDK replays on every test run.
+  The grade is what that implementation computes: `(length − edit distance) / length` over the whole sentence
+  with case, punctuation and spacing ignored, a pass at 70%, one similarity per word for the marked display.
+
+  **What was reproduced and what was deliberately changed are both frozen, by case id.** The fixture lock
+  lists thirty-one cases the SDK grades differently, each with the change that moves it, and fails if one of them
+  ever silently re-aligns with the reference: inner whitespace is collapsed (the reference charged an edit per
+  extra space while its own word display showed every word at 100); every Unicode punctuation mark is ignored
+  except an apostrophe or hyphen inside a word, where the reference ignored six marks and penalised Spanish
+  and Portuguese for `¿` and `«`; typographic apostrophes are folded (a phone keyboard's U+2019 cost 15
+  points); text is NFC-normalised, which turns five failing attempts with decomposed accents into full marks;
+  characters are code points, not UTF-16 units; compatibility characters are read as what they stand for, so
+  the `ﬁ` ligature a PDF carries is the two letters it draws; and the reference's hard-coded English contraction table,
+  which rewrote inside words (`Roche's` → `roche is`, scoring 100 for a wrong answer), became **content** — a
+  sixteen-row equivalence preset an application injects, whole-word anchored, so adding `let's` is an edit to
+  an item and not a package major. A second lock re-implements the reference's own arithmetic on the SDK's
+  code-unit primitive and reproduces the corpus 111/111, so the two agree on the distance and differ only in
+  policy.
+
+  **Three decisions were made on execution rather than taste.** `fastest-levenshtein`, the library the
+  reference uses, was not adopted: 279,900 random pairs showed it agrees exactly with the edit distance the
+  SDK already had, so it bought no correctness, and a two-row Wagner–Fischer over code points replaces it. The
+  library counts UTF-16 units (an emoji is two edits), keeps a module-level table that stays corrupted after a call
+  throws mid-way, and last shipped in 2022. Similarity
+  is `(max − d) / max`, one correctly rounded division, because `1 − d / max` evaluates to `0.6699999999999999`
+  for 33 edits in 100 and fails an authored 0.67 — 1,360 of 8,400 exact rational ties failed under the
+  first form and none under the second, so the type joins the other built-ins in passing a tie. And the
+  reference's `toFixed(2)` before its pass line was not copied: a raw 0.69995 is a fail by default, as
+  everywhere in this SDK, and the missing `{ rounding }` option that `computePassThreshold` already took
+  finally reached `score()` and `evaluate()`, so an application wanting "compare as displayed" sets it once and
+  the authored feedback follows.
+
+  **The scorer is one computation the display reads.** `alignDictation()` returns the normalised strings,
+  which accepted transcript won and the word pairings; `diffDictationChars()` the character edits;
+  `dictationReferenceWords()` the ids a stored result is checked against — the reference's own review screen
+  re-normalised without expanding contractions and showed red marks on answers it had scored 100. Word
+  pairing keeps the reference's integer rule and both of its tie orders, each pinned by a vector found by
+  brute force over every short sequence. Two recordings are modelled as the reference has them — a slower
+  **file**, not a `playbackRate` change — with the slow one following the recording's policy and never
+  holding a budget of its own, refused beside `maxPlays` rather than left as a bypass. Captions are refused
+  on a dictation recording, and a title or description containing the transcript is refused, because both
+  are the answer. Learner text is bounded at 8000 code points before AND after normalisation, and at twice
+  that while rules run — one rule could grow 7,999 characters into 159,999, and four could grow one typed
+  letter past what a process can hold — and the character diff is a separate export precisely so the
+  server-side exam scorer never runs the O(n·m) matrix it does not need.
+
+  **What the gates found on the way in.** `tolerance` had to be one scalar answer-key leaf: a nested field
+  policy over an array of all-answer-key rules projects to `[{}, {}]`, which is not empty, survives
+  `reveal: 'none'`, and fails the strict redacted schema — every English item carrying the preset would have
+  failed to redact. The editor-shaped property test found a schema refinement that fired on a missing URL.
+  An authoring test caught a documentation example that paired a contraction rule with, as an accepted
+  transcript, exactly what the rule turns the transcript into — a duplicate the schema rightly refuses.
+
+  **What adversarial verification found after every gate had passed.** Agents executing each documented
+  claim against the built packages, with skeptics trying to refute each report, found that the gates had not
+  asked the right questions. In the core: rules that rewrite a word into several copies of itself, schema-valid
+  and draft-complete, exhausted the process from a single typed letter, in `score()` and in `validateDraft`
+  alike; a pasted passage of 33,333 characters, or a rule's `from` of 32,768, made validation throw
+  "regular expression too large" instead of reporting a length; a combining mark counted as a word boundary,
+  so a Hindi rule rewrote the middle of a word and the title guard refused an innocent title; control
+  characters survived normalisation, so a transcript of U+0000 validated; `isAnswered` read text the scorer
+  cuts; and `{ rounding: null }` threw while a policy without `dp` failed a perfect score in silence. (The
+  component's own build had already found that the redacted schema accepted a hand-built projection carrying
+  captions, which are the answer.) In the component:
+  the per-word sentences a screen reader hears were marked with the dictation's language, so a Spanish
+  interface over an English dictation was voiced with English phonetics; keyboard focus fell to the page after
+  "Reset hints"; two separately hydrated copies of one item paused each other's recordings; and an
+  `inline-block` on the character marks stopped the wrong word's wavy underline from being drawn, while the
+  end-to-end test that should have caught it read a computed style that says "underline" whether or not
+  anything is painted.
+
+  **A second round, run against those fixes, found the first round's own guarantee false.** The working-text
+  cut had been documented as never changing the first 8,000 characters of a result; a rule whose rewrite was
+  mostly punctuation pushed a transcript's words past it, so a schema-valid item gave full marks for part of
+  the sentence. Nor can any bounded computation reproduce unbounded rules in general: a rule that shrinks what
+  an earlier rule grew needs back the text the cut removed. So a rewrite is now inserted as its words — the
+  punctuation the comparison would ignore no longer takes up room — the cut is part of the normalisation
+  rather than a claim about it, a transcript that needs it is refused, and an attempt that needs it is
+  reported as truncated. The same round found a 60-million-character attempt exhausting a 512 MB heap, a
+  thousand stale accepted transcripts taking 33 seconds to score, `validateDraft` slowing quadratically with
+  its issues for every type (older than dictation), a title revealing a transcript joined to it by punctuation
+  or written in Chinese or Thai, captions on a group's stimulus recording that a dictation plays, the word list
+  laid out in the direction of whatever the learner typed, and a wrong character inside a wrong word differing
+  from the right ones by colour alone — which a new end-to-end test now checks by comparing pixels, and fails
+  when the fix is removed.
+
+  **A third round found what the second round's rules had removed as invisible, and what its reveal check
+  refused.** A Persian word written without its half-space scored 100 while the usual keyboard substitute was
+  marked wrong; the flags of England and Scotland compared equal, as did two keycaps and two Mongolian letter
+  forms; the Catalan middle dot and the Tibetan tsheg were removed and the Hebrew geresh and maqaf charged
+  against their keyboard stand-ins. These are kept or folded now, each where it is spelling and nowhere else. A
+  rule for a symbol glued its rewrite to the digit it touched, so `50%` never met `50 percent`; a rewrite is
+  now set apart as a word, outside scripts written without spaces. The reveal check refused a Thai vocabulary
+  item titled with the Thai word for dictation, because two of its letters spell "eye", and missed a
+  transcript with a space in it; it now looks inside unspaced text only for four or more characters, and
+  refuses a title too long to search. Validating a draft normalised every dictation string twice, and a group
+  draft three times; a rounding policy read through an accessor was checked on one read and applied from another; hint
+  words split at a byte-order mark the scorer removes. In the component, a wrong combining mark had a span of
+  zero width, so no underline was painted for it; a missing digit's bullet split a number in right-to-left
+  text; `ckb` and other tags the direction list did not know were laid out left to right; and `data.locale`,
+  which places a dictation's words, was still documented as never touching the page. The matching was rewritten
+  as a literal search with the same word boundaries, checked against the regular expression it replaced — and
+  its first version read back the text it was building, which made every rewrite cost everything before it, a
+  slowdown found only by timing the documentation's own performance sentence. The new end-to-end tests measure
+  painted marks and the bullet's place in Chromium on the component's own markup; each case that guards a fix
+  fails on the component as it was, and the rest are controls.
+
+  **A fourth round found the third round's spelling rules too generous, and its searches slow.** Normalising a
+  transcript a second time could change it: a modifier apostrophe was judged as a letter beside a joiner and only
+  then folded into punctuation, and the last NFC could compose away the mark that had kept a joiner. A joiner
+  was kept wherever it stood between two letters — a non-joiner between two Latin letters, or after a Persian
+  letter that joins nothing after it, counted as spelling, and a Malayalam chillu or a Bengali khanda ta in its
+  older spelling scored below a visibly wrong one because its joiner counted — while a joiner ending a word let a
+  Persian rule for "three" rewrite the start of "Tuesday". A joiner is now kept only where the rules for joiners
+  in domain names say it changes what is drawn, a kept joiner belongs to its word, and the older spellings
+  compare as the forms Unicode recommends. Fullwidth letters, ligatures and Kangxi radicals looked like the text
+  they stand for and hid it from the reveal check; they are read as that text now. A rule whose edge was a
+  Chinese or Thai letter never fired in running text; a title with `1,100` gave away a transcript of `100`;
+  and zod's handling of an optional key with any issue — it drops the key from what later checks see — ran the
+  dictation checks without the rules or the recording and leaked raw issues into `validateDraft`. The reveal
+  search was quadratic and repeated for every check that asked: a draft group of fifty long dictations took 97.6
+  seconds, and the worst single item a second and a half. A linear search, a per-character table for the
+  boundary tests and a memo a draft's checks share with its schema bring those to under two seconds and about
+  half a second on the same machine. In the component, a Thai SARA AM, a Sinhala conjunct asked for
+  with a joiner and a Malayalam dot reph left a wrong letter with a mark of no width, while the letters after a
+  Tamil, Gurmukhi or Sinhala virama, which are drawn apart, were marked as one; the wavy underline skipped ink
+  around the descenders and stacked letters it existed to mark; a missing space's bullet landed on the far side
+  of a change of direction; stale data with a `locale` that was not a string crashed the component; and Firefox
+  logged a hydration error for every dictation's answer box. The third round's change to `directionForLocale()`
+  was withdrawn rather than repaired: it asked `Intl.Locale` for a language's script, on which a server and a
+  browser can disagree, so a hydrated provider could change its `dir` — and the upgrade note had misstated which
+  tags it moved. A dictation now reads its direction from its tag alone, and the provider's is what it was. Two
+  findings were limits rather than faults, and are documented instead: a Hebrew geresh or a Tibetan tsheg at the
+  edge of a word is removed like an apostrophe, and two dictations with one title on a page are two form
+  landmarks with one name.
+
+  **A fifth round read the fourth round's tables against Unicode's own data, and found them short.** The
+  viramas a joiner may follow were 38 of the 69 characters Unicode 16 gives that class, and the joining
+  letters left out Mandaic, Manichaean, Sogdian and four other scripts; both are now generated from the
+  Unicode Character Database, and a joiner between a letter and the virama after it — Unicode's own way to
+  ask for a Bengali ya-phalaa or a Sinhala touching conjunct — is kept too. A halfwidth katakana voicing mark
+  stayed apart from its kana, so `ｶﾞﾗｽ` scored half against `ガラス` and a halfwidth title gave a transcript away
+  unseen; a joiner typed twice was removed as if never typed; a Malayalam nta, a Thai SARA AM with its tone
+  mark between the parts, and a Marathi eyelash ra with a spare joiner each scored below their standard
+  spelling. A tag run after a flag was checked in quadratic time, so a valid title took four seconds to
+  validate; a removal between two lone surrogates paired them into a new character, breaking idempotence, so
+  a lone surrogate is now read as U+FFFD; a cut that ended on a space left an empty word, and counted it. The
+  reveal check read a transcript with its rules applied, so a numeral rule hid `三月三日` in a title showing
+  it and exposed `两本` in one that did not; it now reads the transcript as written. zod skipped every
+  dictation guard once any other field failed, so an author fixed a recording's address before learning the
+  title gave the answer away; the guards now run beside other refusals. In the component, Chromium painted no
+  mark on a wrong letter inside a Gurmukhi, Tamil, Chakma or Brahmi conjunct, and WebKit, which shapes each
+  element apart, drew correctly typed conjuncts and Mongolian words broken, so correct characters are now one
+  run; turning off common ligatures for the whole diff unstacked Tai Tham, while leaving them on lets Calibri
+  draw a wrong `i` into its `fi` with no mark, so they are turned off only for Latin, Greek and Cyrillic runs;
+  a missing consonant's bullet swallowed the correct letter after its virama; and `lang="ar_EG"` was not a
+  language a screen reader could voice. Seven findings were limits, and are documented: Persian in
+  presentation forms carries no half-space to keep, the older Sorani spelling of ە, a superscript digit that
+  joins its number, a space that groups digits, a missing digit of a number that follows a word of the other
+  direction, grouping by syllable rather than glyph, and letters newer than a server's Unicode tables.
+
+  Each finding of the five rounds is fixed or, where it was a limit, documented, and each fix has a test or a
+  vector that pins it. A hundred and eighty-two new grade vectors, none of the ones already published changed;
+  349 of 444 mutants killed, the last fifteen by vectors a sweep's survivors asked for. Every survivor is
+  triaged: 26 as equivalent (a swap on equal lengths, loop-start offsets whose skipped cell already holds the
+  right value, early returns that yield the text they were given, a `max === 0` branch nothing reaches
+  through the public surface — one settled by executing the mutant over 200,000 pairs — an early stop that
+  differs only for text the attempt cap cuts anyway, a fast path for ASCII that answers what the regular
+  expression it skips would, surrogate tests that cannot differ on text with no lone surrogate in it, and the
+  unused tail of a jamo table), and 69 as code only the schema, the reveal search and the validation memo
+  run.
+
+  **Out of scope, deliberately:** a shared play budget across two recordings (the question the option-media
+  release left open, still open), transposition credit, a word-level scoring strategy, diacritic folding as a
+  knob, and a rounded pass line by default. `speaking-response` inherits the normaliser, the alignment, the
+  per-word `ScoringDetail.score` channel and the two-recording shape.
 - **`mark-the-words`, `ordering`, `short-answer` — P1/P2**, on evidence of demand.
 - **`matching` — demoted to P2.** No production evidence of use; build it when an item bank asks for it.
 - `speaking-response` remains high value-to-effort where a CEFR speaking grader already exists.

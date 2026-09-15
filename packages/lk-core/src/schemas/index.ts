@@ -2,6 +2,12 @@ import { UnknownActivityTypeError } from '../errors.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
 import type { ActivityDataMap, ActivityType, ValidationResult } from '../types/activity.js';
 
+export {
+  DictationDataSchema,
+  DictationEquivalenceSchema,
+  DictationSlowMediaSchema,
+  DictationToleranceSchema,
+} from './dictation.js';
 export { FeedbackSchema } from './feedback.js';
 export {
   BlankConfigSchema,
@@ -23,6 +29,7 @@ export {
   validateItemGroup,
 } from './item-group.js';
 export {
+  dictationJsonSchema,
   fillInTheBlanksJsonSchema,
   gapSelectJsonSchema,
   itemGroupJsonSchema,
@@ -46,6 +53,8 @@ export {
 export type {
   RedactedActivity,
   RedactedBlankConfig,
+  RedactedDictationData,
+  RedactedDictationSlowMedia,
   RedactedFillInTheBlanksData,
   RedactedGapSelectBank,
   RedactedGapSelectChoice,
@@ -58,6 +67,8 @@ export type {
 } from './redacted.js';
 export {
   RedactedBlankConfigSchema,
+  RedactedDictationDataSchema,
+  RedactedDictationSlowMediaSchema,
   RedactedFillInTheBlanksDataSchema,
   RedactedGapSelectBankSchema,
   RedactedGapSelectChoiceSchema,

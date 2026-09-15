@@ -1,6 +1,7 @@
 import type {
   ActivityData,
   ActivityMedia as ActivityMediaData,
+  DictationData,
   FillInTheBlanksData,
   GapSelectData,
   GradeRecord,
@@ -18,6 +19,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActivityErrorBoundary } from '../../components/ActivityErrorBoundary.js';
 import { ActivityPreview } from '../../components/ActivityPreview/index.js';
 import { ActivitySequence } from '../../components/ActivitySequence/index.js';
+import { Dictation } from '../../components/Dictation/index.js';
 import { FillInTheBlanks } from '../../components/FillInTheBlanks/index.js';
 import { GapSelect } from '../../components/GapSelect/index.js';
 import { MultipleChoice } from '../../components/MultipleChoice/index.js';
@@ -342,6 +344,53 @@ describe('translation coverage', () => {
     sweep(<GapSelect data={gs} renderMode="exam" onSubmit={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: sentinel('submitAnswers') }));
     keep(document.body);
+    cleanup();
+
+    // ── Dictation: recordings, hints, the marked result, and the solution ───
+    // The attempt is built so the alignment has one word of each kind — a
+    // missing first word, a misspelt one, an extra last one — because the
+    // four hidden sentences are the only channel the marks have for a screen
+    // reader, and a sweep that reached three of them would leave the fourth
+    // English.
+    const dc = {
+      schemaVersion: '1.0',
+      type: 'dictation',
+      id: 'dc1',
+      title: 'Dictado',
+      transcript: 'El gato duerme en la cama.',
+      media: { type: 'audio', url: '/dictado.mp3', alt: 'Grabación' },
+      slowMedia: { type: 'audio', url: '/dictado-lento.mp3' },
+      hints: { mode: 'progressive-words' },
+    } satisfies DictationData;
+    sweep(<Dictation data={dc} onComplete={vi.fn()} />);
+    await user.click(
+      screen.getByRole('button', { name: sentinel('dictationRevealNextWord(0|6)') }),
+    );
+    keep(document.body);
+    await user.type(
+      screen.getByRole('textbox', { name: sentinel('dictationInputLabel') }),
+      'gato durme en la cama hoy',
+    );
+    await user.click(screen.getByRole('button', { name: sentinel('checkAnswers') }));
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('showSolution') }));
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('hideSolution') }));
+    keep(document.body);
+    cleanup();
+
+    // An empty attempt has its own sentence, and nothing else to mark.
+    sweep(<Dictation data={dc} onComplete={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: sentinel('checkAnswers') }));
+    keep(document.body);
+    cleanup();
+
+    sweep(<Dictation data={dc} renderMode="exam" onSubmit={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: sentinel('submitAnswers') }));
+    keep(document.body);
+    cleanup();
+
+    sweep(<Dictation data={dc} renderMode="review" outcome={deferred} />);
     cleanup();
 
     // ── Authoring preview: the notice for an unfinished and for a wrong draft ─

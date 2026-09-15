@@ -9,7 +9,9 @@ test('a group’s passage appears with its questions, persists between them, and
   page,
 }) => {
   const passage = page.getByRole('region', { name: 'Tides' });
-  const next = page.getByRole('button', { name: 'Next' });
+  // Exact: the page also shows a dictation whose hint button reads "Reveal
+  // the next word", which a substring match would resolve to as well.
+  const next = page.getByRole('button', { name: 'Next', exact: true });
 
   // Questions 1–2 are loose fill-in-the-blanks: no passage.
   await expect(passage).toBeHidden();
