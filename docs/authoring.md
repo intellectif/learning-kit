@@ -989,8 +989,15 @@ re-pathed under `items.N.…` — so a multiple-choice question inside a testlet
 reports exactly the codes a standalone one does, and your translation table
 covers both. An item whose type nobody registered is reported, never thrown: an
 author fixing a six-item group wants all six problems, not the first one that
-blew up. The group is `complete` only when the container passes, every item
-passes its own schema, **and** every item is itself `complete`.
+blew up. That is the only error turned into an issue. Anything else thrown while
+a registered type checks its item — by the type's `checkDraft`, which must not
+throw, or by its schema — is thrown from `validateItemGroupDraft`, whatever state
+the rest of the group is in, as `validateDraft` throws it for the item on its
+own. `validateItemGroup` throws a schema's error too, but only once the container
+passes and it reaches the item. Reporting it as `ig_item_type_unknown` would send
+the author after a mistake the draft does not have, and hide the error from you.
+The group is `complete` only when the container passes, every item passes its own
+schema, **and** every item is itself `complete`.
 
 | Code | Severity | Path | When |
 |---|---|---|---|
