@@ -1,3 +1,4 @@
+import { UnknownActivityTypeError } from '../errors.js';
 import {
   GROUP_CAPTIONS_REVEAL_DICTATION,
   groupCaptionsRevealDictation,
@@ -74,6 +75,11 @@ export function createItemGroupDraft(context: DraftContext): ItemGroup {
  *
  * The group is `complete` only when the container passes, every item passes its
  * own schema, and every item is itself `complete`.
+ *
+ * @throws the error a registered item type's `checkDraft` or schema throws, as
+ *   `validateDraft` does for that item on its own. Only an unregistered type is
+ *   turned into an issue: a fault in a type's own code is not a problem with the
+ *   draft, and reporting it as an unknown type would hide it.
  */
 export function validateItemGroupDraft(draft: unknown): DraftValidationResult<ItemGroup> {
   // Every item is checked as a draft and then again as part of the group: one
@@ -347,9 +353,18 @@ function checkItems(draft: DraftFields): DraftIssue[] {
     let result: DraftValidationResult<unknown>;
     try {
       result = validateDraft(item.type as ActivityType, item);
-    } catch {
-      // An unregistered type is reported, never thrown — the same choice
-      // `validateItemGroup` makes, for the same reason.
+    } catch (error) {
+      // Only an unregistered type is reported, never thrown — the same choice
+      // `validateItemGroup` makes, for the same reason. Anything else is a fault
+      // in a registered type's own checks or schema: it is rethrown, as
+      // `validateDraft` throws it for the item on its own, because reported here
+      // it read as an unknown type and sent the author after a mistake the draft
+      // did not have. The error must name this item's type, too: a check that
+      // validates a part of the item as some other, unregistered type has not
+      // made this item's type unknown.
+      if (!(error instanceof UnknownActivityTypeError) || error.activityType !== item.type) {
+        throw error;
+      }
       issues.push(
         issue(
           'ig_item_type_unknown',

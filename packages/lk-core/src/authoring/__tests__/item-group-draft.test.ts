@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod/v4';
+import { DeferredScoringError, UnknownActivityTypeError } from '../../errors.js';
+import { defineActivityType, registerActivityType } from '../../registry/index.js';
 import { validateItemGroup } from '../../schemas/index.js';
-import type { MultipleChoiceData } from '../../types/activity.js';
+import type { ActivityType, MultipleChoiceData } from '../../types/activity.js';
+import { validateDraft } from '../index.js';
 import { createItemGroupDraft, validateItemGroupDraft } from '../item-group.js';
 
 const counter = () => {
@@ -219,5 +223,139 @@ describe('validateItemGroupDraft — the items inside it', () => {
     expect(
       validateItemGroupDraft(group({ items: [question(), question({ id: 'q2' })] })).status,
     ).toBe('complete');
+  });
+});
+
+/**
+ * A group turns exactly one error into an issue: the one `validateDraft` throws
+ * for a type nobody registered. Whatever a REGISTERED type's own code throws is
+ * a fault in that code, and reporting it as an unknown type sent an author after
+ * a mistake the draft did not have.
+ */
+describe('validateItemGroupDraft — an item type whose own code throws', () => {
+  interface ProbeData {
+    type: string;
+    id: string;
+  }
+  const probeSchema = (type: string) =>
+    z.looseObject({ type: z.literal(type), id: z.string().min(1) });
+  const probe = (type: string): Record<string, unknown> => ({
+    schemaVersion: '1.0',
+    type,
+    id: 'q1',
+  });
+
+  /** What `run` threw, so a test can check it is the very error it planted. */
+  const thrownBy = (run: () => unknown): unknown => {
+    try {
+      run();
+    } catch (error) {
+      return error;
+    }
+    throw new Error('Expected the call to throw, but it returned.');
+  };
+
+  it('rethrows what a registered type’s checkDraft throws, as validateDraft does', () => {
+    const failure = new SyntaxError('Invalid regular expression: regular expression too large');
+    registerActivityType(
+      defineActivityType<ProbeData, unknown>({
+        type: 'ig-probe-check-throws',
+        schema: probeSchema('ig-probe-check-throws') as unknown as z.ZodType<ProbeData>,
+        scoring: { kind: 'deferred', reason: 'requires_async_grading' },
+        authoring: {
+          checkDraft: () => {
+            throw failure;
+          },
+        },
+      }),
+    );
+    const item = probe('ig-probe-check-throws');
+    expect(thrownBy(() => validateDraft('ig-probe-check-throws' as ActivityType, item))).toBe(
+      failure,
+    );
+    expect(thrownBy(() => validateItemGroupDraft(group({ items: [item] })))).toBe(failure);
+  });
+
+  it('rethrows what a registered type’s schema throws, as validateItemGroup does', () => {
+    const failure = new RangeError('The schema gave up.');
+    registerActivityType(
+      defineActivityType<ProbeData, unknown>({
+        type: 'ig-probe-schema-throws',
+        schema: probeSchema('ig-probe-schema-throws').refine(() => {
+          throw failure;
+        }) as unknown as z.ZodType<ProbeData>,
+        scoring: { kind: 'deferred', reason: 'requires_async_grading' },
+      }),
+    );
+    const item = probe('ig-probe-schema-throws');
+    const finished = group({ items: [item] });
+    expect(thrownBy(() => validateItemGroup(finished))).toBe(failure);
+    expect(thrownBy(() => validateItemGroupDraft(finished))).toBe(failure);
+
+    // A container that is not finished stops validateItemGroup before any item
+    // schema runs, so here the draft check alone decides what the author sees.
+    const unfinished = group({ stimulus: undefined, items: [item] });
+    expect(validateItemGroup(unfinished).success).toBe(false);
+    expect(thrownBy(() => validateItemGroupDraft(unfinished))).toBe(failure);
+  });
+
+  it('does not pin an unknown-type error for some other type on the item', () => {
+    // A type that checks a part of itself as another type, one nobody
+    // registered: the error names that other type, and this item's type is fine.
+    registerActivityType(
+      defineActivityType<ProbeData, unknown>({
+        type: 'ig-probe-check-delegates',
+        schema: probeSchema('ig-probe-check-delegates') as unknown as z.ZodType<ProbeData>,
+        scoring: { kind: 'deferred', reason: 'requires_async_grading' },
+        authoring: {
+          checkDraft: (draft) =>
+            validateDraft('ig-probe-never-registered' as ActivityType, draft).issues,
+        },
+      }),
+    );
+    const thrown = thrownBy(() =>
+      validateItemGroupDraft(group({ items: [probe('ig-probe-check-delegates')] })),
+    );
+    expect(thrown).toBeInstanceOf(UnknownActivityTypeError);
+    expect((thrown as UnknownActivityTypeError).activityType).toBe('ig-probe-never-registered');
+  });
+
+  it('rethrows another SDK error that names the item’s own type', () => {
+    // UnknownActivityTypeError is not the only error that carries an
+    // `activityType`: a check that scores a sample answer against its own
+    // deferred type gets a DeferredScoringError naming this item's type, and the
+    // type is registered all the same. The class decides, not the name.
+    const failure = new DeferredScoringError('ig-probe-check-scores');
+    registerActivityType(
+      defineActivityType<ProbeData, unknown>({
+        type: 'ig-probe-check-scores',
+        schema: probeSchema('ig-probe-check-scores') as unknown as z.ZodType<ProbeData>,
+        scoring: { kind: 'deferred', reason: 'requires_async_grading' },
+        authoring: {
+          checkDraft: () => {
+            throw failure;
+          },
+        },
+      }),
+    );
+    expect(
+      thrownBy(() => validateItemGroupDraft(group({ items: [probe('ig-probe-check-scores')] }))),
+    ).toBe(failure);
+  });
+
+  it('still reports an unregistered type at its own path, and goes on to the next item', () => {
+    const result = validateItemGroupDraft(
+      group({ items: [probe('ig-probe-never-registered'), question({ id: 'q2', title: '' })] }),
+    );
+    expect(result.status).toBe('invalid');
+    expect(result.issues).toEqual([
+      {
+        code: 'ig_item_type_unknown',
+        severity: 'invalid',
+        path: ['items', '0', 'type'],
+        message: '"ig-probe-never-registered" is not a registered activity type.',
+      },
+      expect.objectContaining({ code: 'title_required', path: ['items', '1', 'title'] }),
+    ]);
   });
 });
