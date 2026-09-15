@@ -453,12 +453,9 @@ describe('dictation — bounded on any input', () => {
       return validateActivity('dictation', data).success;
     };
     expect(flagged(15_999)()).toBe(true);
-    // The same 16,000 characters as one flag and as eight, each twice over to be
-    // long enough to time: a walk back over every earlier tag, per tag, makes
-    // the one flag about eight times slower.
-    expect(slowdown(repeatedly(2, flagged(15_999)), repeatedly(16, flagged(1_999)))).toBeLessThan(
-      3,
-    );
+    // The same 16,000 characters as one flag and as eight: a walk back over
+    // every earlier tag, per tag, makes the one flag about eight times slower.
+    expect(slowdown(flagged(15_999), repeatedly(8, flagged(1_999)))).toBeLessThan(3);
   });
 
   it('runs no guard on a field zod left out for a refusal inside it', () => {

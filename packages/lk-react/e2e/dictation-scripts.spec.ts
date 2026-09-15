@@ -10,6 +10,9 @@ import { Dictation } from '../dist/index.js';
 /**
  * Marks in scripts other than Latin, measured in a real engine on the markup
  * `<Dictation>` itself renders (the built package, rendered on the server).
+ * Importing `../dist` is why lk-react's `typecheck` depends on its own `build`
+ * in turbo.json: the typecheck reads this file, and without that dependency it
+ * can run before the build that writes `dist`.
  *
  * Unit tests can see which spans exist; only a browser can see whether a
  * decoration is painted, and in which order a bidirectional algorithm lays

@@ -44,8 +44,16 @@ function entryPoints(packageDir) {
       entries.push({ subpath, file: join(packageDir, types) });
     }
   }
-  return entries.sort((a, b) => a.subpath.localeCompare(b.subpath));
+  return entries.sort((a, b) => a.subpath.localeCompare(b.subpath, REPORT_COLLATION));
 }
+
+/**
+ * The collation the report is ordered by, named rather than left to the
+ * machine: `localeCompare` without a locale sorts by the process's own, and
+ * under a Turkish or Lithuanian one the same symbols come out in a different
+ * order, so the report written on one machine fails the check on another.
+ */
+const REPORT_COLLATION = 'en-US';
 
 /**
  * One line per exported symbol: its kind, its name, and its declaration.
@@ -87,7 +95,7 @@ function surfaceOf(entryFile) {
       `${kindOf(resolved, declaration)} ${symbol.getName()}: ${declarationText(declaration)}`,
     );
   }
-  return lines.sort((a, b) => a.localeCompare(b));
+  return lines.sort((a, b) => a.localeCompare(b, REPORT_COLLATION));
 }
 
 function kindOf(symbol, declaration) {
@@ -101,23 +109,71 @@ function kindOf(symbol, declaration) {
 }
 
 /**
- * A declaration's own text: doc comments stripped, whitespace collapsed.
+ * A declaration's own text: doc comments stripped, whitespace collapsed, and
+ * the members of each union, and of each object type made only of properties,
+ * put in one order.
  *
- * Neither is cosmetic. Formatting would make a Biome run look like an API
+ * None of that is cosmetic. Formatting would make a Biome run look like an API
  * change, and JSDoc would make every wording fix fail the gate — which is how a
  * gate stops being read. What semver describes is the TYPES, so that is what is
  * compared; prose changes belong in the changeset, not here.
+ *
+ * The order is the declaration build's, not the source's. TypeScript prints a
+ * union in the order it created the members' types and a mapped object in the
+ * order of its keys, and the build does not create them in the same order
+ * every time: under load the same source came out as `z.ZodLiteral<1 | 2 | 3 |
+ * 4 | 5>` in one build and `z.ZodLiteral<2 | 1 | 3 | 4 | 5>` in the next, and
+ * failed this check with no change at all. Neither order means anything to a
+ * type, so both are sorted, by code unit, which every Node version agrees on.
+ * What does keep an order is left as it is: tuple elements, parameters,
+ * intersections, and the method, call, construct and index signatures an
+ * overload list depends on.
  */
 function declarationText(declaration) {
   if (declaration === undefined) {
     return '<unresolved>';
   }
-  return declaration
-    .getText()
+  return collapsed(canonicalText(declaration));
+}
+
+/** `text` without comments, on one line, single-spaced. */
+function collapsed(text) {
+  return text
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
     .replace(/\/\/[^\n]*/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+const byCodeUnit = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
+/** `node`'s text, with every union and every object type of properties inside it in one order. */
+function canonicalText(node) {
+  if (ts.isUnionTypeNode(node)) {
+    return node.types
+      .map((member) => collapsed(canonicalText(member)))
+      .sort(byCodeUnit)
+      .join(' | ');
+  }
+  if (
+    ts.isTypeLiteralNode(node) &&
+    node.members.length > 0 &&
+    node.members.every((member) => ts.isPropertySignature(member))
+  ) {
+    // A member's text carries its own `;` or `,`, or none when it is last.
+    const members = node.members.map(
+      (member) => `${collapsed(canonicalText(member)).replace(/[;,]$/, '')};`,
+    );
+    return `{ ${members.sort(byCodeUnit).join(' ')} }`;
+  }
+  const source = node.getSourceFile().text;
+  let text = '';
+  let at = node.getStart();
+  ts.forEachChild(node, (child) => {
+    text += source.slice(at, child.getStart()) + canonicalText(child);
+    at = child.end;
+  });
+  return text + source.slice(at, node.end);
 }
 
 const PACKAGES = ['packages/lk-core', 'packages/lk-react'];

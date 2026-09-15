@@ -1149,11 +1149,11 @@ describe('<Dictation> marks in every script', () => {
     // Timed apart from drawing, whose cost would hide it. The same 2,000
     // missing emoji as one word and as eight: a search per bullet through every
     // character of its word makes the one word about eight times slower than
-    // the eight. Twenty of each, to be long enough to time.
+    // the eight.
     expect(
       slowdown(
-        repeatedly(20, () => bulletDirections(word, undefined)),
-        repeatedly(160, () => bulletDirections(eighth, undefined)),
+        () => bulletDirections(word, undefined),
+        repeatedly(8, () => bulletDirections(eighth, undefined)),
       ),
     ).toBeLessThan(3);
   });

@@ -42,18 +42,26 @@ pnpm exec playwright install chromium   # first time only
 pnpm turbo run e2e
 ```
 
-The full gate that CI enforces:
+The gates CI enforces on a pull request (`.github/workflows/ci.yml` and `e2e.yml`):
 
 ```bash
-pnpm turbo run build lint test coverage e2e
-pnpm api-check   # the public API surface matches the committed report
-pnpm size        # bundle budgets
+pnpm turbo run build test lint   # Node 22 and 24
+pnpm turbo run typecheck         # Node 22 and 24, tests included
+pnpm check-packaging             # publint, are-the-types-wrong, verify-dist; Node 22 and 24
+pnpm turbo run coverage          # Node 22
+pnpm size                        # Node 22: bundle budgets
+pnpm api-check                   # Node 22: the public API surface matches the committed report
+pnpm turbo run e2e               # Node 22
 ```
 
-`pnpm verify-release` runs the whole lot in one command. It is what `pnpm
-release` runs before publishing, so the last gate before bytes reach npm is the
-same gate a pull request passes — the Release job used to publish after a bare
-build.
+`pnpm verify-release` is what `pnpm release` runs before publishing: build,
+test, lint, typecheck, publint, attw and verify-dist in one turbo run, then
+`api-check` and `size`, on Node 24 in the Release job. It is not the run a pull
+request passes. CI splits those tasks into steps and runs `api-check` and `size`
+on Node 22 only, so a task that reads another task's output without declaring it
+in `turbo.json` can pass CI and still fail the release, as one did. Before
+merging a change to the task graph, run `pnpm verify-release` in a clean
+checkout, where no `dist` is left over to hide a missing dependency.
 
 ### The public API surface
 
