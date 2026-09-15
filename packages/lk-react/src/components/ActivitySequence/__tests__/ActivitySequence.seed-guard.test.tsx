@@ -1,4 +1,4 @@
-import type { MultipleChoiceData } from '@intellectif/lk-core';
+import type { GapSelectData, MultipleChoiceData } from '@intellectif/lk-core';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ActivitySequence } from '../index.js';
@@ -56,6 +56,45 @@ describe('ActivitySequence seed guard — an item that shuffles its own options'
         />,
       ),
     ).toThrow(/shuffleSeed/);
+  });
+
+  // Here the item is the ONLY shuffle, so a message naming just the sequence's
+  // own causes (`shuffle="entries"`, `within-group`) sends the reader looking
+  // for settings they never wrote. `\b` keeps `data.shuffleChoices` from
+  // passing for `data.shuffle`.
+  it('names the item-level cause when an item shuffle is the only shuffle', () => {
+    expect(() =>
+      render(
+        <ActivitySequence activities={[shufflingItem()]} renderMode="exam" onSubmit={vi.fn()} />,
+      ),
+    ).toThrow(/data\.shuffle\b/);
+  });
+
+  it('names a gap select item shuffle (`data.shuffleChoices`) the same way', () => {
+    const gapSelect: GapSelectData = {
+      schemaVersion: '1.0',
+      type: 'gap-select',
+      id: 'gs1',
+      title: 'Prepositions',
+      passage: 'I am {{a}} Spain.',
+      banks: [
+        {
+          id: 'prep',
+          choices: [
+            { id: 'from', text: 'from' },
+            { id: 'to', text: 'to' },
+            { id: 'on', text: 'on' },
+          ],
+        },
+      ],
+      gaps: [{ id: 'a', bankId: 'prep', correctChoiceId: 'from' }],
+      scoringStrategy: 'partial',
+      shuffleChoices: true,
+    };
+
+    expect(() =>
+      render(<ActivitySequence activities={[gapSelect]} renderMode="exam" onSubmit={vi.fn()} />),
+    ).toThrow(/data\.shuffleChoices\b/);
   });
 
   it('throws when the shuffling item is inside a group that does not itself shuffle', () => {

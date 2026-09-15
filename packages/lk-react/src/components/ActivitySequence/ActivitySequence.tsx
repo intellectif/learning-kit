@@ -339,7 +339,9 @@ function shufflesItsOwnOptions(entry: unknown): boolean {
   const item = entry as { shuffle?: unknown; shuffleChoices?: unknown } | null;
   // Two content fields, one question: does this item deal an order of its own?
   // `shuffle` is MultipleChoice's; `shuffleChoices` is Gap Select's. A type
-  // added without being named here shuffles unseeded in an exam.
+  // added without being named here shuffles unseeded in an exam — and one named
+  // here but not in the seed guard's message sends its author looking for a
+  // shuffle they never wrote.
   return item?.shuffle === true || item?.shuffleChoices === true;
 }
 
@@ -393,10 +395,17 @@ export function ActivitySequence({
   // saw, so a missing seed is an error rather than something to paper over —
   // the same reason `flattenSequence` refuses to invent one.
   if (needsSeed && shuffleSeed === undefined && renderMode !== 'practice') {
+    // Every door `needsSeed` watches, named: a reader whose only shuffle is an
+    // item's own field must find that field here. And no single function
+    // rebuilds all of these orders — `flattenSequence` deals entries and group
+    // items, while an item deals its own options from the same seed — so the
+    // message promises the seed, not a function.
     throw new Error(
-      `ActivitySequence: renderMode "${renderMode}" requires a \`shuffleSeed\` when shuffling ` +
-        '(shuffle="entries", or a group with shuffle: "within-group"). Pass the attempt id, so ' +
-        "the server's flattenSequence(entries, { seed }) reproduces the order the learner saw.",
+      `ActivitySequence: renderMode "${renderMode}" requires a \`shuffleSeed\` when anything ` +
+        'in the sequence shuffles: shuffle="entries", a group with shuffle: "within-group", or ' +
+        "an activity's own `data.shuffle` (multiple choice) or `data.shuffleChoices` (gap " +
+        'select), including an activity inside a group. Pass the attempt id, so the server can ' +
+        'rebuild every order the learner saw from that one seed.',
     );
   }
 
