@@ -1,5 +1,13 @@
 # @intellectif/lk-example-vite
 
+## 0.0.20
+
+### Patch Changes
+
+- Updated dependencies [551b900]
+  - @intellectif/lk-core@0.13.1
+  - @intellectif/lk-react@13.0.0
+
 ## 0.0.19
 
 ### Patch Changes
