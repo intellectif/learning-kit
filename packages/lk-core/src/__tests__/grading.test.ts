@@ -5,7 +5,7 @@ import {
   hasGrade,
   outcomeFromGrade,
 } from '../grading.js';
-import { evaluate } from '../scoring/index.js';
+import { evaluate, type RoundingPolicy } from '../scoring/index.js';
 import type {
   ItemOutcome,
   WrittenResponseData,
@@ -485,6 +485,89 @@ describe('gradeFromRubric() pass threshold', () => {
 
     expect(record.score).toBe(0.75);
     expect(record.passed).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// gradeFromRubric() — the opt-in rounding option
+// ---------------------------------------------------------------------------
+
+describe('gradeFromRubric() rounding option', () => {
+  const HALF_UP_2: RoundingPolicy = { mode: 'half-up', dp: 2 };
+  /** A rubric whose weighted total is 0.696: shown as 70%, below 0.7 raw. */
+  const nearly: CriterionScore[] = [{ name: 'Only', score: 0.696 }];
+  /** A total genuinely below the line, inside no rounding band. */
+  const below: CriterionScore[] = [{ name: 'Only', score: 0.68 }];
+
+  it('rounds both sides of the options threshold', () => {
+    expect(grade(nearly, undefined, { passThreshold: 0.7 }).passed).toBe(false);
+    expect(grade(nearly, undefined, { passThreshold: 0.7, rounding: HALF_UP_2 }).passed).toBe(true);
+  });
+
+  it('rounds both sides of the activity’s threshold', () => {
+    const activity = wr({ passThreshold: 0.7 });
+
+    expect(grade(nearly, activity).passed).toBe(false);
+    expect(grade(nearly, activity, { rounding: HALF_UP_2 }).passed).toBe(true);
+  });
+
+  it('rounds both sides of the 0.7 default, with no activity and no option', () => {
+    expect(grade(nearly).passed).toBe(false);
+    expect(grade(nearly, undefined, { rounding: HALF_UP_2 }).passed).toBe(true);
+  });
+
+  it('still fails a total genuinely below the line, on all three branches', () => {
+    expect(grade(below, undefined, { passThreshold: 0.7, rounding: HALF_UP_2 }).passed).toBe(false);
+    expect(grade(below, wr({ passThreshold: 0.7 }), { rounding: HALF_UP_2 }).passed).toBe(false);
+    expect(grade(below, undefined, { rounding: HALF_UP_2 }).passed).toBe(false);
+  });
+
+  it('rounds the comparison only: the score it returns is the raw weighted total', () => {
+    const record = grade(nearly, undefined, { rounding: HALF_UP_2 });
+
+    expect(record.score).toBe(0.696);
+    expect(Object.keys(record).sort()).toEqual([
+      'criteria',
+      'feedback',
+      'maxScore',
+      'passed',
+      'score',
+    ]);
+  });
+
+  it('is byte-identical to the record it always produced when the option is absent', () => {
+    const activity = wr({ passThreshold: 0.7 });
+    const before = JSON.stringify(gradeFromRubric(nearly, activity));
+
+    expect(JSON.stringify(gradeFromRubric(nearly, activity, {}))).toBe(before);
+    // `null` reads as no policy, as it does on score() and evaluate().
+    expect(JSON.stringify(gradeFromRubric(nearly, activity, { rounding: null as never }))).toBe(
+      before,
+    );
+  });
+
+  it('throws a RangeError for a malformed policy, before any criterion is read', () => {
+    expect(() =>
+      gradeFromRubric(nearly, undefined, { rounding: { mode: 'nearest', dp: 2 } as never }),
+    ).toThrow(RangeError);
+    // Even for a rubric that could never produce a grade: a malformed policy is
+    // the caller's configuration, not this rubric's.
+    expect(() =>
+      gradeFromRubric([], undefined, { rounding: { mode: 'half-up' } as never }),
+    ).toThrow(RangeError);
+  });
+
+  it('names what is wrong with the policy in the words score() uses', () => {
+    expect(() =>
+      gradeFromRubric(nearly, undefined, { rounding: { mode: 'floor', dp: 1.5 } as never }),
+    ).toThrow(
+      "Invalid rounding policy (mode \"floor\", dp 1.5): expected { mode: 'half-up' | 'half-even' | 'floor' | 'ceil', dp: a whole number from 0 to 15 }.",
+    );
+  });
+
+  it('still reaches the unscorable returns for an options object passed as null', () => {
+    // Out of contract, but it never threw here before the option existed.
+    expect('unscorable' in gradeFromRubric([], undefined, null as never)).toBe(true);
   });
 });
 

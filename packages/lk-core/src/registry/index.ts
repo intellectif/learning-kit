@@ -9,6 +9,7 @@ export {
   fillInTheBlanksType,
   gapSelectType,
   multipleChoiceType,
+  readAloudType,
   writtenResponseType,
 } from './builtins.js';
 export {

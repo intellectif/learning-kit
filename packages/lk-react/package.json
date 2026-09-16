@@ -103,6 +103,26 @@
         "default": "./dist/components/Dictation.cjs"
       }
     },
+    "./components/ReadAloud": {
+      "import": {
+        "types": "./dist/components/ReadAloud.d.ts",
+        "default": "./dist/components/ReadAloud.js"
+      },
+      "require": {
+        "types": "./dist/components/ReadAloud.d.cts",
+        "default": "./dist/components/ReadAloud.cjs"
+      }
+    },
+    "./components/PronunciationFeedback": {
+      "import": {
+        "types": "./dist/components/PronunciationFeedback.d.ts",
+        "default": "./dist/components/PronunciationFeedback.js"
+      },
+      "require": {
+        "types": "./dist/components/PronunciationFeedback.d.cts",
+        "default": "./dist/components/PronunciationFeedback.cjs"
+      }
+    },
     "./components/StimulusPanel": {
       "import": {
         "types": "./dist/components/StimulusPanel.d.ts",
@@ -131,6 +151,16 @@
       "require": {
         "types": "./dist/hooks/useActivityState.d.cts",
         "default": "./dist/hooks/useActivityState.cjs"
+      }
+    },
+    "./hooks/useSpeechRecorder": {
+      "import": {
+        "types": "./dist/hooks/useSpeechRecorder.d.ts",
+        "default": "./dist/hooks/useSpeechRecorder.js"
+      },
+      "require": {
+        "types": "./dist/hooks/useSpeechRecorder.d.cts",
+        "default": "./dist/hooks/useSpeechRecorder.cjs"
       }
     },
     "./hooks/useXAPI": {

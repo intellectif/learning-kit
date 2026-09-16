@@ -1,6 +1,17 @@
 import { expect, test } from '@playwright/test';
 import { LRS_ENDPOINT } from './constants.js';
 
+/**
+ * Scoped to its own section of the demo page.
+ *
+ * `<MultipleChoice>` renders an unnamed `<form>`, so it cannot be selected the
+ * way `dictation.spec.ts` selects its activity — and "Submit" stopped being
+ * unique on the page the moment a read-aloud joined it, which renders a submit
+ * control with the same word. The section the demo puts each activity in is
+ * the nearest thing to the form name the other specs use.
+ */
+const section = (page: import('@playwright/test').Page) => page.getByLabel('Multiple Choice');
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   // The app renders only after the MSW worker has started, so a visible
@@ -16,7 +27,7 @@ test('load → select → submit fires onComplete and POSTs a valid xAPI stateme
   const requestPromise = page.waitForRequest(
     (r) => r.url() === LRS_ENDPOINT && r.method() === 'POST',
   );
-  await page.getByRole('button', { name: 'Submit' }).click();
+  await section(page).getByRole('button', { name: 'Submit' }).click();
   const request = await requestPromise;
 
   const statement = request.postDataJSON();
@@ -39,7 +50,7 @@ test('keyboard-only: select with Space and submit with Enter', async ({ page }) 
   const requestPromise = page.waitForRequest(
     (r) => r.url() === LRS_ENDPOINT && r.method() === 'POST',
   );
-  await page.getByRole('button', { name: 'Submit' }).press('Enter');
+  await section(page).getByRole('button', { name: 'Submit' }).press('Enter');
   await requestPromise;
 
   await expect(page.getByText(/Multiple Choice: scored 100%/)).toBeVisible();

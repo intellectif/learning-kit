@@ -3,17 +3,20 @@ import { dictationAuthoring } from '../authoring/dictation.js';
 import { fillInTheBlanksAuthoring } from '../authoring/fill-in-the-blanks.js';
 import { gapSelectAuthoring } from '../authoring/gap-select.js';
 import { multipleChoiceAuthoring } from '../authoring/multiple-choice.js';
+import { readAloudAuthoring } from '../authoring/read-aloud.js';
 import { writtenResponseAuthoring } from '../authoring/written-response.js';
 import { countWords } from '../count-words.js';
 import { DictationDataSchema } from '../schemas/dictation.js';
 import { FillInTheBlanksDataSchema } from '../schemas/fill-in-the-blanks.js';
 import { GapSelectDataSchema } from '../schemas/gap-select.js';
 import { MultipleChoiceDataSchema } from '../schemas/multiple-choice.js';
+import { ReadAloudDataSchema } from '../schemas/read-aloud.js';
 import {
   RedactedDictationDataSchema,
   RedactedFillInTheBlanksDataSchema,
   RedactedGapSelectDataSchema,
   RedactedMultipleChoiceDataSchema,
+  RedactedReadAloudDataSchema,
   RedactedWrittenResponseDataSchema,
 } from '../schemas/redacted.js';
 import { WrittenResponseDataSchema } from '../schemas/written-response.js';
@@ -35,6 +38,8 @@ import type {
   GapSelectLearnerResponse,
   MultipleChoiceData,
   MultipleChoiceLearnerResponse,
+  ReadAloudData,
+  ReadAloudLearnerResponse,
   WrittenResponseData,
   WrittenResponseLearnerResponse,
 } from '../types/activity.js';
@@ -426,8 +431,86 @@ export const dictationType = defineActivityType<DictationData, DictationLearnerR
   authoring: dictationAuthoring,
 });
 
+/**
+ * Read Aloud, the type with no answer key at all.
+ *
+ * Everything an author writes is shown to the learner — the text to read most of
+ * all — so every field is `public`, and redaction removes only the authored
+ * pass/fail feedback, which is written about a grade that does not exist yet.
+ * The bounds, the slow recording and the dimension weights are classified key by
+ * key rather than as one leaf each, for the reason `media` was: a scalar
+ * classification assigns the author's object by reference without recursing, so
+ * an unclassified key parked inside it survives `redact()` AND
+ * `assertRedacted()`.
+ *
+ * The weights are public deliberately. They tell the learner what the reading is
+ * judged on, and they are no key: knowing that fluency counts twice cannot tell
+ * anyone how to pronounce a word. They are not tightenable per call either, the
+ * way a rubric is: `RedactedReadAloudDataSchema` REQUIRES `scoring` — as it
+ * requires `recording`, `referenceText` and `locale` — so a policy override that
+ * classified any of them `author-only` would produce a projection the schema
+ * refuses, and `redact()` would throw rather than hide the field.
+ */
+const READ_ALOUD_FIELD_POLICY: FieldPolicy = {
+  ...SHARED_PUBLIC_FIELDS,
+  instructions: 'public',
+  referenceText: 'public',
+  recording: { maxSeconds: 'public', minSeconds: 'public', maxTakes: 'public' },
+  slowMedia: { type: 'public', url: 'public', alt: 'public' },
+  scoring: { dimensions: { name: 'public', weight: 'public' } },
+  feedback: FEEDBACK_FIELD_POLICY,
+};
+
+/**
+ * Whether a response carries a stored recording: an object whose `key` is a
+ * non-empty string. Read defensively, because both callers are handed whatever
+ * an application stored — `evaluate()` passes `partial` a response that may be
+ * absent (a slot nobody answered), and a take that failed to upload is never a
+ * `null` recording but may be anything at all in an older row.
+ */
+function hasRecording(response: ReadAloudLearnerResponse | undefined): boolean {
+  const recording = (response as { recording?: unknown } | undefined)?.recording;
+  return (
+    typeof recording === 'object' &&
+    recording !== null &&
+    typeof (recording as { key?: unknown }).key === 'string' &&
+    (recording as { key: string }).key !== ''
+  );
+}
+
+/**
+ * Built-in Read Aloud descriptor. Grading is DEFERRED: the SDK calls no
+ * assessor, so the synchronous outcome reports only whether a recording was
+ * stored, and `gradeReadAloud` produces the grade once the application holds a
+ * speech assessment.
+ */
+export const readAloudType = defineActivityType<ReadAloudData, ReadAloudLearnerResponse>({
+  type: 'read-aloud',
+  schema: ReadAloudDataSchema as unknown as z.ZodType<ReadAloudData>,
+  scoring: {
+    kind: 'deferred',
+    reason: 'requires_async_grading',
+    partial: (_data, response) => ({ hasRecording: hasRecording(response) }),
+  },
+  isAnswered: (response) => hasRecording(response),
+  fieldPolicy: READ_ALOUD_FIELD_POLICY,
+  redactedSchema: RedactedReadAloudDataSchema,
+  interop: {
+    xapiActivityTypeIri: 'http://adlnet.gov/expapi/activities/cmi.interaction',
+    // `other`, not `performance`: xAPI's performance interaction describes a set
+    // of steps with their own responses, and a reading has one. There is no
+    // pattern to publish either — the "correct response" is a pronunciation, not
+    // a string a statement can carry.
+    xapiInteractionType: 'other',
+    correctResponsesPattern: () => [],
+  },
+  interactions: ['recording-started', 'recording-stopped', 'recording-uploaded', 'submitted'],
+  authoring: readAloudAuthoring,
+});
+
 registerActivityType(multipleChoiceType);
 registerActivityType(fillInTheBlanksType);
 registerActivityType(writtenResponseType);
 registerActivityType(gapSelectType);
 registerActivityType(dictationType);
+registerActivityType(readAloudType);

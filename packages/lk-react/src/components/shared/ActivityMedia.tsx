@@ -87,7 +87,6 @@ export function ActivityMedia(props: ActivityMediaProps): React.JSX.Element {
     const hints = renderMode === 'review' ? [] : policy.nativeControlHints;
     return (
       <figure className="lk-media">
-        {/* biome-ignore lint/a11y/useMediaCaption: captions are optional in the data contract — a <track> is rendered when captionsUrl is provided; absence is the author's documented choice (Req 14.5) */}
         <audio
           ref={audioRef}
           className="lk-media-el"

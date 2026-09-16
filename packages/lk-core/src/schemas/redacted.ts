@@ -1,5 +1,12 @@
 import { z } from 'zod/v4';
+import {
+  READ_ALOUD_MAX_DIMENSION_WEIGHT,
+  READ_ALOUD_MAX_SECONDS,
+  READ_ALOUD_MAX_TAKES,
+} from '../scoring/speech/limits.js';
+import { CANONICAL_LOCALE_RE } from '../scoring/speech/locale.js';
 import { MediaUrlSchema, RedactedMediaSchema } from './media.js';
+import { READ_ALOUD_DIMENSIONS, ReadAloudSlowMediaSchema } from './read-aloud.js';
 import { RedactedWrittenResponseRubricSchema } from './written-response.js';
 
 /**
@@ -200,6 +207,83 @@ export const RedactedDictationDataSchema = z
   });
 
 /**
+ * Redacted Read Aloud data: everything survives, because a read-aloud item has
+ * no answer key — the learner is shown the very text they are asked to read.
+ * What redaction removes is the authored pass/fail feedback, which is written
+ * about a grade that does not exist yet.
+ *
+ * `locale` is REQUIRED here, overriding the optional one on the shared base: it
+ * decides the grade (an assessment made for another locale is unscorable), so a
+ * projection that dropped it would send an exam client an item no assessor could
+ * be asked for. Four rules of the content schema are repeated, because a
+ * projection built by hand never passed through it: the recording is audio, a
+ * slow recording accompanies a recording, is a different file, and never sits
+ * beside a play budget — the last two being how an unbudgeted copy of budgeted
+ * content would reach a learner.
+ */
+export const RedactedReadAloudDataSchema = z
+  .strictObject({
+    ...redactedBase,
+    type: z.literal('read-aloud'),
+    locale: z.string().regex(CANONICAL_LOCALE_RE),
+    instructions: z.string().optional(),
+    referenceText: z.string().min(1),
+    slowMedia: ReadAloudSlowMediaSchema.optional(),
+    recording: z.strictObject({
+      maxSeconds: z.number().gt(0).max(READ_ALOUD_MAX_SECONDS),
+      minSeconds: z.number().min(0).optional(),
+      maxTakes: z.number().int().min(1).max(READ_ALOUD_MAX_TAKES).optional(),
+    }),
+    scoring: z.strictObject({
+      dimensions: z
+        .array(
+          z.strictObject({
+            name: z.enum(READ_ALOUD_DIMENSIONS),
+            weight: z.number().min(0).max(READ_ALOUD_MAX_DIMENSION_WEIGHT),
+          }),
+        )
+        .min(1)
+        .max(READ_ALOUD_DIMENSIONS.length),
+    }),
+  })
+  .check((ctx) => {
+    const data = ctx.value;
+    if (data.media !== undefined && data.media.type !== 'audio') {
+      ctx.issues.push({
+        code: 'custom',
+        input: data.media.type,
+        message: 'A read-aloud model recording must be audio, so this payload is not renderable.',
+        path: ['media', 'type'],
+      });
+    }
+    if (data.slowMedia !== undefined && data.media === undefined) {
+      ctx.issues.push({
+        code: 'custom',
+        input: data.slowMedia,
+        message: 'A slow model recording accompanies a recording: this payload has no `media`.',
+        path: ['media'],
+      });
+    }
+    if (data.slowMedia !== undefined && data.media?.playback?.maxPlays !== undefined) {
+      ctx.issues.push({
+        code: 'custom',
+        input: data.slowMedia,
+        message:
+          'A play budget on `media` cannot coexist with an unbudgeted slow recording of the same content.',
+        path: ['slowMedia'],
+      });
+    }
+    if (data.slowMedia !== undefined && data.slowMedia.url === data.media?.url) {
+      ctx.issues.push({
+        code: 'custom',
+        input: data.slowMedia.url,
+        message: 'The slow model recording must be a different file from the recording.',
+        path: ['slowMedia', 'url'],
+      });
+    }
+  });
+
+/**
  * The learner-safe SHAPE of each built-in type, derived from the strict schema
  * above rather than hand-written beside it.
  *
@@ -239,6 +323,12 @@ export type RedactedGapSelectData = z.infer<typeof RedactedGapSelectDataSchema>;
 export type RedactedDictationSlowMedia = z.infer<typeof RedactedDictationSlowMediaSchema>;
 /** A Dictation item with its transcript, accepted alternatives and tolerances removed. */
 export type RedactedDictationData = z.infer<typeof RedactedDictationDataSchema>;
+/**
+ * A Read Aloud item, which keeps everything but the authored feedback: the text
+ * to read is what the learner is asked to read. The slow recording needs no
+ * redacted counterpart of its own — the content schema for it is already strict.
+ */
+export type RedactedReadAloudData = z.infer<typeof RedactedReadAloudDataSchema>;
 
 /**
  * Discriminated union of every built-in redacted activity. Narrow it on
@@ -257,4 +347,5 @@ export type RedactedActivity =
   | RedactedFillInTheBlanksData
   | RedactedWrittenResponseData
   | RedactedGapSelectData
-  | RedactedDictationData;
+  | RedactedDictationData
+  | RedactedReadAloudData;

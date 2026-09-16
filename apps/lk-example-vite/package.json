@@ -7,6 +7,7 @@
     "dev": "msw init public --no-save && vite",
     "build": "msw init public --no-save && vite build",
     "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json",
     "lint": "biome check ."
   },
   "dependencies": {

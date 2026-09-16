@@ -315,6 +315,24 @@ const SPACE_BESIDE_UNSPACED_RE = new RegExp(
  */
 const WORD_RE = new RegExp(`^[\\p{L}\\p{M}\\p{N}${JOINERS}]$`, 'u');
 const UNSPACED_CHARACTER_RE = new RegExp(`^${UNSPACED_CHARACTER}$`, 'u');
+/**
+ * A letter of a script written without spaces, anywhere in a text. Letters
+ * only: the ideographic comma and full stop carry the Han script extension
+ * too, and a Korean sentence punctuated with them is still written with spaces
+ * between its words.
+ */
+const UNSPACED_LETTER_RE = new RegExp(`(?=\\p{L})${UNSPACED_CHARACTER}`, 'u');
+
+/**
+ * Whether `text` contains a letter of a script written without spaces between
+ * words — Han, Hiragana, Katakana, Thai, Lao, Khmer or Myanmar, by script
+ * extension. The tokeniser splits on spaces alone, so a run of such letters is
+ * one word however many it holds, which is why a read-aloud reference refuses
+ * one. A digit is a word in every script and does not count.
+ */
+export function containsUnspacedScript(text: string): boolean {
+  return UNSPACED_LETTER_RE.test(text);
+}
 /** What is drawn onto the character before it: a match never ends just before one. */
 const EXTENDING_RE = new RegExp(`^[\\p{M}${JOINERS}${TAGS}]$`, 'u');
 

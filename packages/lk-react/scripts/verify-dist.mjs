@@ -74,6 +74,11 @@ const REQUIRED_EXPORTS = {
   'dist/components/ActivityPreview.js': ['ActivityPreview'],
   'dist/components/GapSelect.js': ['GapSelect'],
   'dist/components/Dictation.js': ['Dictation'],
+  'dist/components/ReadAloud.js': ['ReadAloud'],
+  'dist/components/PronunciationFeedback.js': ['PronunciationFeedback'],
+  // The processor source is pinned beside the hook: `workletUrl` is unusable
+  // without it, and a missing re-export fails silently into a fallback.
+  'dist/hooks/useSpeechRecorder.js': ['CAPTURE_PROCESSOR_SOURCE', 'useSpeechRecorder'],
   'dist/theme/ThemeProvider.js': [
     'ThemeProvider',
     'createTailwindTheme',
@@ -92,11 +97,15 @@ const REQUIRED_EXPORTS = {
   'dist/index.js': [
     'ActivityPreview',
     'ActivitySequence',
+    'CAPTURE_PROCESSOR_SOURCE',
     'DEFAULT_STRINGS',
     'LkIntlProvider',
     'MultipleChoice',
+    'PronunciationFeedback',
+    'ReadAloud',
     'createTailwindTheme',
     'useLkStrings',
+    'useSpeechRecorder',
     'useXAPI',
   ],
 };

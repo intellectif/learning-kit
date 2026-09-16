@@ -311,7 +311,6 @@ export function WrittenResponse({
 
   // Reset on data-prop change (Req 3.7): back to the seed (empty when there
   // is none — the v1 behaviour), never the previous activity's draft.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: data is the reset trigger (Req 3.7)
   // Mirror `defaultSubmitted` so the reset below returns to the SEEDED state.
   // Resetting unconditionally to idle unlocked an item the learner had already
   // committed — which made `defaultSubmitted` a no-op here, since this effect

@@ -33,6 +33,7 @@ const BUILT_IN: ActivityType[] = [
   'written-response',
   'gap-select',
   'dictation',
+  'read-aloud',
 ];
 
 /** Many runs: each is two schema parses and a check, all pure and fast. */
@@ -464,12 +465,133 @@ const dictationDraft = fc
   })
   .map(compact);
 
+const LONG_REFERENCE_TEXT = 'a'.repeat(2001);
+/** A Han letter standing in Latin text: a script that puts no spaces between its words. */
+const UNSPACED_REFERENCE_TEXT = `Read ${String.fromCodePoint(0x4e2d)} aloud`;
+/** Written, within the cap, and nothing survives normalisation: no word to mark. */
+const UNREADABLE_REFERENCE_TEXT = '...';
+
+const referenceTextArb = fc.constantFrom<unknown>(
+  undefined,
+  null,
+  '',
+  '   ',
+  NBSP,
+  LONG_REFERENCE_TEXT,
+  UNSPACED_REFERENCE_TEXT,
+  UNREADABLE_REFERENCE_TEXT,
+  'The quick brown fox jumps over the lazy dog.',
+);
+
+/** Every spelling of a language tag an editor's field can hold, canonical and not. */
+const readAloudLocaleArb = fc.constantFrom<unknown>(
+  undefined,
+  null,
+  '',
+  '  ',
+  'en',
+  'en-US',
+  'en_US',
+  'EN-US',
+  'es-419',
+  'not a locale',
+);
+
+const recordingArb = fc
+  .record({
+    maxSeconds: fc.constantFrom<unknown>(undefined, null, 0, 0.5, 45, 300, 301, -1, Number.NaN),
+    minSeconds: fc.constantFrom<unknown>(undefined, null, 0, 2, 45, 60, -1, Number.NaN),
+    maxTakes: fc.constantFrom<unknown>(undefined, null, 1, 2, 20, 0, 21, 1.5, 2 ** 53),
+  })
+  .map(compact);
+
+const dimensionArb = entry(
+  fc
+    .record({
+      name: fc.constantFrom<unknown>(
+        undefined,
+        null,
+        '',
+        'accuracy',
+        'fluency',
+        'completeness',
+        'prosody',
+        'diction',
+      ),
+      weight: fc.constantFrom<unknown>(undefined, null, 0, 1, 0.5, 1000, 1001, -1, Number.NaN),
+    })
+    .map(compact),
+);
+
+const readAloudMediaArb = fc
+  .record({
+    type: fc.constantFrom<unknown>(undefined, null, '', 'audio', 'image', 'video', 'embed'),
+    url: fc.constantFrom<unknown>(
+      undefined,
+      null,
+      '',
+      '/model.mp3',
+      'https://cdn.example/model.mp3',
+      'model.mp3',
+    ),
+    alt: fc.constantFrom<unknown>(undefined, null, '', '  ', 'Model recording'),
+    captionsUrl: fc.constantFrom<unknown>(undefined, null, '', '/c.vtt'),
+    playback: fc.constantFrom<unknown>(
+      undefined,
+      null,
+      { maxPlays: 2 },
+      { maxPlays: null },
+      { seek: 'none', rate: 'fixed' },
+      { controls: '' },
+    ),
+  })
+  .map(compact);
+
+/** The slow recording, including the two keys its strict schema refuses. */
+const readAloudSlowMediaArb = fc
+  .record({
+    type: fc.constantFrom<unknown>(undefined, null, '', 'audio', 'image'),
+    url: fc.constantFrom<unknown>(
+      undefined,
+      null,
+      '',
+      '/model.mp3',
+      '/model-slow.mp3',
+      'model-slow.mp3',
+    ),
+    alt: fc.constantFrom<unknown>(undefined, null, '', 'Model recording, slow'),
+    captionsUrl: fc.constantFrom<unknown>(undefined, '/c.vtt'),
+    playback: fc.constantFrom<unknown>(undefined, { rate: 'fixed' }),
+  })
+  .map(compact);
+
+const readAloudDraft = fc
+  .record({
+    ...envelope('read-aloud'),
+    instructions: optionalText,
+    referenceText: referenceTextArb,
+    recording: orUnset(recordingArb),
+    // At most four dimensions: there are four names, so an editor that offers
+    // them cannot produce a fifth row, and no draft rule names a longer list.
+    scoring: orUnset(
+      fc.record({ dimensions: orUnset(fc.array(dimensionArb, { maxLength: 4 })) }).map(compact),
+    ),
+    ...sharedArbs,
+    // After the shared fields: read-aloud's locale decides the grade, so it has
+    // a wider set of spellings than the presentation-only one.
+    locale: readAloudLocaleArb,
+    media: orUnset(readAloudMediaArb),
+    slowMedia: orUnset(readAloudSlowMediaArb),
+  })
+  .map(compact);
+
 const EDITOR_DRAFTS: [ActivityType, fc.Arbitrary<Record<string, unknown>>][] = [
   ['multiple-choice', multipleChoiceDraft],
   ['fill-in-the-blanks', fillInTheBlanksDraft],
   ['written-response', writtenResponseDraft],
   ['gap-select', gapSelectDraft],
   ['dictation', dictationDraft],
+  ['read-aloud', readAloudDraft],
 ];
 
 /** A well-formed response for each type, to score a complete draft with. */
@@ -479,6 +601,9 @@ const RESPONSES: Record<string, LearnerResponse> = {
   'written-response': { type: 'written-response', text: 'I went home.', wordCount: 3 },
   'gap-select': { type: 'gap-select', selections: { a: 'from', b: '' } },
   dictation: { type: 'dictation', text: 'It is raining.' },
+  // A learner who submitted without recording: the blank a deferred type still
+  // has to evaluate without throwing.
+  'read-aloud': { type: 'read-aloud', recording: null },
 };
 
 describe('validateDraft properties', () => {

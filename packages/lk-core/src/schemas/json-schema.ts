@@ -6,6 +6,7 @@ import { FillInTheBlanksDataSchema } from './fill-in-the-blanks.js';
 import { GapSelectDataSchema } from './gap-select.js';
 import { ItemGroupSchema, StimulusSchema } from './item-group.js';
 import { MultipleChoiceDataSchema } from './multiple-choice.js';
+import { ReadAloudDataSchema } from './read-aloud.js';
 import { WrittenResponseDataSchema } from './written-response.js';
 
 /**
@@ -55,6 +56,19 @@ export const gapSelectJsonSchema = z.toJSONSchema(GapSelectDataSchema, {
  * Zod-only, as they are for the other types.
  */
 export const dictationJsonSchema = z.toJSONSchema(DictationDataSchema, {
+  target: 'draft-7',
+});
+
+/**
+ * JSON Schema (Draft 7) representation of the Read Aloud activity data
+ * contract. Structural contract, plus the raw cap JSON Schema can state in code
+ * points as zod counts them — `maxLength` 2000 on the reference text — and the
+ * canonical locale pattern. The ten semantic guards — the cap after
+ * normalisation, a text that survives it, the spaced-script rule, the
+ * model-recording rules, unique dimensions, a weight above 0, and the take
+ * bounds — are Zod-only, as they are for the other types.
+ */
+export const readAloudJsonSchema = z.toJSONSchema(ReadAloudDataSchema, {
   target: 'draft-7',
 });
 

@@ -70,7 +70,31 @@ a known hazard carry a `note` saying why they exist.
   edges, negative zero, half-even ties and near-ties, and bands that share a
   minimum.
 - **`countWords`**, **`seededShuffle`** in both versions, **`gradeFromRubric`**
-  including its unscorable paths, and **`outcomeFromGrade`**.
+  including its unscorable paths, its opt-in `rounding` option on each of the
+  three ways a pass is decided, and **`outcomeFromGrade`**.
+- **`gradeReadAloud`**: every reason a pronunciation assessment is refused
+  rather than scored — each `unscorable` code — the weighted total over the
+  authored dimensions, a blank take, a dimension scored `0` against one that was
+  not scored at all, the pass line with and without rounding, and the per-word
+  marks in `details`, which are for review and never feed the score.
+- **`alignReadAloud`**, which decides the reference word each mark lands on:
+  omissions, insertions and mispronunciations, a repeated word, an assessor word
+  that normalises to no token or to two, punctuation that merges two words into
+  one, and both `miscue` settings. **`validateSpeechAssessment`** with the paths
+  and codes an adapter branches on — including the two totals that bound the
+  text of an assessment, at the bound and one character past it — and
+  **`outcomeFromUnscorable`**, which keeps a refusal's code in the stored
+  outcome.
+- **`validateActivity`**, for the one rule that decides whether an item can be
+  stored at all rather than how an answer scores: a read-aloud `referenceText`
+  that survives normalisation as nothing. An item that marks no word grades a
+  silent take at 0 with no omission recorded and a perfect reading as a run of
+  insertions, so loosening that refusal would move grades.
+- **`inspectWav`** and the **`READ_ALOUD_*`** and `SPEECH_ASSESSMENT_MAX_WORDS`
+  limits: what a recording's duration, peak level and voiced time are measured
+  as, across silence, a tone, two channels, two sample rates, a partial last
+  window, an odd chunk's pad byte and WAVE_FORMAT_EXTENSIBLE, and which files
+  are reported unread instead of guessed at.
 - **`scoredItemsFromPlan`**, which decides what a stored paper's denominator is
   when an outcome is missing, and **`composeAssessmentScore`** across weights,
   points, provisional and unscorable items, and section thresholds.
@@ -101,5 +125,41 @@ tagged: `{ "$number": "NaN" | "Infinity" | "-Infinity" | "-0" }` and
 `\uXXXX` escape, so a no-break space can never pass for an ordinary one.
 Comparison ignores object key order.
 
-`corpusVersion` changes only if this encoding does. Adding vectors does not
-change it, so always load the `replay.mjs` that sits beside the corpus.
+A recording is bytes, which JSON cannot express either, so a `Uint8Array` is
+tagged `{ "$bytes": "<base64>" }` and comes back from `decode` as a fresh one.
+Any other view of an `ArrayBuffer` is refused rather than tagged: JSON would
+store it as `{"0":82,"1":73}`, which replays as an ordinary object, and the call
+under test would be handed something that is not a byte array at all. The base64
+is computed in `replay.mjs` itself, so the file needs no `Buffer` and still runs
+wherever your tests run.
+
+`corpusVersion` changes only if this encoding does — it is **2** since the
+`$bytes` tag was added, and no expectation changed with it. Adding vectors does
+not change it, so always load the `replay.mjs` that sits beside the corpus: an
+older one throws rather than replaying a corpus it cannot read.
+
+## `frozenFrom`
+
+`frozenFrom` is **the version of `@intellectif/lk-core` the corpus was last
+regenerated at** — the package version in `package.json` when someone ran
+`node scripts/generate-vectors.mjs`. That is all it is.
+
+**It is not the version this corpus ships in, and it is not expected to match
+it.** `changeset version` bumps the package without regenerating the corpus, so
+a release almost always publishes a corpus whose `frozenFrom` names the previous
+version. That is correct and wanted: the string records when these expectations
+were last recomputed, and a release that changes no expectation should not
+rewrite them.
+
+It is deliberately not asserted anywhere. `replay()` never reads it — it walks
+`vectors` alone, comparing each frozen call with what your build returns — and
+the generator's own grade-change check compares only each vector's call and
+expectation, so a `frozenFrom` one version behind can never fail a grade gate.
+(`corpusVersion` is different: `replay()` does check that one, and throws when
+it does not recognise the encoding.) Read `frozenFrom` as a date stamp, not as a
+package label. The version that matters for "which build produced this grade" is
+the one you installed; record that yourself beside any grade you store.
+
+Adding a regenerate-after-version step to the release was considered and
+rejected: it would put a step that can fail *after* the version bump, which is
+strictly worse than a string that reads one version behind.

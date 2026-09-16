@@ -181,8 +181,8 @@ export function FillInTheBlanks({
   // unlock or revert a restored answer — the pager already remounts a slot
   // whose activity actually changed, via its key.
   const lastDataRef = useRef(data);
-  // `data` is an intentional reset trigger (Req 3.7), not read in the body.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: data is the reset trigger (Req 3.7)
+  // `data` is an intentional reset trigger (Req 3.7); it is already in the
+  // dependency list. The identity guard below skips the mount run.
   useEffect(() => {
     if (lastDataRef.current === data) {
       return;

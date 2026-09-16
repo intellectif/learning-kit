@@ -1,7 +1,7 @@
 /*
- * learning-kit OPTIONAL default skin — a slick, neutral monochrome look
- * (ElevenLabs-like). Entirely token-driven, so `ThemeProvider` / dark mode
- * restyle it for free.
+ * learning-kit OPTIONAL default skin — a neutral monochrome, deliberately
+ * unbranded. Entirely token-driven, so `ThemeProvider` / dark mode restyle it
+ * for free.
  *
  * Override contract: every rule lives in the `lk-skin` CSS cascade layer.
  * Unlayered author styles ALWAYS win over layered styles, so a consumer can
@@ -1323,6 +1323,599 @@
       border-color: CanvasText;
       color: CanvasText;
       background: Canvas;
+    }
+  }
+}
+
+/*
+ * Read aloud, and the pronunciation feedback panel it renders.
+ *
+ * The marking vocabulary is the dictation's, on purpose: the same glyphs
+ * (✓ ✗ ∅ +), the same four decorations and the same four tokens, with
+ * `mispronounced` standing exactly where `incorrect` stands there. A learner
+ * who meets both activity types reads one set of marks rather than two,
+ * translators get no new concepts, and no token is invented — only the class
+ * prefixes differ, so the two can still be restyled apart.
+ *
+ * `.lk-pf-*` is the feedback panel. It renders INSIDE the form in practice and
+ * stands alone in a report or a teacher's view, so it carries its own box and
+ * gives that box up only when it is nested.
+ *
+ * Logical properties throughout: the reading may be in a right-to-left
+ * language inside a left-to-right interface, and the marks follow the reading.
+ */
+@layer lk-skin {
+  .lk-ra,
+  .lk-pf {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-md);
+    font-family: var(--lk-font-family-base);
+    font-size: var(--lk-font-size-base);
+    line-height: var(--lk-line-height-base);
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    padding: var(--lk-spacing-lg);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-lg);
+  }
+
+  .lk-ra *,
+  .lk-pf * {
+    box-sizing: border-box;
+  }
+
+  /* Nested inside the activity it explains: one box, not a box in a box. */
+  .lk-ra .lk-pf {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .lk-ra fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-inline-size: 0;
+  }
+
+  .lk-ra-title {
+    margin: 0;
+    font-size: var(--lk-font-size-lg);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-ra-instructions {
+    margin: 0;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  /* The words to read ARE the activity: set apart from the chrome around them,
+     and large enough to read from a phone held at arm's length. */
+  .lk-ra-reference {
+    margin: 0;
+    padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+    border-inline-start: 3px solid var(--lk-color-primary);
+    border-radius: var(--lk-radius-sm);
+    background: var(--lk-color-surface-raised);
+    font-size: var(--lk-font-size-lg);
+  }
+
+  /* ── The model recordings ──────────────────────────────────────────── */
+  .lk-ra-models {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-sm);
+  }
+
+  .lk-ra-model-label {
+    padding: 0;
+    margin-block-end: var(--lk-spacing-xs);
+    font-size: var(--lk-font-size-sm);
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-ra-model .lk-media {
+    margin: 0;
+  }
+
+  /* ── The recorder ──────────────────────────────────────────────────── */
+  .lk-ra-recorder,
+  .lk-ra-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--lk-spacing-sm);
+  }
+
+  .lk-ra-record,
+  .lk-ra-stop,
+  .lk-ra-submit-blank,
+  .lk-ra-retry,
+  .lk-pf-word-toggle,
+  .lk-pf-word-play {
+    padding: var(--lk-spacing-xs) var(--lk-spacing-md);
+    font: inherit;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    cursor: pointer;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-ra-record:hover:not(:disabled):not([aria-disabled="true"]),
+  .lk-ra-stop:hover:not(:disabled),
+  .lk-ra-submit-blank:hover:not(:disabled):not([aria-disabled="true"]),
+  .lk-ra-retry:hover:not(:disabled),
+  .lk-pf-word-toggle:hover,
+  .lk-pf-word-play:hover {
+    border-color: var(--lk-color-primary);
+  }
+
+  /* The take budget is spent, or a submit is in flight: aria-disabled rather
+     than disabled, so the control a learner comes back to keeps focus. */
+  .lk-ra-record:disabled,
+  .lk-ra-record[aria-disabled="true"],
+  .lk-ra-stop:disabled,
+  .lk-ra-submit:disabled,
+  .lk-ra-submit[aria-disabled="true"],
+  .lk-ra-submit-blank:disabled,
+  .lk-ra-submit-blank[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  /* Recording is the one state a learner must read at a glance, and the stop
+     control is the only way out of it. */
+  .lk-ra-stop {
+    border-color: var(--lk-color-error);
+    color: var(--lk-color-error);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-ra-submit {
+    padding: var(--lk-spacing-sm) var(--lk-spacing-lg);
+    font: inherit;
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-surface);
+    background: var(--lk-color-primary);
+    border: 0;
+    border-radius: var(--lk-radius-base);
+    cursor: pointer;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-ra-submit:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: var(--lk-color-primary-hover);
+  }
+
+  .lk-ra-progress,
+  .lk-ra-takes,
+  .lk-ra-pending {
+    flex: 1 0 100%;
+    margin: 0;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  /*
+   * The input meter, in the ten steps `data-level` carries. One rule per step,
+   * because CSS cannot read a number out of an attribute and use it as a
+   * length. It is decoration and nothing else — the recorder's state is
+   * already in the button's own words and in `data-status`, and the start and
+   * the end of a take are announced by the component — so a page that
+   * overrides it away loses nothing a learner needs.
+   */
+  .lk-ra-recorder[data-level]::after {
+    content: "";
+    flex: 1 0 100%;
+    block-size: 4px;
+    inline-size: 0;
+    border-radius: var(--lk-radius-sm);
+    background: var(--lk-color-primary);
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-ra-recorder[data-level="1"]::after {
+    inline-size: 10%;
+  }
+
+  .lk-ra-recorder[data-level="2"]::after {
+    inline-size: 20%;
+  }
+
+  .lk-ra-recorder[data-level="3"]::after {
+    inline-size: 30%;
+  }
+
+  .lk-ra-recorder[data-level="4"]::after {
+    inline-size: 40%;
+  }
+
+  .lk-ra-recorder[data-level="5"]::after {
+    inline-size: 50%;
+  }
+
+  .lk-ra-recorder[data-level="6"]::after {
+    inline-size: 60%;
+  }
+
+  .lk-ra-recorder[data-level="7"]::after {
+    inline-size: 70%;
+  }
+
+  .lk-ra-recorder[data-level="8"]::after {
+    inline-size: 80%;
+  }
+
+  .lk-ra-recorder[data-level="9"]::after {
+    inline-size: 90%;
+  }
+
+  .lk-ra-recorder[data-level="10"]::after {
+    inline-size: 100%;
+  }
+
+  /* The learner's own take, and the one a review plays back. */
+  .lk-ra-take {
+    display: block;
+    inline-size: 100%;
+  }
+
+  /* ── What came back ────────────────────────────────────────────────── */
+  .lk-ra-alert {
+    margin: 0;
+    padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    border-inline-start: 3px solid var(--lk-color-error);
+    border-radius: var(--lk-radius-sm);
+    background: var(--lk-color-surface-raised);
+    color: var(--lk-color-error);
+  }
+
+  .lk-ra-outcome,
+  .lk-pf-grade {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-xs);
+  }
+
+  .lk-ra-grade,
+  .lk-pf-score {
+    margin: 0;
+    font-size: var(--lk-font-size-lg);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-ra-grade-feedback,
+  .lk-pf-grade-feedback {
+    margin: 0;
+    color: var(--lk-color-text-muted);
+  }
+
+  /* Passed or not is a word in the score sentence first; the colour is the
+     second channel and never the only one. */
+  .lk-ra-outcome[data-passed="true"] .lk-ra-grade,
+  .lk-pf-grade[data-passed="true"] .lk-pf-score {
+    color: var(--lk-color-success);
+  }
+
+  .lk-ra-outcome[data-passed="false"] .lk-ra-grade,
+  .lk-pf-grade[data-passed="false"] .lk-pf-score {
+    color: var(--lk-color-error);
+  }
+
+  /* ── The dimensions a take was graded on ───────────────────────────── */
+  .lk-pf-dimensions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lk-spacing-sm);
+    margin: 0;
+  }
+
+  .lk-pf-dimension {
+    flex: 1 1 auto;
+    padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    background: var(--lk-color-surface-raised);
+  }
+
+  .lk-pf-dimension-name {
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-pf-dimension-score {
+    margin: 0;
+    font-size: var(--lk-font-size-lg);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  /* ── The marks ─────────────────────────────────────────────────────── */
+  .lk-ra-marks,
+  .lk-pf-word-detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-sm);
+    padding: var(--lk-spacing-md);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    background: var(--lk-color-surface-raised);
+  }
+
+  .lk-ra-words,
+  .lk-ra-legend,
+  .lk-pf-words,
+  .lk-pf-legend,
+  .lk-pf-syllables,
+  .lk-pf-phonemes,
+  .lk-pf-heard-as {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lk-ra-word,
+  .lk-pf-word {
+    /* The hidden sentence is positioned against the word it describes. */
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--lk-spacing-xs);
+    font-size: var(--lk-font-size-lg);
+  }
+
+  /* An opened word's panel takes the whole row, under the word it belongs to. */
+  .lk-pf-word-detail {
+    flex: 1 0 100%;
+    font-size: var(--lk-font-size-base);
+  }
+
+  .lk-ra-word-text,
+  .lk-pf-word-text {
+    display: inline-block;
+    padding: 0 var(--lk-spacing-xs);
+    border-radius: var(--lk-radius-sm);
+  }
+
+  .lk-ra-legend,
+  .lk-pf-legend {
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-ra-legend li,
+  .lk-pf-legend li {
+    padding: 0 var(--lk-spacing-xs);
+  }
+
+  /* One glyph per state, declared decorative: the translatable announcement is
+     the component's hidden sentence, not the stylesheet's. */
+  .lk-ra-word-text::before,
+  .lk-pf-word-text::before,
+  .lk-ra-legend li[data-state]::before,
+  .lk-pf-legend li[data-state]::before {
+    margin-inline-end: 0.3em;
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-ra-word[data-state="correct"] .lk-ra-word-text::before,
+  .lk-pf-word[data-state="correct"] .lk-pf-word-text::before,
+  .lk-ra-legend li[data-state="correct"]::before,
+  .lk-pf-legend li[data-state="correct"]::before {
+    content: "✓" / "";
+    color: var(--lk-color-success);
+  }
+
+  .lk-ra-word[data-state="mispronounced"] .lk-ra-word-text::before,
+  .lk-pf-word[data-state="mispronounced"] .lk-pf-word-text::before,
+  .lk-ra-legend li[data-state="mispronounced"]::before,
+  .lk-pf-legend li[data-state="mispronounced"]::before {
+    content: "✗" / "";
+    color: var(--lk-color-error);
+  }
+
+  .lk-ra-word[data-state="omitted"] .lk-ra-word-text::before,
+  .lk-pf-word[data-state="omitted"] .lk-pf-word-text::before,
+  .lk-ra-legend li[data-state="omitted"]::before,
+  .lk-pf-legend li[data-state="omitted"]::before {
+    content: "∅" / "";
+    color: var(--lk-color-warning);
+  }
+
+  .lk-ra-word[data-state="inserted"] .lk-ra-word-text::before,
+  .lk-pf-word[data-state="inserted"] .lk-pf-word-text::before,
+  .lk-ra-legend li[data-state="inserted"]::before,
+  .lk-pf-legend li[data-state="inserted"]::before {
+    content: "+" / "";
+    color: var(--lk-color-text-muted);
+  }
+
+  /* The same decoration for a word and for its legend row — one vocabulary,
+     and never colour alone. */
+  .lk-ra-word[data-state="correct"] .lk-ra-word-text,
+  .lk-pf-word[data-state="correct"] .lk-pf-word-text,
+  .lk-ra-legend li[data-state="correct"],
+  .lk-pf-legend li[data-state="correct"] {
+    text-decoration: none;
+    color: var(--lk-color-success);
+  }
+
+  .lk-ra-word[data-state="mispronounced"] .lk-ra-word-text,
+  .lk-pf-word[data-state="mispronounced"] .lk-pf-word-text,
+  .lk-ra-legend li[data-state="mispronounced"],
+  .lk-pf-legend li[data-state="mispronounced"] {
+    text-decoration: underline wavy;
+    text-decoration-color: var(--lk-color-error);
+    text-underline-offset: 0.2em;
+    /* Drawn through every glyph, for the reason the dictation gives: skipping
+       ink breaks the underline exactly where a mispronounced word of a stacked
+       or descending script has nothing else to mark it. */
+    text-decoration-skip-ink: none;
+    color: var(--lk-color-error);
+  }
+
+  .lk-ra-word[data-state="omitted"] .lk-ra-word-text,
+  .lk-pf-word[data-state="omitted"] .lk-pf-word-text,
+  .lk-ra-legend li[data-state="omitted"],
+  .lk-pf-legend li[data-state="omitted"] {
+    outline: 1px dotted var(--lk-color-warning);
+    outline-offset: 1px;
+    color: var(--lk-color-warning);
+  }
+
+  .lk-ra-word[data-state="inserted"] .lk-ra-word-text,
+  .lk-pf-word[data-state="inserted"] .lk-pf-word-text,
+  .lk-ra-legend li[data-state="inserted"],
+  .lk-pf-legend li[data-state="inserted"] {
+    text-decoration: line-through;
+    text-decoration-color: var(--lk-color-text-muted);
+    color: var(--lk-color-text-muted);
+  }
+
+  /* ── One word's detail ─────────────────────────────────────────────── */
+  .lk-pf-word-facts {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--lk-spacing-xs) var(--lk-spacing-md);
+    margin: 0;
+  }
+
+  .lk-pf-word-facts dt {
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-pf-word-facts dd {
+    margin: 0;
+  }
+
+  .lk-pf-phoneme {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--lk-spacing-xs);
+    padding: 0 var(--lk-spacing-xs);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-sm);
+  }
+
+  .lk-pf-phoneme-symbol {
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-pf-heard-label {
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-pf-break,
+  .lk-pf-monotone,
+  .lk-pf-alphabet {
+    margin: 0;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-pf-break,
+  .lk-pf-monotone {
+    padding-inline-start: var(--lk-spacing-sm);
+    border-inline-start: 3px solid var(--lk-color-warning);
+  }
+
+  /*
+   * The element the per-word play button drives. It carries no controls and is
+   * never played whole, so it is given no room — and hiding it does not stop
+   * it playing, which is the property this relies on.
+   */
+  .lk-pf-audio {
+    display: none;
+  }
+
+  .lk-ra :focus-visible,
+  .lk-pf :focus-visible {
+    outline: 2px solid var(--lk-color-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .lk-ra > [aria-live] {
+    color: var(--lk-color-text-muted);
+    font-size: var(--lk-font-size-sm);
+  }
+
+  /* ── Reduced motion (WCAG 2.3.3) ─────────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    .lk-ra *,
+    .lk-pf *,
+    .lk-ra-recorder[data-level]::after {
+      transition: none;
+      animation: none;
+    }
+  }
+
+  /* ── Forced colours (Windows High Contrast) ─────────────────────────────
+     The system palette replaces every colour above; what must survive is the
+     shape of each mark. The decorations are restated in `CanvasText` so the
+     four states stay distinguishable by underline, outline, strike and glyph,
+     and the blocks that mean something keep a border to be blocks at all. */
+  @media (forced-colors: active) {
+    .lk-ra-word-text::before,
+    .lk-pf-word-text::before,
+    .lk-ra-legend li[data-state]::before,
+    .lk-pf-legend li[data-state]::before {
+      color: CanvasText;
+    }
+
+    .lk-ra-word[data-state="mispronounced"] .lk-ra-word-text,
+    .lk-pf-word[data-state="mispronounced"] .lk-pf-word-text,
+    .lk-ra-legend li[data-state="mispronounced"],
+    .lk-pf-legend li[data-state="mispronounced"] {
+      text-decoration: underline wavy;
+      text-decoration-color: CanvasText;
+      text-decoration-skip-ink: none;
+    }
+
+    .lk-ra-word[data-state="omitted"] .lk-ra-word-text,
+    .lk-pf-word[data-state="omitted"] .lk-pf-word-text,
+    .lk-ra-legend li[data-state="omitted"],
+    .lk-pf-legend li[data-state="omitted"] {
+      outline: 1px dotted CanvasText;
+    }
+
+    .lk-ra-word[data-state="inserted"] .lk-ra-word-text,
+    .lk-pf-word[data-state="inserted"] .lk-pf-word-text,
+    .lk-ra-legend li[data-state="inserted"],
+    .lk-pf-legend li[data-state="inserted"] {
+      text-decoration: line-through;
+      text-decoration-color: CanvasText;
+    }
+
+    .lk-ra-reference,
+    .lk-ra-alert,
+    .lk-ra-marks,
+    .lk-pf-dimension,
+    .lk-pf-word-detail,
+    .lk-pf-break,
+    .lk-pf-monotone {
+      forced-color-adjust: none;
+      border-color: CanvasText;
+      color: CanvasText;
+      background: Canvas;
+    }
+
+    /* A filled bar with no border is invisible against its own background
+       here, so the fill takes the system's text colour. */
+    .lk-ra-recorder[data-level]::after {
+      background: CanvasText;
     }
   }
 }

@@ -12,6 +12,7 @@
  * The SDK models the SHAPE and the arithmetic. It never calls a model, never
  * holds a key, and never decides what a rubric means — that stays yours.
  */
+import type { ScoringDetail } from './activity.js';
 
 /**
  * Lifecycle of a deferred grade. A grade exists only in the `graded` state;
@@ -20,7 +21,14 @@
  */
 export type GradingState = 'queued' | 'running' | 'graded' | 'failed' | 'skipped';
 
-/** Who produced a grade. */
+/**
+ * Who produced a grade.
+ *
+ * - `'auto'` — a non-generative measurement engine, for example a
+ *   pronunciation-assessment service.
+ * - `'ai'` — a generative model.
+ * - `'human'` — a person.
+ */
 export type GraderKind = 'ai' | 'human' | 'auto';
 
 /** Provenance of a grade, so a re-grade two years later is explicable. */
@@ -105,6 +113,12 @@ export interface GradeRecord {
   feedback: string | null;
   /** Per-criterion breakdown, when the grader worked against a rubric. */
   criteria?: CriterionScore[];
+  /**
+   * Per-item marks carried by a grade — for example the per-word marks of a
+   * read-aloud grade. `outcomeFromGrade` does not mirror them onto the
+   * outcome; read `outcome.grade.details`.
+   */
+  details?: ScoringDetail[];
   /** Corrections anchored in the learner's text. */
   corrections?: InlineCorrection[];
   /** Supporting observations the grader cited. */

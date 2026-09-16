@@ -35,6 +35,7 @@ export {
   itemGroupJsonSchema,
   jsonSchemaFor,
   multipleChoiceJsonSchema,
+  readAloudJsonSchema,
   stimulusJsonSchema,
   writtenResponseJsonSchema,
 } from './json-schema.js';
@@ -50,6 +51,7 @@ export {
   MultipleChoiceOptionMediaSchema,
   MultipleChoiceOptionSchema,
 } from './multiple-choice.js';
+export { ReadAloudDataSchema, ReadAloudSlowMediaSchema } from './read-aloud.js';
 export type {
   RedactedActivity,
   RedactedBlankConfig,
@@ -63,6 +65,7 @@ export type {
   RedactedMultipleChoiceData,
   RedactedMultipleChoiceOption,
   RedactedMultipleChoiceOptionMedia,
+  RedactedReadAloudData,
   RedactedWrittenResponseData,
 } from './redacted.js';
 export {
@@ -77,6 +80,7 @@ export {
   RedactedMultipleChoiceDataSchema,
   RedactedMultipleChoiceOptionMediaSchema,
   RedactedMultipleChoiceOptionSchema,
+  RedactedReadAloudDataSchema,
   RedactedWrittenResponseDataSchema,
 } from './redacted.js';
 export {

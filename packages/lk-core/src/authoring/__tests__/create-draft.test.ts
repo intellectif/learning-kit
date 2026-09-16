@@ -21,6 +21,7 @@ const BUILT_IN: ActivityType[] = [
   'written-response',
   'gap-select',
   'dictation',
+  'read-aloud',
 ];
 
 describe('createDraft', () => {
@@ -97,6 +98,47 @@ describe('createDraft', () => {
     expect(validateDraft('dictation', { ...draft, transcript: 'It is raining.' }).status).toBe(
       'complete',
     );
+  });
+
+  it('gives read-aloud an empty text, no locale, no take limit and no dimension weighted', () => {
+    const draft = createDraft('read-aloud', { newId: counter() });
+    expect(draft).toEqual({
+      schemaVersion: '1.0',
+      type: 'read-aloud',
+      id: 'id-1',
+      title: '',
+      referenceText: '',
+      locale: '',
+      recording: { maxSeconds: 0 },
+      scoring: { dimensions: [] },
+    });
+    expect(validateDraft('read-aloud', draft).issues.map((found) => found.code)).toEqual([
+      'title_required',
+      'ra_reference_text_required',
+      'ra_locale_required',
+      'ra_max_seconds_required',
+      'ra_dimensions_required',
+    ]);
+  });
+
+  it('holds a read-aloud draft incomplete until a dimension is weighed', () => {
+    const draft = {
+      ...createDraft('read-aloud', { newId: counter() }),
+      title: 'Read the sentence aloud',
+      referenceText: 'The quick brown fox jumps over the lazy dog.',
+      locale: 'en-US',
+      recording: { maxSeconds: 45 },
+    };
+    const unweighed = validateDraft('read-aloud', draft);
+    expect(unweighed.status).toBe('incomplete');
+    expect(unweighed.issues.map((found) => found.code)).toEqual(['ra_dimensions_required']);
+    // A model recording is not required: the learner reads the text.
+    expect(
+      validateDraft('read-aloud', {
+        ...draft,
+        scoring: { dimensions: [{ name: 'accuracy', weight: 1 }] },
+      }).status,
+    ).toBe('complete');
   });
 
   it('takes every id from newId, in order, and invents none', () => {

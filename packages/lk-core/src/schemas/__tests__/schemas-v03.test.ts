@@ -375,7 +375,14 @@ describe('validateActivity dispatch', () => {
 
 describe('JSON Schema exports (v0.3)', () => {
   it('jsonSchemaFor returns an object for every built-in type', () => {
-    for (const type of ['multiple-choice', 'fill-in-the-blanks', 'written-response']) {
+    for (const type of [
+      'multiple-choice',
+      'fill-in-the-blanks',
+      'written-response',
+      'gap-select',
+      'dictation',
+      'read-aloud',
+    ]) {
       const schema = jsonSchemaFor(type);
       expect(typeof schema).toBe('object');
       expect(schema).not.toBeNull();
