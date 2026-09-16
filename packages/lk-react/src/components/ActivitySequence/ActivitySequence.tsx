@@ -8,10 +8,12 @@ import {
   type ItemOutcome,
   isItemGroup,
   type LearnerResponse,
+  type RecordingRef,
   resolvePlaybackPolicy,
   type SequenceEntry,
   type SequenceSlot,
   type SequenceSlotGroup,
+  type SpeechAssessment,
   slotMediaKey,
   stimulusMediaKey,
   type ThemeTokens,
@@ -24,7 +26,17 @@ import { Dictation } from '../Dictation/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
+import { ReadAloud } from '../ReadAloud/index.js';
+import type { RecordingBinding } from '../ReadAloud/ReadAloud.js';
 import { StimulusPanel } from '../StimulusPanel/index.js';
+import { stopCaptureGroup } from '../shared/capture-registry.js';
+import {
+  mintTake,
+  type SequenceSlotChannel,
+  SequenceSlotContext,
+  type TakeState,
+  takeOf,
+} from '../shared/sequence-slot.js';
 import type {
   ActivityProps,
   HtmlSanitizer,
@@ -32,6 +44,8 @@ import type {
   RenderableActivity,
   RenderMode,
   SequenceMediaBudget,
+  SequenceRecordingBinding,
+  SequenceRecordingSlot,
 } from '../types.js';
 import { WrittenResponse, type WrittenResponseSubmission } from '../WrittenResponse/index.js';
 
@@ -40,6 +54,21 @@ import { WrittenResponse, type WrittenResponseSubmission } from '../WrittenRespo
  * of activity exist: those the SDK scores at submit time, and those a grader
  * scores later. Collapsing them would mean inventing a score for ungraded
  * work — the exact defect the deferred outcome exists to prevent.
+ *
+ * **A read-aloud hand-in adds no arm here, deliberately.** The obvious home for
+ * a handed-in take is `submitted`, and it is the wrong one: that arm's payload
+ * is typed `WrittenResponseSubmission`, this union is published from both the
+ * barrel and the `components/ActivitySequence` subpath, and a consumer narrows
+ * on `kind === 'submitted'` and reads `.text`. Widening the payload to a union
+ * would break every one of those reads — a breaking change to a published
+ * discriminated union, bought for a type that `responded` already describes: a
+ * read-aloud hand-in IS a raw `LearnerResponse` with no grade, which is exactly
+ * what `responded` carries.
+ *
+ * What a read-aloud does add is `unsubmitted`, for the one thing no existing
+ * arm can say honestly: a take that never reached storage. Any response would
+ * be a lie about it — a `recording` of `null` is the blank a learner chooses,
+ * and grades as 0.
  */
 export type SequenceItemOutcome =
   | {
@@ -50,6 +79,14 @@ export type SequenceItemOutcome =
       slotId: string;
       activityId: string;
       result: ActivityResult;
+      /**
+       * The answer this score grades, for a slot whose grade arrives after its
+       * answer was handed in and whose learner may hand in another: a
+       * `practice` read-aloud, whose `response.recording` names the take the
+       * score belongs to. Absent for every other slot, whose score and answer
+       * arrive together.
+       */
+      response?: LearnerResponse;
     }
   | {
       kind: 'submitted';
@@ -80,8 +117,29 @@ export type SequenceItemOutcome =
        * The raw answer, with no grade of any kind. This is what an `exam` slot
        * produces: the client is forbidden to score, so a response is all there
        * is until the server grades it.
+       *
+       * A read-aloud `recording` of `null` here is always a blank the learner
+       * chose to hand in, never a take that failed to upload — that is
+       * `unsubmitted`.
        */
       response: LearnerResponse;
+    }
+  | {
+      /**
+       * A question the learner tried to answer and could not hand in, and then
+       * left: a `practice` read-aloud whose take never reached your storage. It
+       * carries no response, because there is none.
+       *
+       * Deliberately not `responded` with a `recording` of `null`: that is the
+       * blank a learner chooses, and a grader marks it 0 with every word
+       * omitted — which would turn a storage outage into a zero. Grade nothing
+       * for this slot; the learner can still return to it, and a take stored
+       * then reaches you through `onSubmit`.
+       */
+      kind: 'unsubmitted';
+      index: number;
+      slotId: string;
+      activityId: string;
     };
 
 /**
@@ -107,6 +165,13 @@ export interface ActivitySequenceProps {
    * Renderers for activity types beyond the built-ins, keyed by `data.type`.
    * A key matching a built-in overrides it, so a consumer can replace the
    * bundled renderer without forking the sequencer.
+   *
+   * A registered renderer is an `ActivityRenderer`, which is
+   * `ComponentType<ActivityProps>` — so it receives the shared prop contract
+   * and nothing beyond it. `shuffleSeed`, `recordingBinding` and `assessment`
+   * are all outside that contract and none of them reaches an override: a
+   * replacement for `read-aloud` has to be given its own binding by whoever
+   * wrote it.
    */
   renderers?: Readonly<Record<string, ActivityRenderer>>;
   /**
@@ -142,12 +207,44 @@ export interface ActivitySequenceProps {
    * use `onFinished` for mixed sets — it is the general completion signal and
    * reports both kinds of outcome. It also carries `slotId` per item, which
    * this callback's bare array cannot.
+   *
+   * It fires straight after `onFinished`, with the same results, or never: a
+   * set `onFinished` reported with an ungraded slot is not reported here later,
+   * when a re-recorded take is graded.
    */
   onComplete?: (results: ActivityResult[]) => void;
   /**
    * Called once every activity has been completed, whether it was scored at
    * submit time or submitted for later grading. Use this for any set that
    * mixes graded and deferred-graded activities.
+   *
+   * **Once per set**, and that matters for a `practice` read-aloud, whose grade
+   * arrives after the submit that completed the slot. When the last slot is
+   * filled while a read-aloud's take is still being stored or assessed, this
+   * waits for it and reports the set then — with the grade in place, or with
+   * the slot's raw `responded` outcome when the take came back with no grade.
+   * A take that never settles is a question still being answered, so the set
+   * is not reported while it runs.
+   *
+   * **A failure the learner can still retry is in flight too.** While a take
+   * that failed to upload, or whose assessment failed, is offered "Try again"
+   * on the question the learner is looking at, the set is not reported: the
+   * retry may yet store and grade it. It completes once the learner moves to
+   * another question — as the last take the slot stored, or as `unsubmitted`
+   * when it never stored one, which is never a blank.
+   *
+   * **A score and a response always describe the same take.** A read-aloud
+   * recorded again replaces the earlier take's grade with the new take's
+   * `responded`, and a result that arrives for a take the learner has since
+   * replaced, or for a paper no longer on screen, is not recorded at all.
+   *
+   * `onComplete` fires in the same report or not at all, so the two never
+   * describe one set differently. What arrives after the set was reported is
+   * not reported here again, because a consumer who persists on this callback
+   * must not write one attempt twice: a later take reaches you through
+   * `onSubmit`, and its grade through `onActivityComplete`, the per-item persist
+   * hook keyed by `slotId` — which only ever grades the answer `onSubmit` last
+   * reported for that slot.
    */
   onFinished?: (items: SequenceItemOutcome[]) => void;
   /** Forwarded to each activity. */
@@ -164,6 +261,27 @@ export interface ActivitySequenceProps {
    * {@link SequenceMediaBudget}.
    */
   mediaBudget?: SequenceMediaBudget;
+  /**
+   * Where every read-aloud take in this sequence is stored, and how a
+   * judgement comes back. Required by any `read-aloud` slot outside `review`:
+   * the component refuses to render a recorder whose take is stored nowhere.
+   *
+   * Named `recordingBinding` rather than `recording` because both
+   * `ReadAloudData.recording` (the bounds an item declares) and
+   * `ReadAloudLearnerResponse.recording` (the take a learner handed in) already
+   * exist — the plain name would read as one of those. Same name at both
+   * levels, different types, as `mediaBudget` has.
+   */
+  recordingBinding?: SequenceRecordingBinding;
+  /**
+   * Speech assessments keyed by `slotId`, forwarded to the matching read-aloud
+   * slot so `review` can show the per-word marks behind a stored grade.
+   *
+   * Read LIVE, like `outcomes` and unlike `responses`: an assessment is fetched
+   * beside the attempt it explains and lands after the first paint, and a
+   * mount-only read would show the grade with no marks under it for ever.
+   */
+  assessments?: Readonly<Record<string, SpeechAssessment>>;
   /** Overrides the SDK's chrome text for this sequence. See {@link LkIntlProvider}. */
   strings?: LkStringsOverride;
   /**
@@ -265,6 +383,25 @@ function entryKeyOf(slot: SequenceSlot<RenderableActivity>): string {
   return slot.slotId.split('.')[0] ?? slot.slotId;
 }
 
+/** The latest take a slot has been told about, and how far it has got. */
+interface SlotTake {
+  /** A number from `mintTake`: unique on the page, larger for a later take. */
+  take: number;
+  state: TakeState;
+  /** The answer the take was handed in as, once it was stored. */
+  response?: LearnerResponse;
+}
+
+/**
+ * Names the capture groups of one pager, so a slot's microphone belongs to that
+ * pager alone. Per mount, for the reason the playback groups are: slot ids are
+ * short and repeat ("0", "1.0"), so two pagers on one page — a review beside a
+ * live attempt — would share a group, and hiding one's first question would
+ * stop the other's recorder. The name never reaches the DOM, so a server and
+ * the client that hydrates it may mint different ones.
+ */
+let captureScopeCount = 0;
+
 /**
  * A pane that is kept MOUNTED but shown only when it is the current one, and
  * that stops any media it contains on the way out.
@@ -286,21 +423,34 @@ function entryKeyOf(slot: SequenceSlot<RenderableActivity>): string {
  * third-party player needs its own JS API, which the SDK has no reliable
  * access to because the author supplies the embed URL. Use `audio`/`video`
  * media for anything that must stop when the learner navigates.
+ *
+ * A microphone is the other way round: it is not an element in this subtree, so
+ * no query can find it. A slot pane hands its content a `channel` through
+ * `SequenceSlotContext` — never a prop, so nothing on a public component's
+ * signature can name it — whose `captureGroup` the pane's recorders join, and
+ * hiding the pane stops them: a learner who navigates away mid-take must not
+ * leave the microphone live under the next question.
  */
 function SequencePane({
   className,
   hidden,
+  channel,
   children,
 }: {
   className: string;
   hidden: boolean;
+  channel?: SequenceSlotChannel;
   children: React.ReactNode;
 }): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
+  const captureGroup = channel?.captureGroup;
 
   useEffect(() => {
     if (!hidden) {
       return;
+    }
+    if (captureGroup !== undefined) {
+      stopCaptureGroup(captureGroup);
     }
     const node = ref.current;
     if (node === null) {
@@ -312,11 +462,15 @@ function SequencePane({
         element.pause();
       }
     }
-  }, [hidden]);
+  }, [hidden, captureGroup]);
 
   return (
     <div className={className} hidden={hidden} ref={ref}>
-      {children}
+      {channel === undefined ? (
+        children
+      ) : (
+        <SequenceSlotContext.Provider value={channel}>{children}</SequenceSlotContext.Provider>
+      )}
     </div>
   );
 }
@@ -369,11 +523,17 @@ export function ActivitySequence({
   locale,
   disabled,
   mediaBudget,
+  recordingBinding,
+  assessments,
   strings,
 }: ActivitySequenceProps): React.JSX.Element {
   const sessionIdRef = useRef<string | null>(null);
   const s = useLkStrings(strings);
   const mediaPlays = mediaBudget?.plays;
+  const [captureScope] = useState(() => {
+    captureScopeCount += 1;
+    return `lk-seq-capture-${captureScopeCount}`;
+  });
 
   // The presented order comes from lk-core, never computed here: the server
   // that records an attempt calls the same function with the same seed.
@@ -446,6 +606,52 @@ export function ActivitySequence({
   // fired. Every slot is mounted at once here, so same-tick completions are
   // reachable (a custom renderer that completes from a mount effect).
   const outcomesRef = useRef<(SequenceItemOutcome | null)[] | null>(null);
+  // The slot each position of `outcomesRef` belongs to, assigned wherever that
+  // array is created so the two can never describe different papers. A ref,
+  // not the `slots` a closure saw: an outcome that settles late arrives through
+  // a closure from the render that started it, and only a ref can tell it what
+  // is at its position NOW — see `record`.
+  const outcomeSlotsRef = useRef<readonly SequenceSlot<RenderableActivity>[] | null>(null);
+  // The latest take each `practice` read-aloud slot has been told about, keyed
+  // by position — see `record`. A ref for the reason the outcomes are one: a
+  // submit, the grade after it and the report all read it inside one tick.
+  const takesRef = useRef<Map<number, SlotTake>>(new Map());
+  // Which set the outcomes describe: bumped on every set change, and captured
+  // by every callback a render hands a slot. A result that arrives through a
+  // callback from an earlier set is refused, whatever slot and activity ids the
+  // new set reuses — ids a host chooses, and a loading blip or a paper that
+  // shares an item repeats them exactly.
+  const setGenerationRef = useRef(0);
+  // The question on screen, as of the last commit: leaving a question is what
+  // completes a failure on it that was being offered a retry, and a report made
+  // on a position the screen does not show yet would describe a question the
+  // learner is still looking at. Written by the effect below `go`.
+  const indexRef = useRef(index);
+  // Whether this set has been reported. One flag for both whole-set callbacks,
+  // because they are one report: a set can be filled again after it reported —
+  // a practice read-aloud recorded again replaces its own outcome — and a
+  // consumer who persists on either callback must not be handed one attempt
+  // twice, nor be told by `onComplete` later what `onFinished` reported
+  // differently.
+  const reportedRef = useRef(false);
+  // The channel each slot pane hands its content, one per slot per set, so it
+  // keeps one identity for as long as its set is on screen.
+  const channelsRef = useRef<Map<string, SequenceSlotChannel>>(new Map());
+  // What a channel calls, as of the latest render — assigned below `updateTake`.
+  const latestRef = useRef<{
+    updateTake: (generation: number, at: number, take: number, state: TakeState) => void;
+    reportIfFinished: () => void;
+  } | null>(null);
+  // Cleared as this pager unmounts. A slot's own teardown tells the pager its
+  // take is over, and a pager on its way out must not report a set on the
+  // strength of that.
+  const aliveRef = useRef(true);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
   if (outcomesRef.current === null) {
     // Slots the learner had already submitted are seeded as `restored`. They
     // will not submit again — they mount locked — so leaving them null meant
@@ -467,6 +673,7 @@ export function ActivitySequence({
           }
         : null,
     );
+    outcomeSlotsRef.current = slots;
   }
   const regionRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(false);
@@ -502,8 +709,17 @@ export function ActivitySequence({
   if (prevSetKey !== setKey) {
     setPrevSetKey(setKey);
     setIndex(0);
+    // At once, not in the effect: a new set has no question the learner was on,
+    // and the effect does not run at all when the position was already 0.
+    indexRef.current = 0;
     outcomesRef.current = slots.map(() => null);
+    outcomeSlotsRef.current = slots;
+    takesRef.current = new Map();
+    setGenerationRef.current += 1;
+    channelsRef.current = new Map();
+    reportedRef.current = false;
   }
+  const setGeneration = setGenerationRef.current;
 
   // After a navigation (not the initial mount) move focus to the question
   // region so screen-reader / keyboard users land on the new question.
@@ -536,6 +752,17 @@ export function ActivitySequence({
     onIndexChange?.(index);
   }, [index, defaultIndex, onIndexChange]);
 
+  // The learner has moved, and the screen shows where to. Leaving a question
+  // can complete a failure on it that was being offered a retry — see
+  // `reportIfFinished` — so the set may be reportable now.
+  useEffect(() => {
+    if (indexRef.current === index) {
+      return;
+    }
+    indexRef.current = index;
+    latestRef.current?.reportIfFinished();
+  }, [index]);
+
   // One panel per group, spanning the presented positions of its questions.
   const stimulusMounts = useMemo<StimulusMount[]>(() => {
     const mounts = new Map<string, StimulusMount>();
@@ -562,42 +789,207 @@ export function ActivitySequence({
   };
 
   /**
-   * Records a finished slot and fires completion callbacks when the set is
-   * done. A slot that already holds an outcome is FINAL: re-recording it would
-   * fire completion a second time for one attempt, so a consumer persisting on
-   * `onFinished` would write the same attempt twice.
+   * Fires the whole-set callbacks — once, together — when every slot is done
+   * and no take is still on its way.
+   *
+   * **A take on its way holds the report.** A practice read-aloud records its
+   * `responded` outcome the moment its take is stored, and its grade can land
+   * after the last slot was filled; reporting then handed `onFinished` the raw
+   * outcome, and the grade a moment later could never reach it. So a slot
+   * whose latest take is being stored or judged is not done. The take states
+   * come from the component itself, through the slot's channel, and every way a
+   * take can end reports an end — a grade, a take with no grade, a failure
+   * nobody can retry, an unmount — so a take that settles never holds a set.
+   *
+   * **So does a failure the learner can still retry, on the question in front
+   * of them.** Reporting there reported a set whose answer "Try again" was about
+   * to change: the retry stored and graded the take, and `onComplete` then
+   * described a different set from the `onFinished` before it. Once the learner
+   * moves to another question the failure no longer holds the report: the slot
+   * completes as whatever it last stored, or as `unsubmitted` when that is
+   * nothing — never as a `recording` of `null`, which is the blank a learner
+   * chooses and a grader marks 0. `unsubmitted` is a `practice` outcome only:
+   * an exam question with no stored take is unanswered, and the learner has a
+   * blank to hand in if that is their answer.
    */
-  const record = (outcome: SequenceItemOutcome): void => {
-    const current = outcomesRef.current;
-    if (current === null || current[outcome.index] != null) {
+  const reportIfFinished = (): void => {
+    const held = outcomesRef.current;
+    const presented = outcomeSlotsRef.current;
+    if (held === null || presented === null || reportedRef.current) {
       return;
     }
-    const next = current.slice();
-    next[outcome.index] = outcome;
-    // Commit before firing anything: a second record() in the same tick must
-    // see this one.
-    outcomesRef.current = next;
-
-    if (outcome.kind === 'scored') {
-      onActivityComplete?.(outcome.result, outcome.index, outcome.slotId);
+    const items: SequenceItemOutcome[] = [];
+    for (const [at, outcome] of held.entries()) {
+      const take = takesRef.current.get(at);
+      if (take?.state === 'in-flight' || (take?.state === 'retryable' && at === indexRef.current)) {
+        return;
+      }
+      const slot = presented[at];
+      if (outcome !== null) {
+        items.push(outcome);
+      } else if (take?.state === 'retryable' && renderMode === 'practice' && slot !== undefined) {
+        items.push({
+          kind: 'unsubmitted',
+          index: at,
+          slotId: slot.slotId,
+          activityId: slot.activity.id,
+        });
+      } else {
+        return;
+      }
     }
-
-    if (!next.every((item): item is SequenceItemOutcome => item !== null)) {
-      return;
-    }
-    onFinished?.(next);
+    reportedRef.current = true;
+    onFinished?.(items);
 
     // `onComplete` predates deferred grading and promises ActivityResult[].
     // Fire it only when every slot really was scored, rather than inventing a
-    // result for work nobody has graded.
+    // result for work nobody has graded — and only here, beside `onFinished`.
     const scored: ActivityResult[] = [];
-    for (const item of next) {
+    for (const item of items) {
       if (item.kind !== 'scored') {
         return;
       }
       scored.push(item.result);
     }
     onComplete?.(scored);
+  };
+
+  /**
+   * Records a finished slot and reports the set when it is done — the one place
+   * a slot's outcome is decided.
+   *
+   * **An outcome must come from the set on screen.** A grade can settle after
+   * the paper changed — an assessment held across a swap of `activities`, or a
+   * consumer's own renderer grading asynchronously — and it arrives through a
+   * callback from the render that started it. Accepted, it landed in whatever
+   * slot of the NEW paper had its index, and could report that paper fully
+   * scored though nobody had answered it. Ids cannot tell the papers apart: a
+   * new paper can reuse both the slot id and the activity id, and a loading
+   * blip reuses every id there is. `generation` can: it is the set the callback
+   * was handed out for, and it is refused unless that set is still current.
+   *
+   * **A slot that already holds an outcome is FINAL**: the first outcome wins,
+   * so a renderer that reports twice keeps what it reported first. There is one
+   * exception.
+   *
+   * **The exception is a `practice` read-aloud, and it is decided by `take`.**
+   * That slot records `responded` when a take is stored, because a take that
+   * comes back unscorable produces no grade at all and the slot would otherwise
+   * stay `null` for ever. Each take has a number (`mintTake`), unique on the page
+   * and larger for a later take, carried by everything the component reports
+   * about it. The invariant:
+   *
+   * **The score and the response a slot holds always describe the same take.**
+   *
+   * - A `responded` for a newer take replaces whatever the slot holds, a grade
+   *   included: `onSubmit` has already told the host about that take, so a
+   *   grade kept for the older one would sit beside a response it does not
+   *   grade.
+   * - A `scored` lands only for the slot's latest take, once, and replaces that
+   *   take's `responded`. A grade for any other take — one the learner has
+   *   since replaced, even one still in flight when they did — is dropped
+   *   rather than filed against a take it did not grade.
+   * - A `restored` slot is never replaced: it was submitted before this mount,
+   *   and a resumed attempt must not be re-reported as if it had just been sat.
+   *
+   * A grade therefore lands once per take, and `onActivityComplete` — the
+   * per-item hook, keyed by `slotId` — only ever grades the answer `onSubmit`
+   * last reported for that slot. The whole-set callbacks stay once per set
+   * whatever is replaced — see `reportedRef`.
+   */
+  const record = (outcome: SequenceItemOutcome, generation: number, take?: number): void => {
+    const held = outcomesRef.current;
+    if (held === null || generation !== setGenerationRef.current) {
+      return;
+    }
+    const at = outcome.index;
+    const holding = held[at];
+    let accepted = outcome;
+    if (take === undefined) {
+      if (holding != null) {
+        return;
+      }
+    } else {
+      if (holding?.kind === 'restored') {
+        return;
+      }
+      const latest = takesRef.current.get(at);
+      if (outcome.kind === 'responded') {
+        // Older than the latest take, or a second answer for the same one.
+        if (
+          latest !== undefined &&
+          (take < latest.take || (take === latest.take && latest.response !== undefined))
+        ) {
+          return;
+        }
+        takesRef.current.set(at, {
+          take,
+          // A take this pager hears of first through its answer — a consumer's
+          // renderer has no channel — has nothing on its way.
+          state: latest?.take === take ? latest.state : 'settled',
+          response: outcome.response,
+        });
+      } else if (outcome.kind === 'scored') {
+        // Only the latest take's grade, only once it was stored, and only once.
+        if (latest?.take !== take || latest.response === undefined || holding?.kind === 'scored') {
+          return;
+        }
+        accepted = { ...outcome, response: latest.response };
+      } else {
+        return;
+      }
+    }
+    const next = held.slice();
+    next[at] = accepted;
+    // Commit before firing anything: a second record() in the same tick must
+    // see this one.
+    outcomesRef.current = next;
+
+    if (accepted.kind === 'scored') {
+      onActivityComplete?.(accepted.result, accepted.index, accepted.slotId);
+    }
+    reportIfFinished();
+  };
+
+  /**
+   * What a slot's channel reports: the state of one of its takes. A take older
+   * than the slot's latest has been replaced, and a report from a set that is
+   * no longer current, or reaching a pager that is unmounting, describes
+   * nothing on screen.
+   */
+  const updateTake = (generation: number, at: number, take: number, state: TakeState): void => {
+    if (!aliveRef.current || generation !== setGenerationRef.current) {
+      return;
+    }
+    const latest = takesRef.current.get(at);
+    if (latest !== undefined && take < latest.take) {
+      return;
+    }
+    // A newer take starts with no answer of its own: the response the slot
+    // holds belongs to the take before it until this one is stored.
+    takesRef.current.set(at, latest?.take === take ? { ...latest, state } : { take, state });
+    reportIfFinished();
+  };
+  // Channels keep one identity for a whole set, so they call through this ref
+  // and always reach the latest render's props.
+  latestRef.current = { updateTake, reportIfFinished };
+
+  /** The channel a slot's pane hands its content: its capture group and its takes. */
+  const channelFor = (slot: SequenceSlot<RenderableActivity>): SequenceSlotChannel => {
+    const key = `${slot.index}::${slot.slotId}`;
+    let channel = channelsRef.current.get(key);
+    if (channel === undefined) {
+      const generation = setGeneration;
+      const at = slot.index;
+      channel = {
+        captureGroup: `${captureScope}::${slot.slotId}`,
+        takeState: (take, state) => {
+          latestRef.current?.updateTake(generation, at, take, state);
+        },
+      };
+      channelsRef.current.set(key, channel);
+    }
+    return channel;
   };
 
   if (!current) {
@@ -696,6 +1088,49 @@ export function ActivitySequence({
     };
   };
 
+  /**
+   * The per-slot recording binding handed to a read-aloud, modelled on
+   * `bindingFor`: the sequence-level methods are called with the slot they
+   * belong to, and `assess` / `playbackUrl` are copied only when the consumer
+   * supplied them — a binding carrying `assess: undefined` is a binding the
+   * component would try to call.
+   *
+   * It watches nothing. The pager used to watch the promises it handed out to
+   * decide when a set was finished, and a promise knows nothing of the take
+   * that asked for it: a late failure from a paper no longer on screen landed
+   * in a new paper that reused the slot's ids, as a blank. What a take came to
+   * is reported by the component, numbered by take, through the slot's channel
+   * — see `record` and `reportIfFinished`.
+   *
+   * A consumer's own renderer is handed no binding.
+   */
+  const recordingBindingFor = (slot: {
+    slotId: string;
+    index: number;
+    activity: { id: string };
+  }): RecordingBinding | undefined => {
+    if (recordingBinding === undefined) {
+      return undefined;
+    }
+    const at: SequenceRecordingSlot = {
+      slotId: slot.slotId,
+      index: slot.index,
+      activityId: slot.activity.id,
+    };
+    const { assess, playbackUrl } = recordingBinding;
+    // Called on the binding, so a consumer's binding written as a class keeps
+    // its `this`.
+    return {
+      upload: (take) => recordingBinding.upload(take, at),
+      ...(assess !== undefined
+        ? { assess: (ref: RecordingRef) => assess.call(recordingBinding, ref, at) }
+        : {}),
+      ...(playbackUrl !== undefined
+        ? { playbackUrl: (ref: RecordingRef) => playbackUrl.call(recordingBinding, ref, at) }
+        : {}),
+    };
+  };
+
   const forwarded = {
     ...(onInteraction ? { onInteraction } : {}),
     renderMode,
@@ -717,6 +1152,8 @@ export function ActivitySequence({
     const slotOutcome =
       outcomes !== undefined && Object.hasOwn(outcomes, slotId) ? outcomes[slotId] : undefined;
     const slotBinding = bindingFor(slotMediaKey(slotId), slot);
+    // Whether this slot's answers are numbered by take — see `record`.
+    const takesAnswers = renderMode === 'practice' && activity.type === 'read-aloud';
     const childProps = {
       // `defaultValue`, not `value`: the learner must be able to keep editing
       // a restored answer. A controlled `value` would freeze it unless the
@@ -725,16 +1162,49 @@ export function ActivitySequence({
       ...(seedsApply && submitted.has(slotId) ? { defaultSubmitted: true } : {}),
       ...(slotOutcome !== undefined ? { outcome: slotOutcome } : {}),
       onComplete: (result: ActivityResult) =>
-        record({ kind: 'scored', index: slotIndex, slotId, activityId, result }),
+        record(
+          { kind: 'scored', index: slotIndex, slotId, activityId, result },
+          setGeneration,
+          // The take the grade is for: stamped by `<ReadAloud>`, and for a
+          // consumer's renderer, which cannot stamp one, the slot's latest.
+          takesAnswers ? (takeOf(result) ?? takesRef.current.get(slotIndex)?.take) : undefined,
+        ),
       onSubmit: (response: LearnerResponse) => {
+        // A submit through a callback handed out for an earlier set is a
+        // consumer renderer's late one, for a question no longer on screen: the
+        // host would file it against whatever slot reuses these ids now.
+        if (setGeneration !== setGenerationRef.current) {
+          return;
+        }
         onSubmit?.(response, { slotId, index: slotIndex, activityId });
+        // Written responses are excluded in every mode because they report
+        // something richer through `onSubmitted` a moment later, and the first
+        // outcome wins.
+        if (activity.type === 'written-response') {
+          return;
+        }
         // Outside `practice` the components do not grade, so a raw response is
         // the ONLY outcome this slot will ever produce — record it, or the set
         // could never complete and `onFinished` would be dead in exam mode.
-        // Written responses are excluded because they report something richer
-        // through `onSubmitted` a moment later, and the first outcome wins.
-        if (renderMode !== 'practice' && activity.type !== 'written-response') {
-          record({ kind: 'responded', index: slotIndex, slotId, activityId, response });
+        if (renderMode !== 'practice') {
+          record(
+            { kind: 'responded', index: slotIndex, slotId, activityId, response },
+            setGeneration,
+          );
+          return;
+        }
+        // A `practice` read-aloud is the one type that can submit and then
+        // produce no score: an unscorable take, an assessor that failed, or a
+        // binding that stores without judging all end the attempt with nothing
+        // to grade, and `onComplete` fires only on a grade. Recorded for its
+        // take, so the grade that may still arrive for that take replaces it —
+        // and a take recorded again replaces the one before, grade and all.
+        if (takesAnswers) {
+          record(
+            { kind: 'responded', index: slotIndex, slotId, activityId, response },
+            setGeneration,
+            takeOf(response) ?? mintTake(),
+          );
         }
       },
       ...forwarded,
@@ -779,6 +1249,29 @@ export function ActivitySequence({
       // raw response is recorded through `onSubmit` above, like MC/FIB/GS.
       return <Dictation data={activity} {...childProps} />;
     }
+    if (activity.type === 'read-aloud') {
+      const slotRecordingBinding = recordingBindingFor(slot);
+      const slotAssessment =
+        assessments !== undefined && Object.hasOwn(assessments, slotId)
+          ? assessments[slotId]
+          : undefined;
+      return (
+        <ReadAloud
+          data={activity}
+          // The whole bag, nothing subtracted — unlike the written-response
+          // branch below, which drops `onComplete` because it never grades. A
+          // read-aloud needs it in `practice`, where a returned grade is a
+          // score like any other, and simply never calls it in `exam`.
+          {...childProps}
+          // No capture group here: the slot's pane hands it down through
+          // `SequenceSlotContext`, so it is no prop of the public component.
+          {...(slotRecordingBinding !== undefined
+            ? { recordingBinding: slotRecordingBinding }
+            : {})}
+          {...(slotAssessment !== undefined ? { assessment: slotAssessment } : {})}
+        />
+      );
+    }
     if (activity.type === 'written-response') {
       // Derived from the SAME bag the other two get, minus the one prop this
       // component genuinely does not have. Listing the props by hand is what
@@ -793,7 +1286,10 @@ export function ActivitySequence({
           data={activity}
           {...writtenResponseProps}
           onSubmitted={(submission) =>
-            record({ kind: 'submitted', index: slotIndex, slotId, activityId, submission })
+            record(
+              { kind: 'submitted', index: slotIndex, slotId, activityId, submission },
+              setGeneration,
+            )
           }
         />
       );
@@ -889,7 +1385,16 @@ export function ActivitySequence({
           // survive that.
           const slotKey = `${setKey}::slot-${slot.slotId}-${slot.activity.id}`;
           return (
-            <SequencePane className="lk-seq-slot" hidden={slot.index !== index} key={slotKey}>
+            <SequencePane
+              className="lk-seq-slot"
+              hidden={slot.index !== index}
+              // A channel for every slot, not just the ones that record: its
+              // capture group is empty until something joins it, and a pane
+              // that asked whether its activity records would have to know the
+              // type of a renderer the consumer supplied.
+              channel={channelFor(slot)}
+              key={slotKey}
+            >
               {renderSlot(slot)}
             </SequencePane>
           );

@@ -19,6 +19,8 @@ import { Dictation } from '../Dictation/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
+import { ReadAloud } from '../ReadAloud/index.js';
+import type { RecordingBinding } from '../ReadAloud/ReadAloud.js';
 import type { HtmlSanitizer, MediaBudgetBinding, RenderMode } from '../types.js';
 import { WrittenResponse } from '../WrittenResponse/index.js';
 
@@ -35,6 +37,31 @@ const PREVIEW_SHUFFLE_SEED = 'lk-activity-preview';
  * author hears the limit a learner gets, and records none of them.
  */
 const PREVIEW_SLOT_ID = 'preview';
+
+/** Numbers the takes a preview mints keys for, so two are never the same take. */
+let previewTakeCount = 0;
+
+/**
+ * The store a previewed read-aloud records into: it keys the take so the whole
+ * flow — record, play it back, submit — runs for the author, and keeps it
+ * nowhere, like every other thing a preview does not record.
+ *
+ * It judges nothing, deliberately. `assess` is optional precisely so this can
+ * exist: an author trying a reading out has no assessor to point at, and a
+ * preview that demanded one would refuse to render the most common case. The
+ * default `practice` mode then shows the "assessment is not available" notice,
+ * which is the truth about this binding rather than a failure.
+ */
+const PREVIEW_RECORDING: RecordingBinding = {
+  upload: async (take) => {
+    previewTakeCount += 1;
+    return {
+      key: `${PREVIEW_SLOT_ID}-take-${previewTakeCount}`,
+      mimeType: take.mimeType,
+      durationMs: take.durationMs,
+    };
+  },
+};
 
 export interface ActivityPreviewProps {
   /**
@@ -66,7 +93,12 @@ export interface ActivityPreviewProps {
    * `previewIncomplete` or `previewInvalid` string.
    */
   fallback?: (result: DraftNotComplete) => ReactNode;
-  /** Renderers for activity types beyond the built-ins, keyed by `type`, as on `<ActivitySequence>`. */
+  /**
+   * Renderers for activity types beyond the built-ins, keyed by `type`, as on
+   * `<ActivitySequence>`. An entry receives the shared prop contract and
+   * nothing else, so — like the shuffle seed below — the in-memory recording
+   * binding a previewed read-aloud is given does not reach one.
+   */
   renderers?: Readonly<Record<string, ActivityRenderer>>;
   /**
    * Seeds `<MultipleChoice>`'s option shuffle. Defaults to a fixed seed, so the
@@ -261,6 +293,8 @@ export function ActivityPreview({
       return <WrittenResponse key={key} data={data} {...shared} />;
     case 'dictation':
       return <Dictation key={key} data={data} {...shared} />;
+    case 'read-aloud':
+      return <ReadAloud key={key} data={data} recordingBinding={PREVIEW_RECORDING} {...shared} />;
     default:
       return (
         <div className="lk-preview-unsupported" role="note">
@@ -281,8 +315,8 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 
 /**
  * The recording and its playback policy — not its description, which changes
- * no budget — plus a dictation's slower file, which follows the same policy and
- * must remount when it is swapped for another.
+ * no budget — plus the slower file a dictation or a read-aloud carries, which
+ * follows the same policy and must remount when it is swapped for another.
  */
 function recordingKeyOf(data: unknown): string {
   const media = isRecord(data) ? data.media : undefined;

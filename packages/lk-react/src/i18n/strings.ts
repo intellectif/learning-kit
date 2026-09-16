@@ -1,5 +1,6 @@
-import type { Stimulus } from '@intellectif/lk-core';
+import type { ReadAloudDimension, ReadAloudWordState, Stimulus } from '@intellectif/lk-core';
 import type { MediaTransportStrings } from '../components/types.js';
+import type { SpeechRecorderError } from '../hooks/useSpeechRecorder.js';
 
 /**
  * Every string the SDK's own chrome renders.
@@ -145,6 +146,103 @@ export interface LkStrings {
    */
   dictationWordsSummary: (correct: number, total: number) => string;
 
+  // ── Read aloud ─────────────────────────────────────────────────────────
+  /** Accessible name of the group holding the model recording. */
+  readAloudModelRecording: string;
+  /** Accessible name of the group holding the slower model recording, and its default `alt`. */
+  readAloudSlowRecording: string;
+  /** Starts a take. */
+  readAloudRecord: string;
+  /** Ends the take in progress. */
+  readAloudStop: string;
+  /** Throws the take away so the learner can start over. */
+  readAloudRerecord: string;
+  /** Accessible name of the player for the take the learner just made. */
+  readAloudYourRecording: string;
+  /**
+   * Live progress while recording. Whole seconds, not a `m:ss` clock: a
+   * recording is bounded in seconds by the item, and a translation should not
+   * have to reimplement a clock to change the word around it.
+   *
+   * Shown on screen and hidden from assistive technology: it changes every
+   * second, and a screen reader that spoke each change would speak into the
+   * take being assessed. The two sentences below are what is announced instead.
+   */
+  readAloudRecordingProgress: (seconds: number, maxSeconds: number) => string;
+  /** Announced once when a capture begins. */
+  readAloudRecordingStarted: string;
+  /**
+   * Announced once when a capture ends, by the learner or at its own bound.
+   * Carries the length because the progress counter is not announced: a take
+   * that reads back as "20 of 20 seconds" is one that stopped itself.
+   */
+  readAloudRecordingStopped: (seconds: number, maxSeconds: number) => string;
+  /** How many takes are left. Called with 0 as well, so the wording is one translation's. */
+  readAloudTakesRemaining: (remaining: number, max: number) => string;
+  /** `exam` only: hands the item in with no recording at all, deliberately. */
+  readAloudSubmitWithoutRecording: string;
+  /** Pending, while the take travels to the application's storage. */
+  readAloudUploading: string;
+  /** The take never reached storage, so nothing was submitted. */
+  readAloudUploadFailed: string;
+  /** Retries whichever step just failed. */
+  readAloudTryAgain: string;
+  /** Pending, while the assessor judges the take. */
+  readAloudAssessing: string;
+  /** The binding stores recordings but judges none, so there is no feedback to show. */
+  readAloudAssessmentUnavailable: string;
+  /** The assessor found no speech, or too little of it, in the take. */
+  readAloudNotHeard: string;
+  /** The assessor produced no grade for any other reason. The code itself is never shown. */
+  readAloudNotAssessed: string;
+  /** The assessment could not be run at all — a failure of the call, not of the reading. */
+  readAloudAssessmentFailed: string;
+  /**
+   * What went wrong with the microphone or with the take. One function rather
+   * than five keys, so a translation keeps the five sentences together and the
+   * SDK keeps one name for the concept.
+   */
+  readAloudRecorderError: (reason: SpeechRecorderError) => string;
+
+  // ── Pronunciation feedback ─────────────────────────────────────────────
+  /** Accessible name of the whole feedback region. */
+  pronunciationFeedbackLabel: string;
+  /** Name of one scored dimension, as a learner reads it. */
+  pronunciationDimension: (dimension: ReadAloudDimension) => string;
+  /** A dimension or a word the engine did not measure. NEVER rendered as 0%. */
+  pronunciationNotAssessed: string;
+  /** Accessible name of the word-by-word marks. */
+  pronunciationWordsLabel: string;
+  /** One legend row per marking state — the same four states the marks carry. */
+  pronunciationLegend: (state: ReadAloudWordState) => string;
+  /**
+   * The four sentences a screen reader hears for a marked word: the only
+   * channel the marks have for assistive technology, since the glyph and the
+   * decoration are both hidden from it.
+   */
+  pronunciationWordCorrect: (word: string) => string;
+  pronunciationWordMispronounced: (word: string) => string;
+  pronunciationWordOmitted: (word: string) => string;
+  pronunciationWordInserted: (word: string) => string;
+  /** Opens one word's syllables, sounds and timings. */
+  pronunciationWordDetails: (word: string) => string;
+  pronunciationSyllables: string;
+  pronunciationPhonemes: string;
+  /** A syllable the engine also spelled out, e.g. `('ˈhæ', 'ha')`. */
+  pronunciationSyllableSpelling: (syllable: string, grapheme: string) => string;
+  /** A sound the engine named no symbol for; `ordinal` is 1-based. */
+  pronunciationPhonemePosition: (ordinal: number) => string;
+  /** Introduces the sounds the engine thought it heard in a sound's place. */
+  pronunciationHeardAs: string;
+  /** Plays one word out of the learner's own take. */
+  pronunciationPlayWord: (word: string) => string;
+  pronunciationBreakUnexpected: string;
+  pronunciationBreakMissing: string;
+  /** Shown only past the caller's own monotone threshold; the SDK sets none. */
+  pronunciationMonotone: string;
+  /** Names the alphabet the phoneme symbols are written in. */
+  pronunciationIpaNote: string;
+
   // ── Authoring preview ──────────────────────────────────────────────────
   /**
    * `<ActivityPreview>`, in place of a draft that still has something missing.
@@ -261,6 +359,86 @@ export const DEFAULT_STRINGS: LkStrings = {
   dictationNothingTyped: 'Nothing to compare: no words were entered.',
   dictationWordsSummary: (correct, total) =>
     `${correct} of ${total} ${total === 1 ? 'word' : 'words'} correct.`,
+
+  readAloudModelRecording: 'Model recording',
+  readAloudSlowRecording: 'Slow model recording',
+  readAloudRecord: 'Record',
+  readAloudStop: 'Stop recording',
+  readAloudRerecord: 'Record again',
+  readAloudYourRecording: 'Your recording',
+  readAloudRecordingProgress: (seconds, maxSeconds) =>
+    `Recording: ${seconds} of ${maxSeconds} seconds`,
+  readAloudRecordingStarted: 'Recording started.',
+  readAloudRecordingStopped: (seconds, maxSeconds) =>
+    `Recording stopped. ${seconds} of ${maxSeconds} seconds recorded.`,
+  readAloudTakesRemaining: (remaining, max) =>
+    `${remaining} of ${max} recording${max === 1 ? '' : 's'} left`,
+  readAloudSubmitWithoutRecording: 'Submit without recording',
+  readAloudUploading: 'Sending your recording…',
+  readAloudUploadFailed: 'Your recording could not be sent.',
+  readAloudTryAgain: 'Try again',
+  readAloudAssessing: 'Checking your pronunciation…',
+  readAloudAssessmentUnavailable: 'Pronunciation feedback is not available for this activity.',
+  readAloudNotHeard: 'We could not hear you. Record again somewhere quieter.',
+  readAloudNotAssessed: 'This recording could not be assessed. Try recording it again.',
+  readAloudAssessmentFailed: 'Your pronunciation could not be checked.',
+  readAloudRecorderError: (reason) => {
+    switch (reason) {
+      case 'permission-denied':
+        return 'This page is not allowed to use the microphone.';
+      case 'no-device':
+        return 'No microphone was found.';
+      case 'unsupported':
+        return 'This browser cannot record audio.';
+      case 'too-short':
+        return 'That recording was too short.';
+      default:
+        return 'The recording could not be made.';
+    }
+  },
+
+  pronunciationFeedbackLabel: 'Pronunciation feedback',
+  pronunciationDimension: (dimension) => {
+    switch (dimension) {
+      case 'accuracy':
+        return 'Accuracy';
+      case 'fluency':
+        return 'Fluency';
+      case 'completeness':
+        return 'Completeness';
+      default:
+        return 'Intonation';
+    }
+  },
+  pronunciationNotAssessed: 'Not assessed',
+  pronunciationWordsLabel: 'Your reading, word by word',
+  pronunciationLegend: (state) => {
+    switch (state) {
+      case 'correct':
+        return 'Read correctly';
+      case 'mispronounced':
+        return 'Mispronounced';
+      case 'omitted':
+        return 'Not read';
+      default:
+        return 'Added';
+    }
+  },
+  pronunciationWordCorrect: (word) => `“${word}” was read correctly`,
+  pronunciationWordMispronounced: (word) => `“${word}” was mispronounced`,
+  pronunciationWordOmitted: (word) => `“${word}” was not read`,
+  pronunciationWordInserted: (word) => `“${word}” was added`,
+  pronunciationWordDetails: (word) => `Details for “${word}”`,
+  pronunciationSyllables: 'Syllables',
+  pronunciationPhonemes: 'Sounds',
+  pronunciationSyllableSpelling: (syllable, grapheme) => `${syllable} (spelled “${grapheme}”)`,
+  pronunciationPhonemePosition: (ordinal) => `Sound ${ordinal}`,
+  pronunciationHeardAs: 'Heard as',
+  pronunciationPlayWord: (word) => `Play “${word}”`,
+  pronunciationBreakUnexpected: 'There was an unexpected pause here.',
+  pronunciationBreakMissing: 'A pause was expected here.',
+  pronunciationMonotone: 'Your reading stayed on one note. Try varying your pitch.',
+  pronunciationIpaNote: 'Sounds are written in the International Phonetic Alphabet.',
 
   previewIncomplete: 'This activity is not finished yet, so it cannot be previewed.',
   previewInvalid: 'This activity has a problem to fix before it can be previewed.',

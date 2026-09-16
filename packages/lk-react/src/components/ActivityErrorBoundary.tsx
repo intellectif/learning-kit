@@ -3,11 +3,7 @@
 import { Component, type ReactNode } from 'react';
 import type { LkStrings } from '../i18n/strings.js';
 import { DEFAULT_STRINGS } from '../i18n/strings.js';
-
-function isProduction(): boolean {
-  const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
-  return g.process?.env?.NODE_ENV === 'production';
-}
+import { isDevelopment } from './_internal.js';
 
 export interface ActivityErrorBoundaryProps {
   /** Shown in the production fallback when a render error occurs. */
@@ -46,7 +42,10 @@ export class ActivityErrorBoundary extends Component<
       return this.props.children;
     }
 
-    if (!isProduction()) {
+    // The same answer every development check reads, from the one function
+    // that gives it: a boundary with a reading of its own showed a learner a
+    // stack trace in every browser production build.
+    if (isDevelopment()) {
       return (
         <div role="alert">
           <strong>{(this.props.strings ?? DEFAULT_STRINGS).activityFailed}</strong>

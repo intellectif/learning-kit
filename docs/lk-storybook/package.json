@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "storybook dev -p 6006 --no-open",
     "build-storybook": "storybook build",
+    "typecheck": "tsc -p tsconfig.json",
     "lint": "biome check ."
   },
   "dependencies": {

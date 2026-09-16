@@ -52,7 +52,7 @@ describe('MultipleChoice shuffleSeed', () => {
     expect([...otherSeedOrder].sort()).toEqual([...OPTION_IDS]);
   });
 
-  it('renders exactly the order lk-core derives from the documented `${seed}:${id}` string', () => {
+  it('renders exactly the order lk-core derives from the documented seed:id string', () => {
     // The shuffle algorithm moved to lk-core; this pins that the component
     // still composes the same seed string, so an option order a consumer
     // recorded against a seed keeps reproducing.

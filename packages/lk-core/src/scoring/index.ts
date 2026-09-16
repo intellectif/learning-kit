@@ -1,15 +1,46 @@
 import { DeferredScoringError, RedactedScoringError, UnknownActivityTypeError } from '../errors.js';
+import { isRedacted } from '../is-redacted.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
 import type {
   ActivityData,
-  ActivityFeedback,
   ActivityType,
   ItemOutcome,
   LearnerResponse,
   ScoringResult,
 } from '../types/activity.js';
-import { gte, type RoundingPolicy } from './rounding.js';
+import { computePassThreshold, selectFeedback } from './pass-threshold.js';
+import { type RoundingPolicy, roundingPolicyOf } from './rounding.js';
 
+// Every type a public signature on this subpath names — argument, return value,
+// and the shapes inside them an adapter fills in. A consumer that imports
+// `gradeReadAloud` from `./scoring` imports it from here alone, and a function
+// whose arguments and result cannot be named is one that has to be called from
+// `any` — which is how the evidence stops being checked. Type-only: the bundle
+// is unchanged.
+export type {
+  ItemOutcome,
+  ReadAloudData,
+  ReadAloudLearnerResponse,
+  RecordingRef,
+} from '../types/activity.js';
+export type { GradeRecord } from '../types/grading.js';
+export type {
+  GradeReadAloudOptions,
+  ReadAloudWordAlignment,
+  ReadAloudWordState,
+  SpeechAssessment,
+  SpeechMeasurement,
+  SpeechPhoneme,
+  SpeechPhonemeCandidate,
+  SpeechPlausibilityPolicy,
+  SpeechSyllable,
+  SpeechUnscorable,
+  SpeechUnscorableCode,
+  SpeechWord,
+  SpeechWordError,
+  WavInspection,
+  WavInspectionPolicy,
+} from '../types/speech.js';
 export type {
   AssessmentScore,
   AssessmentSectionInput,
@@ -35,13 +66,23 @@ export {
   dictationReferenceWords,
   diffDictationChars,
 } from './dictation/index.js';
+export { computePassThreshold, DEFAULT_PASS_THRESHOLD } from './pass-threshold.js';
 export type { Band, RoundingMode, RoundingPolicy } from './rounding.js';
 export { classifyBand, gte, roundGrade } from './rounding.js';
+export {
+  alignReadAloud,
+  gradeReadAloud,
+  inspectWav,
+  READ_ALOUD_MAX_DIMENSION_WEIGHT,
+  READ_ALOUD_MAX_REFERENCE_LENGTH,
+  READ_ALOUD_MAX_SECONDS,
+  READ_ALOUD_MAX_TAKES,
+  SPEECH_ASSESSMENT_MAX_WORDS,
+  validateSpeechAssessment,
+} from './speech/index.js';
 export type { TextMatchPolicy, TextMatchResult } from './text-match.js';
 export { levenshteinDistance, matchText } from './text-match.js';
-
-/** Default minimum scaled score required to pass when `passThreshold` is absent. */
-export const DEFAULT_PASS_THRESHOLD = 0.7;
+export { outcomeFromUnscorable } from './unscorable.js';
 
 /**
  * Options for {@link score} and {@link evaluate}. Additive: with none, both
@@ -63,93 +104,6 @@ export interface ScoringOptions {
   rounding?: RoundingPolicy;
 }
 
-const ROUNDING_MODES: readonly unknown[] = ['half-up', 'half-even', 'floor', 'ceil'];
-/** The most decimal places a policy may round to: a scaled grade stays an integer a double holds exactly. */
-const MAX_ROUNDING_DP = 15;
-
-/**
- * The rounding policy of `options`, or `undefined` for none. A malformed one
- * would reach {@link gte} as `10 ** undefined` and turn a perfect score into a
- * fail with no error, so it throws here instead.
- */
-function roundingOf(options: ScoringOptions | undefined): RoundingPolicy | undefined {
-  const rounding: unknown = options?.rounding;
-  if (rounding === undefined || rounding === null) {
-    return undefined;
-  }
-  const { mode, dp } = rounding as { mode?: unknown; dp?: unknown };
-  if (
-    !ROUNDING_MODES.includes(mode) ||
-    typeof dp !== 'number' ||
-    !Number.isInteger(dp) ||
-    dp < 0 ||
-    dp > MAX_ROUNDING_DP
-  ) {
-    // Described field by field, never serialised: a policy holding a BigInt or
-    // a reference to itself would make the message throw a TypeError first.
-    const describe = (value: unknown): string =>
-      typeof value === 'string'
-        ? JSON.stringify(value)
-        : typeof value === 'number' || value === undefined
-          ? String(value)
-          : typeof value === 'object'
-            ? 'an object'
-            : `a ${typeof value}`;
-    throw new RangeError(
-      `Invalid rounding policy (mode ${describe(mode)}, dp ${describe(dp)}): expected { mode: 'half-up' | 'half-even' | 'floor' | 'ceil', dp: a whole number from 0 to ${MAX_ROUNDING_DP} }.`,
-    );
-  }
-  // The values just checked, not the object they came from: an accessor could
-  // answer differently when the comparison reads it again.
-  return { mode, dp } as RoundingPolicy;
-}
-
-/**
- * Returns `true` iff `score` meets or exceeds the activity's `passThreshold`,
- * defaulting to {@link DEFAULT_PASS_THRESHOLD} (0.7) when the field is absent.
- *
- * Pass a {@link RoundingPolicy} to compare the way an assessment total is
- * compared — both sides rounded, via {@link gte} — so an item shown as "70%"
- * cannot be recorded as a fail at 69.6. It is **opt-in** rather than the
- * default because switching it on changes item-level pass/fail for scores in
- * the rounding band, and this SDK does not alter historical grades without an
- * explicit decision. Absent, the comparison is the exact raw `>=` it has
- * always been.
- */
-export function computePassThreshold(
-  activityData: ActivityData,
-  score: number,
-  rounding?: RoundingPolicy,
-): boolean {
-  const threshold = activityData.passThreshold ?? DEFAULT_PASS_THRESHOLD;
-  return rounding === undefined ? score >= threshold : gte(score, threshold, rounding);
-}
-
-/**
- * True when `data` is a `redact()` projection rather than full activity data.
- * Scoring a redacted item is always a bug: the answer key is gone by design,
- * so any "score" computed from it is meaningless (it used to come out `NaN`).
- */
-function isRedacted(data: unknown): boolean {
-  return (
-    typeof data === 'object' && data !== null && (data as { redacted?: unknown }).redacted === true
-  );
-}
-
-/**
- * Selects the authored overall feedback for a result: `feedback.correct` when
- * the learner passed, `feedback.incorrect` otherwise; `null` when no matching
- * message was authored. Mirrors the selection the lk-react components applied
- * (keyed on `passed`, per the `ActivityFeedback` contract).
- */
-function selectFeedback(activityData: ActivityData, passed: boolean): string | null {
-  const feedback = (activityData as { feedback?: ActivityFeedback }).feedback;
-  if (feedback === undefined) {
-    return null;
-  }
-  return (passed ? feedback.correct : feedback.incorrect) ?? null;
-}
-
 /**
  * Scores a learner response against activity data and returns a full
  * {@link ScoringResult}.
@@ -169,7 +123,7 @@ export function score(
   learnerResponse: LearnerResponse,
   options?: ScoringOptions,
 ): ScoringResult {
-  const rounding = roundingOf(options);
+  const rounding = roundingPolicyOf(options?.rounding);
   const descriptor = getActivityTypeDescriptor(activityType);
   if (descriptor === undefined) {
     throw new UnknownActivityTypeError(String(activityType));
@@ -213,7 +167,7 @@ export function evaluate(
 ): ItemOutcome {
   // A malformed option is the caller's configuration, not the content bank's:
   // it throws before any item is read, rather than grading every item wrong.
-  const rounding = roundingOf(options);
+  const rounding = roundingPolicyOf(options?.rounding);
   const type = (data as { type?: unknown }).type;
   const descriptor = typeof type === 'string' ? getActivityTypeDescriptor(type) : undefined;
 

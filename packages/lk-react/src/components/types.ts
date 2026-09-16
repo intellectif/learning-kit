@@ -8,11 +8,14 @@ import type {
   MediaPlayClaim,
   MediaPlayGrant,
   MediaPlayLedgerEntry,
+  RecordingRef,
   RedactedActivityData,
   SequenceEntry,
   ThemeTokens,
 } from '@intellectif/lk-core';
+import type { RecordedTake } from '../hooks/useSpeechRecorder.js';
 import type { LkStringsOverride } from '../i18n/strings.js';
+import type { ReadAloudAssessResult } from './ReadAloud/ReadAloud.js';
 
 /**
  * How an activity is being presented. This is the single switch that decides
@@ -217,11 +220,17 @@ export function asRenderable<TData extends ActivityData>(
  * ```
  *
  * Pass `renderMode="exam"` (or `"review"`). Redacted data has no answer key, and
- * every built-in activity throws at render in the default `practice` mode
- * rather than fail later: `<MultipleChoice>`, `<FillInTheBlanks>`,
+ * almost every built-in activity throws at render in the default `practice`
+ * mode rather than fail later: `<MultipleChoice>`, `<FillInTheBlanks>`,
  * `<GapSelect>` and `<Dictation>` because they grade locally, and
  * `<WrittenResponse>` because `practice` still runs its local submit path and
  * emits a practice-mode xAPI statement.
+ *
+ * `<ReadAloud>` is the exception and renders a projection in every mode: a
+ * read-aloud item has no answer key to withhold, so `redact()` removes only the
+ * authored feedback and leaves the reading, its language and its bounds — which
+ * is everything the component puts on screen. It grades nothing locally either;
+ * the grade comes back from whatever the application asked to judge the take.
  */
 export function asRenderableSequence(
   entries: readonly (RedactedActivityData | RedactedItemGroupData)[],
@@ -362,4 +371,47 @@ export interface SequenceMediaBudget {
   onPosition?: (key: string, seconds: number) => void;
   /** Translations for the transport chrome. Defaults are English. */
   strings?: Partial<MediaTransportStrings>;
+}
+
+/**
+ * Which slot a recording belongs to, stamped on every call the pager makes.
+ *
+ * Exactly the shape {@link ActivitySequenceProps.onSubmit} already passes, so
+ * one identity travels with the answer and with the take that answer points at
+ * — and a consumer writes `slotId` in both places rather than reconciling two
+ * spellings of "which question was this".
+ */
+export interface SequenceRecordingSlot {
+  /** Identity from `flattenSequence` — stable under shuffling. Store against THIS. */
+  slotId: string;
+  /** Presented position, which moves under shuffling. */
+  index: number;
+  activityId: string;
+}
+
+/**
+ * The pager-level half of a read-aloud recording binding: where every take in
+ * this sequence is stored, and how a judgement comes back.
+ *
+ * One prop at both levels, because it is one concept — the media-budget
+ * precedent ({@link SequenceMediaBudget} beside {@link MediaBudgetBinding}).
+ * The difference is the second argument: a per-slot binding knows which slot it
+ * belongs to, so a sequence-level one is told.
+ *
+ * The SDK records and hands over; it never judges. `assess` is `practice` only
+ * and optional — a sequence that only stores takes gets the "assessment is not
+ * available" notice rather than a throw — and `playbackUrl` is `review` only.
+ * A slot whose activity is not a read-aloud never calls any of them.
+ */
+export interface SequenceRecordingBinding {
+  /**
+   * Puts the take in your storage and returns its key. **Required** outside
+   * `review`: without it a learner can speak into a control that submits
+   * nothing, which the component refuses to render. Settle it.
+   */
+  upload(take: RecordedTake, slot: SequenceRecordingSlot): Promise<RecordingRef>;
+  /** Judges the stored take. `practice` only; an exam never assesses on the client. */
+  assess?(ref: RecordingRef, slot: SequenceRecordingSlot): Promise<ReadAloudAssessResult>;
+  /** A playable link to a stored take. `review` only. */
+  playbackUrl?(ref: RecordingRef, slot: SequenceRecordingSlot): Promise<string>;
 }

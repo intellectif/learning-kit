@@ -8,6 +8,9 @@ import type {
   ItemOutcome,
   LearnerResponse,
   MultipleChoiceData,
+  ReadAloudData,
+  RecordingRef,
+  SpeechAssessment,
   Stimulus,
   WrittenResponseData,
 } from '@intellectif/lk-core';
@@ -23,12 +26,16 @@ import { Dictation } from '../../components/Dictation/index.js';
 import { FillInTheBlanks } from '../../components/FillInTheBlanks/index.js';
 import { GapSelect } from '../../components/GapSelect/index.js';
 import { MultipleChoice } from '../../components/MultipleChoice/index.js';
+import { PronunciationFeedback } from '../../components/PronunciationFeedback/index.js';
+import { ReadAloud } from '../../components/ReadAloud/index.js';
+import type { ReadAloudAssessResult } from '../../components/ReadAloud/ReadAloud.js';
 import { StimulusPanel } from '../../components/StimulusPanel/index.js';
 import { ActivityMedia } from '../../components/shared/ActivityMedia.js';
 import { AudioTransport } from '../../components/shared/AudioTransport.js';
 import type { MediaBudgetBinding } from '../../components/types.js';
 import { WrittenResponse } from '../../components/WrittenResponse/index.js';
 import { stubMediaElement } from '../../test-support/media.js';
+import { type SpeechCaptureHarness, stubSpeechCapture } from '../../test-support/speech.js';
 import { DEFAULT_STRINGS, LkIntlProvider, mergeStrings } from '../LkIntlProvider.js';
 import type { LkStrings, LkStringsOverride } from '../strings.js';
 
@@ -222,13 +229,32 @@ function Boom(): never {
   throw new Error('kaboom');
 }
 
+/** A promise a sweep can hold open, so a pending label is on screen to harvest. */
+function defer<T>(): { promise: Promise<T>; settle: (value: T) => void } {
+  let settle: (value: T) => void = () => {};
+  const promise = new Promise<T>((resolve) => {
+    settle = resolve;
+  });
+  return { promise, settle };
+}
+
+/**
+ * The fake Web Audio stack. A prerequisite of the read-aloud strings, not a
+ * test nicety: jsdom has no capture stack at all, so without it no take can be
+ * made here and every recording string is unreachable by construction.
+ */
+let speech: SpeechCaptureHarness | undefined;
+
 describe('translation coverage', () => {
   beforeEach(() => {
     collected.length = 0;
     stubMediaElement();
+    speech = stubSpeechCapture();
   });
 
   afterEach(() => {
+    speech?.restore();
+    speech = undefined;
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
@@ -391,6 +417,184 @@ describe('translation coverage', () => {
     cleanup();
 
     sweep(<Dictation data={dc} renderMode="review" outcome={deferred} />);
+    cleanup();
+
+    // ── Read aloud: the recorder, the take, and every way a take can end ───
+    const ra = {
+      schemaVersion: '1.0',
+      type: 'read-aloud',
+      id: 'ra1',
+      title: 'Lee la frase',
+      instructions: 'Lee a un ritmo natural.',
+      referenceText: 'El tiempo está agradable hoy.',
+      locale: 'es-MX',
+      media: { type: 'audio', url: '/modelo.mp3', alt: 'Modelo' },
+      slowMedia: { type: 'audio', url: '/modelo-lento.mp3' },
+      recording: { maxSeconds: 20, minSeconds: 1, maxTakes: 2 },
+      scoring: { dimensions: [{ name: 'accuracy', weight: 3 }] },
+    } satisfies ReadAloudData;
+
+    const stored: RecordingRef = { key: 'take-1', mimeType: 'audio/wav' };
+    const storeTake = async (): Promise<RecordingRef> => stored;
+
+    /** Lets the recorder's asynchronous `start()` and the bindings settle. */
+    const settleSpeech = () =>
+      act(async () => {
+        for (let tick = 0; tick < 20; tick += 1) {
+          await Promise.resolve();
+        }
+      });
+
+    /** Records one take, harvesting the labels that exist only mid-recording. */
+    const recordTake = async (): Promise<void> => {
+      const capture = speech as SpeechCaptureHarness;
+      await user.click(screen.getByRole('button', { name: sentinel('readAloudRecord') }));
+      await settleSpeech();
+      act(() => {
+        capture.pushLevel(0.5, capture.sampleRate * 2);
+      });
+      keep(document.body);
+      await user.click(screen.getByRole('button', { name: sentinel('readAloudStop') }));
+      keep(document.body);
+    };
+
+    // A binding that stores but judges nothing, with the upload held open so
+    // the pending label is on screen before it settles.
+    const upload = defer<RecordingRef>();
+    sweep(<ReadAloud data={ra} recordingBinding={{ upload: () => upload.promise }} />);
+    await recordTake();
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    keep(document.body);
+    upload.settle(stored);
+    await settleSpeech();
+    keep(document.body);
+    cleanup();
+
+    // A held assessment, then the code that means the learner was not heard.
+    const judge = defer<ReadAloudAssessResult>();
+    sweep(
+      <ReadAloud data={ra} recordingBinding={{ upload: storeTake, assess: () => judge.promise }} />,
+    );
+    await recordTake();
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    await settleSpeech();
+    keep(document.body);
+    judge.settle({ status: 'unscorable', code: 'no_speech' });
+    await settleSpeech();
+    keep(document.body);
+    cleanup();
+
+    // Any other code says only that this take could not be assessed.
+    sweep(
+      <ReadAloud
+        data={ra}
+        recordingBinding={{
+          upload: storeTake,
+          assess: async () => ({ status: 'unscorable', code: 'house_policy' }),
+        }}
+      />,
+    );
+    await recordTake();
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    await settleSpeech();
+    keep(document.body);
+    cleanup();
+
+    // An assessment that could not be run at all, and the retry it offers.
+    sweep(
+      <ReadAloud
+        data={ra}
+        recordingBinding={{
+          upload: storeTake,
+          assess: async () => ({ status: 'failed', retryable: true }),
+        }}
+      />,
+    );
+    await recordTake();
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    await settleSpeech();
+    keep(document.body);
+    cleanup();
+
+    // A take that never reached storage: the message, and the retry.
+    sweep(
+      <ReadAloud
+        data={ra}
+        recordingBinding={{
+          upload: async () => {
+            throw new Error('the store is unreachable');
+          },
+        }}
+      />,
+    );
+    await recordTake();
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    await settleSpeech();
+    keep(document.body);
+    cleanup();
+
+    // Only an exam offers the deliberate blank.
+    sweep(<ReadAloud data={ra} renderMode="exam" recordingBinding={{ upload: storeTake }} />);
+    cleanup();
+
+    // A microphone the browser refuses: five sentences behind one key, of which
+    // this sweep drives one — the prefix is what the check matches.
+    speech?.restore();
+    speech = stubSpeechCapture({ refuseMicrophone: 'NotAllowedError' });
+    sweep(<ReadAloud data={ra} recordingBinding={{ upload: storeTake }} />);
+    await user.click(screen.getByRole('button', { name: sentinel('readAloudRecord') }));
+    await settleSpeech();
+    keep(document.body);
+    cleanup();
+
+    // ── Pronunciation feedback: all four marks, and one word opened ─────────
+    // Built so the alignment has one word of each kind and the opened word
+    // carries every fact the panel has a row for — a sweep that reached three
+    // of the four hidden sentences would leave the fourth English.
+    const speechAssessment = {
+      assessmentVersion: '1.0',
+      status: 'assessed',
+      task: 'scripted',
+      locale: 'es-MX',
+      referenceText: ra.referenceText,
+      recordingKey: stored.key,
+      assessor: { kind: 'auto' },
+      scale: 100,
+      scores: { accuracy: 88, fluency: 72, completeness: 95 },
+      recognizedText: 'el tiempo agradable hoy eh',
+      miscue: 'assessor',
+      phonemeAlphabet: 'ipa',
+      words: [
+        {
+          text: 'El',
+          accuracy: 95,
+          error: 'none',
+          startMs: 0,
+          durationMs: 200,
+          syllables: [{ text: 'el', grapheme: 'El' }],
+          phonemes: [{ symbol: 'e' }, { accuracy: 50, heardAs: [{ symbol: 'a', score: 30 }] }],
+          breaks: { unexpected: 0.9, missing: 0.8 },
+        },
+        { text: 'tiempo', accuracy: 90, error: 'none' },
+        { text: 'está', error: 'omission' },
+        { text: 'agradable', accuracy: 40, error: 'mispronunciation' },
+        { text: 'hoy', accuracy: 85, error: 'none' },
+        { text: 'eh', error: 'insertion' },
+      ],
+      prosody: { monotoneConfidence: 0.9 },
+    } satisfies SpeechAssessment;
+
+    sweep(
+      <PronunciationFeedback
+        data={{ referenceText: ra.referenceText, locale: ra.locale }}
+        assessment={speechAssessment}
+        audioUrl="blob:take-1"
+        breakThreshold={0.5}
+        monotoneThreshold={0.5}
+      />,
+    );
+    await user.click(screen.getAllByRole('button', { name: /pronunciationWordDetails/ })[0]);
+    keep(document.body);
     cleanup();
 
     // ── Authoring preview: the notice for an unfinished and for a wrong draft ─

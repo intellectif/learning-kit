@@ -1,7 +1,12 @@
 /** Types for `replay.mjs`. See that file for the contract and the encoding. */
 
-/** The encoding version this replayer reads. */
-export declare const CORPUS_VERSION: 1;
+/**
+ * The encoding version this replayer reads. Version 2 added the `$bytes` tag:
+ * a `Uint8Array` is stored as `{ "$bytes": "<base64>" }` and decoded back into
+ * a fresh one, and any other view of an `ArrayBuffer` is refused rather than
+ * frozen as an object of indices.
+ */
+export declare const CORPUS_VERSION: 2;
 
 /** One frozen call. Exactly one of `fn` / `const` is present. */
 export interface ScoringVector {

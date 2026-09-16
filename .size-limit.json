@@ -75,5 +75,38 @@
       "@intellectif/lk-core"
     ],
     "limit": "50 kB"
+  },
+  {
+    "name": "ReadAloud",
+    "path": "packages/lk-react/dist/components/ReadAloud.js",
+    "import": "{ ReadAloud }",
+    "ignore": [
+      "react",
+      "react-dom",
+      "@intellectif/lk-core"
+    ],
+    "limit": "50 kB"
+  },
+  {
+    "name": "PronunciationFeedback",
+    "path": "packages/lk-react/dist/components/PronunciationFeedback.js",
+    "import": "{ PronunciationFeedback }",
+    "ignore": [
+      "react",
+      "react-dom",
+      "@intellectif/lk-core"
+    ],
+    "limit": "50 kB"
+  },
+  {
+    "name": "useSpeechRecorder",
+    "path": "packages/lk-react/dist/hooks/useSpeechRecorder.js",
+    "import": "{ useSpeechRecorder }",
+    "ignore": [
+      "react",
+      "react-dom",
+      "@intellectif/lk-core"
+    ],
+    "limit": "10 kB"
   }
 ]

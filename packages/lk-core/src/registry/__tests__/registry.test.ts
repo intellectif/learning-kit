@@ -39,16 +39,29 @@ const testCustomType = defineActivityType<TestCustomData, TestCustomResponse>({
 });
 
 describe('registry built-ins', () => {
-  it('registers the five built-in activity types, in order, before anything else', () => {
+  it('registers the six built-in activity types, in order, before anything else', () => {
     // The registry is one module-scoped map and this file registers a type of
     // its own below, so the built-ins are pinned as a prefix, not as the list.
-    expect(registeredActivityTypes().slice(0, 5)).toEqual([
+    expect(registeredActivityTypes().slice(0, 6)).toEqual([
       'multiple-choice',
       'fill-in-the-blanks',
       'written-response',
       'gap-select',
       'dictation',
+      'read-aloud',
     ]);
+  });
+
+  it('returns the read-aloud descriptor with deferred scoring', () => {
+    const descriptor = getActivityTypeDescriptor('read-aloud');
+    expect(descriptor).toBeDefined();
+    expect(descriptor?.type).toBe('read-aloud');
+    expect(descriptor?.scoring.kind).toBe('deferred');
+    if (descriptor?.scoring.kind === 'deferred') {
+      expect(descriptor.scoring.reason).toBe('requires_async_grading');
+      // The partial is handed whatever was stored, including nothing at all.
+      expect(descriptor.scoring.partial?.({}, undefined)).toEqual({ hasRecording: false });
+    }
   });
 
   it('returns the dictation descriptor with sync scoring', () => {

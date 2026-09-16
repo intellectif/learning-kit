@@ -47,9 +47,13 @@ export interface RedactOptions {
    *
    * Overrides can only be applied to fields; they cannot re-open a field the
    * caller has not classified, because unclassified still means removed.
-   * Note that tightening below what the type's `redactedSchema` requires is
-   * allowed — the schema check only rejects payloads that reveal MORE than
-   * the learner-safe shape.
+   * What can be tightened is a field the type's `redactedSchema` leaves
+   * OPTIONAL, as it leaves the rubric above: the schema check rejects a
+   * payload that reveals more than the learner-safe shape, and equally one
+   * that is missing part of it. Tightening a field the redacted shape requires
+   * — a read-aloud item's `scoring`, `recording`, `referenceText` or `locale`,
+   * without which the learner has no item to read — throws
+   * {@link ActivitySchemaError} instead of hiding it.
    */
   policy?: FieldPolicy;
 }

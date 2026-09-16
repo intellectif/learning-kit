@@ -5,6 +5,7 @@ import {
   RedactedScoringError,
   UnknownActivityTypeError,
 } from '../../errors.js';
+import { redact } from '../../redact.js';
 import { defineActivityType, registerActivityType } from '../../registry/index.js';
 import type {
   ActivityData,
@@ -16,6 +17,9 @@ import type {
   LearnerResponse,
   MultipleChoiceData,
   MultipleChoiceLearnerResponse,
+  ReadAloudData,
+  ReadAloudLearnerResponse,
+  RecordingRef,
   WrittenResponseData,
   WrittenResponseLearnerResponse,
 } from '../../types/activity.js';
@@ -69,6 +73,22 @@ const wrr = (text: string, wordCount: number): WrittenResponseLearnerResponse =>
   type: 'written-response',
   text,
   wordCount,
+});
+
+const ra = (over: Partial<ReadAloudData> = {}): ReadAloudData => ({
+  schemaVersion: '1.0',
+  type: 'read-aloud',
+  id: 'r',
+  title: 'Read aloud',
+  referenceText: 'The quick brown fox jumps over the lazy dog.',
+  locale: 'en-US',
+  recording: { maxSeconds: 45 },
+  scoring: { dimensions: [{ name: 'accuracy', weight: 1 }] },
+  ...over,
+});
+const rar = (recording: RecordingRef | null): ReadAloudLearnerResponse => ({
+  type: 'read-aloud',
+  recording,
 });
 
 function asScored(outcome: ItemOutcome): Extract<ItemOutcome, { status: 'scored' }> {
@@ -165,6 +185,12 @@ describe('score() — dispatch errors', () => {
 
   it('throws DeferredScoringError for written-response', () => {
     const call = () => score('written-response', wr(), wrr('one two three', 3));
+    expect(call).toThrow(DeferredScoringError);
+    expect(call).toThrow('graded asynchronously');
+  });
+
+  it('throws DeferredScoringError for read-aloud rather than scoring a recording 0', () => {
+    const call = () => score('read-aloud', ra(), rar({ key: 'takes/1', mimeType: 'audio/wav' }));
     expect(call).toThrow(DeferredScoringError);
     expect(call).toThrow('graded asynchronously');
   });
@@ -357,6 +383,41 @@ describe('evaluate() — deferred path (written-response)', () => {
     // 6 words > maxWords 5; the flattering client count (5) must be ignored.
     const outcome = asDeferred(evaluate(wr(), wrr('one two three four five six', 5)));
     expect(outcome.partial).toEqual({ withinWordBounds: false, wordCount: 6 });
+  });
+});
+
+describe('evaluate() — deferred path (read-aloud)', () => {
+  it('returns deferred with hasRecording false when no response was stored at all', () => {
+    const outcome = asDeferred(evaluate(ra(), undefined as unknown as LearnerResponse));
+    expect(outcome.reason).toBe('requires_async_grading');
+    expect(outcome.maxScore).toBe(1);
+    expect(outcome.partial).toEqual({ hasRecording: false });
+  });
+
+  it('reads a blank, and anything an older row holds, as no recording', () => {
+    expect(asDeferred(evaluate(ra(), rar(null))).partial).toEqual({ hasRecording: false });
+    for (const recording of ['takes/1', 42, {}, [], { key: '' }, { key: 7 }, null]) {
+      const response = { type: 'read-aloud', recording } as unknown as LearnerResponse;
+      expect(asDeferred(evaluate(ra(), response)).partial).toEqual({ hasRecording: false });
+    }
+  });
+
+  it('reads a stored reference as a recording', () => {
+    const outcome = asDeferred(evaluate(ra(), rar({ key: 'takes/1.wav', mimeType: 'audio/wav' })));
+    expect(outcome.partial).toEqual({ hasRecording: true });
+  });
+
+  it('defers a redacted projection too, rather than calling it unscorable', () => {
+    // The deferred branch runs before the redacted check, and a read-aloud item
+    // has no answer key to be missing: practice renders the projection.
+    const outcome = asDeferred(
+      evaluate(
+        redact(ra()) as unknown as ActivityData,
+        rar({ key: 'takes/1.wav', mimeType: 'audio/wav' }),
+      ),
+    );
+    expect(outcome.reason).toBe('requires_async_grading');
+    expect(outcome.partial).toEqual({ hasRecording: true });
   });
 });
 

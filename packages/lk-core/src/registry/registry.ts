@@ -11,7 +11,9 @@ export type PartialScoringResult = Omit<ScoringResult, 'passed'>;
  * - `public` — safe to send to a learner before they answer.
  * - `answer-key` — reveals (or helps infer) the correct answer or the scoring
  *   rules; removed unless `reveal: 'after-submit'` is requested.
- * - `author-only` — never leaves the authoring/grading context (e.g. rubrics).
+ * - `author-only` — never leaves the authoring/grading context (e.g. the
+ *   author transcript of a listening group's stimulus). A rubric is NOT one:
+ *   it tells the learner what they are assessed on, so it is `public`.
  */
 export type Sensitivity = 'public' | 'answer-key' | 'author-only';
 

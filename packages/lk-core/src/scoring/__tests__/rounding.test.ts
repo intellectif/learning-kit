@@ -8,6 +8,7 @@ import {
   type RoundingMode,
   type RoundingPolicy,
   roundGrade,
+  roundingPolicyOf,
 } from '../rounding.js';
 
 // --------------------------------------------------------------------------
@@ -355,6 +356,92 @@ describe('classifyBand', () => {
     expect(classifyBand(0.7, unordered)).toEqual({ name: 'B1', min: 0.6 });
     expect(classifyBand(0.45, unordered)).toEqual({ name: 'A2', min: 0.4 });
     expect(classifyBand(0.2, unordered)).toEqual({ name: 'A1', min: 0.2 });
+  });
+});
+
+// ==========================================================================
+// roundingPolicyOf — the one gate every rounding option goes through
+// ==========================================================================
+
+describe('roundingPolicyOf', () => {
+  it('reads undefined and null as no policy', () => {
+    expect(roundingPolicyOf(undefined)).toBeUndefined();
+    expect(roundingPolicyOf(null)).toBeUndefined();
+  });
+
+  it('accepts every mode, at both ends of the dp range', () => {
+    for (const mode of MODES) {
+      expect(roundingPolicyOf({ mode, dp: 0 })).toEqual({ mode, dp: 0 });
+      expect(roundingPolicyOf({ mode, dp: 15 })).toEqual({ mode, dp: 15 });
+    }
+  });
+
+  it('returns the values it checked, not the object they came from', () => {
+    const policy = { mode: 'half-up', dp: 2 };
+
+    expect(roundingPolicyOf(policy)).toEqual(policy);
+    expect(roundingPolicyOf(policy)).not.toBe(policy);
+    // Only the two fields: whatever else the caller attached is not a policy.
+    expect(roundingPolicyOf({ mode: 'floor', dp: 3, scale: 100 })).toEqual({
+      mode: 'floor',
+      dp: 3,
+    });
+  });
+
+  it('reads each field once, so an accessor cannot answer differently later', () => {
+    let reads = 0;
+    const shifting = {
+      mode: 'half-up',
+      get dp() {
+        reads += 1;
+        return reads === 1 ? 2 : 9;
+      },
+    };
+
+    expect(roundingPolicyOf(shifting)).toEqual({ mode: 'half-up', dp: 2 });
+  });
+
+  it.each<[string, unknown]>([
+    ['a policy without dp', { mode: 'half-up' }],
+    ['an unknown mode', { mode: 'bogus', dp: 2 }],
+    ['a fractional dp', { mode: 'floor', dp: 1.5 }],
+    ['a negative dp', { mode: 'ceil', dp: -1 }],
+    ['a dp past 15', { mode: 'half-even', dp: 16 }],
+    ['a NaN dp', { mode: 'half-up', dp: Number.NaN }],
+    ['an infinite dp', { mode: 'half-up', dp: Number.POSITIVE_INFINITY }],
+    ['a dp given as a string', { mode: 'half-up', dp: '2' }],
+    ['a BigInt dp', { mode: 'half-up', dp: 2n }],
+    ['a mode name alone', 'half-up'],
+    ['an empty object', {}],
+    ['a number', 0],
+    ['a boolean', true],
+    ['an array', []],
+    ['a symbol', Symbol('half-up')],
+    [
+      'a policy that refers to itself',
+      (() => {
+        const policy: Record<string, unknown> = { mode: 'nearest' };
+        policy.self = policy;
+        return policy;
+      })(),
+    ],
+  ])('throws a RangeError for %s rather than failing every comparison', (_label, value) => {
+    expect(() => roundingPolicyOf(value)).toThrow(RangeError);
+  });
+
+  it.each<[string, unknown, string]>([
+    ['a string mode and a missing dp', { mode: 'nearest' }, 'mode "nearest", dp undefined'],
+    ['a number dp', { mode: 'floor', dp: 1.5 }, 'mode "floor", dp 1.5'],
+    [
+      'an object mode and a BigInt dp',
+      { mode: { name: 'floor' }, dp: 2n },
+      'mode an object, dp a bigint',
+    ],
+    ['a mode name alone', 'half-up', 'mode undefined, dp undefined'],
+  ])('names what is wrong with %s without serialising it', (_label, value, named) => {
+    expect(() => roundingPolicyOf(value)).toThrow(
+      `Invalid rounding policy (${named}): expected { mode: 'half-up' | 'half-even' | 'floor' | 'ceil', dp: a whole number from 0 to 15 }.`,
+    );
   });
 });
 

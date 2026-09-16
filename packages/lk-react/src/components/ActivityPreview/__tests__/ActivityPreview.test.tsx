@@ -6,6 +6,7 @@ import {
   type LearnerResponse,
   type MultipleChoiceData,
   outcomeFromGrade,
+  type ReadAloudData,
   registerActivityType,
   UnknownActivityTypeError,
   type WrittenResponseData,
@@ -18,6 +19,7 @@ import { LkIntlProvider } from '../../../i18n/LkIntlProvider.js';
 import { DEFAULT_STRINGS } from '../../../i18n/strings.js';
 import { checkA11y } from '../../../test-support/a11y.js';
 import { stubMediaElement } from '../../../test-support/media.js';
+import { type SpeechCaptureHarness, stubSpeechCapture } from '../../../test-support/speech.js';
 import type { ActivityProps } from '../../types.js';
 import { ActivityPreview } from '../index.js';
 
@@ -529,5 +531,115 @@ describe('<ActivityPreview> with a recording that has a play limit', () => {
     );
     expect(container.querySelector('audio')).toHaveAttribute('controls');
     expect(plays()).toBeNull();
+  });
+});
+
+/**
+ * A read-aloud draft. `<ReadAloud>` refuses to render outside `review` without
+ * a place to put the take — rightly, on a real paper, where a learner would
+ * otherwise speak into a control that stores nothing — so the preview supplies
+ * a store of its own, kept in memory like the play budget above.
+ */
+describe('<ActivityPreview> with a read-aloud draft', () => {
+  const reading = {
+    schemaVersion: '1.0',
+    type: 'read-aloud',
+    id: 'reading',
+    title: 'Read the sentence',
+    referenceText: 'The weather is lovely today.',
+    locale: 'en-US',
+    recording: { maxSeconds: 20, minSeconds: 1, maxTakes: 2 },
+    scoring: { dimensions: [{ name: 'accuracy', weight: 3 }] },
+  } satisfies ReadAloudData;
+
+  let speech: SpeechCaptureHarness | undefined;
+
+  beforeEach(() => {
+    speech = stubSpeechCapture();
+  });
+
+  afterEach(() => {
+    speech?.restore();
+    speech = undefined;
+  });
+
+  it.each([
+    'practice',
+    'exam',
+    'review',
+  ] as const)('renders the activity in %s, not the unsupported note or the error fallback', async (renderMode) => {
+    const { container } = render(<ActivityPreview draft={reading} renderMode={renderMode} />);
+    expect(screen.getByRole('form', { name: 'Read the sentence' })).toBeInTheDocument();
+    expect(screen.queryByRole('note')).toBeNull();
+    expect(document.body).not.toHaveTextContent(DEFAULT_STRINGS.activityFailed);
+    expect(document.body).not.toHaveTextContent(/could not be displayed/);
+    expect(await checkA11y(container)).toHaveNoViolations();
+  });
+
+  it('records and submits a take, and says plainly that nothing will judge it', async () => {
+    const user = userEvent.setup();
+    const capture = speech as SpeechCaptureHarness;
+    render(<ActivityPreview draft={reading} />);
+
+    await user.click(screen.getByRole('button', { name: 'Record' }));
+    await act(async () => {
+      for (let tick = 0; tick < 20; tick += 1) {
+        await Promise.resolve();
+      }
+    });
+    act(() => {
+      capture.pushLevel(0.5, capture.sampleRate * 2);
+    });
+    await user.click(screen.getByRole('button', { name: 'Stop recording' }));
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await act(async () => {
+      for (let tick = 0; tick < 20; tick += 1) {
+        await Promise.resolve();
+      }
+    });
+
+    // The take went somewhere, so the flow an author is trying out runs the
+    // whole way through — and an author who has no assessor to point at is
+    // told that, rather than meeting a component that refused to render.
+    expect(screen.getByText(DEFAULT_STRINGS.readAloudAssessmentUnavailable)).toBeInTheDocument();
+    expect(capture.liveTracks()).toBe(0);
+  });
+
+  it('keeps a take while the author edits the title, and starts over when the reading changes (C3)', async () => {
+    // The preview validates the draft on every edit and hands the activity a
+    // new object each time. A reset keyed on that object threw the author's
+    // take away on every keystroke in any field; only a change to what is read
+    // — here the reference text — makes the take a take of something else.
+    const user = userEvent.setup();
+    const capture = speech as SpeechCaptureHarness;
+    const view = render(<ActivityPreview draft={reading} />);
+
+    await user.click(screen.getByRole('button', { name: 'Record' }));
+    await act(async () => {
+      for (let tick = 0; tick < 20; tick += 1) {
+        await Promise.resolve();
+      }
+    });
+    act(() => {
+      capture.pushLevel(0.5, capture.sampleRate * 2);
+    });
+    await user.click(screen.getByRole('button', { name: 'Stop recording' }));
+    expect(screen.getByLabelText(DEFAULT_STRINGS.readAloudYourRecording)).toBeInTheDocument();
+
+    view.rerender(<ActivityPreview draft={{ ...reading, title: 'Read the sentence aloud' }} />);
+    expect(screen.getByLabelText(DEFAULT_STRINGS.readAloudYourRecording)).toBeInTheDocument();
+    expect(screen.getByText('1 of 2 recordings left')).toBeInTheDocument();
+
+    view.rerender(
+      <ActivityPreview
+        draft={{
+          ...reading,
+          title: 'Read the sentence aloud',
+          referenceText: 'It rained all day.',
+        }}
+      />,
+    );
+    expect(screen.queryByLabelText(DEFAULT_STRINGS.readAloudYourRecording)).toBeNull();
+    expect(screen.getByText('2 of 2 recordings left')).toBeInTheDocument();
   });
 });

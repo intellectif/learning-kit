@@ -245,6 +245,14 @@ describe('xapiDefinitionFor — interop read from the registered descriptor', ()
     expect('correctResponsesPattern' in definition).toBe(false);
   });
 
+  it('derives `other` for read-aloud, whose correct response is a pronunciation', () => {
+    const definition = xapiDefinitionFor({ type: 'read-aloud' } as never);
+    expect(definition).toEqual({
+      type: 'http://adlnet.gov/expapi/activities/cmi.interaction',
+      interactionType: 'other',
+    });
+  });
+
   it('returns an empty object for an unregistered type, so it is always spreadable', () => {
     expect(xapiDefinitionFor({ type: 'not-registered' })).toEqual({});
   });

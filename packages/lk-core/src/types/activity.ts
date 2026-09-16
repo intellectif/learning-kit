@@ -23,6 +23,7 @@ export interface ActivityDataMap {
   'written-response': WrittenResponseData;
   'gap-select': GapSelectData;
   dictation: DictationData;
+  'read-aloud': ReadAloudData;
 }
 
 /**
@@ -568,6 +569,99 @@ export interface DictationData {
   difficultyLevel?: 1 | 2 | 3 | 4 | 5;
 }
 
+/** A dimension of speech a pronunciation assessor scores, on a 0–100 scale. */
+export type ReadAloudDimension = 'accuracy' | 'fluency' | 'completeness' | 'prosody';
+
+/** One assessor dimension counted towards a read-aloud grade, and its weight. */
+export interface ReadAloudDimensionWeight {
+  name: ReadAloudDimension;
+  /**
+   * Relative weight, 0..1000 (`READ_ALOUD_MAX_DIMENSION_WEIGHT`). Weights need
+   * not add up to anything; a weight of 0 leaves the dimension out of the grade.
+   */
+  weight: number;
+}
+
+/**
+ * The limits on a read-aloud take, applied where the learner records. No grade
+ * reads them: whether a take is plausible speech is decided from the server's
+ * own measurement of the recording, never from a bound the client enforced.
+ */
+export interface RecordingBounds {
+  /** The longest take, in seconds: above 0, and at most `READ_ALOUD_MAX_SECONDS` (300). */
+  maxSeconds: number;
+  /** The shortest take, in seconds: at least 0, and below `maxSeconds`. */
+  minSeconds?: number;
+  /** How many takes the learner may record: a whole number from 1 to `READ_ALOUD_MAX_TAKES` (20). */
+  maxTakes?: number;
+}
+
+/**
+ * A second, slower model recording of the reference text — a separate file,
+ * not a `playbackRate` change. It carries no `captionsUrl` and no `playback`
+ * policy of its own, requires `media`, must be a different file from it, and
+ * cannot accompany a play limit on `media`.
+ */
+export interface ReadAloudSlowMedia {
+  type: 'audio';
+  /** Source URL, under the same policy as {@link ActivityMedia.url}. */
+  url: string;
+  /** Accessible label — a description ("Model recording, slow"). */
+  alt?: string;
+}
+
+/**
+ * Data contract for a Read Aloud activity: the learner reads a text aloud, an
+ * assessor measures the recording, and the grade is the weighted total of the
+ * assessor's dimension scores.
+ *
+ * Grading is deferred — `evaluate()` returns `deferred` until the application
+ * holds an assessment — and nothing here is an answer key: the learner is shown
+ * the text they are asked to read.
+ */
+export interface ReadAloudData {
+  schemaVersion: '1.0';
+  type: 'read-aloud';
+  /** Unique identifier for this activity. */
+  id: string;
+  /** Human-readable title used in xAPI statements and error boundaries. */
+  title: string;
+  /** Optional instructions shown to the learner, as plain text. */
+  instructions?: string;
+  /**
+   * The text the learner reads aloud. Shown to the learner (public). At most
+   * `READ_ALOUD_MAX_REFERENCE_LENGTH` code points before and after
+   * normalisation, in a script written with spaces between words.
+   */
+  referenceText: string;
+  /**
+   * BCP 47 tag in canonical form with a region (e.g. `en-US`). GRADE-DECIDING:
+   * an assessment made for another locale is unscorable.
+   */
+  locale: string;
+  /** A model recording of the text. Audio only; a playback policy is allowed. */
+  media?: ActivityMedia;
+  /** A second, slower model recording. See {@link ReadAloudSlowMedia}. */
+  slowMedia?: ReadAloudSlowMedia;
+  /** The limits on a take. See {@link RecordingBounds}. */
+  recording: RecordingBounds;
+  /**
+   * The assessor dimensions the grade is made of, with their weights: 1 to 4
+   * entries, each name at most once, at least one weight above 0. A weighted
+   * dimension the assessment has no score for makes the take unscorable, never
+   * a zero. Public.
+   */
+  scoring: { dimensions: ReadAloudDimensionWeight[] };
+  /** Minimum scaled score [0–1] required to pass once graded. Defaults to {@link DEFAULT_PASS_THRESHOLD} (0.7) when absent. */
+  passThreshold?: number;
+  /** Optional authored overall feedback, selected once the grade exists. */
+  feedback?: ActivityFeedback;
+  /** IRI references to learning objectives addressed by this activity. */
+  learningObjectives?: string[];
+  /** Subjective difficulty on a 1–5 scale. */
+  difficultyLevel?: 1 | 2 | 3 | 4 | 5;
+}
+
 /**
  * Maps each ActivityType string to its learner-response shape. Open for
  * extension via module augmentation, mirroring {@link ActivityDataMap}.
@@ -578,6 +672,7 @@ export interface LearnerResponseMap {
   'written-response': WrittenResponseLearnerResponse;
   'gap-select': GapSelectLearnerResponse;
   dictation: DictationLearnerResponse;
+  'read-aloud': ReadAloudLearnerResponse;
 }
 
 /** Union of all learner response shapes. */
@@ -638,6 +733,30 @@ export interface DictationLearnerResponse {
 }
 
 /**
+ * A learner recording held by the application. `key` is opaque,
+ * application-issued storage identity: never a URL or bytes. `durationMs` is a
+ * client claim no grade reads.
+ */
+export interface RecordingRef {
+  key: string;
+  /** The media type the recording was stored as, e.g. `audio/wav`. */
+  mimeType: string;
+  durationMs?: number;
+}
+
+/**
+ * Learner response for a Read Aloud activity: a reference to the recording the
+ * application stored, never the audio itself.
+ */
+export interface ReadAloudLearnerResponse {
+  type: 'read-aloud';
+  /** `null`: the learner submitted without recording (a blank). A take that failed to upload is never `null`. */
+  recording: RecordingRef | null;
+  /** Telemetry: takes used. No grade reads it. */
+  takes?: number;
+}
+
+/**
  * Fine-grained outcome of the learner's action on a single item, replacing the
  * ambiguous {@link ScoringDetail.correct}:
  * - `correct` — the learner selected/entered the right answer.
@@ -680,7 +799,9 @@ export interface ScoringDetail {
    * The item's own scaled score in [0, 1], for a type that grades its items on
    * a continuum rather than right or wrong. Written by the dictation scorer
    * (the similarity of each transcript word to what was typed for it) and by
-   * nothing else today. Absent, an item is right or wrong: read `outcome`.
+   * `gradeReadAloud` (the assessor's accuracy for each reference word as a
+   * fraction, 0 for an omitted word, and absent where the assessor gave none).
+   * Absent, an item is right or wrong: read `outcome`.
    */
   score?: number;
 }
@@ -781,6 +902,11 @@ export type ItemOutcome =
       reason: string;
       /** Maximum possible scaled score, when known. */
       maxScore: number;
+      /**
+       * A machine-readable reason, written by `outcomeFromUnscorable` — for
+       * example a read-aloud `SpeechUnscorableCode`. `evaluate` never writes it.
+       */
+      code?: string;
     };
 
 /** A single validation error produced by `validateActivity`. */
@@ -840,6 +966,20 @@ export type InteractionKind =
   | 'media-play-errored'
   /** A charged play was returned, because the consumer accepted the refund. */
   | 'media-play-refunded'
+  /** The microphone began capturing a take. */
+  | 'recording-started'
+  /** A take ended, by the learner or at its time limit. */
+  | 'recording-stopped'
+  /** A take was thrown away, to record another. */
+  | 'recording-discarded'
+  /** The application stored a take and returned its reference. */
+  | 'recording-uploaded'
+  /** Storing a take failed. A take that failed to upload is never a blank answer. */
+  | 'recording-upload-failed'
+  /** A stored take was sent for assessment. */
+  | 'assessment-requested'
+  /** An assessment request failed: the take has no grade. */
+  | 'assessment-failed'
   // `string & {}` preserves literal autocompletion while keeping the union open
   // for registered custom types.
   | (string & {});

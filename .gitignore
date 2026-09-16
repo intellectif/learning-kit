@@ -1,6 +1,7 @@
 # Internal docs and specs (not for contributors / not published)
 .kiro/
 .claude/
+.grok/
 docs/internal/
 # Dependencies
 node_modules/

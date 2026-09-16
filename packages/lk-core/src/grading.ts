@@ -1,4 +1,5 @@
-import { computePassThreshold } from './scoring/index.js';
+import { computePassThreshold } from './scoring/pass-threshold.js';
+import { gte, type RoundingPolicy, roundingPolicyOf } from './scoring/rounding.js';
 import type { ActivityData, ItemOutcome } from './types/activity.js';
 import type { CriterionScore, GradeRecord } from './types/grading.js';
 
@@ -21,6 +22,19 @@ export interface GradeFromRubricOptions {
   passThreshold?: number;
   /** Narrative feedback for the learner, carried onto the record verbatim. */
   feedback?: string | null;
+  /**
+   * Compare the pass line the way the score is displayed — both sides rounded,
+   * via `gte` — whichever threshold applies: `passThreshold` above, the
+   * activity's own, or the 0.7 default. The returned `score` stays unrounded.
+   * Opt-in, as on `score()` and `evaluate()`: switching it on moves pass/fail
+   * for totals in the rounding band.
+   *
+   * Checked before any criterion is read: `null` reads as no policy, and a
+   * policy that cannot be applied — an unknown `mode`, or a `dp` that is not a
+   * whole number from 0 to 15 — throws a `RangeError`, even for a rubric that
+   * turns out to be unscorable.
+   */
+  rounding?: RoundingPolicy;
 }
 
 /**
@@ -58,6 +72,12 @@ export function gradeFromRubric(
   activityData?: ActivityData,
   options: GradeFromRubricOptions = {},
 ): GradeRecord | { unscorable: true; reason: string } {
+  // A malformed rounding policy is the caller's configuration, not this
+  // rubric's, so it throws before any criterion is read, as in `score()` and
+  // `evaluate()`. Read null-safely: an options object passed as `null` has
+  // always reached the unscorable returns below, and still does.
+  const rounding = roundingPolicyOf(options?.rounding);
+
   // A corrupt score is an ERROR, not an exclusion. Exclusions (`notApplicable`,
   // and band-only criteria with no numeric score) are deliberate authoring
   // decisions; a NaN or Infinity is a broken grader. Silently dropping it
@@ -150,12 +170,17 @@ export function gradeFromRubric(
   // already rejected above.
   const score = Math.min(1, Math.max(0, rawScore));
 
+  // Every threshold is compared the same way: the exact raw `>=` it has always
+  // been, or both sides rounded when the caller passed a policy. Only the
+  // comparison is rounded, never the score this returns.
+  const reaches = (threshold: number): boolean =>
+    rounding === undefined ? score >= threshold : gte(score, threshold, rounding);
   const passed =
     options.passThreshold !== undefined
-      ? score >= options.passThreshold
+      ? reaches(options.passThreshold)
       : activityData !== undefined
-        ? computePassThreshold(activityData, score)
-        : score >= 0.7;
+        ? computePassThreshold(activityData, score, rounding)
+        : reaches(0.7);
 
   return {
     score,

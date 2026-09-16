@@ -41,6 +41,17 @@ const REQUIRED_EXPORTS = [
   'DICTATION_MAX_EQUIVALENCE_LENGTH',
   'DICTATION_MAX_EQUIVALENCES',
   'DICTATION_MAX_ACCEPTED_TRANSCRIPTS',
+  // read-aloud + speech
+  'validateSpeechAssessment',
+  'alignReadAloud',
+  'gradeReadAloud',
+  'inspectWav',
+  'outcomeFromUnscorable',
+  'READ_ALOUD_MAX_REFERENCE_LENGTH',
+  'READ_ALOUD_MAX_SECONDS',
+  'READ_ALOUD_MAX_TAKES',
+  'READ_ALOUD_MAX_DIMENSION_WEIGHT',
+  'SPEECH_ASSESSMENT_MAX_WORDS',
   // schemas + registry
   'validateActivity',
   'validateItemGroup',
@@ -53,9 +64,15 @@ const REQUIRED_EXPORTS = [
   'registerActivityType',
   'dictationType',
   'gapSelectType',
+  'readAloudType',
   'DictationDataSchema',
+  'DictationSlowMediaSchema',
   'RedactedDictationDataSchema',
   'dictationJsonSchema',
+  'ReadAloudDataSchema',
+  'ReadAloudSlowMediaSchema',
+  'RedactedReadAloudDataSchema',
+  'readAloudJsonSchema',
   'MediaSchema',
   'MediaPlaybackSchema',
   'NativeControlHintSchema',
@@ -148,6 +165,7 @@ if (typeof core.createDraft === 'function' && typeof core.validateDraft === 'fun
     'written-response',
     'gap-select',
     'dictation',
+    'read-aloud',
   ]) {
     const draft = core.createDraft(type, { newId });
     const { status } = core.validateDraft(type, draft);

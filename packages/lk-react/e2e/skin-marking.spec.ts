@@ -287,6 +287,167 @@ test.describe('dictation word marks', () => {
   });
 });
 
+test.describe('read-aloud word marks', () => {
+  /**
+   * Both marked lists a read-aloud can draw.
+   *
+   * `.lk-pf-*` is the feedback panel, which practice renders from a live
+   * assessment and which can mark an insertion; `.lk-ra-*` is review, rebuilt
+   * from a stored grade's details, which carries three states because a stored
+   * mark set has no insertions. Both are here because the stylesheet writes
+   * each state as one rule over eight selectors, and a list that long is
+   * exactly where a state silently loses half its selectors.
+   */
+  const WORDS = `
+    <form class="lk-ra">
+      <ol class="lk-pf-words">
+        <li class="lk-pf-word" data-state="correct" id="pf-correct"><span class="lk-pf-word-text" aria-hidden="true">weather</span></li>
+        <li class="lk-pf-word" data-state="mispronounced" id="pf-mispronounced"><span class="lk-pf-word-text" aria-hidden="true">lovely</span></li>
+        <li class="lk-pf-word" data-state="omitted" id="pf-omitted"><span class="lk-pf-word-text" aria-hidden="true">park</span></li>
+        <li class="lk-pf-word" data-state="inserted" id="pf-inserted"><span class="lk-pf-word-text" aria-hidden="true">er</span></li>
+      </ol>
+      <ol class="lk-ra-words">
+        <li class="lk-ra-word" data-state="correct" id="ra-correct"><span class="lk-ra-word-text" aria-hidden="true">weather</span></li>
+        <li class="lk-ra-word" data-state="mispronounced" id="ra-mispronounced"><span class="lk-ra-word-text" aria-hidden="true">lovely</span></li>
+        <li class="lk-ra-word" data-state="omitted" id="ra-omitted"><span class="lk-ra-word-text" aria-hidden="true">park</span></li>
+      </ol>
+    </form>
+  `;
+
+  /** Every channel one state is allowed to speak through, less its colour. */
+  const signature = (state: {
+    decoration: string;
+    style: string;
+    outline: string;
+    glyph: string;
+  }) => `${state.decoration}/${state.style}/${state.outline}/${state.glyph}`;
+
+  test('the four states reuse the dictation vocabulary, and none is colour alone', async ({
+    page,
+  }) => {
+    await page.setContent(`<!doctype html><meta charset="utf-8"><style>${CSS}</style>${WORDS}`);
+    const seen = await page.evaluate(() => {
+      const token = (name: string) =>
+        getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      const read = (id: string) => {
+        const text = document.querySelector(`#${id} span`) as HTMLElement;
+        const cs = getComputedStyle(text);
+        return {
+          color: cs.color,
+          decoration: cs.textDecorationLine,
+          style: cs.textDecorationStyle,
+          outline: cs.outlineStyle,
+          glyph: getComputedStyle(text, '::before').content,
+        };
+      };
+      return {
+        tokens: {
+          success: token('--lk-color-success'),
+          error: token('--lk-color-error'),
+          warning: token('--lk-color-warning'),
+          muted: token('--lk-color-text-muted'),
+        },
+        correct: read('pf-correct'),
+        mispronounced: read('pf-mispronounced'),
+        omitted: read('pf-omitted'),
+        inserted: read('pf-inserted'),
+        review: {
+          correct: read('ra-correct'),
+          mispronounced: read('ra-mispronounced'),
+          omitted: read('ra-omitted'),
+        },
+      };
+    });
+
+    // D3: `mispronounced` takes the place `incorrect` holds in a dictation and
+    // the other three are unchanged, so a learner who meets both activity types
+    // reads one set of marks — and no token had to be invented for the second.
+    expect(seen.correct.color).toBe(toRgb(seen.tokens.success));
+    expect(seen.correct.decoration).toBe('none');
+    expect(seen.correct.glyph).toContain('✓');
+
+    expect(seen.mispronounced.color).toBe(toRgb(seen.tokens.error));
+    expect(seen.mispronounced.decoration).toContain('underline');
+    expect(seen.mispronounced.style).toBe('wavy');
+    expect(seen.mispronounced.glyph).toContain('✗');
+
+    expect(seen.omitted.color).toBe(toRgb(seen.tokens.warning));
+    expect(seen.omitted.outline).toBe('dotted');
+    expect(seen.omitted.decoration).toBe('none');
+    expect(seen.omitted.glyph).toContain('∅');
+
+    expect(seen.inserted.color).toBe(toRgb(seen.tokens.muted));
+    expect(seen.inserted.decoration).toContain('line-through');
+    expect(seen.inserted.glyph).toContain('+');
+
+    // Four states, four distinct signatures once the colour is taken away: the
+    // property that keeps the marking readable to someone who cannot separate
+    // red from green.
+    const signatures = new Set(
+      [seen.correct, seen.mispronounced, seen.omitted, seen.inserted].map(signature),
+    );
+    expect(signatures.size).toBe(4);
+
+    // And review marks exactly as the panel does, state for state — colour
+    // included, since the two are meant to be one vocabulary and not two.
+    expect(seen.review.correct).toEqual(seen.correct);
+    expect(seen.review.mispronounced).toEqual(seen.mispronounced);
+    expect(seen.review.omitted).toEqual(seen.omitted);
+  });
+
+  test.describe('under forced colours', () => {
+    test.use({ contextOptions: { forcedColors: 'active' } });
+
+    test('every state keeps its shape once the system palette takes the colours', async ({
+      page,
+    }) => {
+      await page.setContent(`<!doctype html><meta charset="utf-8"><style>${CSS}</style>${WORDS}`);
+      const seen = await page.evaluate(() => {
+        const read = (id: string) => {
+          const text = document.querySelector(`#${id} span`) as HTMLElement;
+          const cs = getComputedStyle(text);
+          return {
+            decoration: cs.textDecorationLine,
+            style: cs.textDecorationStyle,
+            outline: cs.outlineStyle,
+            glyph: getComputedStyle(text, '::before').content,
+          };
+        };
+        return {
+          forced: matchMedia('(forced-colors: active)').matches,
+          correct: read('pf-correct'),
+          mispronounced: read('pf-mispronounced'),
+          omitted: read('pf-omitted'),
+          inserted: read('pf-inserted'),
+          reviewOmitted: read('ra-omitted'),
+        };
+      });
+
+      expect(seen.forced, 'the page really is in forced-colors mode').toBe(true);
+
+      // Every colour above has been replaced by the system's, so the shapes are
+      // the only thing left to tell the four states apart.
+      expect(seen.correct.decoration).toBe('none');
+      expect(seen.correct.glyph).toContain('✓');
+      expect(seen.mispronounced.decoration).toContain('underline');
+      expect(seen.mispronounced.style).toBe('wavy');
+      expect(seen.mispronounced.glyph).toContain('✗');
+      expect(seen.omitted.outline).toBe('dotted');
+      expect(seen.omitted.glyph).toContain('∅');
+      expect(seen.inserted.decoration).toContain('line-through');
+      expect(seen.inserted.glyph).toContain('+');
+      // The outline is the restated one, not a leftover: review is in the same
+      // forced-colours rule, and its word is marked too.
+      expect(seen.reviewOmitted.outline).toBe('dotted');
+
+      const signatures = new Set(
+        [seen.correct, seen.mispronounced, seen.omitted, seen.inserted].map(signature),
+      );
+      expect(signatures.size).toBe(4);
+    });
+  });
+});
+
 test.describe('option layout on a narrow screen', () => {
   test.use({ viewport: { width: 375, height: 700 } });
 

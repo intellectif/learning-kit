@@ -437,6 +437,244 @@ const noResponseOutcome = () => ({
   maxScore: 1,
 });
 
+// -- Read aloud --------------------------------------------------------------
+
+/** The text every read-aloud fixture asks for: six words, with "the" read twice. */
+const READ_SENTENCE = 'the cat sat on the mat';
+/** The storage key of the recording the fixtures submit. */
+const TAKE_KEY = 'take-1';
+
+const ra = (over = {}) => ({
+  schemaVersion: '1.0',
+  type: 'read-aloud',
+  id: 'ra-sentence',
+  title: 'Read the sentence aloud',
+  referenceText: READ_SENTENCE,
+  locale: 'en-US',
+  recording: { maxSeconds: 30 },
+  scoring: {
+    dimensions: [
+      { name: 'accuracy', weight: 2 },
+      { name: 'fluency', weight: 1 },
+    ],
+  },
+  ...over,
+});
+
+/** A response carrying a stored recording. */
+const recorded = (key = TAKE_KEY) => ({
+  type: 'read-aloud',
+  recording: { key, mimeType: 'audio/wav' },
+});
+/** A response the learner submitted without recording. */
+const BLANK_TAKE = { type: 'read-aloud', recording: null };
+
+/** One assessor word: read as written, and not measured, unless said otherwise. */
+const heard = (text, over = {}) => ({ text, error: 'none', ...over });
+/** The sentence read as written, every word measured. */
+const readWords = () => READ_SENTENCE.split(' ').map((text) => heard(text, { accuracy: 90 }));
+
+const assessed = (over = {}) => ({
+  assessmentVersion: '1.0',
+  status: 'assessed',
+  task: 'scripted',
+  locale: 'en-US',
+  referenceText: READ_SENTENCE,
+  recordingKey: TAKE_KEY,
+  assessor: { kind: 'auto', id: 'pronunciation-engine' },
+  scale: 100,
+  scores: { accuracy: 80, fluency: 70 },
+  recognizedText: READ_SENTENCE,
+  miscue: 'assessor',
+  words: readWords(),
+  ...over,
+});
+
+/** A scripted assessment of `text`, with the words an assessor reported for it. */
+const assessedAs = (text, spokenWords, over = {}) =>
+  assessed({ referenceText: text, recognizedText: text, words: spokenWords, ...over });
+
+/**
+ * Grading options. The measurement and the plausibility policy are ordinary
+ * round numbers and are not a recommendation: an application measures its own
+ * microphones and sets its own floor.
+ */
+const measuredTake = (over = {}) => ({
+  measured: { durationMs: 4000, voicedMs: 2500 },
+  plausibility: { maxWordsPerSecond: 6, minVoicedMs: 500 },
+  ...over,
+});
+
+/** One refusal: what `gradeReadAloud` does with evidence it cannot tie to the take. */
+const refusal = (code, over = {}, note) => ({
+  id: `gradeReadAloud/ra/unscorable/${code}`,
+  fn: 'gradeReadAloud',
+  args: [
+    over.data ?? ra(),
+    over.response ?? recorded(),
+    over.assessment ?? assessed(),
+    over.options ?? measuredTake(),
+  ],
+  ignore: ['reason'],
+  ...(note ? { note } : {}),
+});
+
+/**
+ * `count` assessor words of `length` characters each, read as written.
+ *
+ * The text is one letter repeated because these fixtures are about how much
+ * text an assessment carries, not what it says: a word that spelled anything
+ * would invite a reader to look for meaning in a pairing that has none.
+ */
+const spelled = (count, length) =>
+  Array.from({ length: count }, () => heard('p'.repeat(length), { accuracy: 90 }));
+
+/** A text of `count` words, each one distinct, so a mark names the word it landed on. */
+const reading = (count) =>
+  Array.from({ length: count }, (_, index) => `word${index + 1}`).join(' ');
+
+/** One character that stands for four words: it NFKC expands to 18 characters. */
+const MANY_WORDS = String.fromCodePoint(0xfdfa);
+invariant(
+  MANY_WORDS.length === 1 && MANY_WORDS.normalize('NFKC').length === 18,
+  'U+FDFA no longer expands to eighteen characters',
+);
+
+/** `count` assessor words of `length` characters, each of which stands for several. */
+const expanding = (count, length) =>
+  Array.from({ length: count }, () => heard(MANY_WORDS.repeat(length), { accuracy: 90 }));
+
+/** The same words, tagged as text the assessor heard that the item never asked for. */
+const insertions = (words) => words.map((word) => ({ ...word, error: 'insertion' }));
+
+/** `count` words written as `letters` letters and `dots` full stops, which marking drops. */
+const punctuated = (count, letters, dots) =>
+  Array.from({ length: count }, () =>
+    heard(`${'p'.repeat(letters)}${'.'.repeat(dots)}`, { accuracy: 90 }),
+  );
+
+// -- WAV bytes ---------------------------------------------------------------
+//
+// Recordings small enough to read in the diff: 8 kHz, at most 25 ms, and every
+// sample written here rather than sampled from a file. The waveform is a square
+// wave of whole numbers, so no vector depends on an engine's `Math.sin`.
+
+const asciiBytes = (text) => [...text].map((character) => character.charCodeAt(0));
+const u16 = (value) => [value & 0xff, (value >>> 8) & 0xff];
+const u32 = (value) => [
+  value & 0xff,
+  (value >>> 8) & 0xff,
+  (value >>> 16) & 0xff,
+  (value >>> 24) & 0xff,
+];
+const i16 = (value) => u16(value < 0 ? value + 0x10000 : value);
+
+/** The two `fmt ` body sizes a reader recognises, and the tag that asks for the longer one. */
+const FMT_BYTES = 16;
+const EXTENSIBLE_BYTES = 40;
+const FORMAT_EXTENSIBLE = 0xfffe;
+
+/** A chunk: its id, the size of its body, the body, and the pad byte an odd size carries. */
+const chunk = (id, body, declared = body.length) => [
+  ...asciiBytes(id),
+  ...u32(declared),
+  ...body,
+  ...(body.length % 2 === 1 ? [0] : []),
+];
+
+/** The `RIFF`/`WAVE` wrapper around already-built chunks. */
+const riff = (chunks) =>
+  new Uint8Array([
+    ...asciiBytes('RIFF'),
+    ...u32(chunks.length + 4),
+    ...asciiBytes('WAVE'),
+    ...chunks,
+  ]);
+
+/** A `fmt ` body, with the WAVE_FORMAT_EXTENSIBLE tail when it is asked for. */
+const fmtBody = ({
+  audioFormat = 1,
+  channels = 1,
+  sampleRate = 8000,
+  bitsPerSample = 16,
+  blockAlign = (channels * bitsPerSample) / 8,
+  subFormat = 1,
+  extensible = false,
+} = {}) => {
+  const body = [
+    ...u16(audioFormat),
+    ...u16(channels),
+    ...u32(sampleRate),
+    ...u32(sampleRate * blockAlign),
+    ...u16(blockAlign),
+    ...u16(bitsPerSample),
+  ];
+  return extensible
+    ? [
+        ...body,
+        ...u16(22),
+        ...u16(bitsPerSample),
+        ...u32(channels === 1 ? 0x4 : 0x3),
+        ...u16(subFormat),
+        // The rest of the SubFormat GUID: the fixed KSDATAFORMAT_SUBTYPE tail.
+        ...u16(0),
+        ...u32(0x00100000),
+        ...u32(0xaa000080),
+        ...u32(0x719b3800),
+      ]
+    : body;
+};
+
+/** A whole WAV of `samples`, interleaved. `declared` overrides the size the data chunk claims. */
+const wav = (samples, options = {}, declared) =>
+  riff([...chunk('fmt ', fmtBody(options)), ...chunk('data', samples.flatMap(i16), declared)]);
+
+/** `count` samples all of the same value. */
+const level = (count, value) => Array.from({ length: count }, () => value);
+
+/** `count` samples of digital silence. */
+const quiet = (count) => level(count, 0);
+
+/** A square wave: every sample is the amplitude or its negative, so a window has a level. */
+const tone = (frames, { period = 20, amplitude = 8192 } = {}) =>
+  Array.from({ length: frames }, (_, frame) =>
+    frame % period < period / 2 ? amplitude : -amplitude,
+  );
+
+/** One 20 ms window at 8 kHz, and the silence floor the cases measure against. */
+const INSPECTION = { silenceDbfs: -50, frameMs: 20 };
+const WINDOW_FRAMES = 160;
+
+/** A `fmt ` chunk declaring 16 bytes with only 4 of them present. */
+const FMT_CUT_SHORT = new Uint8Array([
+  ...asciiBytes('RIFF'),
+  ...u32(16),
+  ...asciiBytes('WAVE'),
+  ...asciiBytes('fmt '),
+  ...u32(FMT_BYTES),
+  ...u16(1),
+  ...u16(1),
+]);
+
+/** A `fmt ` chunk declaring the extensible 40 bytes with only the plain 16 present. */
+const EXTENSIBLE_CUT_SHORT = new Uint8Array([
+  ...asciiBytes('RIFF'),
+  ...u32(28),
+  ...asciiBytes('WAVE'),
+  ...asciiBytes('fmt '),
+  ...u32(EXTENSIBLE_BYTES),
+  ...fmtBody({ audioFormat: FORMAT_EXTENSIBLE }),
+]);
+
+/** Half a window of silence, then half a window of tone, in both channels. */
+const STEREO_LATE_TONE = [...quiet(80), ...tone(40).flatMap((sample) => [sample, sample])];
+
+/**
+ * Stereo, 160 frames: 100 of silence and 60 of tone. Measured in 10 ms windows
+ * it is two windows, and the tone is in the second one alone.
+ */
+const STEREO_TWO_WINDOWS = [...quiet(200), ...tone(60).flatMap((sample) => [sample, sample])];
+
 // -- Cases -------------------------------------------------------------------
 
 export const CASES = [
@@ -3028,4 +3266,1104 @@ export const CASES = [
     id: 'const/DICTATION_MAX_ACCEPTED_TRANSCRIPTS',
     const: 'DICTATION_MAX_ACCEPTED_TRANSCRIPTS',
   },
+
+  // -- Read aloud ------------------------------------------------------------
+  //
+  // A read-aloud grade is arithmetic over an assessment the application
+  // obtained elsewhere. What is pinned here is which evidence is refused and
+  // what each refusal is called, how the weighted total is computed, and which
+  // reference word each mark lands on -- never the assessor's own numbers.
+  {
+    id: 'gradeReadAloud/ra/read-as-written',
+    fn: 'gradeReadAloud',
+    args: [ra(), recorded(), assessed(), measuredTake()],
+    note: 'The weighted total of the assessor dimensions: 80 at weight 2 and 70 at weight 1, each out of 100. The per-word marks never feed it.',
+  },
+  {
+    id: 'gradeReadAloud/ra/blank-scores-zero',
+    fn: 'gradeReadAloud',
+    args: [ra(), BLANK_TAKE, null, measuredTake({ measured: null })],
+    note: 'A learner who submitted without recording scores 0, with a mark for every reference word. Neither the assessment nor the measurement is read.',
+  },
+  {
+    id: 'gradeReadAloud/ra/dimension-scored-zero',
+    fn: 'gradeReadAloud',
+    args: [ra(), recorded(), assessed({ scores: { accuracy: 0, fluency: 70 } }), measuredTake()],
+    note: 'A dimension the assessor scored 0 is graded as a 0. The refusal below is for a dimension it did not score at all.',
+  },
+  {
+    id: 'gradeReadAloud/ra/weight-zero-dimension-is-not-required',
+    fn: 'gradeReadAloud',
+    args: [
+      ra({
+        scoring: {
+          dimensions: [
+            { name: 'accuracy', weight: 2 },
+            { name: 'fluency', weight: 0 },
+          ],
+        },
+      }),
+      recorded(),
+      assessed({ scores: { accuracy: 80 } }),
+      measuredTake(),
+    ],
+    note: 'A dimension weighed 0 is neither required of the assessment nor listed in the criteria.',
+  },
+  {
+    id: 'gradeReadAloud/ra/pass-threshold/raw-tie-fails',
+    fn: 'gradeReadAloud',
+    args: [
+      ra({ scoring: { dimensions: [{ name: 'accuracy', weight: 1 }] } }),
+      recorded(),
+      assessed({ scores: { accuracy: 69.995 } }),
+      measuredTake(),
+    ],
+    note: 'Raw 0.69995 is below 0.7: a fail by default, though it displays as 70%.',
+  },
+  {
+    id: 'gradeReadAloud/ra/pass-threshold/rounded-tie-passes',
+    fn: 'gradeReadAloud',
+    args: [
+      ra({ scoring: { dimensions: [{ name: 'accuracy', weight: 1 }] } }),
+      recorded(),
+      assessed({ scores: { accuracy: 69.995 } }),
+      measuredTake({ rounding: HALF_UP_2 }),
+    ],
+    note: 'The same take with the opt-in rounding option: compared as displayed, it passes. The score itself stays unrounded.',
+  },
+  {
+    id: 'gradeReadAloud/ra/marks-an-omission-an-insertion-and-a-mispronunciation',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed({
+        words: [
+          heard('the', { accuracy: 95 }),
+          heard('big', { error: 'insertion', accuracy: 40 }),
+          heard('cat', { accuracy: 88 }),
+          heard('sat', { error: 'omission' }),
+          heard('on', { accuracy: 71 }),
+          heard('the', { accuracy: 64 }),
+          heard('hat', { error: 'mispronunciation', accuracy: 33 }),
+        ],
+      }),
+      measuredTake(),
+    ],
+    note: 'An inserted word carries no itemId and so no mark; an omitted word is marked 0; a mispronounced one keeps the assessor accuracy as its mark.',
+  },
+  {
+    id: 'gradeReadAloud/ra/word-without-accuracy-carries-no-mark',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed({
+        words: [
+          heard('the', { accuracy: 90 }),
+          heard('cat', { accuracy: 90 }),
+          heard('sat'),
+          heard('on', { accuracy: 90 }),
+          heard('the', { accuracy: 90 }),
+          heard('mat', { accuracy: 90 }),
+        ],
+      }),
+      measuredTake(),
+    ],
+    note: 'A word the assessor did not measure has no `score` key at all: an unmeasured word is not a word read at 0.',
+  },
+  {
+    id: 'gradeReadAloud/ra/miscue-none-marks-a-recognised-word-that-is-not-the-reference',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed({
+        miscue: 'none',
+        recognizedText: 'the cot sat on the mat',
+        words: [
+          heard('the', { accuracy: 90 }),
+          heard('cot', { accuracy: 44 }),
+          heard('sat', { accuracy: 90 }),
+          heard('on', { accuracy: 90 }),
+          heard('the', { accuracy: 90 }),
+          heard('mat', { accuracy: 90 }),
+        ],
+      }),
+      measuredTake(),
+    ],
+    note: 'An assessor that does not judge miscues reports every word it heard as `none`, so the SDK compares the words itself.',
+  },
+  {
+    id: 'gradeReadAloud/ra/ai-assessor-accepted-when-opted-in',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed({ assessor: { kind: 'ai', model: 'example-model-1' } }),
+      measuredTake({ allowAiAssessor: true }),
+    ],
+    note: 'The grader recorded on the grade is a copy of the assessor, so a re-grade years later still says who measured it.',
+  },
+  {
+    id: 'gradeReadAloud/ra/human-assessor-accepted',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed({ assessor: { kind: 'human', id: 'grader-7' } }),
+      measuredTake(),
+    ],
+    note: 'A person needs no opt-in: only generative evidence does.',
+  },
+  refusal(
+    'invalid_assessment',
+    { assessment: assessed({ scale: 10 }) },
+    'Assessor scores are out of 100. A 10-point scale is refused, never read as a tenth of the marks.',
+  ),
+  refusal('task_mismatch', { assessment: assessed({ task: 'unscripted' }) }),
+  refusal('locale_mismatch', { assessment: assessed({ locale: 'en-GB' }) }),
+  refusal(
+    'reference_mismatch',
+    { assessment: assessed({ referenceText: 'the cat sat on the hat' }) },
+    'The text compared exactly: an assessment of a different text cannot mark this one.',
+  ),
+  refusal('recording_mismatch', { response: recorded('take-2') }),
+  refusal(
+    'assessor_not_accepted',
+    { assessment: assessed({ assessor: { kind: 'ai', model: 'example-model-1' } }) },
+    'Generative evidence is refused unless the caller opted in with allowAiAssessor.',
+  ),
+  refusal('no_speech', {
+    assessment: assessed({ status: 'no_speech', scores: {}, recognizedText: '', words: [] }),
+  }),
+  refusal(
+    'insufficient_voiced_time',
+    { options: measuredTake({ measured: { durationMs: 4000, voicedMs: 100 } }) },
+    'Too little voiced time to judge: a learner who was barely heard has not failed.',
+  ),
+  refusal(
+    'implausible_speech_rate',
+    { options: measuredTake({ measured: { durationMs: 4000, voicedMs: 600 } }) },
+    'Six words in 0.6 s of voiced time is 10 a second, above the 6 the policy allows: the evidence does not describe this recording.',
+  ),
+  refusal(
+    'missing_dimension',
+    { assessment: assessed({ scores: { accuracy: 80 } }) },
+    'The item weighs fluency and the assessment carries no fluency score. Grading the rest would silently reweight the item.',
+  ),
+  {
+    id: 'gradeReadAloud/ra/refuses-a-plausibility-policy-it-cannot-apply',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed(),
+      { measured: { durationMs: 4000, voicedMs: 2500 }, plausibility: { minVoicedMs: 500 } },
+    ],
+    note: 'A policy the server cannot apply is its own bug, not evidence to refuse: it throws rather than marking every take unscorable.',
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-a-response-that-is-not-read-aloud',
+    fn: 'gradeReadAloud',
+    args: [ra(), typed('the cat sat on the mat'), assessed(), measuredTake()],
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-data-that-is-not-valid',
+    fn: 'gradeReadAloud',
+    args: [ra({ locale: 'en' }), recorded(), assessed({ locale: 'en' }), measuredTake()],
+    note: 'A locale without a region does not say whose pronunciation is assessed; the data is refused before any evidence is read.',
+  },
+  {
+    id: 'alignReadAloud/ra/omission-insertion-and-mispronunciation',
+    fn: 'alignReadAloud',
+    args: [
+      { referenceText: READ_SENTENCE },
+      assessed({
+        words: [
+          heard('the', { accuracy: 95 }),
+          heard('big', { error: 'insertion', accuracy: 40 }),
+          heard('cat', { accuracy: 88 }),
+          heard('sat', { error: 'omission' }),
+          heard('on', { accuracy: 71 }),
+          heard('the', { accuracy: 64 }),
+          heard('hat', { error: 'mispronunciation', accuracy: 33 }),
+        ],
+      }),
+    ],
+    note: 'An inserted word is placed after the last token that came from an earlier assessor word.',
+  },
+  {
+    id: 'alignReadAloud/ra/repeated-word-omitted-at-the-tail',
+    fn: 'alignReadAloud',
+    args: [
+      { referenceText: READ_SENTENCE },
+      assessed({
+        recognizedText: 'the cat sat on mat',
+        words: ['the', 'cat', 'sat', 'on', 'mat'].map((text) => heard(text)),
+      }),
+    ],
+    note: 'Both "the"s are the same token: the pairing is backtracked from the end, so it is the second one that is omitted.',
+  },
+  {
+    id: 'alignReadAloud/ra/punctuation-merges-two-words',
+    fn: 'alignReadAloud',
+    args: [
+      { referenceText: 'rock and roll' },
+      assessedAs('rock and roll', [heard('rock&roll', { accuracy: 55 })], {
+        recognizedText: 'rock&roll',
+      }),
+    ],
+    note: 'Normalisation deletes punctuation rather than spacing it, so one heard token covers two reference words: the first two are omitted and the third pairs.',
+  },
+  {
+    id: 'alignReadAloud/ra/a-word-that-yields-no-token',
+    fn: 'alignReadAloud',
+    args: [
+      { referenceText: 'the cat sat' },
+      assessedAs('the cat sat', [heard('the'), heard(EM_DASH), heard('cat'), heard('sat')]),
+    ],
+    note: 'A word that normalises to nothing contributes no token, and the words after it keep their own wordIndex.',
+  },
+  {
+    id: 'alignReadAloud/ra/a-word-that-yields-two-tokens',
+    fn: 'alignReadAloud',
+    args: [
+      { referenceText: 'the cat sat' },
+      assessedAs('the cat sat', [heard('the cat', { accuracy: 61 }), heard('sat')]),
+    ],
+    note: 'One assessor word can hold two tokens; both marks then carry that word accuracy and its index.',
+  },
+  {
+    id: 'alignReadAloud/ra/miscue-assessor-is-trusted',
+    fn: 'alignReadAloud',
+    args: [
+      { referenceText: 'the cat sat' },
+      assessedAs('the cat sat', [heard('the'), heard('cot', { accuracy: 44 }), heard('sat')], {
+        miscue: 'assessor',
+        recognizedText: 'the cot sat',
+      }),
+    ],
+    note: 'An assessor that judges miscues said this word was read correctly, so the SDK does not overrule it on the spelling.',
+  },
+  {
+    id: 'alignReadAloud/ra/miscue-none-judges-the-word-itself',
+    fn: 'alignReadAloud',
+    args: [
+      { referenceText: 'the cat sat' },
+      assessedAs('the cat sat', [heard('the'), heard('cot', { accuracy: 44 }), heard('sat')], {
+        miscue: 'none',
+        recognizedText: 'the cot sat',
+      }),
+    ],
+    note: 'The same words from an assessor that does not judge miscues: the SDK compares them itself.',
+  },
+  {
+    id: 'alignReadAloud/ra/refuses-something-that-is-not-an-assessment',
+    fn: 'alignReadAloud',
+    args: [{ referenceText: READ_SENTENCE }, { words: [] }],
+  },
+  {
+    id: 'validateSpeechAssessment/accepts-a-scripted-assessment',
+    fn: 'validateSpeechAssessment',
+    args: [assessed()],
+  },
+  ...[
+    ['not-an-object', null],
+    ['unknown-key', assessed({ words: [{ text: 'the', error: 'none', accuraccy: 90 }] })],
+    [
+      'scripted-without-its-bindings',
+      assessed({ referenceText: undefined, recordingKey: undefined }),
+    ],
+    [
+      'phonemes-without-an-alphabet',
+      assessed({
+        words: [heard('the', { phonemes: [{ symbol: 'th', accuracy: 70 }] })],
+      }),
+    ],
+    ['score-off-the-scale', assessed({ scores: { accuracy: 101 } })],
+    ['negative-timing', assessed({ words: [heard('the', { startMs: -1 })] })],
+  ].map(([name, value]) => ({
+    id: `validateSpeechAssessment/refuses/${name}`,
+    fn: 'validateSpeechAssessment',
+    args: [value],
+    // The path and the code are the contract an adapter branches on; the
+    // message is prose, and zod may reword it in a patch release.
+    ignore: ['message'],
+  })),
+  {
+    id: 'outcomeFromUnscorable/lifts-a-refusal',
+    fn: 'outcomeFromUnscorable',
+    args: [{ code: 'no_speech', reason: 'The assessor heard no speech in this recording.' }],
+    note: 'The code survives into the stored outcome, where an application branches on it. `evaluate` never writes one.',
+  },
+  {
+    id: 'evaluate/ra/deferred-with-a-recording',
+    fn: 'evaluate',
+    args: [ra(), recorded()],
+  },
+  {
+    id: 'evaluate/ra/deferred-for-a-blank',
+    fn: 'evaluate',
+    args: [ra(), BLANK_TAKE],
+    note: 'A submitted blank is still awaiting nothing: the partial says there is no recording to assess.',
+  },
+  {
+    id: 'evaluate/ra/no-response-at-all',
+    fn: 'evaluate',
+    args: [ra(), undefined],
+  },
+  {
+    id: 'score/ra/throws-rather-than-zero',
+    fn: 'score',
+    args: ['read-aloud', ra(), recorded()],
+    note: 'score() refuses to invent a number for a reading no assessor has measured.',
+  },
+  {
+    id: 'inspectWav/silence-is-not-voiced',
+    fn: 'inspectWav',
+    args: [wav(quiet(WINDOW_FRAMES)), INSPECTION],
+    note: 'Digital silence has no level to report: peakDbfs is -Infinity, where a 0 would read as full scale.',
+  },
+  {
+    id: 'inspectWav/a-tone-is-voiced',
+    fn: 'inspectWav',
+    args: [wav(tone(WINDOW_FRAMES)), INSPECTION],
+  },
+  {
+    id: 'inspectWav/partial-last-window-is-measured-on-its-own',
+    fn: 'inspectWav',
+    args: [wav([...tone(WINDOW_FRAMES), ...quiet(40)]), INSPECTION],
+    note: 'The last window is as long as what is left of the recording, and it is judged on its own level: 25 ms of audio, 20 ms of it voiced.',
+  },
+  {
+    id: 'inspectWav/stereo-is-measured-across-both-channels',
+    fn: 'inspectWav',
+    args: [
+      wav(
+        tone(80).flatMap((sample) => [sample, 0]),
+        { channels: 2 },
+      ),
+      INSPECTION,
+    ],
+    note: 'A silent second channel lowers the window RMS without shortening the recording: frames, not samples, are its length, and the peak is the loudest sample of any channel.',
+  },
+  {
+    id: 'inspectWav/sample-rate-decides-the-window',
+    fn: 'inspectWav',
+    args: [wav(tone(WINDOW_FRAMES), { sampleRate: 16000 }), INSPECTION],
+    note: 'At 16 kHz a 20 ms window is 320 frames, so these 160 frames are one partial window of 10 ms.',
+  },
+  {
+    id: 'inspectWav/extensible-format-is-read',
+    fn: 'inspectWav',
+    args: [wav(tone(80), { audioFormat: 0xfffe, extensible: true }), INSPECTION],
+    note: 'WAVE_FORMAT_EXTENSIBLE carries the real format in its SubFormat GUID, and a PCM one is read.',
+  },
+  {
+    id: 'inspectWav/odd-chunk-is-padded',
+    fn: 'inspectWav',
+    args: [
+      riff([
+        ...chunk('LIST', asciiBytes('INF')),
+        ...chunk('fmt ', fmtBody()),
+        ...chunk('data', tone(80).flatMap(i16)),
+      ]),
+      INSPECTION,
+    ],
+    note: 'A chunk of odd size is followed by a pad byte; a walk that ignored it would read the next id one byte late.',
+  },
+  {
+    id: 'inspectWav/truncated-data-chunk',
+    fn: 'inspectWav',
+    args: [wav(quiet(8), {}, 1000), INSPECTION],
+    note: 'The data chunk claims more bytes than the file holds: measured as far as it goes, it would understate the recording.',
+  },
+  {
+    id: 'inspectWav/not-sixteen-bit',
+    fn: 'inspectWav',
+    args: [wav(quiet(8), { bitsPerSample: 8, blockAlign: 1 }), INSPECTION],
+  },
+  {
+    id: 'inspectWav/data-before-the-format',
+    fn: 'inspectWav',
+    args: [
+      riff([...chunk('data', quiet(4).flatMap(i16)), ...chunk('fmt ', fmtBody())]),
+      INSPECTION,
+    ],
+    note: 'Samples before the format that describes them: the file cannot be read in one pass.',
+  },
+  {
+    id: 'inspectWav/not-a-wav',
+    fn: 'inspectWav',
+    args: [new Uint8Array(asciiBytes('nope')), INSPECTION],
+  },
+  {
+    id: 'inspectWav/refuses-bytes-that-are-not-a-byte-array',
+    fn: 'inspectWav',
+    args: [[82, 73, 70, 70], INSPECTION],
+    note: 'An array of numbers is not a recording: the refusal is a TypeError, not a measurement of nothing.',
+  },
+  {
+    id: 'inspectWav/refuses-a-policy-it-cannot-apply',
+    fn: 'inspectWav',
+    args: [wav(quiet(8)), { silenceDbfs: 6, frameMs: 20 }],
+    note: 'Full scale is 0 dBFS: a floor above it would call every window voiced.',
+  },
+  {
+    id: 'gradeFromRubric/rounding/option-threshold-raw-tie-fails',
+    fn: 'gradeFromRubric',
+    args: [[{ name: 'accuracy', score: 69.995, maxScore: 100 }], undefined, { passThreshold: 0.7 }],
+    note: 'The control for the three rounded branches below: without a policy the raw 0.69995 is compared, and it fails.',
+  },
+  {
+    id: 'gradeFromRubric/rounding/option-threshold-rounded-tie-passes',
+    fn: 'gradeFromRubric',
+    args: [
+      [{ name: 'accuracy', score: 69.995, maxScore: 100 }],
+      undefined,
+      { passThreshold: 0.7, rounding: HALF_UP_2 },
+    ],
+  },
+  {
+    id: 'gradeFromRubric/rounding/activity-threshold-rounded-tie-passes',
+    fn: 'gradeFromRubric',
+    args: [[{ name: 'accuracy', score: 69.995, maxScore: 100 }], ra(), { rounding: HALF_UP_2 }],
+    note: 'The branch that reads the item: the activity carries no threshold, so it is the 0.7 default, compared as displayed.',
+  },
+  {
+    id: 'gradeFromRubric/rounding/default-threshold-rounded-tie-passes',
+    fn: 'gradeFromRubric',
+    args: [
+      [{ name: 'accuracy', score: 69.995, maxScore: 100 }],
+      undefined,
+      { rounding: HALF_UP_2 },
+    ],
+    note: 'The branch with neither an option nor an item: the literal 0.7, compared as displayed.',
+  },
+  {
+    id: 'gradeFromRubric/rounding/malformed-policy-throws',
+    fn: 'gradeFromRubric',
+    args: [
+      [{ name: 'accuracy', score: 69.995, maxScore: 100 }],
+      undefined,
+      { rounding: { mode: 'half-up', dp: 2.5 } },
+    ],
+    note: 'A policy that cannot be applied is the caller configuration, and it throws before anything is graded.',
+  },
+  // -- Read aloud: the boundaries a mutation sweep found unpinned ------------
+  //
+  // Each of these tells two builds apart that every other vector agreed on: a
+  // policy value at the edge of what can be applied, a measurement that is not
+  // a number, a malformed recording, or a window whose samples are not all
+  // alike. They are ordinary inputs written at their boundary, not fixtures for
+  // the mutants themselves.
+  {
+    id: 'gradeReadAloud/ra/no-words-and-no-recognised-text',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed({ recognizedText: undefined, words: [] }),
+      {
+        measured: { durationMs: 0, voicedMs: 0 },
+        plausibility: { maxWordsPerSecond: 6, minVoicedMs: 0 },
+      },
+    ],
+    note: 'An assessor that reported dimension scores and no words: there is no rate to check, a voiced time of 0 is refused only by a policy that asks for one, and every reference word is marked unread.',
+  },
+  {
+    id: 'gradeReadAloud/ra/speech-rate-at-exactly-the-policy-limit',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed(),
+      measuredTake({ measured: { durationMs: 2000, voicedMs: 1000 } }),
+    ],
+    note: 'Six words in exactly one second under a policy of six a second: the limit is the last plausible rate, not the first implausible one.',
+  },
+  {
+    id: 'gradeReadAloud/ra/speech-rate-counts-the-recognised-text',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed({ words: [] }),
+      measuredTake({ measured: { durationMs: 4000, voicedMs: 600 } }),
+    ],
+    ignore: ['reason'],
+    note: 'The rate is counted from the text the assessor recognised whenever it reported any, so a word list it left empty does not make a take plausible.',
+  },
+  {
+    id: 'gradeReadAloud/ra/speech-rate-counts-the-words-that-were-read',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed({
+        recognizedText: undefined,
+        words: [
+          heard('the'),
+          heard('cat'),
+          heard('sat', { error: 'omission' }),
+          heard('big', { error: 'insertion' }),
+          heard('on'),
+          heard('the'),
+        ],
+      }),
+      measuredTake({ measured: { durationMs: 4000, voicedMs: 600 } }),
+    ],
+    ignore: ['reason'],
+    note: 'With nothing recognised the words are counted, minus the one that was not read and the one the text does not contain: four in 0.6 s is above the policy, where either error alone would count one.',
+  },
+  {
+    id: 'gradeReadAloud/ra/speech-rate-ignores-an-omission-and-an-insertion',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed({
+        recognizedText: undefined,
+        words: [
+          heard('the'),
+          heard('cat'),
+          heard('sat', { error: 'omission' }),
+          heard('big', { error: 'insertion' }),
+          heard('on'),
+          heard('the'),
+        ],
+      }),
+      {
+        measured: { durationMs: 4000, voicedMs: 600 },
+        plausibility: { maxWordsPerSecond: 8, minVoicedMs: 500 },
+      },
+    ],
+    note: 'The same take under a policy of eight words a second: the four that were read are plausible, where counting the omission and the insertion as spoken would refuse it.',
+  },
+  {
+    id: 'gradeReadAloud/ra/a-single-word-can-be-implausible',
+    fn: 'gradeReadAloud',
+    args: [
+      ra({ referenceText: 'hello' }),
+      recorded(),
+      assessed({
+        referenceText: 'hello',
+        recognizedText: 'hello',
+        words: [heard('hello', { accuracy: 90 })],
+      }),
+      {
+        measured: { durationMs: 100, voicedMs: 100 },
+        plausibility: { maxWordsPerSecond: 6, minVoicedMs: 0 },
+      },
+    ],
+    ignore: ['reason'],
+    note: 'One word in a tenth of a second is ten a second: a single word is counted like any other.',
+  },
+  {
+    id: 'gradeReadAloud/ra/only-a-voiced-time-of-zero-skips-the-division',
+    fn: 'gradeReadAloud',
+    args: [
+      ra({ referenceText: 'hello' }),
+      recorded(),
+      assessed({
+        referenceText: 'hello',
+        recognizedText: 'hello',
+        words: [heard('hello', { accuracy: 90 })],
+      }),
+      {
+        measured: { durationMs: 1, voicedMs: 1 },
+        plausibility: { maxWordsPerSecond: 2000, minVoicedMs: 0 },
+      },
+    ],
+    note: 'A policy this permissive is not a recommendation: the take pins that only a voiced time of exactly 0 refuses without dividing by it.',
+  },
+  {
+    id: 'gradeReadAloud/ra/a-rate-of-one-word-a-second',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed(),
+      measuredTake({ plausibility: { maxWordsPerSecond: 1, minVoicedMs: 500 } }),
+    ],
+    ignore: ['reason'],
+    note: 'One word a second is a policy that can be applied, however strict: it refuses the take rather than the policy.',
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-a-rate-of-zero',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed(),
+      measuredTake({ plausibility: { maxWordsPerSecond: 0, minVoicedMs: 500 } }),
+    ],
+    note: 'A rate of 0 words a second could never be met, so it is a policy that cannot be applied rather than a take that fails it.',
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-a-rate-that-is-not-a-number',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed(),
+      measuredTake({ plausibility: { maxWordsPerSecond: Number.NaN, minVoicedMs: 500 } }),
+    ],
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-a-minimum-voiced-time-that-is-not-a-number',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed(),
+      measuredTake({ plausibility: { maxWordsPerSecond: 6, minVoicedMs: Number.NaN } }),
+    ],
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-a-measurement-that-is-not-a-number',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed(),
+      measuredTake({ measured: { durationMs: Number.NaN, voicedMs: 0 } }),
+    ],
+    note: 'A measurement that is not a pair of millisecond counts is a bug in the server that grades: it throws rather than grading around a NaN.',
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-a-duration-below-zero-by-less-than-the-tolerance',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed(),
+      measuredTake({ measured: { durationMs: -1e-6, voicedMs: 0 } }),
+    ],
+    note: 'A duration below zero by exactly the slack that lets a voiced time round past it. A recording of negative length is a bug in whatever measured it, and the tolerance exists for the one comparison between the two counts, not as permission for either to go negative: every other negative duration is already caught by that comparison, so this is the only width where the rule has to answer on its own.',
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-a-voiced-time-that-is-not-a-number',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed(),
+      measuredTake({ measured: { durationMs: 4000, voicedMs: Number.NaN } }),
+    ],
+    note: 'A voiced time of NaN compares false against every policy, so it would pass every check it was meant to face.',
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-a-voiced-time-longer-than-the-recording',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed(),
+      measuredTake({ measured: { durationMs: 4000, voicedMs: 5000 } }),
+    ],
+    note: 'More voiced time than there is recording is not a measurement of this recording.',
+  },
+  {
+    id: 'gradeReadAloud/ra/voiced-time-may-stand-a-float-tick-past-the-duration',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed(),
+      measuredTake({ measured: { durationMs: 4000, voicedMs: 4000 + 1e-6 } }),
+    ],
+    note: 'Voiced time is summed window by window, so it can land a hair above the duration it was measured from: exactly one part in a million is inside the recording, and more is not.',
+  },
+  {
+    id: 'gradeReadAloud/ra/needs-an-assessment-for-a-take',
+    fn: 'gradeReadAloud',
+    args: [ra(), recorded(), null, measuredTake()],
+    note: 'No assessment at all is a missing argument, not evidence to refuse on its merits.',
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-a-recording-without-a-key',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      { type: 'read-aloud', recording: { key: '', mimeType: 'audio/wav' } },
+      assessed(),
+      measuredTake(),
+    ],
+    note: 'An empty key names no stored recording. It is not the blank either: a blank is `recording: null`, a decision the learner made.',
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-a-recording-that-is-not-an-object',
+    fn: 'gradeReadAloud',
+    args: [ra(), { type: 'read-aloud', recording: TAKE_KEY }, assessed(), measuredTake()],
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-another-type-that-carries-a-recording',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      { type: 'dictation', recording: { key: TAKE_KEY, mimeType: 'audio/wav' } },
+      assessed(),
+      measuredTake(),
+    ],
+    note: 'The response type is read, not only the recording: a response of another type is refused even when it carries one.',
+  },
+  {
+    id: 'alignReadAloud/ra/an-insertion-before-every-reference-word',
+    fn: 'alignReadAloud',
+    args: [
+      { referenceText: 'the cat sat' },
+      assessedAs('the cat sat', [
+        heard('um', { error: 'insertion', accuracy: 20 }),
+        heard('the'),
+        heard('cat'),
+        heard('sat'),
+      ]),
+    ],
+    note: 'A word said before anything the text asks for goes first: there is no earlier entry to place it after.',
+  },
+  {
+    id: 'validateSpeechAssessment/accepts-zero-and-one-at-the-bounds',
+    fn: 'validateSpeechAssessment',
+    args: [
+      assessed({
+        scores: { accuracy: 0, fluency: 100 },
+        phonemeAlphabet: 'ipa',
+        words: [
+          {
+            text: 'the',
+            error: 'none',
+            accuracy: 0,
+            startMs: 0,
+            durationMs: 0,
+            breaks: { unexpected: 0, missing: 1 },
+            syllables: [{ text: 'the', accuracy: 0, startMs: 0, durationMs: 0 }],
+            phonemes: [
+              {
+                symbol: 'th',
+                accuracy: 0,
+                startMs: 0,
+                durationMs: 0,
+                heardAs: [{ symbol: 'f', score: 0 }],
+              },
+            ],
+          },
+        ],
+        prosody: { monotoneConfidence: 1 },
+        signal: { snrDb: 0 },
+      }),
+    ],
+    note: 'Both ends of every scale are inside it: 0 and 100 for a score, 0 and 1 for a confidence, and 0 ms for a time or a length.',
+  },
+  ...[
+    [
+      'empty-strings',
+      assessed({
+        recordingKey: '',
+        phonemeAlphabet: 'ipa',
+        words: [
+          {
+            text: '',
+            error: 'none',
+            syllables: [{ text: '' }],
+            phonemes: [{ symbol: '', heardAs: [{ symbol: '', score: 50 }] }],
+          },
+        ],
+      }),
+    ],
+    [
+      'a-phoneme-that-is-not-an-object',
+      assessed({ words: [{ text: 'the', error: 'none', phonemes: [null] }] }),
+    ],
+    [
+      'heard-as-without-an-alphabet',
+      assessed({
+        words: [
+          { text: 'the', error: 'none', phonemes: [{ heardAs: [{ symbol: 'f', score: 50 }] }] },
+        ],
+      }),
+    ],
+  ].map(([name, value]) => ({
+    id: `validateSpeechAssessment/refuses/${name}`,
+    fn: 'validateSpeechAssessment',
+    args: [value],
+    ignore: ['message'],
+  })),
+  {
+    id: 'inspectWav/an-empty-data-chunk',
+    fn: 'inspectWav',
+    args: [wav([]), INSPECTION],
+    note: 'A header and a data chunk that declares nothing: a recording of no length, which is not the same as a file whose samples are missing.',
+  },
+  {
+    id: 'inspectWav/header-without-samples',
+    fn: 'inspectWav',
+    args: [riff(chunk('fmt ', fmtBody())), INSPECTION],
+    note: 'A format and no data chunk at all: the samples are missing, not empty.',
+  },
+  {
+    id: 'inspectWav/no-format-chunk',
+    fn: 'inspectWav',
+    args: [riff(chunk('LIST', asciiBytes('INFO'))), INSPECTION],
+    note: 'A RIFF/WAVE file that never says what its audio is.',
+  },
+  {
+    id: 'inspectWav/format-chunk-cut-short',
+    fn: 'inspectWav',
+    args: [FMT_CUT_SHORT, INSPECTION],
+    note: 'The file ends inside the chunk that describes the audio: the encoding cannot be named, and reading past the end is not the answer.',
+  },
+  {
+    id: 'inspectWav/extensible-chunk-cut-short',
+    fn: 'inspectWav',
+    args: [EXTENSIBLE_CUT_SHORT, INSPECTION],
+    note: 'A chunk that declares the extensible 40 bytes and carries 16: the SubFormat it points at is past the end of the file.',
+  },
+  {
+    id: 'inspectWav/extensible-header-without-samples',
+    fn: 'inspectWav',
+    args: [
+      riff(chunk('fmt ', fmtBody({ audioFormat: FORMAT_EXTENSIBLE, extensible: true }))),
+      INSPECTION,
+    ],
+    note: 'The extensible tail ends exactly at the end of the file, which is enough to read it, and leaves no data chunk.',
+  },
+  {
+    id: 'inspectWav/extensible-format-without-its-tail',
+    fn: 'inspectWav',
+    args: [wav(level(8, 1), { audioFormat: FORMAT_EXTENSIBLE }), INSPECTION],
+    note: 'The extensible tag with only the plain 16-byte body: the SubFormat that would say what the audio really is was never written, so nothing else may stand in for it.',
+  },
+  {
+    id: 'inspectWav/eight-bit-samples-with-a-matching-block-align',
+    fn: 'inspectWav',
+    args: [wav(quiet(8), { bitsPerSample: 8, blockAlign: 2 }), INSPECTION],
+    note: 'Only the sample width is wrong, and it alone is enough: 8-bit samples read as 16-bit would be a measurement of noise.',
+  },
+  {
+    id: 'inspectWav/zero-channels',
+    fn: 'inspectWav',
+    args: [wav([], { channels: 0, blockAlign: 0 }), INSPECTION],
+    note: 'Audio of no channels is not audio, and a block of no bytes has no frames to count.',
+  },
+  {
+    id: 'inspectWav/zero-sample-rate',
+    fn: 'inspectWav',
+    args: [wav(quiet(4), { sampleRate: 0 }), INSPECTION],
+    note: 'Samples at no rate have no duration: a length in seconds needs a rate to divide by.',
+  },
+  {
+    id: 'inspectWav/one-sample-a-second',
+    fn: 'inspectWav',
+    args: [wav(quiet(4), { sampleRate: 1 }), INSPECTION],
+    note: 'A rate of 1 is absurd and readable: four seconds of silence, in windows of one frame, because a 20 ms window rounds to none.',
+  },
+  {
+    id: 'inspectWav/a-data-chunk-longer-than-the-file',
+    fn: 'inspectWav',
+    args: [wav(quiet(8), {}, 80), INSPECTION],
+    note: 'The data chunk declares 80 bytes and 16 are there. Measuring what arrived would report a recording shorter than the one the learner made.',
+  },
+  {
+    id: 'inspectWav/a-single-loud-sample',
+    fn: 'inspectWav',
+    args: [wav([32767, ...quiet(159)]), INSPECTION],
+    note: 'One full-scale sample in an otherwise silent window: the peak is that sample, and the window is voiced on its RMS across every sample it holds.',
+  },
+  {
+    id: 'inspectWav/below-the-silence-floor',
+    fn: 'inspectWav',
+    args: [wav(level(WINDOW_FRAMES, 1)), INSPECTION],
+    note: 'The quietest audible sample there is, at -90 dBFS: read, measured, and not voiced.',
+  },
+  {
+    id: 'inspectWav/a-riff-signature-is-required',
+    fn: 'inspectWav',
+    args: [Uint8Array.from([...asciiBytes('JUNK'), ...wav(tone(80)).slice(4)]), INSPECTION],
+    note: 'Everything after the first four bytes is a readable WAV. Both signatures are checked, so a file that only looks like one from the middle is still not one.',
+  },
+  {
+    id: 'inspectWav/stereo-across-two-windows',
+    fn: 'inspectWav',
+    args: [wav(STEREO_TWO_WINDOWS, { channels: 2 }), { silenceDbfs: -50, frameMs: 10 }],
+    note: 'Two windows of a two-channel recording: the second window starts at its own frame, counted in samples of every channel, and it is the only one with anything in it.',
+  },
+  {
+    id: 'inspectWav/stereo-silence-then-a-tone',
+    fn: 'inspectWav',
+    args: [wav(STEREO_LATE_TONE, { channels: 2 }), INSPECTION],
+    note: 'A window is measured across every sample of every channel it covers: half of this one is silent, and it is still voiced.',
+  },
+  {
+    id: 'inspectWav/a-floor-at-full-scale',
+    fn: 'inspectWav',
+    args: [wav(level(WINDOW_FRAMES, -32768)), { silenceDbfs: 0, frameMs: 20 }],
+    note: 'A floor of 0 dBFS is applicable, if unusable: the loudest audio there is sits exactly on it, and a window at the floor is voiced.',
+  },
+  {
+    id: 'inspectWav/refuses-a-floor-above-full-scale',
+    fn: 'inspectWav',
+    args: [wav(tone(80)), { silenceDbfs: 1, frameMs: 20 }],
+  },
+  {
+    id: 'inspectWav/refuses-a-floor-that-is-not-a-number',
+    fn: 'inspectWav',
+    args: [wav(tone(80)), { silenceDbfs: Number.NaN, frameMs: 20 }],
+  },
+  {
+    id: 'inspectWav/a-one-millisecond-window',
+    fn: 'inspectWav',
+    args: [wav(tone(WINDOW_FRAMES)), { silenceDbfs: -50, frameMs: 1 }],
+    note: 'The shortest window these fixtures use: 8 frames at 8 kHz, and every one of them voiced.',
+  },
+  {
+    id: 'inspectWav/refuses-a-window-of-zero',
+    fn: 'inspectWav',
+    args: [wav(tone(80)), { silenceDbfs: -50, frameMs: 0 }],
+  },
+  {
+    id: 'inspectWav/refuses-a-window-that-is-not-a-number',
+    fn: 'inspectWav',
+    args: [wav(tone(80)), { silenceDbfs: -50, frameMs: Number.NaN }],
+  },
+  // -- Read aloud: the bounds on the evidence --------------------------------
+  //
+  // How much text an assessment may carry between its words, how much that text
+  // may spell once it is normalised, where the aligner stops reading it, and
+  // what a grade does with evidence past either bound -- then the two items a
+  // grade never comes from: a text that would mark no word, and a learner-safe
+  // projection with the answer key taken out of it.
+  {
+    id: 'validateSpeechAssessment/accepts-words-at-the-text-bound',
+    fn: 'validateSpeechAssessment',
+    args: [assessed({ words: [...spelled(39, 200), heard('p'.repeat(161), { accuracy: 90 })] })],
+    note: 'What the words spell is what the aligner reads, so it is what the bound is measured in: 39 words at the 200-character cap and one of 161 spell exactly 8,000 between them, the space that joins each to the one before it counted with it. At the bound, not past it.',
+  },
+  {
+    id: 'validateSpeechAssessment/refuses/words-one-character-past-the-text-bound',
+    fn: 'validateSpeechAssessment',
+    args: [assessed({ words: [...spelled(40, 200), heard('p', { accuracy: 90 })] })],
+    ignore: ['message'],
+    note: 'Forty words at the cap and one character more: 8,001 as the words are written, which is refused without normalising a character of them. Reported at `words`, where no single word broke a rule of its own.',
+  },
+  {
+    id: 'validateSpeechAssessment/refuses/words-one-character-past-what-they-spell',
+    fn: 'validateSpeechAssessment',
+    args: [assessed({ words: [...spelled(39, 200), heard('p'.repeat(162), { accuracy: 90 })] })],
+    ignore: ['message'],
+    note: 'One character past the bound above, and 7,962 as the words are written: inside the cap on what they carry, past the cap on what they spell. The aligner would read 8,000 of it and mark the rest of the reading as unread, so the evidence is refused rather than aligned.',
+  },
+  {
+    id: 'validateSpeechAssessment/refuses/words-that-spell-more-than-they-are-written-with',
+    fn: 'validateSpeechAssessment',
+    args: [assessed({ words: expanding(3, 200) })],
+    ignore: ['message'],
+    note: 'Six hundred characters as written and 10,802 once they are normalised, because one character can stand for four words. Counting only what the words carry would accept this, and the words the learner actually said would be the ones past the aligner bound: marked from the noise before them, and graded.',
+  },
+  {
+    id: 'validateSpeechAssessment/refuses/words-the-assessor-inserted-spell-past-the-text-bound',
+    fn: 'validateSpeechAssessment',
+    args: [assessed({ words: insertions(expanding(3, 200)) })],
+    ignore: ['message'],
+    note: 'The same three words, tagged as text the item never asked for. An inserted word is paired with nothing and moves no mark, but the aligner normalises it and carries it into its answer all the same, so what it spells is charged to the same 8,000. Six hundred characters as written is inside every other bound: a total that skipped these would be a bound one field could be set to walk past.',
+  },
+  {
+    id: 'validateSpeechAssessment/refuses/one-word-past-its-cap-and-not-the-total',
+    fn: 'validateSpeechAssessment',
+    args: [assessed({ words: [...spelled(40, 200), heard('p'.repeat(201), { accuracy: 90 })] })],
+    ignore: ['message'],
+    note: 'Forty words at the cap and a 41st of 201: 8,201 characters in total, and one word past its own cap. Only the word is reported: an adapter that fixes what it is told about would find the total refused on its next run, where reporting both would say twice that one word is too long.',
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-an-assessment-past-the-text-bound',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed({ words: [...spelled(40, 200), heard('p', { accuracy: 90 })] }),
+      measuredTake(),
+    ],
+    ignore: ['reason'],
+    note: 'Evidence too large to align is unscorable and never a 0: the learner read something, and a reading nobody can mark has not been failed.',
+  },
+  {
+    id: 'gradeReadAloud/ra/grades-an-assessment-at-the-written-bound',
+    fn: 'gradeReadAloud',
+    args: [ra(), recorded(), assessed({ words: punctuated(40, 195, 5) }), measuredTake()],
+    note: 'The other bound at its own edge, and this one is a grade: forty words of 200 characters, five of them punctuation no mark is made from, carry exactly 8,000 as they are written and spell 7,839. On a bound is inside it: evidence here is graded, and only a character more is refused.',
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-an-assessment-that-spells-past-the-text-bound',
+    fn: 'gradeReadAloud',
+    args: [ra(), recorded(), assessed({ words: expanding(3, 200) }), measuredTake()],
+    ignore: ['reason'],
+    note: 'The same refusal for evidence that is small as written and large once it is read: a grade is never made from the part of a reading that fit.',
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-an-assessment-whose-insertions-spell-past-the-text-bound',
+    fn: 'gradeReadAloud',
+    args: [ra(), recorded(), assessed({ words: insertions(expanding(3, 200)) }), measuredTake()],
+    ignore: ['reason'],
+    note: 'And the refusal is a grade the item never gets, not a 0 it is given: the whole of this reading is text the assessor says the item never asked for, so there is nothing in it that has been judged.',
+  },
+  {
+    id: 'gradeReadAloud/ra/refuses-a-learner-safe-projection',
+    fn: 'gradeReadAloud',
+    args: [ra({ redacted: true }), recorded(), assessed(), measuredTake()],
+    note: 'A read-aloud projection is itself valid read-aloud data, so nothing further down would notice that the authored feedback had been removed rather than never written. It throws, as score() does for every other type.',
+  },
+  {
+    id: 'alignReadAloud/ra/heard-text-at-the-token-budget',
+    fn: 'alignReadAloud',
+    args: [
+      { referenceText: reading(40) },
+      assessed({
+        referenceText: reading(40),
+        recognizedText: undefined,
+        words: [...spelled(39, 200), heard('p'.repeat(161), { accuracy: 90 })],
+      }),
+    ],
+    note: 'Tokens are taken in reading order until the text they spell would pass 8,000 code points, the space that joins each to the one before it counted with it: 39 words of 200 characters and one of 161 are exactly that, and every word is read.',
+  },
+  {
+    id: 'alignReadAloud/ra/heard-text-one-code-point-past-the-token-budget',
+    fn: 'alignReadAloud',
+    args: [
+      { referenceText: reading(40) },
+      assessed({
+        referenceText: reading(40),
+        recognizedText: undefined,
+        words: [...spelled(39, 200), heard('p'.repeat(162), { accuracy: 90 })],
+      }),
+    ],
+    note: 'One code point more and this is not evidence the aligner reads at all: validateSpeechAssessment bounds what the words spell on the same 8,000, so the public entry point refuses a reading it would otherwise have marked only part of. The budget inside it stays as a backstop for evidence some older build checked.',
+  },
+  {
+    id: 'inspectWav/format-chunk-declaring-more-than-it-carries',
+    fn: 'inspectWav',
+    args: [
+      riff([...chunk('fmt ', fmtBody(), FMT_BYTES + 2), ...chunk('data', quiet(8).flatMap(i16))]),
+      INSPECTION,
+    ],
+    note: 'The format itself is readable, and the size it declares is two bytes longer than the body it carries: the walk steps over those 18 and lands inside the next header, so the samples are never found. A file cut short is truncated, not an encoding nobody can name.',
+  },
+  {
+    id: 'inspectWav/voiced-time-is-never-longer-than-the-recording',
+    fn: 'inspectWav',
+    args: [wav(tone(198), { sampleRate: 11025 }), { silenceDbfs: -50, frameMs: 6 }],
+    note: 'Three windows of 66 frames at a rate where a window is not a whole number of milliseconds. Added up they come to a hair more than the duration the same frames give in one expression, and more voiced time than there is recording is a measurement gradeReadAloud refuses to grade at all.',
+  },
+  {
+    id: 'validateActivity/ra/a-reference-text-that-would-mark-no-word',
+    fn: 'validateActivity',
+    args: ['read-aloud', ra({ referenceText: '...' })],
+    ignore: ['message'],
+    note: 'A text of nothing but punctuation normalises to nothing: it would mark no word, so a blank would record no omission and a perfect reading would align as one insertion after another.',
+  },
+  { id: 'const/READ_ALOUD_MAX_REFERENCE_LENGTH', const: 'READ_ALOUD_MAX_REFERENCE_LENGTH' },
+  { id: 'const/READ_ALOUD_MAX_SECONDS', const: 'READ_ALOUD_MAX_SECONDS' },
+  { id: 'const/READ_ALOUD_MAX_TAKES', const: 'READ_ALOUD_MAX_TAKES' },
+  { id: 'const/READ_ALOUD_MAX_DIMENSION_WEIGHT', const: 'READ_ALOUD_MAX_DIMENSION_WEIGHT' },
+  { id: 'const/SPEECH_ASSESSMENT_MAX_WORDS', const: 'SPEECH_ASSESSMENT_MAX_WORDS' },
 ];

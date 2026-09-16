@@ -4,7 +4,9 @@ import type {
   GapSelectData,
   ItemGroup,
   MultipleChoiceData,
+  ReadAloudData,
   SequenceEntry,
+  SpeechAssessment,
 } from '@intellectif/lk-core';
 
 // Inline SVG data URI so the demo needs no network/asset hosting.
@@ -210,6 +212,125 @@ export const sampleDictation: DictationData = {
   tolerance: ENGLISH_CONTRACTIONS,
   feedback: { correct: 'Well heard!', incorrect: 'Play it once more and listen for every word.' },
 };
+
+/**
+ * Read the sentence aloud. The two model recordings are silent WAVs like the
+ * dictation's, so the demo still needs no hosted audio; what the learner
+ * records comes from their own microphone.
+ *
+ * Every number here is a DEMO value. The bounds, the pass line and above all
+ * the dimension weights are pedagogy: the schema ships no default for
+ * `scoring.dimensions` precisely so an untouched draft cannot quietly become a
+ * grading rule. Weight `prosody` only on an item whose assessor measures it.
+ */
+export const sampleReadAloud: ReadAloudData = {
+  schemaVersion: '1.0',
+  type: 'read-aloud',
+  id: 'demo-read-aloud-weather',
+  title: 'Read the sentence aloud',
+  instructions: 'Listen to the model first if you like, then read the sentence in one take.',
+  referenceText: 'The weather is lovely today, so we will walk to the park.',
+  locale: 'en-US',
+  media: { type: 'audio', url: silentWavDataUri(0.75), alt: 'Model reading' },
+  slowMedia: { type: 'audio', url: silentWavDataUri(1.5), alt: 'Model reading, slow' },
+  recording: { maxSeconds: 20, minSeconds: 1, maxTakes: 3 },
+  scoring: {
+    dimensions: [
+      { name: 'accuracy', weight: 3 },
+      { name: 'fluency', weight: 1 },
+      { name: 'completeness', weight: 1 },
+    ],
+  },
+  passThreshold: 0.7,
+  feedback: {
+    correct: 'Clearly read — the whole sentence came through.',
+    incorrect: 'Play the slow model once more and read it again.',
+  },
+};
+
+/**
+ * The evidence a pronunciation assessor would return for a take of
+ * {@link sampleReadAloud} — **canned**: nothing in this demo listens to the
+ * recording, and the marks below are the same whatever is said.
+ *
+ * It is nonetheless bound to the take exactly as a real adapter's output must
+ * be, which is the part worth copying. `gradeReadAloud` refuses evidence it
+ * cannot tie to this item and this recording: `recordingKey` is the key the
+ * upload minted, and `referenceText` and `locale` are copied from the item
+ * verbatim. Drift on any of the three and the grade comes back
+ * `recording_mismatch`, `reference_mismatch` or `locale_mismatch` instead of a
+ * score.
+ *
+ * Note what is absent: `scores.prosody`, because this item does not weight
+ * prosody and no engine measured it. An adapter that wrote `0` there would
+ * turn "not measured" into a failing dimension.
+ */
+export function demoSpeechAssessment(recordingKey: string): SpeechAssessment {
+  return {
+    assessmentVersion: '1.0',
+    status: 'assessed',
+    task: 'scripted',
+    locale: sampleReadAloud.locale,
+    referenceText: sampleReadAloud.referenceText,
+    recordingKey,
+    assessor: { kind: 'auto', id: 'demo-canned-assessor' },
+    scale: 100,
+    scores: { accuracy: 86, fluency: 78, completeness: 92, overall: 85 },
+    recognizedText: 'The weather is lovely today so we will walk to the',
+    // The assessor marked the omission itself, so the marks are its own and
+    // not something this page inferred from the text.
+    miscue: 'assessor',
+    phonemeAlphabet: 'ipa',
+    words: [
+      { text: 'The', error: 'none', accuracy: 97, startMs: 0, durationMs: 180 },
+      { text: 'weather', error: 'none', accuracy: 91, startMs: 200, durationMs: 420 },
+      { text: 'is', error: 'none', accuracy: 95, startMs: 640, durationMs: 150 },
+      {
+        text: 'lovely',
+        error: 'mispronunciation',
+        accuracy: 62,
+        startMs: 810,
+        durationMs: 480,
+        syllables: [
+          { text: 'love', grapheme: 'love', accuracy: 58, startMs: 810, durationMs: 250 },
+          { text: 'ly', grapheme: 'ly', accuracy: 71, startMs: 1060, durationMs: 230 },
+        ],
+        phonemes: [
+          { symbol: 'l', accuracy: 88, startMs: 810, durationMs: 60 },
+          {
+            symbol: 'ʌ',
+            accuracy: 41,
+            startMs: 870,
+            durationMs: 90,
+            heardAs: [{ symbol: 'ɒ', score: 63 }],
+          },
+          { symbol: 'v', accuracy: 74, startMs: 960, durationMs: 100 },
+          { symbol: 'l', accuracy: 80, startMs: 1060, durationMs: 90 },
+          { symbol: 'i', accuracy: 69, startMs: 1150, durationMs: 140 },
+        ],
+      },
+      { text: 'today', error: 'none', accuracy: 89, startMs: 1320, durationMs: 430 },
+      {
+        text: 'so',
+        error: 'none',
+        accuracy: 93,
+        startMs: 1800,
+        durationMs: 200,
+        breaks: { unexpected: 0.82 },
+      },
+      { text: 'we', error: 'none', accuracy: 96, startMs: 2030, durationMs: 160 },
+      { text: 'will', error: 'none', accuracy: 90, startMs: 2210, durationMs: 200 },
+      { text: 'walk', error: 'none', accuracy: 84, startMs: 2430, durationMs: 330 },
+      { text: 'to', error: 'none', accuracy: 94, startMs: 2790, durationMs: 140 },
+      { text: 'the', error: 'none', accuracy: 92, startMs: 2950, durationMs: 130 },
+      // An omitted word was never spoken, so it carries no timings and no
+      // accuracy — there was nothing to time and nothing to score.
+      { text: 'park', error: 'omission' },
+    ],
+    prosody: { monotoneConfidence: 0.71 },
+    signal: { snrDb: 24 },
+  };
+}
 
 export const sampleReadingGroup: ItemGroup = {
   schemaVersion: '1.0',

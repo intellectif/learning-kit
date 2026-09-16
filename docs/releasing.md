@@ -225,6 +225,17 @@ vector deleted from `scoring.json` by hand, or a frozen call whose arguments no 
 cannot stop is removing a case and its vector together on purpose; that shows up as a deleted vector in review,
 which is where a decision to stop pinning a grade belongs.
 
+`vectors/replay.mjs` declares the **encoding** the corpus is written in, as `CORPUS_VERSION`, and `replay()`
+throws rather than comparing a corpus written in another one. It is **2**: version 2 added the `{ "$bytes":
+"<base64>" }` tag, so a vector can carry the bytes of a recording — `inspectWav` reads a WAV — and any other
+view of an `ArrayBuffer` is refused at encode time instead of being frozen as an object of indices. Bumping it
+is not a grade change and needs no `--accept-grade-change`: the version and `frozenFrom` are excluded from the
+comparison, and no expectation moved with it. It does couple four files that must change together —
+`replay.mjs`, the `CORPUS_VERSION` literal in `replay.d.mts`, a regenerated `scoring.json`, and this section —
+and it means a consumer replaying the corpus must load the `replay.mjs` shipped beside it, which
+`vectors/README.md` tells them to do. Say so in the changeset, because a consumer who pinned an older copy of
+`replay.mjs` sees the throw on upgrade.
+
 This does not change the limitation above: Release is not gated on CI. It does verify before it publishes.
 `pnpm release` runs `verify-release` first, on Node 24:
 

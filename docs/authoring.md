@@ -788,6 +788,7 @@ first.
 | `written-response` | an empty prompt, `minWords: 0`, `maxWords: 0`, no rubric |
 | `gap-select` | an empty passage, no gaps, `scoringStrategy: 'all-or-nothing'`, **no choice marked correct** |
 | `dictation` | an empty title and an empty transcript; no recording, hints, tolerances or accepted transcripts; no `scoringStrategy` — the type has one strategy |
+| `read-aloud` | an empty title, text to read and locale; `recording: { maxSeconds: 0 }`; `scoring: { dimensions: [] }` — **no dimension is weighted**, because which of accuracy, fluency, completeness and prosody a grade counts, and what each is worth, is a teaching decision, and a defaulted set would let an author write the text, never open the scoring control, and hold a `complete` item graded on weights nobody chose |
 
 Three of those are decisions:
 
@@ -950,6 +951,39 @@ The slow recording's kind, address and description report under the codes media
 already uses — `media_type_required`, `media_url_required`, `media_url_invalid`,
 `media_alt_required` — at `slowMedia.…` paths, so a translation of those rows
 covers both recordings. A new `dictation` draft has no `scoringStrategy` to choose and
+`scoring_strategy_required` is never reported for it.
+
+`read-aloud`:
+
+| Code | Severity | Path | When |
+|---|---|---|---|
+| `ra_reference_text_required` | incomplete | `referenceText` | Absent, empty, or only whitespace |
+| `ra_reference_text_too_long` | invalid | `referenceText` | More than 2000 characters, before or after normalisation |
+| `ra_reference_text_unreadable` | invalid | `referenceText` | Written, but nothing survives normalisation — only punctuation, so no word would be marked and every reading would align as one insertion after another |
+| `ra_reference_text_unspaced_script` | invalid | `referenceText` | A letter of a script written without spaces between its words — Han, Hiragana, Katakana, Thai, Lao, Khmer or Myanmar — which would be marked as one word however many it holds |
+| `ra_locale_required` | incomplete | `locale` | Absent, empty, or only whitespace |
+| `ra_locale_invalid` | invalid | `locale` | Written, but not a BCP 47 tag in canonical form with a region: `en-US`, `es-419`, `zh-Hant-TW` |
+| `ra_max_seconds_required` | incomplete | `recording.maxSeconds` | No `recording` at all, or a `maxSeconds` that is not set or `0` |
+| `ra_max_seconds_out_of_range` | invalid | `recording.maxSeconds` | A number that is not above 0 and at most 300 |
+| `ra_min_seconds_out_of_range` | invalid | `recording.minSeconds` | Negative, or not below `maxSeconds` |
+| `ra_max_takes_out_of_range` | invalid | `recording.maxTakes` | A number that is not a whole number from 1 to 20 |
+| `ra_dimensions_required` | incomplete | `scoring.dimensions` | No `scoring`, no `dimensions`, or an empty list |
+| `ra_dimension_name_invalid` | invalid | `scoring.dimensions.N.name` | Not one of `accuracy`, `fluency`, `completeness`, `prosody` |
+| `ra_dimension_duplicate` | invalid | `scoring.dimensions.N.name` | A dimension already weighed, reported at the second entry |
+| `ra_dimension_weight_invalid` | invalid | `scoring.dimensions.N.weight` | Absent, or not a finite number from 0 to 1000 |
+| `ra_dimension_weights_zero` | invalid | `scoring.dimensions` | Every weight is 0, so there is no weighted total and every take would be unscorable |
+| `ra_media_kind` | invalid | `media.type` | A model recording that is not `audio` |
+| `ra_slow_media_without_media` | incomplete | `media` | A slow model recording without the recording it accompanies |
+| `ra_slow_media_same_recording` | invalid | `slowMedia.url` | The same address as `media.url` |
+| `ra_slow_media_beside_play_limit` | invalid | `slowMedia` | A slow model recording beside a `media.playback.maxPlays` budget |
+
+The slow model recording's kind, address and description report under the codes
+media already uses, at `slowMedia.…` paths. Its shape is fixed at `type`, `url`
+and `alt`, so anything else written on it — a `playback` policy, a `captionsUrl`,
+a kind that is not `audio` — is reported as `media_invalid`: the policy belongs
+on `media`, which the slow recording follows, and captions are allowed on a
+read-aloud recording, because the text being read is public and captions of it
+withhold nothing. A new `read-aloud` draft has no `scoringStrategy` to choose and
 `scoring_strategy_required` is never reported for it.
 
 **`null` is a value, not an absence.** A required field that is `null` counts as

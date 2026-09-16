@@ -23,6 +23,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.11.0 | 11.0.0 | Node 22 is the floor, and `engines` says so. **No API change** |
 | 0.12.0 | 12.0.0 | `validateItemGroupDraft` / `createItemGroupDraft`: a testlet's own draft contract. **No React API change** — the peer bump |
 | 0.13.0 | 13.0.0 | `dictation`: `<Dictation>`, `alignDictation`, `diffDictationChars`, `dictationReferenceWords`, `ScoringDetail.score`, an optional `{ rounding }` on `score()` / `evaluate()`, `dictationType` / `gapSelectType` on the barrel, the dictation draft contract. **Additive** — the major is the peer bump, plus one new component and the dictation strings |
+| 0.14.0 | 14.0.0 | `read-aloud`: `gradeReadAloud`, `inspectWav`, `validateSpeechAssessment`, `alignReadAloud`, `outcomeFromUnscorable`; `<ReadAloud>`, `<PronunciationFeedback>`, `useSpeechRecorder`, and `recordingBinding` / `assessments` on `<ActivitySequence>`. **Additive, with one pager fix for every type** — the major is the peer bump plus two components and a hook, and a sequence now refuses an outcome that belongs to a paper it has since been handed |
 
 Every behavioural change here is opt-in, per the
 [grade-stability rule](./roadmap.md#5-standing-decisions) — with **one
@@ -38,8 +39,104 @@ were.
 - On **0.7.x**? Skip to [0.7 → 0.8](#07--08-lk-core--6x--7x-lk-react) — it has two new render-time throws and one grade-affecting fix.
 - On **0.8.x**? See [0.8 → 0.9](#08--09-lk-core--7x--8x-lk-react) — additive, with one possible type error.
 - On **0.9.x – 0.12.x**? See [0.12 → 0.13](#012--013-lk-core--12x--13x-lk-react) — additive, with the type errors it lists. The releases in between add the same kinds: `gap-select` joined the activity unions in 0.10.0, `gapLabel` and `gapPlaceholder` joined `LkStrings` in 10.0.0, and 0.11.0 needs Node 22 or later.
+- On **0.13.x**? See [0.13 → 0.14](#013--014-lk-core--13x--14x-lk-react) — additive, with the type errors and the behaviour changes it lists.
 
 ---
+
+## 0.13 → 0.14 (`lk-core`) / 13.x → 14.x (`lk-react`)
+
+Additive. Upgrade and change no code, and nothing you already render, validate
+or score behaves differently — unless you hold items whose `type` is
+`read-aloud`, registered a type of your own under that name, assert on the text
+of `RedactedScoringError`, replay the grade vectors with a `replay.mjs` you
+pinned, or hand a mounted `<ActivitySequence>` a new `activities` while a grade
+is still on its way (all below). Every grade vector a released version froze
+replays unchanged. 14.0.0 is a major because `lk-core` is a peer and moved a
+minor; it also adds two components and a hook.
+
+### A learner can read aloud *(0.14.0 / 14.0.0)*
+
+`read-aloud` is a built-in type: the learner reads a text aloud, a
+pronunciation-assessment engine of your choosing judges the recording, and the
+SDK turns that judgement into a grade. It is graded asynchronously, as a written
+response is — `evaluate()` answers `deferred` and `score()` throws
+`DeferredScoringError` — and your server grades a take with `gradeReadAloud`
+from the assessor's evidence and its own `inspectWav` measurement of the stored
+recording. In the browser, `<ReadAloud>` records the take and hands it to your
+storage through `recordingBinding`, and `<PronunciationFeedback>` renders the
+marks. See [Speech assessment](./speech-assessment.md) for the data, the
+evidence, the grade, and a worked binding.
+
+What the type adds to shared surfaces, all optional:
+
+- `GradeRecord.details` — one mark per reference word, for a review screen.
+- A `code` on `ItemOutcome`'s `unscorable` arm, written by the new
+  `outcomeFromUnscorable`, so a stored refusal says which one it was.
+- A `rounding` option on `gradeFromRubric`, which compares the pass line the way
+  a score is displayed and leaves the score itself unrounded.
+- Seven `InteractionKind` literals for a take's recording, upload and
+  assessment, which `<ReadAloud>` reports through `onInteraction`.
+- `@intellectif/lk-core/scoring` now re-exports the types its own functions'
+  signatures mention. Type-only.
+- `<ActivitySequence>` takes `recordingBinding`, where every take in the set is
+  stored, and `assessments`, keyed by `slotId` and read live, for the marks a
+  `review` shows. A `renderers` override receives neither.
+
+### What can stop a build *(0.14.0 / 14.0.0)*
+
+- **A complete `LkStrings`.** `LkStrings` gained 40 strings, for read-aloud and
+  for pronunciation feedback. A partial override is unaffected; a dictionary
+  declared as a complete `LkStrings` does not type-check until it supplies them.
+- **Code that lists every activity type or interaction.** A `switch` over
+  `ActivityData`, `LearnerResponse`, `RedactedActivity`, `RenderableActivity` or
+  `InteractionKind` whose `default` asserts `never`, and a table typed
+  `Record<ActivityType, …>`, stop compiling until they have a `read-aloud` case
+  or key — or, for `InteractionKind`, the seven new ones.
+
+### What can change behaviour *(0.14.0 / 14.0.0)*
+
+- **Items whose `type` is `read-aloud`**, which this SDK read as an unknown type
+  until now, are read as the built-in. `validateActivity` validates them instead
+  of throwing `UnknownActivityTypeError`, and `registeredActivityTypes()` lists
+  one more type. `evaluate()` answers `deferred` where it answered `unscorable`,
+  which changes a composed total that counted them as unscorable: the result
+  now stays `provisional` until they are graded. `<ActivitySequence>` renders
+  `<ReadAloud>` where it rendered its unsupported-item note — and `<ReadAloud>`
+  throws without `recordingBinding.upload` outside `review`, so a `practice` or
+  `exam` sequence carrying one needs a `recordingBinding`, or the slot renders
+  the error boundary's fallback.
+- **An outcome from a paper the sequence has since been handed is refused, for
+  every activity type.** A grade still being computed when `activities` changed
+  used to be recorded in whichever slot now stood at its index, and could report
+  a set as finished whose question was never answered. `<ActivitySequence>` now
+  records an outcome only when its `slotId` and `activityId` match the slot at
+  that index, so a late one reaches no callback. A set that is merely
+  re-created, with the same slots, still accepts it.
+- **`RedactedScoringError`'s message is reworded**, for every type. The class,
+  its `name` and its `activityType` are unchanged and no grade moves; an
+  assertion on the exact text needs updating.
+- **The grade-stability corpus is written in encoding version 2**, because a
+  vector can now carry a recording's bytes. `replay()` throws on a corpus in
+  another encoding, so load the `replay.mjs` shipped beside `vectors/scoring.json`
+  rather than a copy you pinned.
+
+A practice read-aloud inside a sequence also completes differently from every
+other practice slot: it records `responded` when it is submitted, and its grade
+replaces that when it arrives. `onFinished` waits for an assessment still in
+flight, and a take that could not be stored completes its slot as
+`unsubmitted` — not as `recording: null`, which is a blank the learner chose.
+`onFinished` items may also carry `kind: 'unsubmitted'`, and a `scored` item
+may carry the `response` the grade belongs to. `<ReadAloud>` no longer accepts
+`captureGroup` as a prop. None of this changes a type that existed before; the
+[changelog](https://github.com/intellectif/learning-kit/blob/main/packages/lk-react/CHANGELOG.md)
+has the whole rule.
+
+### If you registered a type named `read-aloud` *(0.14.0)*
+
+The built-in now owns the name. `registerActivityType` throws at startup for a
+different descriptor under `read-aloud`, and an `ActivityDataMap` augmentation
+declaring `read-aloud` stops compiling. Rename your type, and migrate the `type`
+stored on its items, or move the items to the built-in.
 
 ## 0.12 → 0.13 (`lk-core`) / 12.x → 13.x (`lk-react`)
 

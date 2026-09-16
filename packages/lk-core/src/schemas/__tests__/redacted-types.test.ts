@@ -5,6 +5,7 @@ import type {
   FillInTheBlanksData,
   GapSelectData,
   MultipleChoiceData,
+  ReadAloudData,
   WrittenResponseData,
 } from '../../types/activity.js';
 import type {
@@ -13,6 +14,7 @@ import type {
   RedactedFillInTheBlanksData,
   RedactedGapSelectData,
   RedactedMultipleChoiceData,
+  RedactedReadAloudData,
   RedactedWrittenResponseData,
 } from '../index.js';
 import {
@@ -20,6 +22,7 @@ import {
   RedactedFillInTheBlanksDataSchema,
   RedactedGapSelectDataSchema,
   RedactedMultipleChoiceDataSchema,
+  RedactedReadAloudDataSchema,
   RedactedWrittenResponseDataSchema,
 } from '../index.js';
 
@@ -109,6 +112,37 @@ const dc: DictationData = {
   feedback: { correct: 'Well heard.', incorrect: 'Listen once more.' },
 };
 
+// The type with no answer key at all: everything here is learner-visible, and
+// the authored feedback is the only field redaction has to remove.
+const ra: ReadAloudData = {
+  schemaVersion: '1.0',
+  type: 'read-aloud',
+  id: 'q6',
+  title: 'Read the weather report aloud',
+  instructions: 'Read it at your natural pace.',
+  referenceText: 'It is not raining in Lisbon today.',
+  locale: 'en-US',
+  media: {
+    type: 'audio',
+    url: 'https://cdn.example/lisbon-model.mp3',
+    alt: 'Model recording, normal speed',
+    playback: { seek: 'none', rate: 'fixed' },
+  },
+  slowMedia: {
+    type: 'audio',
+    url: 'https://cdn.example/lisbon-model-slow.mp3',
+    alt: 'Model recording, slow',
+  },
+  recording: { maxSeconds: 45, minSeconds: 2, maxTakes: 2 },
+  scoring: {
+    dimensions: [
+      { name: 'accuracy', weight: 2 },
+      { name: 'fluency', weight: 1 },
+    ],
+  },
+  feedback: { correct: 'Clearly read.', incorrect: 'Read it once more.' },
+};
+
 /**
  * The point of deriving these types with `z.infer` is that they cannot drift
  * from the validator. These tests pin the other half: that what `redact()`
@@ -183,6 +217,26 @@ describe('derived redacted types match redact() output', () => {
     expect(revealed.tolerance).toEqual(dc.tolerance);
   });
 
+  it('types a redacted read aloud, keeping the text to read and what the grade measures', () => {
+    const projection = redact(ra);
+    const typed: RedactedReadAloudData = RedactedReadAloudDataSchema.parse(projection);
+    // The text IS the item: a learner who could not see it could not read it.
+    expect(typed.referenceText).toBe(ra.referenceText);
+    // And the locale survives, because it decides the grade: an assessment made
+    // for another locale is unscorable.
+    expect(typed.locale).toBe('en-US');
+    expect(typed.recording).toEqual({ maxSeconds: 45, minSeconds: 2, maxTakes: 2 });
+    expect(typed.scoring.dimensions).toEqual([
+      { name: 'accuracy', weight: 2 },
+      { name: 'fluency', weight: 1 },
+    ]);
+    expect(typed.slowMedia?.url).toBe('https://cdn.example/lisbon-model-slow.mp3');
+    // The one thing removed: feedback written about a grade that does not exist yet.
+    expect(projection).not.toHaveProperty('feedback');
+    const revealed = redact(ra, { reveal: 'after-submit' });
+    expect(revealed.feedback).toEqual(ra.feedback);
+  });
+
   it('narrows the RedactedActivity union on `type`, like ActivityData does', () => {
     const items: RedactedActivity[] = [
       RedactedMultipleChoiceDataSchema.parse(redact(mc)),
@@ -190,6 +244,7 @@ describe('derived redacted types match redact() output', () => {
       RedactedWrittenResponseDataSchema.parse(redact(wr)),
       RedactedGapSelectDataSchema.parse(redact(gs)),
       RedactedDictationDataSchema.parse(redact(dc)),
+      RedactedReadAloudDataSchema.parse(redact(ra)),
     ];
 
     const described = items.map((item) => {
@@ -205,10 +260,20 @@ describe('derived redacted types match redact() output', () => {
       if (item.type === 'dictation') {
         return `${item.slowMedia === undefined ? 1 : 2} recordings`;
       }
+      if (item.type === 'read-aloud') {
+        return `${item.scoring.dimensions.length} dimensions`;
+      }
       // Narrowed to the written response by elimination — no cast needed.
       return `${item.minWords}-${item.maxWords} words`;
     });
 
-    expect(described).toEqual(['2 options', '1 blanks', '10-50 words', '2 gaps', '2 recordings']);
+    expect(described).toEqual([
+      '2 options',
+      '1 blanks',
+      '10-50 words',
+      '2 gaps',
+      '2 recordings',
+      '2 dimensions',
+    ]);
   });
 });

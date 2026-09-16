@@ -1,24 +1,69 @@
-import type { ActivityResult, InteractionEvent } from '@intellectif/lk-core';
+import {
+  type ActivityResult,
+  gradeReadAloud,
+  type InteractionEvent,
+  inspectWav,
+  type SpeechMeasurement,
+  type SpeechPlausibilityPolicy,
+  type WavInspectionPolicy,
+} from '@intellectif/lk-core';
 import { ActivitySequence } from '@intellectif/lk-react/components/ActivitySequence';
 import { Dictation } from '@intellectif/lk-react/components/Dictation';
 import { GapSelect } from '@intellectif/lk-react/components/GapSelect';
 import { MultipleChoice } from '@intellectif/lk-react/components/MultipleChoice';
+import { ReadAloud, type RecordingBinding } from '@intellectif/lk-react/components/ReadAloud';
 import { useXAPI } from '@intellectif/lk-react/hooks/useXAPI';
 import { ThemeProvider } from '@intellectif/lk-react/theme/ThemeProvider';
-import { useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { LRS_ENDPOINT } from './config';
 import {
+  demoSpeechAssessment,
   sampleDictation,
   sampleGapSelect,
   sampleMultipleChoice,
   sampleQuestionSet,
+  sampleReadAloud,
 } from './sample-data';
+
+/**
+ * Where this demo draws the line between silence and speech, and how finely it
+ * looks for it. Both fields are required of `inspectWav` because neither has an
+ * answer that is right for every microphone — these are one page's guesses,
+ * not the SDK's advice.
+ */
+const DEMO_WAV_POLICY: WavInspectionPolicy = { silenceDbfs: -45, frameMs: 20 };
+
+/**
+ * The demo's plausibility policy. More words per second of voiced audio than
+ * this, or less voiced audio than this, and `gradeReadAloud` refuses the take
+ * rather than scoring it — which is what stops a learner passing a speaking
+ * item by recording a cough. Yours belongs in your own configuration, with
+ * values you calibrated.
+ */
+const DEMO_PLAUSIBILITY: SpeechPlausibilityPolicy = { maxWordsPerSecond: 6, minVoicedMs: 800 };
+
+/** The interaction kinds each demo activity reports into the log below. */
+const DICTATION_EVENTS: readonly string[] = ['submitted', 'hint-requested'];
+const READ_ALOUD_EVENTS: readonly string[] = [
+  'recording-started',
+  'recording-stopped',
+  'recording-discarded',
+  'recording-uploaded',
+  'recording-upload-failed',
+  'assessment-requested',
+  'assessment-failed',
+  'submitted',
+];
+
+/** Long enough to show the component's own pending state. A real assessor is slower. */
+const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function App(): React.JSX.Element {
   const [log, setLog] = useState<{ id: string; text: string }[]>([]);
 
-  const append = (text: string): void =>
+  const append = useCallback((text: string): void => {
     setLog((entries) => [...entries, { id: crypto.randomUUID(), text }]);
+  }, []);
 
   // Real learner identity is applied here, at the LRS layer — the activity
   // components only emit an anonymous, structurally-valid statement (by design,
@@ -42,24 +87,85 @@ export function App(): React.JSX.Element {
       void sendStatement(result.xapiStatement);
     };
 
-  // Interactions are the analytics channel: a dictation reports how many hint
-  // words were shown before the answer went in, which the statement does not.
-  const logInteraction = (event: InteractionEvent): void => {
-    if (event.type === 'submitted' || event.type === 'hint-requested') {
-      append(`Dictation ${event.type} ${JSON.stringify(event.payload)}`);
-    }
-  };
+  // Interactions are the analytics channel for what a statement does not
+  // carry: a dictation reports how many hint words were shown before the
+  // answer went in, and a read-aloud reports every take, upload and
+  // assessment attempt.
+  const logInteraction =
+    (label: string, kinds: readonly string[]) =>
+    (event: InteractionEvent): void => {
+      if (kinds.includes(event.type)) {
+        append(`${label} ${event.type} ${JSON.stringify(event.payload)}`);
+      }
+    };
+
+  // What a server would know about each stored take. A real application
+  // measures the bytes IT stored, on its own machine: a duration the browser
+  // reports is a claim rather than a measurement, and `gradeReadAloud` reads
+  // only a measurement. Holding it here is what lets this page grade with no
+  // backend at all.
+  const measurements = useRef(new Map<string, SpeechMeasurement | null>());
+
+  const readAloudBinding = useMemo<RecordingBinding>(
+    () => ({
+      async upload(take) {
+        // DEMO ONLY: this "upload" never leaves the tab. Yours POSTs the blob
+        // to your storage and returns the key it was stored under, which is
+        // the only thing the learner's response carries.
+        const bytes = new Uint8Array(await take.blob.arrayBuffer());
+        const wav = inspectWav(bytes, DEMO_WAV_POLICY);
+        const key = `demo-take-${crypto.randomUUID()}`;
+        measurements.current.set(
+          key,
+          wav.valid ? { durationMs: wav.durationMs, voicedMs: wav.voicedMs } : null,
+        );
+        append(
+          wav.valid
+            ? `Read Aloud take measured: ${wav.durationMs} ms, ${wav.voicedMs} ms voiced, ` +
+                `peak ${wav.peakDbfs.toFixed(1)} dBFS`
+            : `Read Aloud take could not be measured (${wav.reason})`,
+        );
+        return { key, mimeType: take.mimeType, durationMs: take.durationMs };
+      },
+      async assess(ref) {
+        await pause(400);
+        const measured = measurements.current.get(ref.key) ?? null;
+        if (measured === null) {
+          // A take that exists but could not be measured is reported as a
+          // failure the learner may retry: `gradeReadAloud` throws rather than
+          // inventing a measurement, and a thrown error is not an answer to
+          // put in front of a learner.
+          return { status: 'failed', retryable: true };
+        }
+        // Canned evidence — nothing here listened to the recording — but bound
+        // to this take and this item the way a real assessor's output must be.
+        // See `demoSpeechAssessment`.
+        const assessment = demoSpeechAssessment(ref.key);
+        const graded = gradeReadAloud(
+          sampleReadAloud,
+          { type: 'read-aloud', recording: ref },
+          assessment,
+          { measured, plausibility: DEMO_PLAUSIBILITY },
+        );
+        return 'unscorable' in graded
+          ? { status: 'unscorable', code: graded.code, assessment }
+          : { status: 'graded', assessment, grade: graded };
+      },
+    }),
+    [append],
+  );
 
   return (
     <ThemeProvider>
       <main style={{ maxWidth: 680, margin: '0 auto', padding: 24 }}>
         <h1>learning-kit — Vite + React 19 example</h1>
         <p>
-          A single Multiple Choice activity, a Gap Select cloze and a Dictation (two silent
-          recordings, so the transport can be tried without hosted audio), plus a question set shown
-          via the in-place pager (Previous / Next, no scrolling): two Fill-in-the-Blanks questions,
-          then a reading comprehension group whose passage stays on screen beside each of its
-          questions. Submitting scores locally and POSTs an xAPI statement to the mock LRS (MSW).
+          A single Multiple Choice activity, a Gap Select cloze, a Dictation (two silent recordings,
+          so the transport can be tried without hosted audio), a Read Aloud that records from your
+          microphone, plus a question set shown via the in-place pager (Previous / Next, no
+          scrolling): two Fill-in-the-Blanks questions, then a reading comprehension group whose
+          passage stays on screen beside each of its questions. Submitting scores locally and POSTs
+          an xAPI statement to the mock LRS (MSW).
         </p>
         <h3>Answer key:</h3>
         <p>
@@ -85,7 +191,28 @@ export function App(): React.JSX.Element {
           <Dictation
             data={sampleDictation}
             onComplete={handleComplete('Dictation')}
-            onInteraction={logInteraction}
+            onInteraction={logInteraction('Dictation', DICTATION_EVENTS)}
+          />
+        </section>
+
+        <section aria-labelledby="ra-heading">
+          <h2 id="ra-heading">Read Aloud</h2>
+          <p>
+            Recording asks for microphone permission. The take is encoded as 16 kHz mono WAV,
+            measured in this tab with <code>inspectWav</code>, and graded by{' '}
+            <code>gradeReadAloud</code> from canned evidence — so the page needs no server and keeps
+            no recording. A real application uploads the take to its own storage and measures and
+            assesses it there: evidence a browser produced can be forged, so a browser-side
+            assessment is for practice that feeds nothing.
+          </p>
+          <ReadAloud
+            data={sampleReadAloud}
+            recordingBinding={readAloudBinding}
+            breakThreshold={0.75}
+            monotoneThreshold={0.6}
+            onComplete={handleComplete('Read Aloud')}
+            onSubmit={(response) => append(`Read Aloud response ${JSON.stringify(response)}`)}
+            onInteraction={logInteraction('Read Aloud', READ_ALOUD_EVENTS)}
           />
         </section>
 

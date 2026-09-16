@@ -27,6 +27,50 @@ export interface RoundingPolicy {
   dp: number;
 }
 
+const ROUNDING_MODES: readonly unknown[] = ['half-up', 'half-even', 'floor', 'ceil'];
+/** The most decimal places a policy may round to: a scaled grade stays an integer a double holds exactly. */
+const MAX_ROUNDING_DP = 15;
+
+/**
+ * The rounding policy `value` holds, or `undefined` for none (`undefined` or
+ * `null`). A malformed one would reach {@link gte} as `10 ** undefined` and
+ * turn a perfect score into a fail with no error, so it throws here instead.
+ *
+ * Internal. Every function that takes a `rounding` option checks it here, so
+ * each refuses the same policies with the same message; `scoring/index.ts`
+ * does not re-export it.
+ */
+export function roundingPolicyOf(value: unknown): RoundingPolicy | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  const { mode, dp } = value as { mode?: unknown; dp?: unknown };
+  if (
+    !ROUNDING_MODES.includes(mode) ||
+    typeof dp !== 'number' ||
+    !Number.isInteger(dp) ||
+    dp < 0 ||
+    dp > MAX_ROUNDING_DP
+  ) {
+    // Described field by field, never serialised: a policy holding a BigInt or
+    // a reference to itself would make the message throw a TypeError first.
+    const describe = (field: unknown): string =>
+      typeof field === 'string'
+        ? JSON.stringify(field)
+        : typeof field === 'number' || field === undefined
+          ? String(field)
+          : typeof field === 'object'
+            ? 'an object'
+            : `a ${typeof field}`;
+    throw new RangeError(
+      `Invalid rounding policy (mode ${describe(mode)}, dp ${describe(dp)}): expected { mode: 'half-up' | 'half-even' | 'floor' | 'ceil', dp: a whole number from 0 to ${MAX_ROUNDING_DP} }.`,
+    );
+  }
+  // The values just checked, not the object they came from: an accessor could
+  // answer differently when the comparison reads it again.
+  return { mode, dp } as RoundingPolicy;
+}
+
 /**
  * Float-noise guard. Binary floating point makes `1.005 * 100` come out as
  * `100.49999999999999` and `0.29 * 100` come out as `28.999999999999996`;

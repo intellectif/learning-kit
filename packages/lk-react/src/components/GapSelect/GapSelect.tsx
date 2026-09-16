@@ -169,7 +169,6 @@ export function GapSelect({
   // Identity-guarded so the mount run is a no-op: without it this fires after
   // the first paint and undoes every seed it was just given (Req 3.7).
   const lastDataRef = useRef(data);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: data is the reset trigger (Req 3.7)
   useEffect(() => {
     if (lastDataRef.current === data) {
       return;

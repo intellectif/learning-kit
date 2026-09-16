@@ -1,0 +1,54 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": false,
+    // 4 MiB, where Biome's default is 1 MiB. `packages/lk-core/vectors/scoring.json` is a
+    // generated grade-stability corpus that grows with every milestone, and it is already
+    // within 15 KB of that default. Past it Biome skips the file, and neither consequence
+    // is one you would guess from its symptom: `biome check .` still exits 0 — the corpus
+    // is simply no longer checked, and the only sign is the checked-file count dropping by
+    // one — while `biome format --write`, which `packages/lk-core/scripts/generate-vectors.mjs`
+    // runs as its last step, exits 1 AFTER the corpus has been written, so the generator
+    // fails with the new corpus already on disk. A ceiling well clear of the corpus makes
+    // crossing it a decision somebody takes, rather than a milestone walking into it.
+    //
+    // This file is `.jsonc` for this comment: Biome 2.4 parses `biome.json` as strict JSON
+    // and, given a comment, falls back to its built-in defaults without saying so.
+    "maxSize": 4194304
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": {
+        "recommended": true
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "arrowParentheses": "always"
+    }
+  }
+}
