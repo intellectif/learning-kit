@@ -93,10 +93,36 @@ const statementSchema = z.object({
   version: z.literal('1.0.3'),
 });
 
-/** True when running under `NODE_ENV=production`, safe in any environment. */
+/**
+ * The one global this module reads by name. Declared here, not globally: this
+ * package compiles without Node's types on purpose, and nothing else in it may
+ * come to rely on `process`.
+ */
+declare const process: { env: { NODE_ENV?: string } };
+
+/**
+ * Whether this is a production build.
+ *
+ * **The literal `process.env.NODE_ENV`, spelled exactly so.** It is the one
+ * expression bundlers replace at build time, and a browser has no `process` to
+ * read at run time. The reading this replaces,
+ * `globalThis.process?.env?.NODE_ENV`, is not that expression, so no bundler
+ * touched it, and in a browser it found no `process` and answered "not
+ * production" in every production app — so a malformed statement threw there
+ * instead of being logged and sent. Tests running in Node never saw it,
+ * because Node has a `process`.
+ *
+ * This package's own build must leave the literal in its output, for the
+ * consumer's bundler to replace. The `try` covers code that reaches a runtime
+ * unbundled, with no `process` at all: that is not production, as it always
+ * was.
+ */
 function isProduction(): boolean {
-  const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
-  return g.process?.env?.NODE_ENV === 'production';
+  try {
+    return process.env.NODE_ENV === 'production';
+  } catch {
+    return false;
+  }
 }
 
 /**

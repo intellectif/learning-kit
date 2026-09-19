@@ -98,6 +98,27 @@ describe('AudioTransport', () => {
     expect(screen.getByRole('status')).toHaveTextContent('2 of 3 plays remaining');
   });
 
+  it('leaves no resume point behind a refused start, so the next press is not a free play', async () => {
+    // A refused start is paused inside its own `play` event, and every pause
+    // records the position as a place to resume from. So a media key pressed
+    // on a spent budget used to leave a resume point, and the Play button then
+    // "resumed" a play nobody had paid for.
+    const user = userEvent.setup();
+    const onPlayConsumed = vi.fn();
+    renderTransport(audio({ maxPlays: 1 }), {
+      mediaBudget: binding({ entry: { plays: 1 }, onPlayConsumed }),
+    });
+    loadMetadata();
+
+    await act(async () => {
+      await element().play();
+    });
+    await user.click(screen.getByRole('button', { name: 'Play — No plays remaining' }));
+
+    expect(element().paused).toBe(true);
+    expect(onPlayConsumed).not.toHaveBeenCalled();
+  });
+
   it('refuses a scripted play once the budget is spent, before audio is audible', async () => {
     const onPlayConsumed = vi.fn();
     const onInteraction = vi.fn();

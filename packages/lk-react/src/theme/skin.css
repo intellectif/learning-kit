@@ -1567,6 +1567,20 @@
     inline-size: 100%;
   }
 
+  /*
+   * What stands in the take's place when the page will not play it — a
+   * `media-src` that refuses `blob:`, most often. A note, styled as the
+   * panel's notes are: nothing is wrong with the take itself.
+   */
+  .lk-ra-take-unavailable,
+  .lk-pf-audio-unavailable {
+    margin: 0;
+    padding-inline-start: var(--lk-spacing-sm);
+    border-inline-start: 3px solid var(--lk-color-warning);
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
   /* ── What came back ────────────────────────────────────────────────── */
   .lk-ra-alert {
     margin: 0;
@@ -1905,7 +1919,9 @@
     .lk-pf-dimension,
     .lk-pf-word-detail,
     .lk-pf-break,
-    .lk-pf-monotone {
+    .lk-pf-monotone,
+    .lk-ra-take-unavailable,
+    .lk-pf-audio-unavailable {
       forced-color-adjust: none;
       border-color: CanvasText;
       color: CanvasText;

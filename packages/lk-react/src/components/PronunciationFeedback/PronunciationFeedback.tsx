@@ -18,6 +18,7 @@ import { localeDirectionOf } from '../../i18n/direction.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStrings, LkStringsOverride } from '../../i18n/strings.js';
 import { isDevelopment } from '../_internal.js';
+import { isSourceRefusal, usePlaybackRefusal } from '../shared/playback-refusal.js';
 import { percentOfGrade, readDimensions, readGrade } from '../shared/read-grade.js';
 
 /**
@@ -71,7 +72,10 @@ export interface PronunciationFeedbackProps {
   grade?: GradeRecord;
   /**
    * The learner's own take, playable. With it, each word that carries timings
-   * gets a button that plays just that word.
+   * gets a button that plays just that word. A take the page refuses to play —
+   * a `blob:` URL under a Content-Security-Policy whose `media-src` does not
+   * allow one, most often — offers no such button, and the panel says the take
+   * cannot be played here.
    */
   audioUrl?: string;
   /**
@@ -245,6 +249,10 @@ export function PronunciationFeedback({
   // during render: this component server-renders like every other one here.
   const audioRef = useRef<HTMLAudioElement>(null);
   const stopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const playback = usePlaybackRefusal(audioUrl);
+  // A take the page refused is offered to no button: pressed, each would do
+  // nothing, which is the silent failure the note below replaces.
+  const playable = audioUrl !== undefined && !playback.refused;
   useEffect(
     () => () => {
       if (stopRef.current !== null) {
@@ -270,8 +278,13 @@ export function PronunciationFeedback({
     }
     element.currentTime = startMs / 1000;
     try {
-      void element.play().catch(() => {
-        /* an autoplay refusal is not this component's to report */
+      void element.play().catch((error: unknown) => {
+        // An autoplay refusal is not this component's to report; a source the
+        // page will not load is, and the element's own `error` may not have
+        // fired yet for an engine that loads nothing until asked.
+        if (isSourceRefusal(error)) {
+          playback.refuse(element);
+        }
       });
     } catch {
       /* an engine with no media stack at all; the button simply does nothing */
@@ -468,7 +481,7 @@ export function PronunciationFeedback({
                               </>
                             ) : null}
                           </dl>
-                          {audioUrl !== undefined &&
+                          {playable &&
                           typeof word.startMs === 'number' &&
                           typeof word.durationMs === 'number' ? (
                             <button
@@ -519,10 +532,20 @@ export function PronunciationFeedback({
         </p>
       ) : null}
 
-      {audioUrl !== undefined ? (
+      {audioUrl === undefined ? null : playback.refused ? (
+        <p className="lk-pf-audio-unavailable" role="note">
+          {s.readAloudPlaybackUnavailable}
+        </p>
+      ) : (
         // biome-ignore lint/a11y/useMediaCaption: the learner's own take has no caption track to offer, and this element is never played as content — it carries no controls and exists only so one word can be replayed from a button that names it
-        <audio ref={audioRef} className="lk-pf-audio" src={audioUrl} preload="metadata" />
-      ) : null}
+        <audio
+          ref={audioRef}
+          className="lk-pf-audio"
+          src={audioUrl}
+          preload="metadata"
+          onError={(event) => playback.refuse(event.currentTarget)}
+        />
+      )}
     </section>
   );
 }
