@@ -168,10 +168,10 @@ export interface ActivitySequenceProps {
    *
    * A registered renderer is an `ActivityRenderer`, which is
    * `ComponentType<ActivityProps>` — so it receives the shared prop contract
-   * and nothing beyond it. `shuffleSeed`, `recordingBinding` and `assessment`
-   * are all outside that contract and none of them reaches an override: a
-   * replacement for `read-aloud` has to be given its own binding by whoever
-   * wrote it.
+   * and nothing beyond it. `shuffleSeed`, `recordingBinding`, `assessment` and
+   * `workletUrl` are all outside that contract and none of them reaches an
+   * override: a replacement for `read-aloud` has to be given its own binding by
+   * whoever wrote it.
    */
   renderers?: Readonly<Record<string, ActivityRenderer>>;
   /**
@@ -282,6 +282,13 @@ export interface ActivitySequenceProps {
    * mount-only read would show the grade with no marks under it for ever.
    */
   assessments?: Readonly<Record<string, SpeechAssessment>>;
+  /**
+   * The URL of a self-hosted copy of `CAPTURE_PROCESSOR_SOURCE`, forwarded to
+   * every read-aloud slot's recorder, for a Content-Security-Policy whose
+   * `script-src` does not allow `blob:`. See `ReadAloudProps.workletUrl`. Like
+   * `recordingBinding`, it does not reach a `renderers` override.
+   */
+  workletUrl?: string;
   /** Overrides the SDK's chrome text for this sequence. See {@link LkIntlProvider}. */
   strings?: LkStringsOverride;
   /**
@@ -525,6 +532,7 @@ export function ActivitySequence({
   mediaBudget,
   recordingBinding,
   assessments,
+  workletUrl,
   strings,
 }: ActivitySequenceProps): React.JSX.Element {
   const sessionIdRef = useRef<string | null>(null);
@@ -1269,6 +1277,7 @@ export function ActivitySequence({
             ? { recordingBinding: slotRecordingBinding }
             : {})}
           {...(slotAssessment !== undefined ? { assessment: slotAssessment } : {})}
+          {...(workletUrl !== undefined ? { workletUrl } : {})}
         />
       );
     }

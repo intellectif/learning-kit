@@ -108,6 +108,14 @@ export function AudioTransport({
   // nothing did, and `remaining` is still the pre-charge value in that closure,
   // so a single press was charged twice.
   const selfStartRef = useRef(false);
+  // Whether the play under way is one this transport let run: paid for, or
+  // free by policy. Only a pause of such a play is a place to resume from. A
+  // start the player refuses (its budget spent, the player disabled, a grant
+  // still out) is paused before anything is paid, and a resume point left
+  // behind one made the next press a play nobody paid for. Decided by what was
+  // let run, never by the order `play` and `pause` arrive in, which differs
+  // between browsers, and between a browser and a test double.
+  const paidRef = useRef(false);
 
   const [used, setUsed] = useState(usedRef.current);
   const [playing, setPlaying] = useState(false);
@@ -217,6 +225,17 @@ export function AudioTransport({
    */
   const claimAndStart = useCallback(
     (element: HTMLAudioElement, alreadyPlaying: boolean) => {
+      // The one place a play is charged, so the one place a disabled player
+      // refuses one. The button and the element's own `play` event check too,
+      // but the last-play confirmation calls straight in here: a confirmation
+      // left open when the player was disabled — by a read-aloud starting a
+      // take, say — would otherwise charge a play the next moment silences.
+      if (disabled) {
+        if (alreadyPlaying) {
+          element.pause();
+        }
+        return;
+      }
       const claim = buildClaim();
       if (claim === null) {
         return;
@@ -257,11 +276,14 @@ export function AudioTransport({
       }
 
       commit(claim);
-      if (!alreadyPlaying) {
+      if (alreadyPlaying) {
+        paidRef.current = true;
+      } else {
         startPlayback();
       }
     },
     [
+      disabled,
       buildClaim,
       mediaBudget,
       maxPlays,
@@ -340,6 +362,7 @@ export function AudioTransport({
     }
     if (selfStartRef.current) {
       selfStartRef.current = false;
+      paidRef.current = true;
       setPlaying(true);
       return;
     }
@@ -348,11 +371,13 @@ export function AudioTransport({
       return;
     }
     if (isResume(element)) {
+      paidRef.current = true;
       setPlaying(true);
       resumeAtRef.current = null;
       return;
     }
     if (!budgeted) {
+      paidRef.current = true;
       setPlaying(true);
       return;
     }
@@ -371,6 +396,12 @@ export function AudioTransport({
     if (element === null) {
       return;
     }
+    // A play the transport never let run is no place to resume from: the
+    // position a paid-for play last stopped at stands.
+    if (!paidRef.current) {
+      return;
+    }
+    paidRef.current = false;
     // Every pause records the position — learner, browser, or the pager's own
     // pause as a pane hides. Without this, paging through a six-question
     // listening group and back would exhaust the budget by navigation alone.
@@ -379,6 +410,7 @@ export function AudioTransport({
   }, [reportPosition]);
 
   const handleEnded = useCallback(() => {
+    paidRef.current = false;
     setPlaying(false);
     resumeAtRef.current = null;
     highWaterRef.current = 0;

@@ -160,6 +160,13 @@ export interface LkStrings {
   /** Accessible name of the player for the take the learner just made. */
   readAloudYourRecording: string;
   /**
+   * In place of the player for the learner's own take, and of the buttons that
+   * play one word of it, when the page refuses to play it — most often a
+   * Content-Security-Policy whose `media-src` does not allow `blob:`. Said
+   * rather than left as controls that do nothing when pressed.
+   */
+  readAloudPlaybackUnavailable: string;
+  /**
    * Live progress while recording. Whole seconds, not a `m:ss` clock: a
    * recording is bounded in seconds by the item, and a translation should not
    * have to reimplement a clock to change the word around it.
@@ -366,6 +373,7 @@ export const DEFAULT_STRINGS: LkStrings = {
   readAloudStop: 'Stop recording',
   readAloudRerecord: 'Record again',
   readAloudYourRecording: 'Your recording',
+  readAloudPlaybackUnavailable: 'Your recording cannot be played back on this page.',
   readAloudRecordingProgress: (seconds, maxSeconds) =>
     `Recording: ${seconds} of ${maxSeconds} seconds`,
   readAloudRecordingStarted: 'Recording started.',

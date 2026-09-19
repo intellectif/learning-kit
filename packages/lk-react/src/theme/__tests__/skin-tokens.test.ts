@@ -16,8 +16,21 @@ import { describe, expect, it } from 'vitest';
  * inherited text colour on a primary-coloured background, and the component
  * ignored the theme's font and radius entirely.
  */
+/**
+ * Every `--lk-*` name the stylesheet mentions outside a comment, however it is
+ * spelled. Matching `var(--lk-` literally let `var( --lk-invented )` through —
+ * valid CSS, since whitespace and comments are allowed inside `var()` — so the
+ * gate reads names, not one way of writing a reference: a skin that declared a
+ * token of its own would be naming one `defaults.css` does not define, which
+ * the contract forbids too.
+ */
 const referenced = (css: string): Set<string> =>
-  new Set(Array.from(css.matchAll(/var\((--lk-[a-z0-9-]+)/g), (m) => m[1] as string));
+  new Set(
+    Array.from(
+      css.replace(/\/\*[\s\S]*?\*\//g, ' ').matchAll(/--lk-[a-z0-9-]+/g),
+      (m) => m[0] as string,
+    ),
+  );
 
 const declared = (css: string): Set<string> =>
   new Set(Array.from(css.matchAll(/(--lk-[a-z0-9-]+)\s*:/g), (m) => m[1] as string));

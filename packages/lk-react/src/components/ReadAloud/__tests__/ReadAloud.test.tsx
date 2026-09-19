@@ -8,7 +8,7 @@ import type {
   SpeechAssessment,
 } from '@intellectif/lk-core';
 import { outcomeFromGrade, redact, validateXAPIStatement } from '@intellectif/lk-core';
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { type ComponentProps, useState } from 'react';
 import { renderToString } from 'react-dom/server';
@@ -1477,5 +1477,317 @@ describe('<ReadAloud> bounds and statements', () => {
     expect(props.data).toBe(data);
     expect(signature).toBe(true);
     expect(element.type).toBe(ReadAloud);
+  });
+});
+
+describe('<ReadAloud> under a strict Content-Security-Policy (C7)', () => {
+  const question: MultipleChoiceData = {
+    schemaVersion: '1.0',
+    type: 'multiple-choice',
+    id: 'mc1',
+    title: 'A question',
+    question: 'Which one?',
+    mode: 'single',
+    scoringStrategy: 'all-or-nothing',
+    options: [
+      { id: 'a', text: 'A', isCorrect: true },
+      { id: 'b', text: 'B', isCorrect: false },
+    ],
+  };
+
+  it('loads the capture module from `workletUrl` when it is given, and mints a blob: one when not', async () => {
+    // Neither component forwarded it, so on a policy that refuses `blob:` in
+    // `script-src` every take went through the deprecated main-thread path —
+    // and still recorded, so nothing said so.
+    const user = userEvent.setup();
+    const capture = harness as SpeechCaptureHarness;
+    const { unmount } = render(
+      <ReadAloud data={data} recordingBinding={storeOnly()} workletUrl="/lk-speech-capture.js" />,
+    );
+    await user.click(record());
+    await flush();
+    expect(capture.addedModules()).toEqual(['/lk-speech-capture.js']);
+    expect(capture.capturePath()).toBe('worklet');
+    unmount();
+
+    render(<ReadAloud data={data} recordingBinding={storeOnly()} />);
+    await user.click(record());
+    await flush();
+    expect(capture.addedModules()[1]).toMatch(/^blob:/);
+  });
+
+  it('hands `workletUrl` from a sequence to every read-aloud slot', async () => {
+    const user = userEvent.setup();
+    const capture = harness as SpeechCaptureHarness;
+    render(
+      <ActivitySequence
+        activities={[question, { ...data, id: 'ra1' }]}
+        recordingBinding={{ upload: async (take) => ({ key: 'take-1', mimeType: take.mimeType }) }}
+        workletUrl="/assets/lk-speech-capture.js"
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(record());
+    await flush();
+    expect(capture.addedModules()).toEqual(['/assets/lk-speech-capture.js']);
+  });
+
+  it('says the take cannot be played where the page refuses it, and offers no button that would do nothing', async () => {
+    // Under `default-src 'self'` a `blob:` take is blocked by `media-src`: the
+    // element fires `error`, the player and every per-word Play button go on
+    // looking as if they work, and pressing them does nothing.
+    const user = userEvent.setup();
+    const assess = vi.fn(async () => ({ status: 'graded' as const, assessment, grade }));
+    const withTimings: SpeechAssessment = {
+      ...assessment,
+      words: assessment.words.map((word, index) => ({
+        ...word,
+        startMs: index * 300,
+        durationMs: 250,
+      })),
+    };
+    assess.mockResolvedValue({ status: 'graded', assessment: withTimings, grade });
+    const { container } = render(
+      <ReadAloud data={data} recordingBinding={{ ...storeOnly(), assess }} />,
+    );
+    await makeTake(user);
+    const player = screen.getByLabelText('Your recording');
+    fireEvent.error(player);
+
+    expect(screen.queryByLabelText('Your recording')).not.toBeInTheDocument();
+    const note = container.querySelector('.lk-ra-take-unavailable') as HTMLElement;
+    expect(note).toHaveTextContent('Your recording cannot be played back on this page.');
+    expect(note).toHaveAttribute('role', 'note');
+    expect(await checkA11y(container)).toHaveNoViolations();
+
+    // Submitting still works: nothing is wrong with the take itself.
+    await user.click(submit());
+    await flush();
+    expect(assess).toHaveBeenCalledTimes(1);
+    await user.click(screen.getAllByRole('button', { name: /^Details for/ })[0] as HTMLElement);
+    expect(screen.queryByRole('button', { name: /^Play “/ })).not.toBeInTheDocument();
+    expect(container.querySelector('.lk-pf-audio')).toBeNull();
+    // One note, not one per element that plays the take.
+    expect(screen.getAllByText('Your recording cannot be played back on this page.')).toHaveLength(
+      1,
+    );
+
+    // A new take is a new URL, and nothing has refused that one yet.
+    await makeTake(user);
+    expect(screen.getByLabelText('Your recording')).toBeInTheDocument();
+    expect(container.querySelector('.lk-ra-take-unavailable')).toBeNull();
+  });
+
+  it('says the same in review, for a stored link the page will not load', async () => {
+    const playbackUrl = vi.fn(async () => 'https://storage.x.test/takes/take-1.wav');
+    render(
+      <ReadAloud
+        data={data}
+        renderMode="review"
+        value={{ type: 'read-aloud', recording: { key: 'take-1', mimeType: 'audio/wav' } }}
+        outcome={outcomeFromGrade(grade)}
+        recordingBinding={{ upload: storeOnly().upload, playbackUrl }}
+      />,
+    );
+    await flush();
+    fireEvent.error(screen.getByLabelText('Your recording'));
+    expect(screen.getByText('Your recording cannot be played back on this page.')).toHaveClass(
+      'lk-ra-take-unavailable',
+    );
+  });
+
+  it('keeps a refusal that belongs to an earlier take from marking a later one', async () => {
+    // The element reports what it holds when it fails, not what a closure
+    // remembered: an `error` for a source the element no longer holds names
+    // that source, which is not the take on screen.
+    const user = userEvent.setup();
+    render(<ReadAloud data={data} recordingBinding={storeOnly()} />);
+    await makeTake(user);
+    const first = screen.getByLabelText('Your recording');
+    const firstUrl = first.getAttribute('src') as string;
+    await makeTake(user);
+    const second = screen.getByLabelText('Your recording');
+    expect(second.getAttribute('src')).not.toBe(firstUrl);
+    // A stale element reporting its own, earlier source.
+    const stale = document.createElement('audio');
+    stale.setAttribute('src', firstUrl);
+    stale.addEventListener('error', () => {});
+    fireEvent.error(stale);
+    expect(screen.getByLabelText('Your recording')).toBe(second);
+  });
+});
+
+describe('<ReadAloud> and a budgeted model recording during a take (C8)', () => {
+  const budgeted = (maxPlays: number): ReadAloudData => ({
+    ...data,
+    id: 'ra-budget',
+    media: {
+      type: 'audio',
+      url: 'https://x.test/weather.mp3',
+      alt: 'Model',
+      playback: { maxPlays },
+    },
+  });
+  const bindingFor = (onPlayConsumed: () => undefined) => ({
+    key: 'm',
+    slotId: '0',
+    index: 0,
+    activityId: 'ra-budget',
+    onPlayConsumed,
+  });
+
+  it.each([
+    'practice',
+    'exam',
+  ] as const)('charges no play for a press, a media key or a confirmation while the learner records (%s)', async (renderMode) => {
+    // The F6 guard silenced a model started mid-take — after the transport had
+    // charged the play. A learner on a two-play listening item lost one they
+    // never heard, with no message. Refused before the charge instead.
+    stubMediaElement();
+    const user = userEvent.setup();
+    const onPlayConsumed = vi.fn(() => undefined);
+    render(
+      <ReadAloud
+        data={budgeted(2)}
+        renderMode={renderMode}
+        recordingBinding={storeOnly()}
+        mediaBudget={bindingFor(onPlayConsumed)}
+      />,
+    );
+    const model = screen.getByRole('group', { name: 'Model recording' });
+    const element = model.querySelector('audio') as HTMLAudioElement;
+    await user.click(record());
+    await flush();
+
+    const play = within(model).getByRole('button', { name: 'Play' });
+    expect(play).toHaveAttribute('aria-disabled', 'true');
+    await user.click(play);
+    // A hardware media key or a script starts the element without the button.
+    await act(async () => {
+      await element.play();
+    });
+    expect(onPlayConsumed).not.toHaveBeenCalled();
+    expect(element.paused).toBe(true);
+    expect(within(model).getByText('2 of 2 plays remaining')).toBeInTheDocument();
+
+    act(() => {
+      (harness as SpeechCaptureHarness).pushLevel(
+        0.5,
+        (harness as SpeechCaptureHarness).sampleRate * 2,
+      );
+    });
+    await user.click(screen.getByRole('button', { name: 'Stop recording' }));
+
+    // Once the take is over, a press is a play again, charged once.
+    await user.click(within(model).getByRole('button', { name: 'Play' }));
+    expect(onPlayConsumed).toHaveBeenCalledTimes(1);
+    expect(within(model).getByText('1 of 2 plays remaining')).toBeInTheDocument();
+  });
+
+  it('charges nothing for a last-play confirmation that was left open when the take began', async () => {
+    // The confirmation calls straight into the charge, past the checks the
+    // button and the element make: the one place left to refuse it is the
+    // charge itself.
+    stubMediaElement();
+    const user = userEvent.setup();
+    const onPlayConsumed = vi.fn(() => undefined);
+    render(
+      <ReadAloud
+        data={budgeted(1)}
+        recordingBinding={storeOnly()}
+        mediaBudget={bindingFor(onPlayConsumed)}
+      />,
+    );
+    const model = screen.getByRole('group', { name: 'Model recording' });
+    await user.click(within(model).getByRole('button', { name: 'Play' }));
+    const confirm = within(model).getByRole('button', { name: 'Start last play' });
+
+    await user.click(record());
+    await flush();
+    await user.click(confirm);
+    expect(onPlayConsumed).not.toHaveBeenCalled();
+    expect((model.querySelector('audio') as HTMLAudioElement).paused).toBe(true);
+  });
+});
+
+describe('<ReadAloud> focus after Try again (C8)', () => {
+  it.each([
+    [
+      'a failed upload',
+      (): RecordingBinding => ({
+        upload: vi
+          .fn()
+          .mockRejectedValueOnce(new Error('the network went away'))
+          .mockResolvedValue({ key: 'take-1', mimeType: 'audio/wav' }),
+      }),
+    ],
+    [
+      'a failed assessment',
+      (): RecordingBinding => ({
+        ...storeOnly(),
+        assess: vi
+          .fn()
+          .mockResolvedValueOnce({ status: 'failed', retryable: true })
+          .mockResolvedValue({ status: 'graded', assessment, grade }),
+      }),
+    ],
+  ])('moves focus to the submit it retries, never to the page body, after %s', async (_, binding) => {
+    const user = userEvent.setup();
+    render(<ReadAloud data={data} recordingBinding={binding()} />);
+    await makeTake(user);
+    await user.click(submit());
+    await flush();
+
+    const retry = screen.getByRole('button', { name: 'Try again' });
+    retry.focus();
+    await user.keyboard('{Enter}');
+    expect(document.activeElement).toBe(submit());
+    await flush();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(submit());
+  });
+});
+
+describe('<ReadAloud> bounds a server stored (C8)', () => {
+  it.each([
+    [
+      'a fractional bound',
+      { maxSeconds: 2.5, minSeconds: 1, maxTakes: 3 },
+      'Recording stopped. 2.5 of 2.5 seconds recorded.',
+      '2 of 3 recordings left',
+    ],
+    [
+      'a take count stored as a string',
+      { maxSeconds: 3, maxTakes: '1' },
+      'Recording stopped. 3 of 3 seconds recorded.',
+      '19 of 20 recordings left',
+    ],
+    [
+      'a minimum the maximum cannot reach',
+      { maxSeconds: 3, minSeconds: 30, maxTakes: 3 },
+      'Recording stopped. 3 of 3 seconds recorded.',
+      '2 of 3 recordings left',
+    ],
+  ])('records %s to its bound and says no more than it', async (_, recording, stopped, takes) => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const user = userEvent.setup();
+    const capture = harness as SpeechCaptureHarness;
+    const { container } = render(
+      <ReadAloud
+        data={{ ...data, recording } as unknown as ReadAloudData}
+        recordingBinding={storeOnly()}
+      />,
+    );
+    await user.click(record());
+    await flush();
+    // Past the bound: the recorder stops the take there by itself.
+    act(() => {
+      capture.pushLevel(0.5, capture.sampleRate * 4);
+    });
+    await flush();
+    expect(container.querySelector('.lk-ra-recorder')).toHaveAttribute('data-status', 'recorded');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(container.querySelector('.lk-ra [aria-live]')).toHaveTextContent(stopped);
+    expect(screen.getByText(takes)).toBeInTheDocument();
   });
 });

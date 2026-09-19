@@ -463,6 +463,12 @@ describe('translation coverage', () => {
     const upload = defer<RecordingRef>();
     sweep(<ReadAloud data={ra} recordingBinding={{ upload: () => upload.promise }} />);
     await recordTake();
+    // The page refuses to play the take back — a policy that will not load
+    // `blob:` media — and a note takes the player's place.
+    act(() => {
+      document.querySelector('.lk-ra-take')?.dispatchEvent(new Event('error'));
+    });
+    keep(document.body);
     await user.click(screen.getByRole('button', { name: sentinel('submit') }));
     keep(document.body);
     upload.settle(stored);

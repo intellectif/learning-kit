@@ -8,8 +8,6 @@ import {
   type InteractionKind,
   type LearnerResponse,
   type MediaPlaybackPolicy,
-  READ_ALOUD_MAX_SECONDS,
-  READ_ALOUD_MAX_TAKES,
   type ReadAloudData,
   type ReadAloudLearnerResponse,
   type ReadAloudWordAlignment,
@@ -42,6 +40,7 @@ import { markSentence, VISUALLY_HIDDEN } from '../PronunciationFeedback/Pronunci
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { joinCaptureGroup } from '../shared/capture-registry.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
+import { usePlaybackRefusal } from '../shared/playback-refusal.js';
 import {
   fractionOfGrade,
   type OutcomeReading,
@@ -58,6 +57,7 @@ import {
   type TakeState,
 } from '../shared/sequence-slot.js';
 import type { ActivityProps, Renderable } from '../types.js';
+import { readRecordingBounds, secondsWithin } from './recording-bounds.js';
 
 /**
  * Names playback groups for the model recordings. Per mount and never derived
@@ -138,6 +138,15 @@ export interface ReadAloudProps extends ActivityProps<ReadAloudData> {
   /** The same, for the monotone note. */
   monotoneThreshold?: number;
   /**
+   * The URL of a self-hosted copy of `CAPTURE_PROCESSOR_SOURCE`, handed to the
+   * recorder, for a Content-Security-Policy whose `script-src` does not allow
+   * `blob:`. Without it the capture module is loaded from a `blob:` URL, and a
+   * policy that refuses one sends every take through the deprecated
+   * main-thread `ScriptProcessorNode` — a take that still records, so nothing
+   * says so. See `useSpeechRecorder`'s option of the same name.
+   */
+  workletUrl?: string;
+  /**
    * Never called. A read-aloud answer is a key in your storage, and there is
    * none until the take has been uploaded — so there is no intermediate
    * response to report, and reporting the take itself would offer a host a
@@ -205,6 +214,17 @@ function takeStateOf(phase: SubmitPhase, uploaded: RecordingRef | null): TakeSta
     return 'in-flight';
   }
   return offersRetry(phase, uploaded) ? 'retryable' : 'settled';
+}
+
+/**
+ * Whether the recorder is capturing, or about to: the one answer to "is a take
+ * being recorded", read by everything that must hold still for one. A
+ * permission prompt counts — a prompt answered after the pane went away would
+ * otherwise open a microphone nobody is in front of, and a model recording
+ * played while the prompt is up would be charged a play and then silenced.
+ */
+function capturing(status: SpeechRecorderStatus): boolean {
+  return status === 'recording' || status === 'requesting-permission';
 }
 
 /**
@@ -445,6 +465,12 @@ function OutcomeSummary({
  * and never reaches `onComplete` or a statement; `onComplete` fires exactly when
  * a score is on screen, with that score.
  *
+ * **Under a strict Content-Security-Policy** the take is played back from a
+ * `blob:` URL, so `media-src` must allow `blob:` — refused, the player and the
+ * per-word buttons give way to a note saying the take cannot be played here —
+ * and the capture module loads from one too, so either `script-src` allows
+ * `blob:` or `workletUrl` names a self-hosted copy of `CAPTURE_PROCESSOR_SOURCE`.
+ *
  * ```tsx
  * <ReadAloud
  *   data={item}
@@ -474,6 +500,7 @@ export function ReadAloud({
   assessment,
   breakThreshold,
   monotoneThreshold,
+  workletUrl,
 }: ReadAloudProps) {
   const isExam = renderMode === 'exam';
   const isReview = renderMode === 'review';
@@ -506,27 +533,12 @@ export function ReadAloud({
     return result.success ? null : new ActivitySchemaError('read-aloud', result.errors);
   }, [data]);
 
-  // The bounds a take is captured under, CLAMPED and not merely defaulted,
-  // because `practice` renders unvalidated content in production: a
-  // `maxSeconds` that is not a number would make the auto-stop comparison NaN,
-  // and a `maxSeconds` of 100000 passes every guard a NaN check makes and arms
-  // a recording that never stops itself — the one failure a learner cannot see
-  // coming, and one that fills the tab's memory while it happens. The schema's
-  // own ceilings are the bounds, so unvalidated data can only ever be stricter
-  // than the ceiling, never looser.
-  const bounds = data.recording as Partial<ReadAloudData['recording']> | undefined;
-  const maxSeconds =
-    typeof bounds?.maxSeconds === 'number' && bounds.maxSeconds > 0
-      ? Math.min(bounds.maxSeconds, READ_ALOUD_MAX_SECONDS)
-      : READ_ALOUD_MAX_SECONDS;
-  const minSeconds = typeof bounds?.minSeconds === 'number' ? bounds.minSeconds : undefined;
-  // A take count that is not a whole number in range would put "NaN of NaN
-  // recordings left" in front of the learner and leave `canRecord` false for
-  // ever, which reads as a recorder that is simply broken.
-  const maxTakes =
-    typeof bounds?.maxTakes === 'number' && Number.isFinite(bounds.maxTakes)
-      ? Math.min(Math.max(1, Math.floor(bounds.maxTakes)), READ_ALOUD_MAX_TAKES)
-      : undefined;
+  // The bounds a take is captured under, READ and not merely defaulted, because
+  // `practice` renders unvalidated content in production: a `maxSeconds` of
+  // 100000 arms a recording that never stops itself, a `maxTakes` of "1" meant
+  // unlimited takes, and a minimum above the maximum refused every take. One
+  // reader owns all of it — see `readRecordingBounds`.
+  const { maxSeconds, minSeconds, maxTakes } = readRecordingBounds(data.recording);
   const readingKey = readingKeyOf(data, { maxSeconds, minSeconds, maxTakes });
 
   const recorder = useSpeechRecorder(
@@ -535,8 +547,11 @@ export function ReadAloud({
         maxDurationMs: maxSeconds * 1000,
         ...(minSeconds !== undefined ? { minDurationMs: minSeconds * 1000 } : {}),
         ...(maxTakes !== undefined ? { maxTakes } : {}),
+        // Forwarded, never defaulted: without it the recorder mints its own
+        // `blob:` module, which is the one a strict policy refuses.
+        ...(workletUrl !== undefined ? { workletUrl } : {}),
       }),
-      [maxSeconds, minSeconds, maxTakes],
+      [maxSeconds, minSeconds, maxTakes, workletUrl],
     ),
   );
 
@@ -686,9 +701,7 @@ export function ReadAloud({
   const statusRef = useRef(recorder.status);
   statusRef.current = recorder.status;
   const releaseMicrophone = useCallback(() => {
-    // `requesting-permission` counts: a prompt answered after the pane went
-    // away would otherwise open a microphone nobody is in front of.
-    if (statusRef.current === 'recording' || statusRef.current === 'requesting-permission') {
+    if (capturing(statusRef.current)) {
       recorder.discard();
     }
   }, [recorder.discard]);
@@ -765,10 +778,13 @@ export function ReadAloud({
   // are still on screen and still work throughout the take, so the hazard
   // simply moves one door along. The listener holds the guard for the whole
   // capture and is removed with it; `play` does not bubble, so it is taken in
-  // the capture phase.
+  // the capture phase. It is what silences the browser's own control bar; a
+  // budgeted model is refused before it is charged, by the `disabled` its
+  // player is rendered with below.
   const modelsRef = useRef<HTMLDivElement>(null);
+  const isCapturing = capturing(recorder.status);
   useEffect(() => {
-    if (recorder.status !== 'recording') {
+    if (!isCapturing) {
       return;
     }
     const node = modelsRef.current;
@@ -788,12 +804,21 @@ export function ReadAloud({
     return () => {
       node.removeEventListener('play', hush, true);
     };
-  }, [recorder.status]);
+  }, [isCapturing]);
 
   const slowMedia = useMemo(
     () => slowMediaFor(data, s.readAloudSlowRecording),
     [data, s.readAloudSlowRecording],
   );
+
+  // The learner's own take, as every element that plays it plays it: the
+  // preview before it is sent, the stored link a review mints, and the
+  // per-word buttons in the feedback panel. One refusal covers all of them.
+  const takeAudio = isReview ? playbackUrl : takeUrl;
+  const playback = usePlaybackRefusal(takeAudio);
+  // Where focus goes when a retry takes the "Try again" button away: the
+  // submit it retries, which says it is busy for as long as the retry runs.
+  const submitRef = useRef<HTMLButtonElement>(null);
 
   // All hooks are called before these throws, so hook order stays stable.
   if (devError) {
@@ -1080,7 +1105,10 @@ export function ReadAloud({
       ? phase.assessment
       : null;
   const feedbackGrade = isReview ? storedGrade : phase.kind === 'graded' ? phase.grade : null;
-  const feedbackAudio = isReview ? playbackUrl : takeUrl;
+  // A take the page refused to play is handed to no per-word button: each of
+  // them would do nothing when pressed, and the note in the player's place
+  // already says why.
+  const feedbackAudio = playback.refused ? null : takeAudio;
 
   // Whether the score and the grader's words are already on screen inside the
   // feedback panel, which is what decides who renders them here.
@@ -1129,7 +1157,10 @@ export function ReadAloud({
     const stopped: Announcement | null =
       recorder.status === 'recorded' && take !== null
         ? {
-            text: s.readAloudRecordingStopped(Math.round(take.durationMs / 1000), maxSeconds),
+            text: s.readAloudRecordingStopped(
+              secondsWithin(take.durationMs, maxSeconds, 'nearest'),
+              maxSeconds,
+            ),
             feedback: null,
           }
         : null;
@@ -1217,7 +1248,11 @@ export function ReadAloud({
           {data.media !== undefined ? (
             <fieldset className="lk-ra-model">
               <legend className="lk-ra-model-label">{s.readAloudModelRecording}</legend>
-              {/* The ONLY budgeted recording: the binding is whatever the pager or the caller passes. */}
+              {/* The ONLY budgeted recording: the binding is whatever the pager or the caller passes.
+                  Disabled while a take is captured, so a press is refused BEFORE a play is
+                  charged — silenced after the charge, it cost the learner a play they never
+                  heard. Nothing is announced for the refusal: a screen reader speaking now
+                  would speak into the take. */}
               <ActivityMedia
                 media={data.media}
                 renderMode={renderMode}
@@ -1227,7 +1262,7 @@ export function ReadAloud({
                 {...(strings !== undefined ? { strings } : {})}
                 {...(onInteraction !== undefined ? { onInteraction } : {})}
                 {...(locale !== undefined ? { locale } : {})}
-                {...(disabled !== undefined ? { disabled } : {})}
+                {...(disabled === true || isCapturing ? { disabled: true } : {})}
               />
             </fieldset>
           ) : null}
@@ -1242,7 +1277,7 @@ export function ReadAloud({
                 {...(mediaStrings !== undefined ? { mediaStrings } : {})}
                 {...(strings !== undefined ? { strings } : {})}
                 {...(locale !== undefined ? { locale } : {})}
-                {...(disabled !== undefined ? { disabled } : {})}
+                {...(disabled === true || isCapturing ? { disabled: true } : {})}
               />
             </fieldset>
           ) : null}
@@ -1291,7 +1326,10 @@ export function ReadAloud({
             // ten-second take — into the microphone. What a screen-reader
             // learner needs instead is said once each, below.
             <p className="lk-ra-progress" aria-hidden="true">
-              {s.readAloudRecordingProgress(Math.floor(recorder.elapsedMs / 1000), maxSeconds)}
+              {s.readAloudRecordingProgress(
+                secondsWithin(recorder.elapsedMs, maxSeconds, 'down'),
+                maxSeconds,
+              )}
             </p>
           ) : null}
           {takesLeft !== undefined && maxTakes !== undefined ? (
@@ -1300,30 +1338,30 @@ export function ReadAloud({
         </div>
       )}
 
-      {!isReview && takeUrl !== null ? (
+      {takeAudio === null ? null : playback.refused ? (
+        // In the player's place, not beside it: a player the page will not
+        // load looks exactly like one that works until it is pressed, and then
+        // does nothing. A note rather than an alert — the learner can still
+        // submit, and nothing here asks them to act.
+        <p className="lk-ra-take-unavailable" role="note">
+          {s.readAloudPlaybackUnavailable}
+        </p>
+      ) : (
         // biome-ignore lint/a11y/useMediaCaption: the learner's own take has no caption track to offer; its accessible name says whose recording it is
         <audio
           className="lk-ra-take"
           controls
-          src={takeUrl}
+          src={takeAudio}
           aria-label={s.readAloudYourRecording}
-          data-take={recorder.takesUsed}
+          onError={(event) => playback.refuse(event.currentTarget)}
+          {...(isReview ? {} : { 'data-take': recorder.takesUsed })}
         />
-      ) : null}
-
-      {isReview && playbackUrl !== null ? (
-        // biome-ignore lint/a11y/useMediaCaption: the learner's own take has no caption track to offer; its accessible name says whose recording it is
-        <audio
-          className="lk-ra-take"
-          controls
-          src={playbackUrl}
-          aria-label={s.readAloudYourRecording}
-        />
-      ) : null}
+      )}
 
       {isReview || submitted ? null : (
         <div className="lk-ra-actions">
           <button
+            ref={submitRef}
             type="submit"
             className="lk-ra-submit"
             disabled={disabled === true}
@@ -1355,6 +1393,11 @@ export function ReadAloud({
               type="button"
               className="lk-ra-retry"
               onClick={() => {
+                // The retry takes this button away with the phase it answers,
+                // and focus on a removed element drops to the page body — a
+                // keyboard learner is then back at the top of the page with no
+                // idea the retry started. It goes to the submit being retried.
+                submitRef.current?.focus();
                 if (phase.kind === 'upload-failed') {
                   void submitTake(recorder.take);
                 } else if (phase.kind === 'assess-failed' && uploaded !== null) {
