@@ -1935,3 +1935,1351 @@
     }
   }
 }
+
+/* ── Interactive video ─────────────────────────────────────────────────────
+   The player's own chrome is always dark: it sits on moving pictures, and a
+   light bar over a video is unreadable on half of them. So the chrome is drawn
+   in literals, and only its accent is a token (`--lk-color-media-accent`). The
+   quiz panel, the end card and the panel below the video are content: they
+   take the theme like any activity. */
+@layer lk-skin {
+  .lk-iv {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-md);
+    font-family: var(--lk-font-family-base);
+    font-size: var(--lk-font-size-base);
+    line-height: var(--lk-line-height-base);
+    color: var(--lk-color-text);
+  }
+
+  .lk-iv *,
+  .lk-iv *::before,
+  .lk-iv *::after {
+    box-sizing: border-box;
+  }
+
+  /* The shell takes focus only to catch shortcuts; it draws no ring. */
+  .lk-iv:focus {
+    outline: none;
+  }
+
+  .lk-iv-icon {
+    display: block;
+    flex: none;
+  }
+
+  /* One grid cell holds the video and every layer over it. A layer in the flow
+     — the quiz, the end card — can make the cell taller than the video: a long
+     question grows the player instead of hiding behind a scroll bar. */
+  .lk-iv-stage {
+    position: relative;
+    display: grid;
+    grid-template: minmax(0, auto) / minmax(0, 1fr);
+    container-type: inline-size;
+    overflow: hidden;
+    isolation: isolate;
+    border-radius: var(--lk-radius-lg);
+    background: #000;
+    color: #fff;
+  }
+
+  .lk-iv-stage > * {
+    grid-area: 1 / 1;
+  }
+
+  .lk-iv[data-chrome="hidden"] .lk-iv-stage {
+    cursor: none;
+  }
+
+  .lk-iv-video {
+    display: block;
+    align-self: center;
+    inline-size: 100%;
+    block-size: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: contain;
+    background: #000;
+    transition: filter var(--lk-transition-base);
+  }
+
+  /* Behind a quiz or the end card the frame stays, dimmed: the learner keeps
+     their place in the picture without it competing with the question. */
+  .lk-iv[data-quiz-open] .lk-iv-video,
+  .lk-iv-stage:has(> .lk-iv-end) .lk-iv-video {
+    filter: brightness(0.35) blur(3px);
+  }
+
+  .lk-iv-label {
+    z-index: 1;
+    align-self: start;
+    justify-self: start;
+    margin: 12px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.55);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    pointer-events: none;
+    transition: opacity var(--lk-transition-base);
+  }
+
+  .lk-iv[data-chrome="hidden"] .lk-iv-label,
+  .lk-iv[data-quiz-open] .lk-iv-label {
+    opacity: 0;
+  }
+
+  .lk-iv-big-play {
+    z-index: 1;
+    place-self: center;
+    display: grid;
+    place-items: center;
+    inline-size: 72px;
+    block-size: 72px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgb(0 0 0 / 0.5);
+    color: #fff;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    transition:
+      transform var(--lk-transition-fast),
+      background-color var(--lk-transition-fast);
+  }
+
+  .lk-iv-big-play .lk-iv-icon {
+    inline-size: 32px;
+    block-size: 32px;
+    margin-inline-start: 3px;
+  }
+
+  .lk-iv-big-play:hover {
+    background: rgb(0 0 0 / 0.68);
+    transform: scale(1.05);
+  }
+
+  .lk-iv-spinner {
+    z-index: 1;
+    place-self: center;
+    inline-size: 44px;
+    block-size: 44px;
+    border: 3px solid rgb(255 255 255 / 0.25);
+    border-block-start-color: #fff;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: lk-iv-spin 0.9s linear infinite;
+  }
+
+  @keyframes lk-iv-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .lk-iv-error {
+    z-index: 3;
+    place-self: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    max-inline-size: 36ch;
+    padding: var(--lk-spacing-lg);
+    text-align: center;
+  }
+
+  .lk-iv-error p {
+    margin: 0;
+  }
+
+  .lk-iv-error .lk-iv-icon {
+    inline-size: 32px;
+    block-size: 32px;
+  }
+
+  /* ── Captions ──────────────────────────────────────────────────────────
+     Drawn by the player, sized to the player (not the page), and lifted
+     clear of the controls while they show. */
+  .lk-iv-caption {
+    z-index: 1;
+    align-self: end;
+    justify-self: center;
+    max-inline-size: min(88%, 42em);
+    margin-block-end: max(16px, 4cqw);
+    font-size: clamp(14px, 2.4cqw, 30px);
+    line-height: 1.45;
+    text-align: center;
+    pointer-events: none;
+    transition: margin-block-end var(--lk-transition-base);
+  }
+
+  .lk-iv-caption[data-size="small"] {
+    font-size: clamp(12px, 1.9cqw, 24px);
+  }
+
+  .lk-iv-caption[data-size="large"] {
+    font-size: clamp(16px, 3.1cqw, 38px);
+  }
+
+  .lk-iv[data-chrome="shown"] .lk-iv-caption {
+    margin-block-end: 84px;
+  }
+
+  .lk-iv-caption span {
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+    color: #fff;
+    text-shadow:
+      0 0 4px rgb(0 0 0 / 0.9),
+      0 1px 2px #000;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  .lk-iv-caption[data-background] span {
+    background: rgb(0 0 0 / 0.75);
+    text-shadow: none;
+  }
+
+  /* ── Controls ────────────────────────────────────────────────────────── */
+  .lk-iv-chrome {
+    z-index: 2;
+    align-self: end;
+    display: flex;
+    flex-direction: column;
+    padding: 36px 10px 6px;
+    background: linear-gradient(to top, rgb(0 0 0 / 0.74), rgb(0 0 0 / 0.36) 55%, transparent);
+    transition: opacity var(--lk-transition-base);
+  }
+
+  /* Hidden, it lets a tap through to the video, which brings it back. */
+  .lk-iv[data-chrome="hidden"] .lk-iv-chrome {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .lk-iv[data-quiz-open] .lk-iv-chrome {
+    visibility: hidden;
+  }
+
+  .lk-iv-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+  }
+
+  .lk-iv-bar-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-inline-size: 0;
+  }
+
+  .lk-iv-button {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    inline-size: 40px;
+    block-size: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+    transition:
+      background-color var(--lk-transition-fast),
+      transform var(--lk-transition-fast);
+  }
+
+  .lk-iv-button:hover {
+    background: rgb(255 255 255 / 0.14);
+  }
+
+  .lk-iv-button:active {
+    transform: scale(0.94);
+  }
+
+  /* A toggle that is on carries a short bar under its icon. */
+  .lk-iv-bar .lk-iv-button[aria-pressed="true"]:not(.lk-iv-volume .lk-iv-button)::after {
+    content: "";
+    position: absolute;
+    inset-block-end: 5px;
+    inline-size: 14px;
+    block-size: 2px;
+    border-radius: 1px;
+    background: var(--lk-color-media-accent);
+  }
+
+  .lk-iv-speed {
+    inline-size: auto;
+    min-inline-size: 40px;
+    padding-inline: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lk-iv-time {
+    display: inline-flex;
+    align-items: center;
+    block-size: 40px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    color: #fff;
+    font: inherit;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .lk-iv-time:hover {
+    background: rgb(255 255 255 / 0.14);
+  }
+
+  .lk-iv-time-total {
+    color: rgb(255 255 255 / 0.7);
+  }
+
+  .lk-iv-volume {
+    display: flex;
+    align-items: center;
+  }
+
+  .lk-iv-volume-slider {
+    inline-size: 0;
+    margin: 0;
+    opacity: 0;
+    accent-color: var(--lk-color-media-accent);
+    cursor: pointer;
+    transition:
+      inline-size var(--lk-transition-base),
+      opacity var(--lk-transition-base),
+      margin var(--lk-transition-base);
+  }
+
+  .lk-iv-volume:hover .lk-iv-volume-slider,
+  .lk-iv-volume:focus-within .lk-iv-volume-slider {
+    inline-size: 72px;
+    margin-inline: 4px 8px;
+    opacity: 1;
+  }
+
+  /* ── The progress bar ────────────────────────────────────────────────── */
+  .lk-iv-scrubber {
+    position: relative;
+    display: flex;
+    align-items: center;
+    block-size: 20px;
+    margin-inline: 6px;
+    cursor: pointer;
+    touch-action: none;
+  }
+
+  .lk-iv-scrubber-track {
+    position: relative;
+    inline-size: 100%;
+    block-size: 4px;
+    border-radius: 2px;
+    background: rgb(255 255 255 / 0.24);
+    transition: block-size var(--lk-transition-fast);
+  }
+
+  .lk-iv-scrubber:hover .lk-iv-scrubber-track,
+  .lk-iv-scrubber[data-dragging] .lk-iv-scrubber-track,
+  .lk-iv-scrubber:focus-visible .lk-iv-scrubber-track {
+    block-size: 6px;
+  }
+
+  .lk-iv-scrubber-buffered,
+  .lk-iv-scrubber-played {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    border-radius: inherit;
+  }
+
+  .lk-iv-scrubber-buffered {
+    background: rgb(255 255 255 / 0.36);
+  }
+
+  .lk-iv-scrubber-played {
+    background: var(--lk-color-media-accent);
+  }
+
+  .lk-iv-scrubber-gap {
+    position: absolute;
+    inset-block: 0;
+    inline-size: 3px;
+    margin-inline-start: -1.5px;
+    background: rgb(0 0 0 / 0.7);
+  }
+
+  .lk-iv-scrubber-thumb {
+    position: absolute;
+    inset-block-start: 50%;
+    inline-size: 14px;
+    block-size: 14px;
+    margin-block-start: -7px;
+    margin-inline-start: -7px;
+    border-radius: 50%;
+    background: var(--lk-color-media-accent);
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
+    transform: scale(0);
+    pointer-events: none;
+    transition: transform var(--lk-transition-fast);
+  }
+
+  .lk-iv-scrubber:hover .lk-iv-scrubber-thumb,
+  .lk-iv-scrubber[data-dragging] .lk-iv-scrubber-thumb,
+  .lk-iv-scrubber:focus-visible .lk-iv-scrubber-thumb {
+    transform: scale(1);
+  }
+
+  /* A quiz on the bar. Each state has its own shape, never colour alone:
+     a ring not yet reached, half filled when begun, filled when answered,
+     a diamond when wrong, dashed while a grade is pending. */
+  .lk-iv-marker {
+    position: absolute;
+    inset-block-start: 50%;
+    inline-size: 12px;
+    block-size: 12px;
+    margin-block-start: -6px;
+    margin-inline-start: -6px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: #18181b;
+    box-shadow: 0 0 0 1.5px rgb(0 0 0 / 0.55);
+    pointer-events: none;
+  }
+
+  .lk-iv-marker[data-state="open"] {
+    background: linear-gradient(to right, #fff 50%, #18181b 50%);
+  }
+
+  .lk-iv-marker[data-state="answered"] {
+    background: #fff;
+  }
+
+  .lk-iv-marker[data-state="correct"] {
+    background: #22c55e;
+  }
+
+  .lk-iv-marker[data-state="partial"] {
+    background: linear-gradient(to right, #f59e0b 50%, #18181b 50%);
+  }
+
+  .lk-iv-marker[data-state="incorrect"] {
+    border-radius: 2px;
+    background: #ef4444;
+    transform: rotate(45deg) scale(0.9);
+  }
+
+  .lk-iv-marker[data-state="pending"] {
+    border-style: dashed;
+  }
+
+  .lk-iv-bubble {
+    position: absolute;
+    inset-block-end: calc(100% + 10px);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    inline-size: max-content;
+    max-inline-size: 240px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgb(15 15 17 / 0.92);
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.35;
+    text-align: center;
+    translate: -50% 0;
+    pointer-events: none;
+  }
+
+  .lk-iv-bubble:dir(rtl) {
+    translate: 50% 0;
+  }
+
+  .lk-iv-bubble-time {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lk-iv-bubble-chapter {
+    font-weight: 400;
+    color: rgb(255 255 255 / 0.75);
+  }
+
+  .lk-iv-bubble-quiz {
+    font-weight: 600;
+  }
+
+  .lk-iv-bubble-caption {
+    display: -webkit-box;
+    overflow: hidden;
+    color: rgb(255 255 255 / 0.88);
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  /* ── Menus and the shortcut list ─────────────────────────────────────── */
+  .lk-iv-menu-anchor {
+    position: relative;
+  }
+
+  .lk-iv-menu {
+    position: absolute;
+    z-index: 4;
+    inset-block-end: calc(100% + 8px);
+    inset-inline-end: 0;
+    display: flex;
+    flex-direction: column;
+    min-inline-size: 200px;
+    max-block-size: 232px;
+    overflow-y: auto;
+    padding: 6px;
+    border-radius: 12px;
+    background: rgb(24 24 27 / 0.96);
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+    color: #fff;
+  }
+
+  .lk-iv-menu-item {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-block-size: 36px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 14px;
+    text-align: start;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .lk-iv-menu-item:hover,
+  .lk-iv-menu-item:focus-visible {
+    background: rgb(255 255 255 / 0.1);
+  }
+
+  .lk-iv-menu-item[aria-checked="true"] {
+    font-weight: 600;
+  }
+
+  .lk-iv-menu-item .lk-iv-icon {
+    inline-size: 16px;
+    block-size: 16px;
+  }
+
+  .lk-iv-menu-back {
+    justify-content: flex-start;
+    gap: 6px;
+    margin-block-end: 4px;
+    border-block-end: 1px solid rgb(255 255 255 / 0.12);
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+    font-weight: 600;
+  }
+
+  .lk-iv-menu-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: rgb(255 255 255 / 0.7);
+  }
+
+  .lk-iv-menu-note {
+    margin: 4px 10px;
+    font-size: 12px;
+    color: #fca5a5;
+  }
+
+  .lk-iv-kbd {
+    display: inline-block;
+    min-inline-size: 22px;
+    padding: 1px 6px;
+    border: 1px solid rgb(255 255 255 / 0.3);
+    border-radius: 5px;
+    background: rgb(255 255 255 / 0.08);
+    color: #fff;
+    font:
+      12px / 1.6 ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      Consolas,
+      monospace;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  /* Over the video and scrolled inside it: a reference, not a place. */
+  .lk-iv-sheet {
+    position: absolute;
+    z-index: 5;
+    inset: 12px;
+    overflow-y: auto;
+    padding: 16px 20px;
+    border-radius: 12px;
+    background: rgb(15 15 17 / 0.95);
+    color: #fff;
+  }
+
+  .lk-iv-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-block-end: 8px;
+  }
+
+  .lk-iv-sheet-title {
+    margin: 0;
+    font-size: var(--lk-font-size-base);
+    font-weight: 600;
+  }
+
+  .lk-iv-shortcuts {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 2px 24px;
+    margin: 0;
+  }
+
+  .lk-iv-shortcut {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-block: 4px;
+  }
+
+  .lk-iv-shortcut dt {
+    flex: 0 0 104px;
+  }
+
+  .lk-iv-shortcut dd {
+    margin: 0;
+    font-size: 14px;
+    color: rgb(255 255 255 / 0.85);
+  }
+
+  /* ── The quiz ────────────────────────────────────────────────────────── */
+  .lk-iv-quiz {
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+    margin: 12px;
+    border-radius: var(--lk-radius-lg);
+    background: var(--lk-color-surface);
+    box-shadow: 0 24px 64px rgb(0 0 0 / 0.5);
+    color: var(--lk-color-text);
+    animation: lk-iv-rise var(--lk-transition-base) both;
+  }
+
+  .lk-iv-quiz[hidden],
+  .lk-iv-question[hidden] {
+    display: none;
+  }
+
+  @keyframes lk-iv-rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.99);
+    }
+  }
+
+  .lk-iv-quiz-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 14px 20px;
+    border-block-end: 1px solid var(--lk-color-border);
+  }
+
+  .lk-iv-quiz-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    margin: 0;
+    font-size: var(--lk-font-size-base);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-iv-quiz-title:focus {
+    outline: none;
+  }
+
+  .lk-iv-quiz-time {
+    margin-inline-start: -4px;
+    font-weight: var(--lk-font-weight-normal);
+    color: var(--lk-color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lk-iv-tag {
+    display: inline-flex;
+    padding: 0 8px;
+    border: 1px solid var(--lk-color-border);
+    border-radius: 999px;
+    color: var(--lk-color-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.6;
+  }
+
+  .lk-iv-steps {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .lk-iv-steps-label {
+    color: var(--lk-color-text-muted);
+    font-size: var(--lk-font-size-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lk-iv-steps-dots {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lk-iv-steps-dots li {
+    display: flex;
+  }
+
+  .lk-iv-step {
+    position: relative;
+    inline-size: 8px;
+    block-size: 8px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: var(--lk-color-border);
+    cursor: pointer;
+    transition:
+      inline-size var(--lk-transition-fast),
+      background-color var(--lk-transition-fast);
+  }
+
+  /* A 24 px target around an 8 px dot. */
+  .lk-iv-step::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+  }
+
+  .lk-iv-step[data-answered] {
+    background: var(--lk-color-text-muted);
+  }
+
+  .lk-iv-step[data-current] {
+    inline-size: 22px;
+    background: var(--lk-color-primary);
+  }
+
+  .lk-iv-quiz-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  /* Centred in the panel while it fits, top-aligned once it does not. */
+  .lk-iv-question {
+    inline-size: 100%;
+    max-inline-size: 760px;
+    margin: auto;
+  }
+
+  /* One box, not a box in a box: the panel is the question's card. */
+  .lk-iv-question :is(.lk-mc, .lk-fib, .lk-dc, .lk-ra) {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .lk-iv-quiz-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 12px 20px;
+    border-block-start: 1px solid var(--lk-color-border);
+  }
+
+  .lk-iv-quiz-foot-start,
+  .lk-iv-quiz-foot-end {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .lk-iv-quiz-foot-end {
+    margin-inline-start: auto;
+  }
+
+  .lk-iv-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: var(--lk-radius-base);
+    background: none;
+    color: var(--lk-color-text-muted);
+    font: inherit;
+    font-size: var(--lk-font-size-sm);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .lk-iv-link:hover {
+    background: var(--lk-color-surface-raised);
+    color: var(--lk-color-text);
+  }
+
+  .lk-iv-link .lk-iv-icon,
+  .lk-iv-action .lk-iv-icon {
+    inline-size: 16px;
+    block-size: 16px;
+  }
+
+  .lk-iv-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-block-size: 40px;
+    padding: 8px 18px;
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    background: var(--lk-color-surface);
+    color: var(--lk-color-text);
+    font: inherit;
+    font-weight: var(--lk-font-weight-bold);
+    cursor: pointer;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-iv-action:hover {
+    border-color: var(--lk-color-primary);
+  }
+
+  .lk-iv-action-primary {
+    border-color: var(--lk-color-primary);
+    background: var(--lk-color-primary);
+    color: var(--lk-color-surface);
+  }
+
+  .lk-iv-action-primary:hover {
+    background: var(--lk-color-primary-hover);
+  }
+
+  .lk-iv-action[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .lk-iv-error .lk-iv-action {
+    border-color: #fff;
+    background: #fff;
+    color: #000;
+  }
+
+  .lk-iv-saved {
+    color: var(--lk-color-success);
+    font-size: var(--lk-font-size-sm);
+    font-weight: 600;
+  }
+
+  /* ── The end ─────────────────────────────────────────────────────────
+     Clear of the controls, so the learner can still scrub back. */
+  .lk-iv-end {
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    margin: 12px 12px 76px;
+    animation: lk-iv-rise var(--lk-transition-base) both;
+  }
+
+  .lk-iv-end-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-md);
+    inline-size: min(100%, 520px);
+    padding: var(--lk-spacing-lg);
+    border-radius: var(--lk-radius-lg);
+    background: var(--lk-color-surface);
+    box-shadow: 0 24px 64px rgb(0 0 0 / 0.5);
+    color: var(--lk-color-text);
+  }
+
+  .lk-iv-end-title {
+    margin: 0;
+    font-size: var(--lk-font-size-lg);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-iv-end-title:focus {
+    outline: none;
+  }
+
+  .lk-iv-end-summary {
+    margin: 0;
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-iv-end-list,
+  .lk-iv-contents {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lk-iv-end-list {
+    max-block-size: 240px;
+    overflow-y: auto;
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+  }
+
+  .lk-iv-end-list li + li,
+  .lk-iv-contents li + li {
+    border-block-start: 1px solid var(--lk-color-border);
+  }
+
+  .lk-iv-end-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--lk-spacing-sm);
+  }
+
+  /* ── Rows: the contents list and the end card ───────────────────────── */
+  .lk-iv-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    inline-size: 100%;
+    padding: 10px 12px;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .lk-iv-row:hover {
+    background: var(--lk-color-surface-raised);
+  }
+
+  .lk-iv-row-time {
+    flex: none;
+    min-inline-size: 3.25em;
+    color: var(--lk-color-text-muted);
+    font-size: var(--lk-font-size-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lk-iv-row-title {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    min-inline-size: 0;
+  }
+
+  .lk-iv-row-status {
+    flex: none;
+    color: var(--lk-color-text-muted);
+    font-size: var(--lk-font-size-sm);
+  }
+
+  .lk-iv-contents-chapter .lk-iv-row-title {
+    font-weight: 600;
+  }
+
+  /* The quiz's state in a list: the marker's shapes, in the theme's colours. */
+  .lk-iv-marker-dot {
+    flex: none;
+    inline-size: 10px;
+    block-size: 10px;
+    border: 2px solid var(--lk-color-text-muted);
+    border-radius: 50%;
+  }
+
+  .lk-iv-marker-dot[data-state="open"] {
+    background: linear-gradient(to right, var(--lk-color-text-muted) 50%, transparent 50%);
+  }
+
+  .lk-iv-marker-dot[data-state="answered"] {
+    border-color: var(--lk-color-text);
+    background: var(--lk-color-text);
+  }
+
+  .lk-iv-marker-dot[data-state="correct"] {
+    border-color: var(--lk-color-success);
+    background: var(--lk-color-success);
+  }
+
+  .lk-iv-marker-dot[data-state="partial"] {
+    border-color: var(--lk-color-warning);
+    background: linear-gradient(to right, var(--lk-color-warning) 50%, transparent 50%);
+  }
+
+  .lk-iv-marker-dot[data-state="incorrect"] {
+    border-color: var(--lk-color-error);
+    border-radius: 2px;
+    background: var(--lk-color-error);
+    transform: rotate(45deg) scale(0.85);
+  }
+
+  .lk-iv-marker-dot[data-state="pending"] {
+    border-style: dashed;
+  }
+
+  /* ── The panel below the video ─────────────────────────────────────── */
+  .lk-iv-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-lg);
+    background: var(--lk-color-surface);
+  }
+
+  .lk-iv-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px 8px 0;
+    border-block-end: 1px solid var(--lk-color-border);
+  }
+
+  .lk-iv-tab {
+    margin-block-end: -1px;
+    padding: 8px 12px;
+    border: 0;
+    border-block-end: 2px solid transparent;
+    background: none;
+    color: var(--lk-color-text-muted);
+    font: inherit;
+    font-size: var(--lk-font-size-sm);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .lk-iv-tab[aria-selected="true"] {
+    border-block-end-color: var(--lk-color-primary);
+    color: var(--lk-color-text);
+  }
+
+  .lk-iv-contents {
+    max-block-size: 320px;
+    overflow-y: auto;
+  }
+
+  .lk-iv-transcript {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+  }
+
+  .lk-iv-search {
+    margin: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    background: var(--lk-color-surface);
+    color: var(--lk-color-text);
+    font: inherit;
+    font-size: var(--lk-font-size-sm);
+  }
+
+  .lk-iv-lines {
+    position: relative;
+    max-block-size: 300px;
+    overflow-y: auto;
+    padding: 0 4px 4px;
+  }
+
+  .lk-iv-line {
+    display: flex;
+    gap: 12px;
+    inline-size: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-inline-start: 3px solid transparent;
+    border-radius: var(--lk-radius-sm);
+    background: none;
+    color: var(--lk-color-text-muted);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .lk-iv-line:hover {
+    background: var(--lk-color-surface-raised);
+    color: var(--lk-color-text);
+  }
+
+  .lk-iv-line[data-active] {
+    border-inline-start-color: var(--lk-color-primary);
+    background: var(--lk-color-surface-raised);
+    color: var(--lk-color-text);
+  }
+
+  .lk-iv-line mark {
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--lk-color-warning) 28%, transparent);
+    color: inherit;
+  }
+
+  .lk-iv-empty {
+    margin: 0;
+    padding: var(--lk-spacing-md);
+    color: var(--lk-color-text-muted);
+    font-size: var(--lk-font-size-sm);
+  }
+
+  .lk-iv-live {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    border: 0;
+    white-space: nowrap;
+  }
+
+  /* ── Focus ──────────────────────────────────────────────────────────── */
+  .lk-iv :focus-visible {
+    outline: 2px solid var(--lk-color-focus-ring);
+    outline-offset: 2px;
+  }
+
+  /* On the dark chrome the ring takes the chrome's accent. */
+  .lk-iv-chrome :focus-visible,
+  .lk-iv-big-play:focus-visible,
+  .lk-iv-sheet :focus-visible,
+  .lk-iv-error :focus-visible {
+    outline-color: var(--lk-color-media-accent);
+  }
+
+  .lk-iv-menu-item:focus-visible,
+  .lk-iv-row:focus-visible,
+  .lk-iv-line:focus-visible {
+    outline-offset: -2px;
+  }
+
+  .lk-iv-scrubber:focus-visible {
+    border-radius: 4px;
+    outline-offset: 2px;
+  }
+
+  /* ── Fullscreen: the video fills the screen; the panel, if open and there
+     is room, becomes a column beside it. A quiz scrolls inside the screen. */
+  .lk-iv[data-fullscreen] {
+    flex-direction: row;
+    gap: 0;
+    background: #000;
+  }
+
+  .lk-iv[data-fullscreen] .lk-iv-stage {
+    flex: 1 1 auto;
+    grid-template-rows: minmax(0, 1fr);
+    block-size: 100%;
+    border-radius: 0;
+  }
+
+  .lk-iv[data-fullscreen] .lk-iv-video {
+    block-size: 100%;
+    aspect-ratio: auto;
+  }
+
+  .lk-iv[data-fullscreen] .lk-iv-quiz,
+  .lk-iv[data-fullscreen] .lk-iv-end {
+    overflow-y: auto;
+  }
+
+  .lk-iv[data-fullscreen] .lk-iv-panel {
+    flex: 0 0 360px;
+    border: 0;
+    border-inline-start: 1px solid var(--lk-color-border);
+    border-radius: 0;
+  }
+
+  .lk-iv[data-fullscreen] .lk-iv-contents,
+  .lk-iv[data-fullscreen] .lk-iv-lines {
+    flex: 1 1 auto;
+    max-block-size: none;
+  }
+
+  @media (max-width: 899px) {
+    .lk-iv[data-fullscreen] .lk-iv-panel {
+      display: none;
+    }
+  }
+
+  /* ── Small players ──────────────────────────────────────────────────── */
+  @container (max-width: 479px) {
+    .lk-iv-wide,
+    .lk-iv-time-total {
+      display: none;
+    }
+
+    .lk-iv-big-play {
+      inline-size: 56px;
+      block-size: 56px;
+    }
+
+    .lk-iv-menu {
+      max-block-size: 156px;
+    }
+
+    .lk-iv-quiz {
+      margin: 8px;
+    }
+
+    .lk-iv-quiz-head,
+    .lk-iv-quiz-foot {
+      padding-inline: 14px;
+    }
+
+    .lk-iv-quiz-body {
+      padding: 14px;
+    }
+
+    .lk-iv-end {
+      margin: 8px 8px 72px;
+    }
+
+    .lk-iv-end-card {
+      padding: var(--lk-spacing-md);
+    }
+  }
+
+  /* A finger needs a bigger target, and a phone has volume keys. */
+  @media (pointer: coarse) {
+    .lk-iv-button {
+      inline-size: 44px;
+      block-size: 44px;
+    }
+
+    .lk-iv-volume-slider {
+      display: none;
+    }
+  }
+
+  /* ── Reduced motion (WCAG 2.3.3) ─────────────────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    .lk-iv *,
+    .lk-iv *::before,
+    .lk-iv *::after {
+      transition: none;
+      animation: none;
+    }
+  }
+
+  /* ── Forced colours (Windows High Contrast) ─────────────────────────────
+     The system palette replaces the chrome's literals; what must survive is
+     that the bar shows progress and that each quiz marker keeps its shape. */
+  @media (forced-colors: active) {
+    .lk-iv-chrome,
+    .lk-iv-menu,
+    .lk-iv-sheet,
+    .lk-iv-bubble,
+    .lk-iv-label,
+    .lk-iv-caption span {
+      forced-color-adjust: none;
+      background: Canvas;
+      color: CanvasText;
+    }
+
+    .lk-iv-chrome .lk-iv-button,
+    .lk-iv-chrome .lk-iv-time,
+    .lk-iv-menu-item {
+      color: ButtonText;
+    }
+
+    .lk-iv-scrubber-track {
+      background: Canvas;
+      outline: 1px solid CanvasText;
+    }
+
+    .lk-iv-scrubber-buffered {
+      background: GrayText;
+    }
+
+    .lk-iv-scrubber-played,
+    .lk-iv-scrubber-thumb {
+      background: Highlight;
+    }
+
+    .lk-iv-marker,
+    .lk-iv-marker-dot,
+    .lk-iv-step {
+      forced-color-adjust: none;
+      border-color: CanvasText;
+      background: Canvas;
+    }
+
+    .lk-iv-marker:is([data-state="answered"], [data-state="correct"], [data-state="incorrect"]),
+    .lk-iv-marker-dot:is([data-state="answered"], [data-state="correct"], [data-state="incorrect"]),
+    .lk-iv-step[data-answered] {
+      background: CanvasText;
+    }
+
+    .lk-iv-marker:is([data-state="open"], [data-state="partial"]),
+    .lk-iv-marker-dot:is([data-state="open"], [data-state="partial"]) {
+      background: linear-gradient(to right, CanvasText 50%, Canvas 50%);
+    }
+
+    .lk-iv-step {
+      outline: 1px solid CanvasText;
+    }
+
+    .lk-iv-step[data-current] {
+      background: Highlight;
+    }
+
+    .lk-iv-quiz,
+    .lk-iv-end-card,
+    .lk-iv-panel {
+      border: 1px solid CanvasText;
+    }
+
+    .lk-iv-line[data-active] {
+      border-inline-start-color: Highlight;
+    }
+  }
+}

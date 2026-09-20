@@ -23,9 +23,12 @@ export {
 export type { RedactedStimulus } from './item-group.js';
 export {
   ItemGroupSchema,
+  MediaTimelineSchema,
   RedactedItemGroupSchema,
   RedactedStimulusSchema,
   StimulusSchema,
+  TimelineChapterSchema,
+  TimelineCueSchema,
   validateItemGroup,
 } from './item-group.js';
 export {
@@ -42,6 +45,7 @@ export {
 export {
   MediaPlaybackSchema,
   MediaSchema,
+  MediaTrackSchema,
   MediaUrlSchema,
   NativeControlHintSchema,
   RedactedMediaSchema,

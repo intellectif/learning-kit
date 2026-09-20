@@ -5,6 +5,7 @@ import type {
   FillInTheBlanksData,
   GapSelectData,
   GradeRecord,
+  ItemGroup,
   ItemOutcome,
   LearnerResponse,
   MultipleChoiceData,
@@ -15,7 +16,7 @@ import type {
   WrittenResponseData,
 } from '@intellectif/lk-core';
 import { outcomeFromGrade, resolvePlaybackPolicy } from '@intellectif/lk-core';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -25,6 +26,7 @@ import { ActivitySequence } from '../../components/ActivitySequence/index.js';
 import { Dictation } from '../../components/Dictation/index.js';
 import { FillInTheBlanks } from '../../components/FillInTheBlanks/index.js';
 import { GapSelect } from '../../components/GapSelect/index.js';
+import { InteractiveVideo } from '../../components/InteractiveVideo/index.js';
 import { MultipleChoice } from '../../components/MultipleChoice/index.js';
 import { PronunciationFeedback } from '../../components/PronunciationFeedback/index.js';
 import { ReadAloud } from '../../components/ReadAloud/index.js';
@@ -114,10 +116,22 @@ const SENTINELS = sentinelise(DEFAULT_STRINGS as unknown as Dict) as unknown as 
 const SENTINEL_STRINGS: LkStrings = mergeStrings(DEFAULT_STRINGS, SENTINELS);
 const ALL_PATHS = leafPaths(DEFAULT_STRINGS as unknown as Dict);
 
-/** Text content plus every attribute value — `aria-label` alone carries five keys. */
+/**
+ * Text content plus every attribute value — `aria-label` alone carries five
+ * keys.
+ *
+ * The development error boundary's `<pre>` is left out: it holds a JavaScript
+ * stack, which is neither translated nor authored, and whose frame names
+ * ("performWorkOnRoot") contain English words that would be reported as a
+ * default that leaked. Every string the boundary itself renders is outside it.
+ */
 function harvest(node: HTMLElement): string {
-  const parts = [node.textContent ?? ''];
-  for (const el of node.querySelectorAll('*')) {
+  const copy = node.cloneNode(true) as HTMLElement;
+  for (const stack of copy.querySelectorAll('pre')) {
+    stack.remove();
+  }
+  const parts = [copy.textContent ?? ''];
+  for (const el of copy.querySelectorAll('*')) {
     for (const attribute of Array.from(el.attributes)) {
       parts.push(attribute.value);
     }
@@ -224,6 +238,58 @@ const loadMetadata = () =>
   act(() => {
     element().dispatchEvent(new Event('loadedmetadata'));
   });
+
+/**
+ * The interactive video's own fixture. Two questions in one quiz, so the step
+ * indicator and the "next question" path exist, and Spanish throughout so the
+ * leak check still covers single English words.
+ */
+const videoItem = (id: string): MultipleChoiceData => ({ ...mc, id, title: id });
+
+const videoGroup = (over: Partial<ItemGroup> = {}): ItemGroup =>
+  ({
+    schemaVersion: '1.0',
+    type: 'item-group',
+    id: 'vid',
+    title: 'Vídeo',
+    stimulus: {
+      id: 'sv',
+      kind: 'video',
+      media: {
+        type: 'video',
+        url: '/v.mp4',
+        alt: 'Vídeo',
+        tracks: [{ kind: 'captions', src: '/c.vtt', srclang: 'es', label: 'Español' }],
+      },
+    },
+    items: [videoItem('v1'), videoItem('v2')],
+    timeline: {
+      chapters: [{ at: 0, title: 'Principio' }],
+      cues: [{ id: 'c1', at: 20, itemIds: ['v1', 'v2'] }],
+    },
+    ...over,
+  }) as ItemGroup;
+
+const spanishCaptions = ['WEBVTT', '', '00:00:00.000 --> 00:00:30.000', 'Hola, clase'].join('\n');
+
+/** The player reads metadata before it knows its own duration. */
+const loadVideo = () =>
+  act(() => {
+    (document.querySelector('video') as HTMLVideoElement).dispatchEvent(
+      new Event('loadedmetadata'),
+    );
+  });
+
+const pressKey = async (key: string): Promise<void> => {
+  await act(async () => {
+    (document.querySelector('.lk-iv') as HTMLElement).dispatchEvent(
+      new KeyboardEvent('keydown', { key, bubbles: true }),
+    );
+    // What the player announces is set on the next frame, so that the same
+    // sentence twice is read out twice; the harvest has to wait for it.
+    await new Promise((resolve) => setTimeout(resolve, 60));
+  });
+};
 
 function Boom(): never {
   throw new Error('kaboom');
@@ -728,6 +794,163 @@ describe('translation coverage', () => {
       element().dispatchEvent(new Event('error'));
     });
     keep(container);
+    cleanup();
+
+    // ── Interactive video: the chrome, the menus, a quiz, and the end ──────
+    // `document` gains the two capabilities the player asks about, so the
+    // buttons that depend on them are rendered and their names harvested.
+    Object.defineProperty(document, 'pictureInPictureEnabled', {
+      configurable: true,
+      value: true,
+    });
+
+    const captions = vi.fn(async () => spanishCaptions);
+    let player = sweep(
+      <InteractiveVideo
+        group={videoGroup()}
+        captionsLoader={captions}
+        preferences={{ panel: true }}
+      />,
+    );
+    loadVideo();
+    await waitFor(() => expect(captions).toHaveBeenCalled());
+    keep(document.body);
+
+    // The settings menu, both of its pages, and the shortcut list.
+    await user.click(screen.getByRole('button', { name: sentinel('videoSettings') }));
+    keep(document.body);
+    await user.click(screen.getByRole('menuitem', { name: /videoCaptionLanguage/ }));
+    keep(document.body);
+    await user.click(screen.getByRole('menuitem', { name: /videoCaptionLanguage/ }));
+    await user.click(screen.getByRole('menuitem', { name: /videoCaptionSize/ }));
+    keep(document.body);
+    await user.click(screen.getByRole('menuitem', { name: /videoCaptionSize/ }));
+    await user.click(screen.getByRole('menuitem', { name: /videoShortcutList/ }));
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('videoClose') }));
+
+    // The speed menu, the time readout's other face, and captions turned off.
+    await user.click(screen.getByRole('button', { name: sentinel('media.speed') }));
+    keep(document.body);
+    await user.click(
+      screen.getAllByRole('menuitemradio', { name: /videoSpeedValue/ })[0] as HTMLElement,
+    );
+    await user.click(screen.getByRole('button', { name: sentinel('videoShowRemaining') }));
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('videoCaptionsHide') }));
+    keep(document.body);
+    // With captions off, the settings menu says so where the language was.
+    await user.click(screen.getByRole('button', { name: sentinel('videoSettings') }));
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('videoSettings') }));
+
+    // The transcript, and a search that matches nothing.
+    await user.click(screen.getByRole('tab', { name: sentinel('videoTranscript') }));
+    keep(document.body);
+    await user.type(screen.getByRole('searchbox'), 'zzz');
+    keep(document.body);
+
+    // The quiz, opened from the contents list: its steps, its footer, and what
+    // is announced as it opens.
+    await user.click(screen.getByRole('tab', { name: sentinel('videoContents') }));
+    await user.click(screen.getByRole('button', { name: /videoQuizProgress/ }));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeVisible());
+    keep(document.body);
+    await user.click(screen.getByRole('radio', { name: 'Cuatro' }));
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('videoNextQuestion') }));
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('videoContinue') }));
+
+    // The end card, with a graded question behind it, and the replay button.
+    act(() => {
+      (document.querySelector('video') as HTMLVideoElement).dispatchEvent(new Event('ended'));
+    });
+    keep(document.body);
+    cleanup();
+
+    // Exam: an answer is saved, not scored, and the end card says only how many.
+    sweep(
+      <InteractiveVideo
+        group={videoGroup({
+          timeline: {
+            cues: [
+              { id: 'c1', at: 20, itemIds: ['v1'], required: true },
+              { id: 'c2', at: 40, itemIds: ['v2'] },
+            ],
+          },
+        } as Partial<ItemGroup>)}
+        renderMode="exam"
+        shuffleSeed="seed"
+        onSubmit={vi.fn()}
+      />,
+    );
+    loadVideo();
+    // A seek past a required quiz stops at it and says why.
+    await pressKey('End');
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeVisible());
+    keep(document.body);
+    await user.click(screen.getByRole('radio', { name: 'Cuatro' }));
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('videoContinue') }));
+    act(() => {
+      (document.querySelector('video') as HTMLVideoElement).dispatchEvent(new Event('ended'));
+    });
+    keep(document.body);
+    cleanup();
+
+    // No skipping ahead: the seek stops at the furthest point watched.
+    sweep(
+      <InteractiveVideo
+        group={videoGroup({
+          timeline: {
+            navigation: 'no-skip-ahead',
+            cues: [{ id: 'c1', at: 20, itemIds: ['v1', 'v2'] }],
+          },
+        } as Partial<ItemGroup>)}
+      />,
+    );
+    loadVideo();
+    await pressKey('End');
+    keep(document.body);
+    cleanup();
+
+    // Captions that could not be read say so in the menu they were chosen from.
+    sweep(
+      <InteractiveVideo
+        group={videoGroup()}
+        captionsLoader={async () => {
+          throw new Error('403');
+        }}
+      />,
+    );
+    loadVideo();
+    await user.click(screen.getByRole('button', { name: sentinel('videoSettings') }));
+    await user.click(screen.getByRole('menuitem', { name: /videoCaptionLanguage/ }));
+    keep(document.body);
+    cleanup();
+
+    // In fullscreen the button says how to leave, and a video that will not
+    // play says why and offers another go.
+    player = sweep(<InteractiveVideo group={videoGroup()} />);
+    loadVideo();
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      value: player.querySelector('.lk-iv'),
+    });
+    act(() => {
+      document.dispatchEvent(new Event('fullscreenchange'));
+    });
+    keep(document.body);
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, value: null });
+    act(() => {
+      const video = document.querySelector('video') as HTMLVideoElement;
+      Object.defineProperty(video, 'error', { configurable: true, value: { code: 3 } });
+      video.dispatchEvent(new Event('error'));
+    });
+    keep(document.body);
     cleanup();
 
     // ── The invariant ──────────────────────────────────────────────────────

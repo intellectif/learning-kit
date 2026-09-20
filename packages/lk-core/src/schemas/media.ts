@@ -84,12 +84,67 @@ export const MediaPlaybackSchema = z.strictObject({
   nativeControlHints: z.array(NativeControlHintSchema).min(1).max(2).optional(),
 });
 
+/**
+ * A text track for an audio or video recording. STRICT, for the same reason
+ * {@link MediaPlaybackSchema} is: a misspelt `srclnag` would otherwise be kept
+ * and the track shown with no language.
+ */
+export const MediaTrackSchema = z.strictObject({
+  kind: z.enum(['captions', 'subtitles']),
+  src: MediaUrlSchema,
+  srclang: z.string().regex(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/, {
+    error: 'srclang must be a BCP 47 language tag, such as "en", "es" or "pt-BR".',
+  }),
+  label: z
+    .string()
+    .max(60)
+    .refine((label) => label.trim().length > 0, { error: 'A track label must not be empty.' }),
+  default: z.boolean().optional(),
+});
+
+const MAX_TRACKS = 12;
+
+/** `poster` on anything but a video: an image with nothing to stand in for. */
+function posterFits(m: { type: string; poster?: string | undefined }): boolean {
+  return m.poster === undefined || m.type === 'video';
+}
+
+/** `tracks` on an image or an embed: text with no timeline to follow. */
+function tracksFit(m: { type: string; tracks?: readonly unknown[] | undefined }): boolean {
+  return m.tracks === undefined || m.type === 'audio' || m.type === 'video';
+}
+
+/**
+ * At most one default, and no two tracks of the same kind in the same
+ * language: a menu listing "English" twice cannot say which one it plays.
+ */
+function tracksAreDistinct(m: {
+  tracks?: readonly { kind: string; srclang: string; default?: boolean | undefined }[] | undefined;
+}): boolean {
+  if (m.tracks === undefined) {
+    return true;
+  }
+  const defaults = m.tracks.filter((track) => track.default === true).length;
+  const keys = new Set(m.tracks.map((track) => `${track.kind}:${track.srclang.toLowerCase()}`));
+  return defaults <= 1 && keys.size === m.tracks.length;
+}
+
+const POSTER_FITS = { error: 'poster is for video media only.', path: ['poster'] };
+const TRACKS_FIT = { error: 'tracks are for audio and video media only.', path: ['tracks'] };
+const TRACKS_DISTINCT = {
+  error:
+    'tracks: at most one may be the default, and no two may share a kind and a language — a menu listing one language twice cannot say which one it plays.',
+  path: ['tracks'],
+};
+
 export const MediaSchema = z
   .looseObject({
     type: z.enum(['image', 'audio', 'video', 'embed']),
     url: MediaUrlSchema,
     alt: z.string().min(1).optional(),
     captionsUrl: MediaUrlSchema.optional(),
+    tracks: z.array(MediaTrackSchema).min(1).max(MAX_TRACKS).optional(),
+    poster: MediaUrlSchema.optional(),
     playback: MediaPlaybackSchema.optional(),
   })
   .refine(
@@ -105,6 +160,9 @@ export const MediaSchema = z
       'embed media requires an absolute http(s) provider URL. data:, blob:, and relative URLs are not allowed for embeds — the embed iframe runs with allow-scripts, and a data:/same-origin document there is an XSS vector.',
     path: ['url'],
   })
+  .refine(posterFits, POSTER_FITS)
+  .refine(tracksFit, TRACKS_FIT)
+  .refine(tracksAreDistinct, TRACKS_DISTINCT)
   .refine((m) => m.playback === undefined || m.type === 'audio', {
     error:
       'playback policy is supported on audio media only. An embed is a provider iframe the SDK cannot control at all (it has no reliable JS API for a third-party player); an image has nothing to play; video is deliberately deferred, because a video transport must also own fullscreen and Picture-in-Picture and the SDK will not pretend to govern those yet.',
@@ -168,6 +226,8 @@ export const RedactedMediaSchema = z
     url: MediaUrlSchema,
     alt: z.string().min(1).optional(),
     captionsUrl: MediaUrlSchema.optional(),
+    tracks: z.array(MediaTrackSchema).min(1).max(MAX_TRACKS).optional(),
+    poster: MediaUrlSchema.optional(),
     playback: MediaPlaybackSchema.optional(),
   })
   .refine(
@@ -182,4 +242,7 @@ export const RedactedMediaSchema = z
     error:
       'embed media requires an absolute http(s) provider URL. data:, blob:, and relative URLs are not allowed for embeds — the embed iframe runs with allow-scripts, and a data:/same-origin document there is an XSS vector.',
     path: ['url'],
-  });
+  })
+  .refine(posterFits, POSTER_FITS)
+  .refine(tracksFit, TRACKS_FIT)
+  .refine(tracksAreDistinct, TRACKS_DISTINCT);

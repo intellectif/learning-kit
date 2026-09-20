@@ -26,6 +26,7 @@ export type {
   LearnerResponse,
   LearnerResponseMap,
   MediaPlaybackPolicy,
+  MediaTrack,
   MultipleChoiceData,
   MultipleChoiceLearnerResponse,
   MultipleChoiceOption,
@@ -69,11 +70,15 @@ export type {
 } from './grading.js';
 export type {
   ItemGroup,
+  MediaProgress,
+  MediaTimeline,
   SequenceEntry,
   SequenceSlot,
   SequenceSlotGroup,
   Stimulus,
   StimulusKind,
+  TimelineChapter,
+  TimelineCue,
 } from './item-group.js';
 export type {
   GradeReadAloudOptions,

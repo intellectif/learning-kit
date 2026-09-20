@@ -663,6 +663,34 @@ multiple-choice options (0.10.0). Next: `true-false`, the other P0.
   release left open, still open), transposition credit, a word-level scoring strategy, diacritic folding as a
   knob, and a rounded pass line by default. `speaking-response` inherits the normaliser, the alignment, the
   per-word `ScoringDetail.score` channel and the two-recording shape.
+- ✅ **Interactive video — SHIPPED** in 0.15.0 / 15.0.0, on the consuming application's request: a video that
+  stops at moments an author chose and asks the learner questions, then carries on.
+
+  It is **not a new activity type**, and that was the decision the rest followed from. It is an item group
+  whose stimulus is a video and which carries a `timeline` of quizzes — so every question stays an ordinary
+  activity with its own slot id, its own response and its own grade, nothing in scoring, redaction, plans or
+  composition needed a new path, and an older `lk-core` that drops the unknown field still renders the same
+  testlet with the same grades. A quiz holds several questions, because that is how the content is written
+  (three multiple-choice at 0:50, two fill-in-the-blanks at 2:00, a read-aloud at 4:00).
+
+  Five embeddable types — multiple choice, fill-in-the-blanks, gap select, dictation, read-aloud — named as
+  data (`INTERACTIVE_VIDEO_ITEM_TYPES`) so the schema and the player cannot disagree. No provider embeds: a
+  YouTube or Vimeo iframe cannot be paused from outside, and an interactive video that cannot be paused is
+  not one. The player draws a quiz over the video and grows the player rather than scrolling inside it, keeps
+  every opened question mounted so a rewind loses no answer, makes the chrome `inert` and suspends the
+  shortcuts while a quiz is open, and holds seeking, playback and resuming at an unanswered required quiz.
+
+  **What the milestone proved out:** the quiz engine is pure and property-tested — no quiz skipped by speed
+  or by a stalled frame, no required quiz passed unanswered by seeking or resuming, no `no-skip-ahead` learner
+  past what they watched — and 21 hand-written mutants of the player, the engine, the parser and the bar were
+  all caught. The published-artifact checks were extended the same way the read-aloud milestone extended them:
+  the new subpath is pinned in `verify-dist`, `public-surface` and `.size-limit.json` (34 kB brotli including
+  all five question types), and the 48 new strings are proven to reach the DOM by the translation sweep.
+
+  **Out of scope, deliberately:** folding the video into `<ActivitySequence>` as one step (a group with a
+  timeline still pages as a testlet, which is documented), provider embeds, in-video branching, drawing or
+  hotspot overlays, and an editor timeline UI — the SDK ships the model and the codes, the editor stays the
+  application's.
 - **`mark-the-words`, `ordering`, `short-answer` — P1/P2**, on evidence of demand.
 - **`matching` — demoted to P2.** No production evidence of use; build it when an item bank asks for it.
 - `speaking-response` remains high value-to-effort where a CEFR speaking grader already exists.

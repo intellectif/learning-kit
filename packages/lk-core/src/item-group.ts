@@ -1,5 +1,5 @@
 import { seededShuffle } from './shuffle.js';
-import type { ItemGroup, SequenceEntry, SequenceSlot } from './types/item-group.js';
+import type { ItemGroup, MediaTimeline, SequenceEntry, SequenceSlot } from './types/item-group.js';
 
 /** Narrows a sequence entry to an item group. */
 export function isItemGroup<TItem extends { type: string }>(
@@ -35,6 +35,38 @@ function keyOf(entry: unknown): string | undefined {
     );
   }
   return key;
+}
+
+/**
+ * An interactive video's items in the order its quizzes open: by the quiz's
+ * time — stably, so quizzes at one moment keep their authored order — then by
+ * position within the quiz. An item no quiz places (content the schema would
+ * refuse) keeps its authored place after every placed one, rather than
+ * vanishing from the paper.
+ */
+function inQuizOrder<TItem extends { id: string }>(
+  items: readonly { item: TItem; itemIndex: number }[],
+  timeline: MediaTimeline,
+): { item: TItem; itemIndex: number }[] {
+  const placement = new Map<string, { at: number; cue: number; position: number }>();
+  timeline.cues.forEach((cue, cueIndex) => {
+    cue.itemIds.forEach((itemId, position) => {
+      if (!placement.has(itemId)) {
+        placement.set(itemId, { at: cue.at, cue: cueIndex, position });
+      }
+    });
+  });
+  const unplaced = { at: Number.POSITIVE_INFINITY, cue: Number.POSITIVE_INFINITY, position: 0 };
+  return items
+    .map((entry) => ({ entry, place: placement.get(entry.item.id) ?? unplaced }))
+    .sort(
+      (a, b) =>
+        a.place.at - b.place.at ||
+        a.place.cue - b.place.cue ||
+        a.place.position - b.place.position ||
+        a.entry.itemIndex - b.entry.itemIndex,
+    )
+    .map(({ entry }) => entry);
 }
 
 /** Options for {@link flattenSequence}. */
@@ -114,12 +146,29 @@ export function flattenSequence<TItem extends { id: string; type: string }>(
           'remove its stimulus and its questions from the presented sequence.',
       );
     }
+    const timeline = entry.timeline;
+    // A defence behind the schema's refusal: the two orders cannot both hold,
+    // and a seeded shuffle of a video's questions would detach each one from
+    // the moment it asks about.
+    if (timeline !== undefined && entry.shuffle === 'within-group') {
+      throw new Error(
+        `flattenSequence: item group "${entry.id}" has a timeline and shuffle: "within-group". ` +
+          'An interactive video presents its questions in the order its quizzes open.',
+      );
+    }
     const items = entry.items.map((item, itemIndex) => ({ item, itemIndex }));
     const presented =
-      entry.shuffle === 'within-group' ? seededShuffle(items, `${seed}:group:${entry.id}`) : items;
+      timeline !== undefined
+        ? inQuizOrder(items, timeline)
+        : entry.shuffle === 'within-group'
+          ? seededShuffle(items, `${seed}:group:${entry.id}`)
+          : items;
     const size = presented.length;
     presented.forEach(({ item, itemIndex }, position) => {
+      const cue = timeline?.cues.find((candidate) => candidate.itemIds.includes(item.id));
       slots.push({
+        // Slot ids stay AUTHORED — the item's index or its key — whatever the
+        // presented order: moving a quiz must never re-map a stored answer.
         slotId: `${entryKey}.${keyOf(item) ?? String(itemIndex)}`,
         index: slots.length,
         activity: item,
@@ -129,6 +178,8 @@ export function flattenSequence<TItem extends { id: string; type: string }>(
           stimulus: entry.stimulus,
           position,
           size,
+          ...(timeline !== undefined ? { timeline } : {}),
+          ...(cue !== undefined ? { cue } : {}),
         },
       });
     });

@@ -16,6 +16,13 @@ export interface ThemeTokens {
   '--lk-color-error': string;
   '--lk-color-warning': string;
   '--lk-color-focus-ring': string;
+  /**
+   * The accent a video player draws on its own dark chrome: the played part
+   * of the progress bar, quiz markers, the centre play button. Optional, so a
+   * theme written before it existed still type-checks; the default is white,
+   * which reads on any video. Set it to a brand colour to match a product.
+   */
+  '--lk-color-media-accent'?: string;
 
   // ── Spacing ──────────────────────────────────────────────────────────────
   '--lk-spacing-xs': string;

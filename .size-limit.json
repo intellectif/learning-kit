@@ -88,6 +88,17 @@
     "limit": "50 kB"
   },
   {
+    "name": "InteractiveVideo",
+    "path": "packages/lk-react/dist/components/InteractiveVideo.js",
+    "import": "{ InteractiveVideo }",
+    "ignore": [
+      "react",
+      "react-dom",
+      "@intellectif/lk-core"
+    ],
+    "limit": "50 kB"
+  },
+  {
     "name": "PronunciationFeedback",
     "path": "packages/lk-react/dist/components/PronunciationFeedback.js",
     "import": "{ PronunciationFeedback }",

@@ -22,6 +22,8 @@
   --lk-color-error: #b91c1c;
   --lk-color-warning: #b45309;
   --lk-color-focus-ring: #18181b;
+  /* A video player's accent, drawn on its always-dark chrome. */
+  --lk-color-media-accent: #ffffff;
 
   /* Spacing */
   --lk-spacing-xs: 4px;

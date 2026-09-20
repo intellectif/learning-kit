@@ -44,6 +44,13 @@ export interface AttemptPlanSlot {
     title?: string;
     /** Fingerprint of the stimulus as served — a corrected passage changes the question. */
     stimulusHash: string;
+    /**
+     * The quiz this slot's question sat in, when the group is an interactive
+     * video. Frozen because WHEN a question is asked is part of what is asked:
+     * moved from before the passage it is about to after it, the same item is
+     * a different question.
+     */
+    cue?: { id: string; at: number; required?: boolean };
   };
   /**
    * Play budgets in force for this slot when the attempt was planned.
@@ -106,6 +113,12 @@ export interface AttemptPlanDrift {
   changedSlotIds: string[];
   /** Slots whose item group's stimulus has been edited since the attempt. */
   changedStimulusSlotIds: string[];
+  /**
+   * Slots of an interactive video whose question now sits in a different quiz,
+   * at a different moment, or under a different `required` — or that gained or
+   * lost a quiz altogether. Always empty for content without a timeline.
+   */
+  changedCueSlotIds: string[];
   /**
    * Slots now worth a different number of points. A reweight is a paper
    * change — it moves the grade without touching a single question — so it

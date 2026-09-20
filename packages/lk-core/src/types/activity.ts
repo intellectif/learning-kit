@@ -35,6 +35,19 @@ export type ActivityType = keyof ActivityDataMap;
 /** Union of all valid activity data shapes. */
 export type ActivityData = ActivityDataMap[ActivityType];
 
+/** A text track for an `audio` or `video` recording. */
+export interface MediaTrack {
+  kind: 'captions' | 'subtitles';
+  /** WebVTT URL. A player may fetch it through a loader the host supplies, with the host's credentials. */
+  src: string;
+  /** BCP 47 language tag of the text (`en`, `es`, `pt-BR`). */
+  srclang: string;
+  /** Shown in the captions menu. Non-empty, at most 60 characters. */
+  label: string;
+  /** Selected when the learner has chosen no language yet. At most one track may be the default. */
+  default?: boolean;
+}
+
 /**
  * Optional media (image/audio/video) shown above a question or passage.
  * URL-only: hosting/delivery is the consuming application's responsibility.
@@ -51,6 +64,15 @@ export interface ActivityMedia {
   alt?: string;
   /** Optional WebVTT captions track URL for `audio`/`video`. */
   captionsUrl?: string;
+  /**
+   * Text tracks for `audio`/`video`, one per language: what `captionsUrl`
+   * cannot say — a language, a label, more than one. When present, a player
+   * that reads it ignores `captionsUrl`. At most 12, one `default`, and no two
+   * sharing a `kind` and a `srclang`.
+   */
+  tracks?: MediaTrack[];
+  /** An image shown before the first play. `video` only. */
+  poster?: string;
   /**
    * How the recording may be played. `audio` only — see
    * {@link MediaPlaybackPolicy}. Absent means today's behaviour exactly: the
@@ -980,6 +1002,24 @@ export type InteractionKind =
   | 'assessment-requested'
   /** An assessment request failed: the take has no grade. */
   | 'assessment-failed'
+  /** Interactive video: the learner started playback. */
+  | 'video-played'
+  /** Interactive video: playback paused, by the learner or by a quiz. */
+  | 'video-paused'
+  /** Interactive video: the playhead moved (`from`, `to`, and whether navigation `clamped` it). */
+  | 'video-seeked'
+  | 'video-rate-changed'
+  | 'video-ended'
+  /** Interactive video: a quiz opened (`cueId`, `at`). */
+  | 'video-quiz-opened'
+  /** Interactive video: one question of an open quiz was shown (`cueId`, `slotId`). */
+  | 'video-quiz-question-shown'
+  | 'video-quiz-skipped'
+  | 'video-quiz-closed'
+  /** Interactive video: captions turned on (the track's `srclang`) or off (`null`). */
+  | 'video-captions-changed'
+  | 'video-fullscreen-changed'
+  | 'video-pip-changed'
   // `string & {}` preserves literal autocompletion while keeping the union open
   // for registered custom types.
   | (string & {});

@@ -189,4 +189,8 @@ function normalise(found: DraftIssue): DraftIssue {
   };
 }
 
-export { createItemGroupDraft, validateItemGroupDraft } from './item-group.js';
+export {
+  createInteractiveVideoDraft,
+  createItemGroupDraft,
+  validateItemGroupDraft,
+} from './item-group.js';

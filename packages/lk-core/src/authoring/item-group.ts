@@ -1,9 +1,11 @@
 import { UnknownActivityTypeError } from '../errors.js';
+import { getActivityTypeDescriptor } from '../registry/index.js';
 import {
   GROUP_CAPTIONS_REVEAL_DICTATION,
   groupCaptionsRevealDictation,
 } from '../schemas/dictation.js';
 import { ItemGroupSchema, validateItemGroup } from '../schemas/item-group.js';
+import { INTERACTIVE_VIDEO_ITEM_TYPES, isInteractiveVideoItemType } from '../timeline-limits.js';
 import type { ActivityType } from '../types/activity.js';
 import type { DraftContext, DraftIssue, DraftValidationResult } from '../types/authoring.js';
 import type { ItemGroup } from '../types/item-group.js';
@@ -53,6 +55,27 @@ export function createItemGroupDraft(context: DraftContext): ItemGroup {
     id: newId(),
     stimulus: { id: newId(), kind: 'text', body: '' },
     items: [],
+  };
+}
+
+/**
+ * A new, empty interactive video for an editor to start from: an item group
+ * whose stimulus is a video with no file yet, no questions, and a timeline with
+ * no quizzes.
+ *
+ * It is an ordinary item group — {@link validateItemGroupDraft} checks it, and
+ * everything that reads groups reads it — because that is what keeps each
+ * question its own slot. Like every new draft it is `incomplete`: an untouched
+ * draft must never read as finished.
+ *
+ * @throws Error when `newId` returns an empty or repeated id.
+ */
+export function createInteractiveVideoDraft(context: DraftContext): ItemGroup {
+  const draft = createItemGroupDraft(context);
+  return {
+    ...draft,
+    stimulus: { id: draft.stimulus.id, kind: 'video', media: { type: 'video', url: '' } },
+    timeline: { cues: [] },
   };
 }
 
@@ -109,6 +132,9 @@ function validateItemGroupDraftInScope(draft: unknown): DraftValidationResult<It
     );
   }
   issues.push(...checkItems(draft));
+  if (draft.timeline !== undefined && draft.timeline !== null) {
+    issues.push(...checkTimeline(draft));
+  }
   if (groupCaptionsRevealDictation(draft, (captionsUrl) => !isUnwritten(captionsUrl))) {
     issues.push(
       issue(
@@ -162,6 +188,207 @@ function validateItemGroupDraftInScope(draft: unknown): DraftValidationResult<It
   }
   const invalid = issues.some((found) => found.severity !== 'incomplete');
   return { status: invalid ? 'invalid' : 'incomplete', issues };
+}
+
+/**
+ * An interactive video: every question in exactly one quiz, quizzes at real
+ * moments, a video to hang them on, and only the five question types a video
+ * may hold. Each check stands aside where another already names the problem —
+ * an unset item type is `ig_item_type_required`, an unregistered one
+ * `ig_item_type_unknown` — so an author sees one issue per mistake.
+ */
+function checkTimeline(draft: DraftFields): DraftIssue[] {
+  const issues: DraftIssue[] = [];
+  const timeline = draft.timeline;
+  if (!isRecord(timeline)) {
+    return issues;
+  }
+  const stimulus = isRecord(draft.stimulus) ? draft.stimulus : undefined;
+  if (stimulus !== undefined && !isUnwritten(stimulus.kind) && stimulus.kind !== 'video') {
+    issues.push(
+      issue(
+        'ig_timeline_stimulus_kind',
+        ['stimulus', 'kind'],
+        'An interactive video needs a video: quizzes open at moments of it.',
+      ),
+    );
+  } else if (
+    stimulus !== undefined &&
+    isRecord(stimulus.media) &&
+    !isUnwritten(stimulus.media.type) &&
+    stimulus.media.type !== 'video'
+  ) {
+    issues.push(
+      issue(
+        'ig_timeline_stimulus_kind',
+        ['stimulus', 'media', 'type'],
+        'Upload a video file. An embedded player from another site cannot be paused when a quiz opens.',
+      ),
+    );
+  }
+  if (draft.shuffle === 'within-group') {
+    issues.push(
+      issue(
+        'ig_timeline_shuffle',
+        ['shuffle'],
+        'The questions of an interactive video appear in the order their quizzes open, so they cannot be shuffled.',
+      ),
+    );
+  }
+
+  const items = Array.isArray(draft.items) ? draft.items : [];
+  const itemIndexById = new Map<string, number>();
+  items.forEach((item, index) => {
+    if (!isRecord(item)) {
+      return;
+    }
+    if (typeof item.id === 'string' && item.id !== '') {
+      itemIndexById.set(item.id, index);
+    }
+    const type = item.type;
+    // Registered but not one of the five: the unset and unregistered cases are
+    // already `checkItems`'s to report.
+    if (
+      typeof type === 'string' &&
+      type !== '' &&
+      type !== 'item-group' &&
+      !isInteractiveVideoItemType(type) &&
+      getActivityTypeDescriptor(type) !== undefined
+    ) {
+      issues.push(
+        issue(
+          'ig_timeline_item_type',
+          ['items', index, 'type'],
+          `An interactive video can hold ${INTERACTIVE_VIDEO_ITEM_TYPES.join(', ')} questions only.`,
+        ),
+      );
+    }
+    if (type === 'dictation' && isUnset(item.media)) {
+      issues.push(
+        issue(
+          'ig_timeline_dictation_media',
+          ['items', index, 'media'],
+          'Add the recording this dictation plays: inside a video it cannot play the video.',
+        ),
+      );
+    }
+  });
+
+  const cues = Array.isArray(timeline.cues) ? timeline.cues : [];
+  const quizIds = new Set<string>();
+  const placed = new Set<string>();
+  cues.forEach((cue, cueIndex) => {
+    if (!isRecord(cue)) {
+      return;
+    }
+    const at = (field: string, ...rest: (string | number)[]): (string | number)[] => [
+      'timeline',
+      'cues',
+      cueIndex,
+      field,
+      ...rest,
+    ];
+    if (isMissingId(cue.id)) {
+      issues.push(issue('ig_timeline_quiz_id_required', at('id'), 'This quiz has no id.'));
+    } else if (typeof cue.id === 'string') {
+      if (quizIds.has(cue.id)) {
+        issues.push(
+          issue('ig_timeline_quiz_id_duplicate', at('id'), `Two quizzes share the id "${cue.id}".`),
+        );
+      }
+      quizIds.add(cue.id);
+    }
+    if (isUnset(cue.at)) {
+      issues.push(
+        issue(
+          'ig_timeline_quiz_time_required',
+          at('at'),
+          'Choose when in the video this quiz opens.',
+        ),
+      );
+    } else if (typeof cue.at !== 'number' || !Number.isFinite(cue.at) || cue.at < 0) {
+      issues.push(
+        issue(
+          'ig_timeline_quiz_time_invalid',
+          at('at'),
+          'A quiz opens at a number of seconds, 0 or more.',
+        ),
+      );
+    }
+    if (isUnset(cue.itemIds) || (Array.isArray(cue.itemIds) && cue.itemIds.length === 0)) {
+      issues.push(
+        issue('ig_timeline_quiz_empty', at('itemIds'), 'Add at least one question to this quiz.'),
+      );
+      return;
+    }
+    if (!Array.isArray(cue.itemIds)) {
+      return;
+    }
+    cue.itemIds.forEach((itemId: unknown, position: number) => {
+      if (typeof itemId !== 'string') {
+        return;
+      }
+      if (!itemIndexById.has(itemId)) {
+        issues.push(
+          issue(
+            'ig_timeline_quiz_unknown_item',
+            at('itemIds', position),
+            `This quiz names a question that is not in the video ("${itemId}").`,
+          ),
+        );
+      } else if (placed.has(itemId)) {
+        issues.push(
+          issue(
+            'ig_timeline_item_duplicate',
+            at('itemIds', position),
+            'This question is already in a quiz: each question belongs to one quiz.',
+          ),
+        );
+      }
+      placed.add(itemId);
+    });
+  });
+  for (const [itemId, index] of itemIndexById) {
+    if (!placed.has(itemId)) {
+      issues.push(
+        issue(
+          'ig_timeline_item_unplaced',
+          ['items', index],
+          'Add this question to a quiz, or the video never shows it.',
+        ),
+      );
+    }
+  }
+
+  const chapters = Array.isArray(timeline.chapters) ? timeline.chapters : [];
+  let previousAt: number | undefined;
+  chapters.forEach((chapter, index) => {
+    if (!isRecord(chapter)) {
+      return;
+    }
+    if (isUnwritten(chapter.title)) {
+      issues.push(
+        issue(
+          'ig_timeline_chapter_title',
+          ['timeline', 'chapters', index, 'title'],
+          'Give this chapter a title.',
+        ),
+      );
+    }
+    if (typeof chapter.at === 'number' && Number.isFinite(chapter.at)) {
+      if (previousAt !== undefined && chapter.at <= previousAt) {
+        issues.push(
+          issue(
+            'ig_timeline_chapter_order',
+            ['timeline', 'chapters', index, 'at'],
+            'Chapters must start in order, each after the one before it.',
+          ),
+        );
+      }
+      previousAt = chapter.at;
+    }
+  });
+  return issues;
 }
 
 /** The group's own envelope. `title` is optional on a group, unlike an activity. */

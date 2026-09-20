@@ -21,6 +21,7 @@ export const defaultTheme: ThemeTokens = {
   '--lk-color-error': '#b91c1c',
   '--lk-color-warning': '#b45309',
   '--lk-color-focus-ring': '#18181b',
+  '--lk-color-media-accent': '#ffffff',
 
   // ── Spacing ──────────────────────────────────────────────────────────────
   '--lk-spacing-xs': '4px',

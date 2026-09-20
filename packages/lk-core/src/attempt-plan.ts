@@ -145,6 +145,17 @@ function planSlot<TItem extends { id: string; type: string }>(
             id: slot.group.id,
             ...(slot.group.title !== undefined ? { title: slot.group.title } : {}),
             stimulusHash: contentHash(slot.group.stimulus),
+            ...(slot.group.cue !== undefined
+              ? {
+                  cue: {
+                    id: slot.group.cue.id,
+                    at: slot.group.cue.at,
+                    ...(slot.group.cue.required !== undefined
+                      ? { required: slot.group.cue.required }
+                      : {}),
+                  },
+                }
+              : {}),
           },
         }
       : {}),
@@ -229,6 +240,7 @@ export function verifyAttemptPlan(plan: AttemptPlan, current: AttemptPlan): Atte
 
   const changedSlotIds: string[] = [];
   const changedStimulusSlotIds: string[] = [];
+  const changedCueSlotIds: string[] = [];
   const changedPointsSlotIds: string[] = [];
   const reorderedSlotIds: string[] = [];
   for (const slot of plan.slots) {
@@ -243,6 +255,9 @@ export function verifyAttemptPlan(plan: AttemptPlan, current: AttemptPlan): Atte
     }
     if (now.group?.stimulusHash !== slot.group?.stimulusHash) {
       changedStimulusSlotIds.push(slot.slotId);
+    }
+    if (contentHash(now.group?.cue ?? null) !== contentHash(slot.group?.cue ?? null)) {
+      changedCueSlotIds.push(slot.slotId);
     }
     // A reweight moves the grade without touching a single question. Left out,
     // `matches` said the paper was unchanged while its `planHash` disagreed.
@@ -260,12 +275,14 @@ export function verifyAttemptPlan(plan: AttemptPlan, current: AttemptPlan): Atte
       addedSlotIds.length === 0 &&
       changedSlotIds.length === 0 &&
       changedStimulusSlotIds.length === 0 &&
+      changedCueSlotIds.length === 0 &&
       changedPointsSlotIds.length === 0 &&
       reorderedSlotIds.length === 0,
     missingSlotIds,
     addedSlotIds,
     changedSlotIds,
     changedStimulusSlotIds,
+    changedCueSlotIds,
     changedPointsSlotIds,
     reorderedSlotIds,
   };

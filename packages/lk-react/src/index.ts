@@ -3,6 +3,7 @@ export * from './components/ActivitySequence/index.js';
 export * from './components/Dictation/index.js';
 export * from './components/FillInTheBlanks/index.js';
 export * from './components/GapSelect/index.js';
+export * from './components/InteractiveVideo/index.js';
 export * from './components/MultipleChoice/index.js';
 export * from './components/PronunciationFeedback/index.js';
 export * from './components/ReadAloud/index.js';

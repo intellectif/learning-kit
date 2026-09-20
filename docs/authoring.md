@@ -1050,6 +1050,20 @@ schema, **and** every item is itself `complete`.
 | `ig_item_type_unknown` | invalid | `items.N.type` | A type nobody registered |
 | `ig_item_nested_group` | invalid | `items.N.type` | Groups do not nest |
 | `ig_shuffle_invalid` | invalid | `shuffle` | Anything but `none` or `within-group` |
+| `ig_timeline_stimulus_kind` | invalid | `stimulus.kind`, or `stimulus.media.type` | An interactive video whose stimulus is not a video, or whose media is not a video file |
+| `ig_timeline_shuffle` | invalid | `shuffle` | `within-group` on an interactive video, whose questions appear in quiz order |
+| `ig_timeline_quiz_id_required` | incomplete | `timeline.cues.N.id` | A quiz with no id yet |
+| `ig_timeline_quiz_id_duplicate` | invalid | `timeline.cues.N.id` | Two quizzes share an id |
+| `ig_timeline_quiz_time_required` | incomplete | `timeline.cues.N.at` | A quiz with no time yet |
+| `ig_timeline_quiz_time_invalid` | invalid | `timeline.cues.N.at` | A time that is not a number of seconds, 0 or more |
+| `ig_timeline_quiz_empty` | incomplete | `timeline.cues.N.itemIds` | A quiz with no questions yet |
+| `ig_timeline_quiz_unknown_item` | invalid | `timeline.cues.N.itemIds.M` | A quiz names a question that is not in the group |
+| `ig_timeline_item_duplicate` | invalid | `timeline.cues.N.itemIds.M` | A question placed twice, in one quiz or two |
+| `ig_timeline_item_unplaced` | incomplete | `items.N` | A question in no quiz, which the video would never show |
+| `ig_timeline_item_type` | invalid | `items.N.type` | A registered type an interactive video cannot hold: only multiple choice, fill-in-the-blanks, gap select, dictation and read-aloud |
+| `ig_timeline_dictation_media` | incomplete | `items.N.media` | A dictation with no recording of its own |
+| `ig_timeline_chapter_order` | invalid | `timeline.chapters.N.at` | A chapter that does not start after the one before it |
+| `ig_timeline_chapter_title` | incomplete | `timeline.chapters.N.title` | A chapter with no title yet |
 
 The stimulus's media reports under the codes media already uses
 (`media_url_required`, `media_alt_required`, `media_url_invalid`,

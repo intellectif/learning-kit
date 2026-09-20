@@ -42,6 +42,78 @@ export interface Stimulus {
 }
 
 /**
+ * A quiz inside an interactive video: one moment of the video, and the
+ * questions shown there. The video pauses when playback reaches `at`, and the
+ * questions are shown one at a time, in `itemIds` order.
+ */
+export interface TimelineCue {
+  /** Unique within the timeline. Names the quiz in events, the contents panel and drafts. */
+  id: string;
+  /**
+   * Seconds from the start of the video: finite and 0 or more. The SDK never
+   * reads the video, so it cannot check this against the duration: a quiz at
+   * or past the end opens when the video ends.
+   */
+  at: number;
+  /**
+   * `id`s of items in this group, in the order the quiz shows them. Non-empty.
+   * Every item of the group belongs to exactly one quiz.
+   */
+  itemIds: string[];
+  /** Optional heading shown above the questions. At most 120 characters. */
+  title?: string;
+  /**
+   * Every question must be answered (practice) or submitted (exam) before
+   * playback may pass `at`. Default false.
+   */
+  required?: boolean;
+}
+
+/** A titled section of the video. */
+export interface TimelineChapter {
+  /** Seconds from the start: finite, 0 or more, strictly increasing across the list. */
+  at: number;
+  /** Non-empty after trimming; at most 120 characters. */
+  title: string;
+}
+
+/**
+ * The arrangement that turns an item group with a video stimulus into an
+ * interactive video: when each quiz opens, the video's chapters, and how far
+ * ahead a learner may seek.
+ *
+ * It lives on the container rather than inside `stimulus` because it describes
+ * how THESE questions are arranged over the material, not the material itself.
+ */
+export interface MediaTimeline {
+  cues: TimelineCue[];
+  chapters?: TimelineChapter[];
+  /**
+   * `free` (default): seek anywhere. `no-skip-ahead`: rewind freely, never past
+   * the furthest point reached. Either way, playback never passes a `required`
+   * quiz that is not finished.
+   */
+  navigation?: 'free' | 'no-skip-ahead';
+}
+
+/**
+ * Where a learner stands in an interactive video, stored by the host so the
+ * video can resume. Kept apart from `AttemptState`, which holds answers by slot
+ * and drops fields it does not know. Read it back through
+ * `readMediaProgress`, never directly.
+ */
+export interface MediaProgress {
+  progressVersion: '1.0';
+  /** Seconds: where playback last stood. */
+  at: number;
+  /**
+   * Seconds: the furthest point reached. Decides how far `no-skip-ahead` lets
+   * the learner seek, and how much of the transcript it shows.
+   */
+  furthest: number;
+}
+
+/**
  * One stimulus serving several items. Two rules, both taken from observed
  * failures: a group is SHUFFLE-ATOMIC (shuffling a sequence moves the group
  * as one block — interleaving two passages' questions is the defect), and its
@@ -81,6 +153,14 @@ export interface ItemGroup<TItem = ActivityData> {
    * contiguous block.
    */
   shuffle?: 'none' | 'within-group';
+  /**
+   * Makes the group an interactive video: the stimulus must be a video, every
+   * item must be one of `INTERACTIVE_VIDEO_ITEM_TYPES`, and every item belongs
+   * to exactly one quiz. Items are then presented in quiz order, never
+   * shuffled. An older lk-core that does not know this field presents the same
+   * items as an ordinary video testlet, with the same slots and grades.
+   */
+  timeline?: MediaTimeline;
 }
 
 /**
@@ -105,6 +185,10 @@ export interface SequenceSlotGroup {
   position: number;
   /** Number of slots in the group. */
   size: number;
+  /** The group's timeline, when the group is an interactive video. */
+  timeline?: MediaTimeline;
+  /** The quiz this slot's item sits in, when the group is an interactive video. */
+  cue?: TimelineCue;
 }
 
 /** One presented position in a flattened sequence. */

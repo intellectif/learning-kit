@@ -474,7 +474,7 @@ describe('dictation — evaluate, redaction and interop', () => {
     expect(dictationType.interactions).toEqual(['text-changed', 'hint-requested', 'submitted']);
   });
 
-  it('exports a JSON Schema whose only closed object is the playback policy', () => {
+  it('exports a JSON Schema whose only closed objects are the playback policy and a caption track', () => {
     expect(jsonSchemaFor('dictation')).toEqual(dictationJsonSchema);
     const closed: string[] = [];
     const walk = (node: unknown, path: string): void => {
@@ -493,8 +493,9 @@ describe('dictation — evaluate, redaction and interop', () => {
       }
     };
     walk(dictationJsonSchema, '$');
-    expect(closed).toHaveLength(1);
-    expect(closed[0]).toContain('playback');
+    expect(closed).toHaveLength(2);
+    expect(closed.some((path) => path.includes('playback'))).toBe(true);
+    expect(closed.some((path) => path.includes('tracks'))).toBe(true);
     // The raw length caps JSON Schema can state, in code points as zod counts them.
     interface Node {
       maxLength?: number;
