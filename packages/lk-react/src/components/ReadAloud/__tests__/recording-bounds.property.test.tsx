@@ -33,11 +33,38 @@ import { readRecordingBounds, secondsWithin } from '../recording-bounds.js';
 
 const RUNS = runsFromEnvironment();
 
+/**
+ * Replays one failure: the `seed` and `path` fast-check prints beside a
+ * counterexample, taken the way `ActivitySequence.takes.property.test.tsx`
+ * takes them. A failing CI run prints both, and with them the exact sequence
+ * runs again here instead of being fished for with repeated runs:
+ *
+ *   LK_PROPERTY_SEED=1137481063 pnpm exec vitest run \
+ *     src/components/ReadAloud/__tests__/recording-bounds.property.test.tsx
+ */
+const REPLAY = {
+  seed: environment('LK_PROPERTY_SEED'),
+  path: environment('LK_PROPERTY_PATH'),
+};
+
+function environment(name: string): string | undefined {
+  return (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.[
+    name
+  ];
+}
+
 function runsFromEnvironment(): number {
-  const raw = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
-    ?.env?.LK_PROPERTY_RUNS;
+  const raw = environment('LK_PROPERTY_RUNS');
   const runs = raw === undefined ? Number.NaN : Number(raw);
   return Number.isInteger(runs) && runs > 0 ? runs : 150;
+}
+
+/** The replay options, and nothing at all when no failure is being replayed. */
+function replaying(): { seed?: number; path?: string; endOnFailure?: boolean } {
+  return {
+    ...(REPLAY.seed !== undefined ? { seed: Number(REPLAY.seed) } : {}),
+    ...(REPLAY.path !== undefined ? { path: REPLAY.path, endOnFailure: true } : {}),
+  };
 }
 
 const item: ReadAloudData = {
@@ -179,7 +206,7 @@ describe('readRecordingBounds, over arbitrary stored bounds', () => {
           });
         }
       }),
-      { numRuns: RUNS * 20 },
+      { numRuns: RUNS * 20, ...replaying() },
     );
   });
 
@@ -197,7 +224,7 @@ describe('readRecordingBounds, over arbitrary stored bounds', () => {
           expect(Number.isInteger(said) || said === maxSeconds).toBe(true);
         },
       ),
-      { numRuns: RUNS * 20 },
+      { numRuns: RUNS * 20, ...replaying() },
     );
   });
 });
@@ -209,6 +236,27 @@ describe('readRecordingBounds, over arbitrary stored bounds', () => {
  * cheap enough to make in every run.
  */
 const RATE = 4000;
+
+/**
+ * A number as JavaScript renders it into one of the component's sentences.
+ *
+ * The exponent forms are part of it. `maxSeconds` is any positive number the
+ * schema accepts (`z.number().gt(0).max(300)`), so a denormal like `5e-324` is
+ * valid content, and `${5e-324}` is the string `"5e-324"` — which a `[\d.]+`
+ * parser cannot read. The property then failed for the PARSER's reason rather
+ * than the component's, and only on the seeds that happened to generate one:
+ * green for hundreds of runs, then a broken CI run on seed 1137481063.
+ *
+ * It stays a parser rather than `(\S+)` so the sentence's shape is still
+ * asserted, and whatever it captures goes through `Number` and is compared
+ * against the bound below — so text that is not a number fails the property, as
+ * it should.
+ */
+const NUMBER = String.raw`([\d.eE+-]+)`;
+const COUNTER = new RegExp(`Recording: ${NUMBER} of ${NUMBER} seconds`);
+const STOPPED = new RegExp(
+  String.raw`Recording stopped\. ${NUMBER} of ${NUMBER} seconds recorded\.`,
+);
 
 async function settle(): Promise<void> {
   await act(async () => {
@@ -259,7 +307,7 @@ describe('<ReadAloud>, over arbitrary stored bounds', () => {
           act(() => harness.pushLevel(0.5, halfway));
           expect(recorder?.getAttribute('data-status')).toBe('recording');
           const progress = container.querySelector('.lk-ra-progress')?.textContent ?? '';
-          const counted = /Recording: ([\d.]+) of ([\d.]+) seconds/.exec(progress);
+          const counted = COUNTER.exec(progress);
           expect(counted, `the counter: "${progress}"`).not.toBeNull();
           expect(Number(counted?.[1])).toBeLessThanOrEqual(read.maxSeconds);
           act(() => harness.pushLevel(0.5, Math.ceil(read.maxSeconds * RATE) + RATE - halfway));
@@ -269,7 +317,7 @@ describe('<ReadAloud>, over arbitrary stored bounds', () => {
           expect(recorder?.getAttribute('data-status')).toBe('recorded');
           expect(container.querySelector('[role="alert"]')).toBeNull();
           const stopped = container.querySelector('[aria-live]')?.textContent ?? '';
-          const said = /Recording stopped\. ([\d.]+) of ([\d.]+) seconds recorded\./.exec(stopped);
+          const said = STOPPED.exec(stopped);
           expect(said, `the stop sentence: "${stopped}"`).not.toBeNull();
           expect(Number(said?.[1])).toBeLessThanOrEqual(read.maxSeconds);
           expect(Number(said?.[2])).toBe(read.maxSeconds);
@@ -278,7 +326,7 @@ describe('<ReadAloud>, over arbitrary stored bounds', () => {
           harness.restore();
         }
       }),
-      { numRuns: Math.max(10, Math.floor(RUNS / 3)) },
+      { numRuns: Math.max(10, Math.floor(RUNS / 3)), ...replaying() },
     );
   }, 300_000);
 });
