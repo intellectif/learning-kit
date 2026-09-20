@@ -1,4 +1,6 @@
 import type { ReadAloudDimension, ReadAloudWordState, Stimulus } from '@intellectif/lk-core';
+import type { CaptionSize } from '../components/InteractiveVideo/prefs.js';
+import type { VideoShortcutAction } from '../components/InteractiveVideo/shortcuts.js';
 import type { MediaTransportStrings } from '../components/types.js';
 import type { SpeechRecorderError } from '../hooks/useSpeechRecorder.js';
 
@@ -250,6 +252,82 @@ export interface LkStrings {
   /** Names the alphabet the phoneme symbols are written in. */
   pronunciationIpaNote: string;
 
+  // ── Interactive video ──────────────────────────────────────────────────
+  // Play, pause, mute, volume, speed, the progress bar's name and the time
+  // readout are the `media` strings below: the same controls, the same words.
+  /** Jump buttons, e.g. "Back 10 seconds". */
+  videoBack: (seconds: number) => string;
+  videoForward: (seconds: number) => string;
+  /** The centre button once the video has ended. */
+  videoReplay: string;
+  /** The time readout flips between elapsed and remaining; these name what a press shows next. */
+  videoShowRemaining: string;
+  videoShowElapsed: string;
+  /** The captions button, named by what a press does. */
+  videoCaptionsShow: string;
+  videoCaptionsHide: string;
+  /** In the captions menu when a caption file could not be read. */
+  videoCaptionsFailed: string;
+  /** A speed in the speed menu, e.g. "1.25×". */
+  videoSpeedValue: (rate: number) => string;
+  videoSettings: string;
+  videoCaptionLanguage: string;
+  videoCaptionSize: string;
+  videoCaptionSizeValue: (size: CaptionSize) => string;
+  videoCaptionBackground: string;
+  videoKeyboardShortcuts: string;
+  videoShortcutList: string;
+  /** Closes the shortcut list. */
+  videoClose: string;
+  /** A setting's state in the settings menu. */
+  videoOn: string;
+  videoOff: string;
+  /** What each row of the shortcut list does. */
+  videoShortcut: (action: VideoShortcutAction) => string;
+  /** The button that opens the panel below the video, and its two tabs. */
+  videoPanel: string;
+  videoContents: string;
+  videoTranscript: string;
+  videoTranscriptSearch: string;
+  videoTranscriptNoMatch: string;
+  videoPictureInPicture: string;
+  videoFullscreen: string;
+  videoExitFullscreen: string;
+  /**
+   * Why the video will not play, by `MediaError.code` (1 aborted, 2 network,
+   * 3 decode, 4 source), with 0 for anything else.
+   */
+  videoError: (code: number) => string;
+  videoTryAgain: string;
+  /** A quiz with no title of its own. */
+  videoQuiz: string;
+  /** Where the learner is inside a quiz, e.g. "Question 2 of 5". */
+  videoQuestionProgress: (index: number, total: number) => string;
+  /** A step of the quiz's step indicator, for assistive technology. */
+  videoQuestionStep: (index: number, answered: boolean) => string;
+  videoNextQuestion: string;
+  videoContinue: string;
+  videoSkipQuiz: string;
+  videoRewatch: string;
+  /** Exam mode, once a question is submitted: saved, not graded. */
+  videoAnswerSaved: string;
+  videoRequired: string;
+  /** A quiz's progress in the contents panel and on the end screen. */
+  videoQuizProgress: (answered: number, total: number) => string;
+  /** Announced when a quiz opens. */
+  videoQuizOpened: (time: string, questions: number) => string;
+  /** Announced when a seek stopped at a required quiz. */
+  videoHeldAtQuiz: (time: string) => string;
+  /** Announced when a seek stopped at the furthest point reached. */
+  videoHeldAhead: string;
+  videoEnded: string;
+  /** Practice end screen: questions answered, and the score. */
+  videoEndScore: (answered: number, total: number, percent: number) => string;
+  /** Exam end screen: questions answered, no score. */
+  videoEndAnswered: (answered: number, total: number) => string;
+  videoWatchAgain: string;
+  videoFinish: string;
+
   // ── Authoring preview ──────────────────────────────────────────────────
   /**
    * `<ActivityPreview>`, in place of a draft that still has something missing.
@@ -447,6 +525,101 @@ export const DEFAULT_STRINGS: LkStrings = {
   pronunciationBreakMissing: 'A pause was expected here.',
   pronunciationMonotone: 'Your reading stayed on one note. Try varying your pitch.',
   pronunciationIpaNote: 'Sounds are written in the International Phonetic Alphabet.',
+  videoBack: (seconds) => `Back ${seconds} seconds`,
+  videoForward: (seconds) => `Forward ${seconds} seconds`,
+  videoReplay: 'Replay',
+  videoShowRemaining: 'Show time remaining',
+  videoShowElapsed: 'Show time elapsed',
+  videoCaptionsShow: 'Show captions',
+  videoCaptionsHide: 'Hide captions',
+  videoCaptionsFailed: 'Captions could not be loaded.',
+  videoSpeedValue: (rate) => (rate === 1 ? 'Normal' : `${rate}×`),
+  videoSettings: 'Settings',
+  videoCaptionLanguage: 'Captions',
+  videoCaptionSize: 'Caption size',
+  videoCaptionSizeValue: (size) =>
+    size === 'small' ? 'Small' : size === 'large' ? 'Large' : 'Medium',
+  videoCaptionBackground: 'Caption background',
+  videoKeyboardShortcuts: 'Keyboard shortcuts',
+  videoShortcutList: 'Shortcut list',
+  videoClose: 'Close',
+  videoOn: 'On',
+  videoOff: 'Off',
+  videoShortcut: (action) => {
+    switch (action) {
+      case 'play-pause':
+        return 'Play or pause';
+      case 'jump-10':
+        return 'Back or forward 10 seconds';
+      case 'jump-5':
+        return 'Back or forward 5 seconds';
+      case 'jump-1':
+        return 'Back or forward 1 second';
+      case 'frame':
+        return 'Previous or next frame, while paused';
+      case 'speed':
+        return 'Slower or faster';
+      case 'percent':
+        return 'Jump to 0% – 90%';
+      case 'start-end':
+        return 'Start or end';
+      case 'chapter':
+        return 'Previous or next chapter or quiz';
+      case 'mute':
+        return 'Mute';
+      case 'captions':
+        return 'Captions';
+      case 'transcript':
+        return 'Transcript';
+      case 'picture-in-picture':
+        return 'Picture in picture';
+      case 'fullscreen':
+        return 'Fullscreen';
+      default:
+        return 'This list';
+    }
+  },
+  videoPanel: 'Contents and transcript',
+  videoContents: 'Contents',
+  videoTranscript: 'Transcript',
+  videoTranscriptSearch: 'Search the transcript',
+  videoTranscriptNoMatch: 'No lines match.',
+  videoPictureInPicture: 'Picture in picture',
+  videoFullscreen: 'Fullscreen',
+  videoExitFullscreen: 'Exit fullscreen',
+  videoError: (code) =>
+    code === 2
+      ? 'The connection dropped while the video was loading.'
+      : code === 3
+        ? 'This video file could not be played.'
+        : code === 4
+          ? 'The video could not be loaded.'
+          : 'The video stopped before it could play.',
+  videoTryAgain: 'Try again',
+  videoQuiz: 'Quiz',
+  videoQuestionProgress: (index, total) => `Question ${index} of ${total}`,
+  videoQuestionStep: (index, answered) => `Question ${index}${answered ? ', answered' : ''}`,
+  videoNextQuestion: 'Next question',
+  videoContinue: 'Continue video',
+  videoSkipQuiz: 'Skip quiz',
+  videoRewatch: 'Rewatch',
+  videoAnswerSaved: 'Answer saved',
+  videoRequired: 'Required',
+  videoQuizProgress: (answered, total) =>
+    answered === total
+      ? 'Answered'
+      : answered === 0
+        ? 'Not started'
+        : `${answered} of ${total} answered`,
+  videoQuizOpened: (time, questions) =>
+    `Video paused. Quiz at ${time}, ${questions} question${questions === 1 ? '' : 's'}.`,
+  videoHeldAtQuiz: (time) => `Finish the quiz at ${time} to continue.`,
+  videoHeldAhead: 'You can rewind, but not skip ahead.',
+  videoEnded: 'You reached the end',
+  videoEndScore: (answered, total, percent) => `You answered ${answered} of ${total} · ${percent}%`,
+  videoEndAnswered: (answered, total) => `You answered ${answered} of ${total} questions`,
+  videoWatchAgain: 'Watch again',
+  videoFinish: 'Finish',
 
   previewIncomplete: 'This activity is not finished yet, so it cannot be previewed.',
   previewInvalid: 'This activity has a problem to fix before it can be previewed.',

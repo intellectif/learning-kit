@@ -43,6 +43,53 @@ were.
 
 ---
 
+## 0.14 → 0.15 (`lk-core`) / 14.x → 15.x (`lk-react`)
+
+Nothing was removed and nothing changed shape. `lk-react` takes a major only because its peer range
+moves to `@intellectif/lk-core@^0.15.0`.
+
+### A video can ask questions *(0.15.0 / 15.0.0)*
+
+An item group whose stimulus is a video may now carry a `timeline`: a list of quizzes, each at a
+moment of the video, each holding one or more of the group's own questions. `<InteractiveVideo>`
+plays it — pausing at each quiz, asking its questions over the video, then carrying on. See
+[docs/interactive-video.md](./interactive-video.md).
+
+```tsx
+import { InteractiveVideo } from '@intellectif/lk-react/components/InteractiveVideo';
+
+<InteractiveVideo group={video} onSubmit={save} onProgress={remember} />;
+```
+
+- **lk-core** gains `MediaTimeline`, `TimelineCue`, `TimelineChapter`, `MediaProgress`,
+  `MediaTrack`, `INTERACTIVE_VIDEO_ITEM_TYPES`, `isInteractiveVideoItemType`, `readMediaProgress`,
+  `composeTimelineScore`, `createInteractiveVideoDraft` and the `ig_timeline_*` authoring codes;
+  `ActivityMedia` gains `tracks` and `poster`; `SequenceSlot.group` gains the `cue` a question sits
+  in, and `AttemptPlanDrift` gains `changedCueSlotIds`.
+- **lk-react** gains the `@intellectif/lk-react/components/InteractiveVideo` subpath, 48 new
+  strings (all listed in [docs/i18n.md](./i18n.md)), the `.lk-iv-*` skin hooks, and one optional
+  theme token, `--lk-color-media-accent`.
+
+### What can stop a build *(0.15.0 / 15.0.0)*
+
+- A **hand-written `ThemeTokens` object** is unaffected: `--lk-color-media-accent` is optional. A
+  type that *implements* `ThemeTokens` exhaustively and is checked for excess properties needs no
+  change either — the new key is optional, not required.
+- A **`LkStrings` object you build by hand** (rather than with `mergeStrings`) must gain the 48
+  `video*` keys. `LkStringsOverride` is a deep partial, so an override object needs nothing.
+- Nothing else: every new field is optional, and every new export is an addition.
+
+### What can change behaviour *(0.15.0 / 15.0.0)*
+
+- **`redactItemGroup` now carries `timeline`, `poster` and `tracks` through** — they are
+  learner-visible by definition. A snapshot test of a redacted group with a timeline will differ.
+- **`flattenSequence` carries the timeline and each question's quiz** on `slot.group`. Code that
+  compares whole slot objects will see the extra fields.
+- **`planActivities` reports a moved quiz** as `changedCueSlotIds`, and the plan hash changes when
+  a timeline changes — as it should: the questions are asked at different moments.
+- A group with a timeline still pages as an ordinary testlet inside `<ActivitySequence>`; render
+  `<InteractiveVideo>` for the interactive experience.
+
 ## 0.13 → 0.14 (`lk-core`) / 13.x → 14.x (`lk-react`)
 
 Additive. Upgrade and change no code, and nothing you already render, validate

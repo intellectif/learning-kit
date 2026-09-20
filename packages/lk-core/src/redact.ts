@@ -274,6 +274,24 @@ const ITEM_GROUP_FIELD_POLICY: FieldPolicy = {
   slotKey: 'public',
   shuffle: 'public',
   stimulus: STIMULUS_FIELD_POLICY,
+  // Public, and classified key by key rather than as one leaf: the learner's
+  // player needs every part of it, none of it is a key — and a leaf would hand
+  // over the author's object by reference, with whatever else was parked in it.
+  timeline: {
+    // Applies to every element of the array.
+    cues: {
+      id: 'public',
+      at: 'public',
+      itemIds: 'public',
+      title: 'public',
+      required: 'public',
+    },
+    chapters: {
+      at: 'public',
+      title: 'public',
+    },
+    navigation: 'public',
+  },
 };
 
 /** A learner-safe item group: the container with its marker, holding `redact()` projections. */

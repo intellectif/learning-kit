@@ -75,6 +75,15 @@ export const MEDIA_FIELD_POLICY: FieldPolicy = {
   url: 'public',
   alt: 'public',
   captionsUrl: 'public',
+  poster: 'public',
+  // Applies to every element of the array.
+  tracks: {
+    kind: 'public',
+    src: 'public',
+    srclang: 'public',
+    label: 'public',
+    default: 'public',
+  },
   playback: {
     controls: 'public',
     maxPlays: 'public',

@@ -398,12 +398,15 @@ describe('JSON Schema exports (v0.3)', () => {
     expect(typeof writtenResponseJsonSchema).toBe('object');
   });
 
-  it('multipleChoiceJsonSchema closes only media.playback, so sidecar fields survive everywhere else', () => {
+  it('multipleChoiceJsonSchema closes only media.playback and media.tracks entries, so sidecar fields survive everywhere else', () => {
     const closed = closedObjectPaths(multipleChoiceJsonSchema);
-    // Exactly one closed object, and it is the playback policy. If this list
-    // grows, a schema became strict and consumer sidecars will start failing.
-    expect(closed).toHaveLength(1);
-    expect(closed[0]).toContain('playback');
+    // Exactly two closed objects: the playback policy, and one caption track.
+    // Both are strict on purpose — a misspelt key there would otherwise be kept
+    // and silently do nothing. If this list grows, a schema became strict and
+    // consumer sidecars will start failing.
+    expect(closed).toHaveLength(2);
+    expect(closed.some((path) => path.includes('playback'))).toBe(true);
+    expect(closed.some((path) => path.includes('tracks'))).toBe(true);
   });
 });
 

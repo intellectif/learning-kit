@@ -1,5 +1,13 @@
 import { z } from 'zod/v4';
 import { getActivityTypeDescriptor } from '../registry/index.js';
+import {
+  INTERACTIVE_VIDEO_ITEM_TYPES,
+  isInteractiveVideoItemType,
+  TIMELINE_MAX_CHAPTERS,
+  TIMELINE_MAX_ITEMS,
+  TIMELINE_MAX_QUIZZES,
+  TIMELINE_MAX_TITLE_LENGTH,
+} from '../timeline-limits.js';
 import type { ActivityData, ValidationError, ValidationResult } from '../types/activity.js';
 import type { ItemGroup, StimulusKind } from '../types/item-group.js';
 import { GROUP_CAPTIONS_REVEAL_DICTATION, groupCaptionsRevealDictation } from './dictation.js';
@@ -87,6 +95,228 @@ export const StimulusSchema = z
     },
   );
 
+const TimelineTitleSchema = z
+  .string()
+  .max(TIMELINE_MAX_TITLE_LENGTH)
+  .refine((title) => title.trim().length > 0, { error: 'A title must not be empty.' });
+
+/** Seconds from the start of the video. zod rejects NaN and ±Infinity itself. */
+const TimelineTimeSchema = z.number().min(0, { error: 'A time is 0 seconds or more.' });
+
+/**
+ * A quiz. STRICT, like every part of a timeline: a misspelt `requried` would
+ * otherwise be kept and the quiz silently optional on a paper that believed it
+ * was required.
+ */
+export const TimelineCueSchema = z.strictObject({
+  id: z.string().min(1).max(64),
+  at: TimelineTimeSchema,
+  itemIds: z.array(z.string().min(1)).min(1).max(TIMELINE_MAX_ITEMS),
+  title: TimelineTitleSchema.optional(),
+  required: z.boolean().optional(),
+});
+
+export const TimelineChapterSchema = z.strictObject({
+  at: TimelineTimeSchema,
+  title: TimelineTitleSchema,
+});
+
+/**
+ * A timeline on its own: its quizzes, chapters and navigation. The rules that
+ * need the group — every item in exactly one quiz, a video stimulus, the five
+ * item types — are {@link timelineIssues}, which both group schemas run.
+ */
+export const MediaTimelineSchema = z
+  .strictObject({
+    cues: z.array(TimelineCueSchema).max(TIMELINE_MAX_QUIZZES),
+    chapters: z.array(TimelineChapterSchema).max(TIMELINE_MAX_CHAPTERS).optional(),
+    navigation: z.enum(['free', 'no-skip-ahead']).optional(),
+  })
+  .check((ctx) => {
+    const seen = new Set<string>();
+    ctx.value.cues.forEach((cue, index) => {
+      if (seen.has(cue.id)) {
+        ctx.issues.push({
+          code: 'custom',
+          input: cue.id,
+          message: `Quiz id "${cue.id}" is used twice: events, drafts and the contents panel name a quiz by its id.`,
+          path: ['cues', index, 'id'],
+        });
+      }
+      seen.add(cue.id);
+    });
+    // Strictly increasing, not merely sorted: two chapters starting at one
+    // moment leave the first with no length, and the scrubber no room to draw it.
+    const chapters = ctx.value.chapters ?? [];
+    chapters.forEach((chapter, index) => {
+      const previous = chapters[index - 1];
+      if (previous !== undefined && chapter.at <= previous.at) {
+        ctx.issues.push({
+          code: 'custom',
+          input: chapter.at,
+          message: 'Chapter times must be strictly increasing.',
+          path: ['chapters', index, 'at'],
+        });
+      }
+    });
+  });
+
+/** A URL only this document can resolve, or one that inlines the bytes. */
+function isLocalOnlyUrl(url: unknown): boolean {
+  return typeof url === 'string' && /^(data|blob):/i.test(url);
+}
+
+/**
+ * The rules of an interactive video that span the timeline, the stimulus and
+ * the items. Run by the content schema and, for everything but the two
+ * authoring-only rules, by the strict redacted schema — a projection built by
+ * hand never passed through the content schema.
+ *
+ * Items are read defensively: the redacted schema leaves them opaque, and each
+ * is proven against its own type's schema elsewhere.
+ */
+function timelineIssues(
+  group: {
+    stimulus: {
+      kind: string;
+      media?:
+        | {
+            type: string;
+            url: string;
+            poster?: string | undefined;
+            tracks?: readonly { src: string }[] | undefined;
+          }
+        | undefined;
+    };
+    items: readonly unknown[];
+    shuffle?: string | undefined;
+    timeline?: { cues: readonly { itemIds: readonly string[] }[] } | undefined;
+  },
+  scope: 'content' | 'redacted',
+): { path: (string | number)[]; message: string; input: unknown }[] {
+  const timeline = group.timeline;
+  if (timeline === undefined) {
+    return [];
+  }
+  const issues: { path: (string | number)[]; message: string; input: unknown }[] = [];
+  const media = group.stimulus.media;
+
+  // Reported at the field that is wrong, so an editor's own check at that path
+  // can stand in for it without hiding anything else about the stimulus.
+  if (group.stimulus.kind !== 'video') {
+    issues.push({
+      path: ['stimulus', 'kind'],
+      input: group.stimulus.kind,
+      message:
+        'An interactive video needs a video stimulus: quizzes open at moments of a video, and nothing else has them.',
+    });
+  } else if (media !== undefined && media.type !== 'video') {
+    issues.push({
+      path: ['stimulus', 'media', 'type'],
+      input: media.type,
+      message:
+        'An interactive video needs a video file. An embedded provider player cannot be paused at the moment a quiz opens.',
+    });
+  }
+  if (group.shuffle === 'within-group') {
+    issues.push({
+      path: ['shuffle'],
+      input: group.shuffle,
+      message:
+        'An interactive video presents its questions in the order its quizzes open; shuffle: "within-group" cannot apply to it.',
+    });
+  }
+  if (group.items.length > TIMELINE_MAX_ITEMS) {
+    issues.push({
+      path: ['items'],
+      input: group.items.length,
+      message: `An interactive video holds at most ${TIMELINE_MAX_ITEMS} questions.`,
+    });
+  }
+
+  const itemIds = new Map<string, number>();
+  group.items.forEach((item, index) => {
+    const {
+      id,
+      type,
+      media: itemMedia,
+    } = (item ?? {}) as { id?: unknown; type?: unknown; media?: unknown };
+    if (typeof id === 'string') {
+      itemIds.set(id, index);
+    }
+    if (!isInteractiveVideoItemType(type)) {
+      issues.push({
+        path: ['items', index, 'type'],
+        input: type,
+        message: `An interactive video may hold only ${INTERACTIVE_VIDEO_ITEM_TYPES.join(', ')} questions.`,
+      });
+    }
+    // The "play the stimulus" fallback a dictation has in a listening group
+    // means nothing halfway through a video.
+    if (scope === 'content' && type === 'dictation' && itemMedia === undefined) {
+      issues.push({
+        path: ['items', index, 'media'],
+        input: itemMedia,
+        message: 'A dictation inside an interactive video needs its own recording.',
+      });
+    }
+  });
+
+  const placed = new Set<string>();
+  timeline.cues.forEach((cue, cueIndex) => {
+    cue.itemIds.forEach((itemId, position) => {
+      const path = ['timeline', 'cues', cueIndex, 'itemIds', position];
+      if (!itemIds.has(itemId)) {
+        issues.push({
+          path,
+          input: itemId,
+          message: `No item in this group has the id "${itemId}".`,
+        });
+      } else if (placed.has(itemId)) {
+        issues.push({
+          path,
+          input: itemId,
+          message: `Item "${itemId}" is placed twice: every question belongs to exactly one quiz.`,
+        });
+      }
+      placed.add(itemId);
+    });
+  });
+  for (const [itemId, index] of itemIds) {
+    if (!placed.has(itemId)) {
+      issues.push({
+        path: ['items', index],
+        input: itemId,
+        message: `Item "${itemId}" is in no quiz, so the video would never show it.`,
+      });
+    }
+  }
+
+  // A `data:` video swells the payload and every fingerprint over it; a stored
+  // `blob:` URL means nothing in another document.
+  if (scope === 'content' && media !== undefined) {
+    const urls: [unknown, (string | number)[]][] = [
+      [media.url, ['stimulus', 'media', 'url']],
+      [media.poster, ['stimulus', 'media', 'poster']],
+      ...(media.tracks ?? []).map((track, index): [unknown, (string | number)[]] => [
+        track.src,
+        ['stimulus', 'media', 'tracks', index, 'src'],
+      ]),
+    ];
+    for (const [url, path] of urls) {
+      if (isLocalOnlyUrl(url)) {
+        issues.push({
+          path,
+          input: url,
+          message:
+            'An interactive video is stored and served: its URLs cannot be data: or blob: URLs.',
+        });
+      }
+    }
+  }
+  return issues;
+}
+
 /**
  * The structural minimum of an item as seen by the CONTAINER schema. Each
  * item's own contract is checked against its registered schema by
@@ -115,6 +345,7 @@ export const ItemGroupSchema = z
     stimulus: StimulusSchema,
     items: z.array(ItemShapeSchema).min(1),
     shuffle: z.enum(['none', 'within-group']).optional(),
+    timeline: MediaTimelineSchema.optional(),
   })
   .refine((group) => group.items.every((item) => item.type !== 'item-group'), {
     error: 'Item groups do not nest: every item must be an activity.',
@@ -123,6 +354,11 @@ export const ItemGroupSchema = z
   .refine((group) => new Set(group.items.map((item) => item.id)).size === group.items.length, {
     error: 'Item ids must be unique within a group.',
     path: ['items'],
+  })
+  .check((ctx) => {
+    for (const issue of timelineIssues(ctx.value, 'content')) {
+      ctx.issues.push({ code: 'custom', ...issue });
+    }
   });
 
 /** The learner-safe shape of a stimulus, derived from the strict schema below. */
@@ -159,8 +395,12 @@ export const RedactedItemGroupSchema = z
     stimulus: RedactedStimulusSchema,
     items: z.array(z.unknown()).min(1),
     shuffle: z.enum(['none', 'within-group']).optional(),
+    timeline: MediaTimelineSchema.optional(),
   })
   .check((ctx) => {
+    for (const issue of timelineIssues(ctx.value, 'redacted')) {
+      ctx.issues.push({ code: 'custom', ...issue });
+    }
     if (groupCaptionsRevealDictation(ctx.value)) {
       ctx.issues.push({
         code: 'custom',

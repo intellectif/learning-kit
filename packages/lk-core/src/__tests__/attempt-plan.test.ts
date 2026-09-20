@@ -244,6 +244,7 @@ describe('verifyAttemptPlan', () => {
       addedSlotIds: [],
       changedSlotIds: [],
       changedStimulusSlotIds: [],
+      changedCueSlotIds: [],
       changedPointsSlotIds: [],
       reorderedSlotIds: [],
     });

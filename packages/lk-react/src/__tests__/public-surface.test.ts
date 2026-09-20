@@ -21,6 +21,7 @@ describe('published export surface', () => {
     'Dictation',
     'FillInTheBlanks',
     'GapSelect',
+    'InteractiveVideo',
     'MultipleChoice',
     'PronunciationFeedback',
     'ReadAloud',

@@ -12,6 +12,7 @@ export default defineConfig({
     'components/GapSelect': 'src/components/GapSelect/index.tsx',
     'components/Dictation': 'src/components/Dictation/index.tsx',
     'components/ReadAloud': 'src/components/ReadAloud/index.tsx',
+    'components/InteractiveVideo': 'src/components/InteractiveVideo/index.tsx',
     'components/PronunciationFeedback': 'src/components/PronunciationFeedback/index.tsx',
     'components/WrittenResponse': 'src/components/WrittenResponse/index.tsx',
     'components/StimulusPanel': 'src/components/StimulusPanel/index.tsx',
