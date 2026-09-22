@@ -1,7 +1,7 @@
 # learning-kit — SDK Roadmap
 
 **Status:** living document — the roadmap of record for `@intellectif/lk-core` and `@intellectif/lk-react`.
-**Last updated:** 2026-08-19
+**Last updated:** 2026-09-22
 
 This plan is grounded in a defect audit of the published `lk-core@0.2.1` / `lk-react@1.0.1` packages and in
 production feedback from an integrating application: a CEFR-aligned EN/ES/PT language school running real
@@ -664,7 +664,9 @@ multiple-choice options (0.10.0). Next: `true-false`, the other P0.
   knob, and a rounded pass line by default. `speaking-response` inherits the normaliser, the alignment, the
   per-word `ScoringDetail.score` channel and the two-recording shape.
 - ✅ **Interactive video — SHIPPED** in 0.15.0 / 15.0.0, on the consuming application's request: a video that
-  stops at moments an author chose and asks the learner questions, then carries on.
+  stops at moments an author chose and asks the learner questions, then carries on. Followed by two
+  caption languages at once (0.16.0 / 16.0.0) and questions a host draws itself, `renderQuestion`
+  (16.1.0). **Formative only, by decision (2026-09-22):** see §5.
 
   It is **not a new activity type**, and that was the decision the rest followed from. It is an item group
   whose stimulus is a video and which carries a `timeline` of quizzes — so every question stays an ordinary
@@ -717,3 +719,4 @@ multiple-choice options (0.10.0). Next: `true-false`, the other P0.
 | `react`/`react-dom` as peers; `lk-react` ships no runtime `dependencies` | Keep. Confirmed correct by an integrator — React duplication incidents trace to consumer-side nested workspaces, not to this packaging. |
 | Authoring UI, storage, taxonomy, identity, delivery, timers, proctoring | Consumer-side, permanently. SDK ships contracts (`validateDraft`, descriptors, preview) only. |
 | Generality without a second consumer | Rejected (no registry instances, no version negotiator, no plugin loader). Add when consumer #2 exists. |
+| Interactive video in summative exams | Not a use it serves (2026-09-22). It is formative: the learner controls the recording while the questions are open, and nothing times a question or holds a single pass. Its `exam` mode is a check-in without feedback, not exam conditions. Papers of record go through `<ActivitySequence>`. Its questions still grade exactly, under the same vectors. |

@@ -192,6 +192,17 @@ export interface InteractiveVideoQuestion {
 export interface InteractiveVideoProps {
   /** An item group with a video stimulus and a timeline. Redacted projections in exam and review. */
   group: RenderableItemGroup;
+  /**
+   * `practice` (the default) grades each question and shows its feedback;
+   * `exam` submits without showing correctness — a check-in marked later;
+   * `review` shows how each question was marked.
+   *
+   * `exam` does NOT make the video fit for an official summative exam. The
+   * learner controls the recording — rewinds it, slows it, reads its
+   * transcript — while the questions are open, and nothing here times a
+   * question or holds a single pass. Deliver a paper of record with
+   * `<ActivitySequence>`.
+   */
   renderMode?: RenderMode;
   /** Where to resume. Read through `readMediaProgress` and clamped; a required quiz is never skipped by a resume. */
   progress?: MediaProgress;
@@ -300,6 +311,9 @@ function contentKey(group: RenderableItemGroup): string {
 /**
  * An interactive video: a video that pauses at each quiz so the learner can
  * answer it inside the player, then carries on.
+ *
+ * A formative tool, for lessons and practice — not for official summative
+ * exams, which `<ActivitySequence>` delivers. See `renderMode`.
  *
  * The player state is keyed on the CONTENT, not on the object: a host that
  * rebuilds its activity objects on every render — `redactItemGroup` returns a
