@@ -1,5 +1,12 @@
 # @intellectif/lk-react
 
+## 18.0.0
+
+### Patch Changes
+
+- Updated dependencies [71de78d]
+  - @intellectif/lk-core@0.18.0
+
 ## 17.0.0
 
 ### Major Changes
