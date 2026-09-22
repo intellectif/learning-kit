@@ -9,6 +9,7 @@ import {
 
 export type {
   InteractiveVideoProps,
+  InteractiveVideoQuestion,
   InteractiveVideoSlot,
   InteractiveVideoSummary,
   RenderableItemGroup,

@@ -323,6 +323,8 @@ export interface LkStrings {
   videoRewatch: string;
   /** Exam mode, once a question is submitted: saved, not graded. */
   videoAnswerSaved: string;
+  /** The end card, while an answer is still being stored or graded: why Finish waits. */
+  videoAnswerPending: string;
   videoRequired: string;
   /** A quiz's progress in the contents panel and on the end screen. */
   videoQuizProgress: (answered: number, total: number) => string;
@@ -622,6 +624,7 @@ export const DEFAULT_STRINGS: LkStrings = {
   videoSkipQuiz: 'Skip quiz',
   videoRewatch: 'Rewatch',
   videoAnswerSaved: 'Answer saved',
+  videoAnswerPending: 'Saving your answer…',
   videoRequired: 'Required',
   videoQuizProgress: (answered, total) =>
     answered === total

@@ -18,7 +18,7 @@ import type {
 import { outcomeFromGrade, resolvePlaybackPolicy } from '@intellectif/lk-core';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { act } from 'react';
+import { act, useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActivityErrorBoundary } from '../../components/ActivityErrorBoundary.js';
 import { ActivityPreview } from '../../components/ActivityPreview/index.js';
@@ -26,7 +26,10 @@ import { ActivitySequence } from '../../components/ActivitySequence/index.js';
 import { Dictation } from '../../components/Dictation/index.js';
 import { FillInTheBlanks } from '../../components/FillInTheBlanks/index.js';
 import { GapSelect } from '../../components/GapSelect/index.js';
-import { InteractiveVideo } from '../../components/InteractiveVideo/index.js';
+import {
+  InteractiveVideo,
+  type InteractiveVideoQuestion,
+} from '../../components/InteractiveVideo/index.js';
 import { MultipleChoice } from '../../components/MultipleChoice/index.js';
 import { PronunciationFeedback } from '../../components/PronunciationFeedback/index.js';
 import { ReadAloud } from '../../components/ReadAloud/index.js';
@@ -293,6 +296,15 @@ const pressKey = async (key: string, init: KeyboardEventInit = {}): Promise<void
 
 function Boom(): never {
   throw new Error('kaboom');
+}
+
+/** A host's question with an upload that never ends: Finish waits for it. */
+function StillSaving({ question }: { question: InteractiveVideoQuestion }) {
+  const { setPending } = question;
+  useEffect(() => {
+    setPending(true);
+  }, [setPending]);
+  return <p>Grabación</p>;
 }
 
 /** A promise a sweep can hold open, so a pending label is on screen to harvest. */
@@ -997,6 +1009,24 @@ describe('translation coverage', () => {
       const video = document.querySelector('video') as HTMLVideoElement;
       Object.defineProperty(video, 'error', { configurable: true, value: { code: 3 } });
       video.dispatchEvent(new Event('error'));
+    });
+    keep(document.body);
+    cleanup();
+
+    // An answer still on its way: Finish waits on the end card, and says why.
+    sweep(
+      <InteractiveVideo
+        group={videoGroup()}
+        preferences={{ panel: true }}
+        renderQuestion={(question) => <StillSaving question={question} />}
+      />,
+    );
+    loadVideo();
+    await user.click(screen.getByRole('button', { name: /videoQuizProgress/ }));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeVisible());
+    await user.click(screen.getByRole('button', { name: sentinel('videoSkipQuiz') }));
+    act(() => {
+      (document.querySelector('video') as HTMLVideoElement).dispatchEvent(new Event('ended'));
     });
     keep(document.body);
     cleanup();

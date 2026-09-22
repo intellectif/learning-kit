@@ -2875,6 +2875,13 @@
     color: var(--lk-color-text-muted);
   }
 
+  /* Why Finish waits: an answer is still being stored or graded. */
+  .lk-iv-end-pending {
+    margin: 0;
+    color: var(--lk-color-text-muted);
+    font-size: var(--lk-font-size-sm);
+  }
+
   .lk-iv-end-list,
   .lk-iv-contents {
     margin: 0;
@@ -3105,6 +3112,15 @@
     padding: var(--lk-spacing-md);
     color: var(--lk-color-text-muted);
     font-size: var(--lk-font-size-sm);
+  }
+
+  /* A host question's popovers (`portalContainer`). Out of the flow, so it
+     adds no gap to the player, and left at its static place in the shell,
+     which is inside every scroller the player is; last in the shell and
+     lifted, so it paints above the stage and the quiz on it. */
+  .lk-iv-portal {
+    position: absolute;
+    z-index: 1;
   }
 
   .lk-iv-live {

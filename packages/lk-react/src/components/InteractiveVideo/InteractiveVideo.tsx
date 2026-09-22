@@ -6,6 +6,7 @@ import {
   assertRedactedItemGroup,
   flattenSequence,
   type InteractionEvent,
+  type InteractionKind,
   type ItemGroup,
   type ItemOutcome,
   type LearnerResponse,
@@ -29,8 +30,9 @@ import {
   useState,
 } from 'react';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
-import type { LkStringsOverride } from '../../i18n/strings.js';
+import type { LkStrings, LkStringsOverride } from '../../i18n/strings.js';
 import { isDevelopment } from '../_internal.js';
+import { ActivityErrorBoundary } from '../ActivityErrorBoundary.js';
 import { Dictation } from '../Dictation/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
@@ -38,7 +40,11 @@ import { MultipleChoice } from '../MultipleChoice/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
 import type { RecordingBinding } from '../ReadAloud/ReadAloud.js';
 import { stopCaptureGroup } from '../shared/capture-registry.js';
-import { type SequenceSlotChannel, SequenceSlotContext } from '../shared/sequence-slot.js';
+import {
+  type SequenceSlotChannel,
+  SequenceSlotContext,
+  type TakeState,
+} from '../shared/sequence-slot.js';
 import type {
   HtmlSanitizer,
   RenderableActivity,
@@ -101,6 +107,88 @@ export interface InteractiveVideoSummary {
   }[];
 }
 
+/**
+ * One question, as `renderQuestion` is handed it: what to draw, and the six
+ * calls through which the video learns what the learner did.
+ *
+ * The calls are the ones the SDK's own components make, so a question the host
+ * draws counts exactly as one the SDK draws — in the step dots, in whether a
+ * required quiz lets the learner go on, on the end card and in `onFinished`.
+ * Each keeps ONE identity per question for the life of the player, so it is
+ * safe in an effect's dependencies, and each does nothing once the player has
+ * unmounted.
+ */
+export interface InteractiveVideoQuestion {
+  /** The question, as the SDK would have rendered it: full data, or a `redact()` projection. */
+  activity: RenderableActivity;
+  /** Where it sits: the same object `onSubmit` and `onActivityComplete` are handed, for the life of the player. */
+  slot: InteractiveVideoSlot;
+  /**
+   * Passed through untouched. The SDK cannot enforce a mode for pixels it does
+   * not draw: in `exam` the host must not reveal correctness, and in `review`
+   * nothing is submittable — `submit`, `complete` and `clear` are ignored there.
+   */
+  renderMode: RenderMode;
+  /**
+   * `true` while this question is the one on screen: its quiz is open and it is
+   * the current step. `false` from the moment it leaves the screen — another
+   * step, the quiz closing, another quiz opening — and `true` again when the
+   * learner comes back.
+   *
+   * WHEN IT TURNS `false`, STOP THE MICROPHONE, ANY TIMER AND ANY SPEECH. The
+   * video pauses the `<audio>` and `<video>` elements inside the question and
+   * stops the recorders the SDK started, but it cannot reach a recorder it did
+   * not create.
+   */
+  active: boolean;
+  locale?: string;
+  /** The answer restored from `responses`. A starting value: read it once, as the SDK's components do. */
+  defaultValue?: LearnerResponse;
+  /** Whether `submittedSlotIds` names this question: it was handed in before this attempt resumed. */
+  defaultSubmitted: boolean;
+  /** Its stored outcome from `outcomes`: review, or the grade of a question graded later. Read live. */
+  outcome?: ItemOutcome;
+  /**
+   * An element inside the player, for popovers and tooltips. Portal into it
+   * rather than into `document.body`: in fullscreen only the player is painted,
+   * and anything outside it silently vanishes. It is drawn above the quiz, is
+   * the same element for the life of the player — one for every question, so
+   * key what you put in it — and is `null` only before the player's first
+   * commit.
+   */
+  portalContainer: HTMLElement | null;
+  /**
+   * The learner committed an answer: marks the question answered and forwards
+   * to `onSubmit(response, slot)`. Latest wins: call it again for a new take or
+   * a corrected answer.
+   */
+  submit(response: LearnerResponse): void;
+  /**
+   * The answer has a result: marks the question answered, keeps `score / maxScore`
+   * for the end card when `maxScore > 0`, and forwards to
+   * `onActivityComplete(result, slot)`. Latest wins. Counts as answered on its
+   * own, without a `submit`, and forwards exactly what was called — no
+   * `onSubmit` is invented for it.
+   */
+  complete(result: ActivityResult): void;
+  /**
+   * The learner withdrew the answer — a "Try again". The question is unanswered
+   * again and its score forgotten: its step dot empties, a required quiz holds
+   * the learner again, and `onFinished` would report it `skipped`. Calls no
+   * host callback: the host already knows.
+   */
+  clear(): void;
+  /**
+   * Work is on its way for this question — an upload, an assessment. While any
+   * question is pending, Finish on the end card waits, and a video that ends
+   * does not finish by itself; closing the quiz, paging and seeking do not wait.
+   * Call `setPending(false)` however the work ends, a failure included.
+   */
+  setPending(pending: boolean): void;
+  /** Forwards to `onInteraction`, with this question's `activityId` and the time filled in. */
+  emit(type: InteractionKind, payload?: Record<string, unknown>): void;
+}
+
 export interface InteractiveVideoProps {
   /** An item group with a video stimulus and a timeline. Redacted projections in exam and review. */
   group: RenderableItemGroup;
@@ -122,10 +210,39 @@ export interface InteractiveVideoProps {
   outcomes?: Readonly<Record<string, ItemOutcome>>;
   onSubmit?: (response: LearnerResponse, slot: InteractiveVideoSlot) => void;
   onActivityComplete?: (result: ActivityResult, slot: InteractiveVideoSlot) => void;
-  /** Once per mount: when the learner presses Finish, or the video ends with every question answered. */
+  /**
+   * Once per mount: when the learner presses Finish, or the video ends with every
+   * question answered — either way, only once no answer is still on its way.
+   */
   onFinished?: (summary: InteractiveVideoSummary) => void;
   onInteraction?: (event: InteractionEvent) => void;
-  /** Where read-aloud takes are stored and judged. Required when the video holds a read-aloud, outside review. */
+  /**
+   * Draws a question yourself. Called for each question once its quiz has
+   * opened, and on every render after;
+   * return `undefined` for the SDK's own component, so a host can take over one
+   * activity type and leave the rest. `null` draws nothing, and is kept.
+   *
+   * The video still owns everything around the question: when it opens,
+   * whether it counts as answered, whether a required quiz lets the learner go
+   * on, pausing, resume and the end summary — all through the calls on
+   * {@link InteractiveVideoQuestion}. A question the host draws is never
+   * treated differently from one the SDK draws.
+   *
+   * THE HOST MUST STOP ITS MICROPHONE WHEN `active` TURNS `false`: the SDK stops
+   * only the recorders it created. And the SDK cannot keep a mode for pixels it
+   * does not draw: in `exam` reveal no correctness, and in `review` accept no
+   * answer.
+   *
+   * What you return is keyed by the question's slot and stays mounted for the
+   * life of the player, like the SDK's own questions, and sits inside the same
+   * error boundary: a throw degrades that one question, never the video.
+   */
+  renderQuestion?: (question: InteractiveVideoQuestion) => ReactNode | undefined;
+  /**
+   * Where read-aloud takes are stored and judged. Required for every read-aloud
+   * the SDK draws itself, outside review; a video whose read-alouds are all
+   * drawn by `renderQuestion` needs none.
+   */
   recordingBinding?: SequenceRecordingBinding;
   /** Speech assessments by slot id, so `review` shows the marks behind a read-aloud's grade. Read live. */
   assessments?: Readonly<Record<string, SpeechAssessment>>;
@@ -413,17 +530,73 @@ function Player(props: InteractiveVideoProps) {
   });
   const answeredRef = useRef(answered);
   answeredRef.current = answered;
-  const scores = useRef(new Map<string, number>());
-  const markAnswered = useCallback((slotId: string) => {
+  const setSlotAnswered = useCallback((slotId: string, on: boolean) => {
     setAnswered((previous) => {
-      if (previous.has(slotId)) {
+      if (previous.has(slotId) === on) {
         return previous;
       }
       const next = new Set(previous);
-      next.add(slotId);
+      if (on) {
+        next.add(slotId);
+      } else {
+        next.delete(slotId);
+      }
       answeredRef.current = next;
       return next;
     });
+  }, []);
+  // Each question's latest `score / maxScore`, for the end card. State, not a
+  // ref: a second result for a question already answered changes the score and
+  // nothing else, and the card must still show it.
+  const [scores, setScores] = useState<ReadonlyMap<string, number>>(() => new Map());
+  const setSlotScore = useCallback((slotId: string, score: number | undefined) => {
+    setScores((previous) => {
+      if (previous.get(slotId) === score) {
+        return previous;
+      }
+      const next = new Map(previous);
+      if (score === undefined) {
+        next.delete(slotId);
+      } else {
+        next.set(slotId, score);
+      }
+      return next;
+    });
+  }, []);
+
+  // Work on its way — a take being stored or judged — by source and question:
+  // `host:<slotId>` from `setPending`, `take:<slotId>` from an SDK read-aloud's
+  // channel. While any is here, nothing hands the attempt over.
+  const [pending, setPendingState] = useState<ReadonlySet<string>>(() => new Set());
+  const pendingRef = useRef(pending);
+  const setPendingKey = useCallback((key: string, on: boolean) => {
+    setPendingState((previous) => {
+      if (previous.has(key) === on) {
+        return previous;
+      }
+      const next = new Set(previous);
+      if (on) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      pendingRef.current = next;
+      return next;
+    });
+  }, []);
+  // The latest take each SDK read-aloud reported: a report for an older take
+  // describes one the learner has replaced.
+  const latestTakes = useRef(new Map<string, number>());
+
+  // False once the player has unmounted: a late call from a question's upload
+  // or assessment then describes nothing on screen. Set in the effect as well
+  // as cleared in its cleanup, for the remount a development build rehearses.
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
   }, []);
   const finished = useCallback(
     (cueId: string): boolean =>
@@ -436,6 +609,10 @@ function Player(props: InteractiveVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playButtonRef = useRef<HTMLButtonElement>(null);
   const quizHeadingRef = useRef<HTMLHeadingElement>(null);
+  // Where a host's question portals its popovers: inside the shell, so it is
+  // painted in fullscreen. State rather than a ref, so the render after the
+  // first commit hands every question the element and not `null`.
+  const [portalContainer, setPortalContainer] = useState<HTMLDivElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [errorCode, setErrorCode] = useState<number | null>(null);
@@ -1132,7 +1309,7 @@ function Player(props: InteractiveVideoProps) {
   }));
   const totalQuestions = quizzes.reduce((sum, quiz) => sum + quiz.total, 0);
   const answeredCount = quizzes.reduce((sum, quiz) => sum + quiz.answered, 0);
-  const graded = [...scores.current.values()];
+  const graded = [...scores.values()];
   const percent =
     graded.length === 0
       ? null
@@ -1157,6 +1334,10 @@ function Player(props: InteractiveVideoProps) {
         }),
     };
   }, [slots]);
+  // Finishing hands the attempt over, so both ways to it — Finish, and the end
+  // of the video — wait for every answer on its way: a take still uploading is
+  // not answered yet, and would be reported skipped and then submitted after the
+  // summary that called it skipped.
   const finish = useCallback(() => {
     if (finishedOnce.current) {
       return;
@@ -1164,17 +1345,20 @@ function Player(props: InteractiveVideoProps) {
     finishedOnce.current = true;
     onFinished?.(summary());
   }, [onFinished, summary]);
-  // The video ended with every question answered: that is finishing too.
+  const answerPending = pending.size > 0;
+  // The video ended with every question answered: that is finishing too — once
+  // nothing is on its way.
   useEffect(() => {
     if (
       ended &&
+      !answerPending &&
       totalQuestions > 0 &&
       answeredCount === totalQuestions &&
       renderMode !== 'review'
     ) {
       finish();
     }
-  }, [ended, totalQuestions, answeredCount, renderMode, finish]);
+  }, [ended, answerPending, totalQuestions, answeredCount, renderMode, finish]);
 
   // ── Rendering the questions ──────────────────────────────────────────
   const slotBindings = useMemo(() => {
@@ -1205,76 +1389,223 @@ function Player(props: InteractiveVideoProps) {
     return bindings;
   }, [slots, recordingBinding]);
 
-  const renderQuestion = (slot: SequenceSlot<RenderableActivity>, cueId: string): ReactNode => {
-    const activity = slot.activity;
-    const place: InteractiveVideoSlot = {
-      slotId: slot.slotId,
-      index: slot.index,
-      activityId: activity.id,
-      cueId,
+  // ── What each question reports through ──────────────────────────────
+  // Where each question sits: one object per question for the life of the
+  // player, handed to `onSubmit` and to `renderQuestion` alike.
+  const places = useMemo(() => {
+    const byId = new Map<string, InteractiveVideoSlot>();
+    for (const [cueId, cueSlots] of slotsByCue) {
+      for (const slot of cueSlots) {
+        byId.set(slot.slotId, {
+          slotId: slot.slotId,
+          index: slot.index,
+          activityId: slot.activity.id,
+          cueId,
+        });
+      }
+    }
+    return byId;
+  }, [slotsByCue]);
+
+  // The host's callbacks as of the latest render: the calls below keep one
+  // identity for the life of the player, so they read these through a ref.
+  const reportTo = useRef({ onSubmit, onActivityComplete, onInteraction, renderMode });
+  reportTo.current = { onSubmit, onActivityComplete, onInteraction, renderMode };
+
+  /**
+   * The calls a question reports what the learner did through — the SDK's own
+   * components and a host's alike, so nothing downstream can tell them apart.
+   * Made once per question.
+   */
+  const calls = useRef(new Map<string, QuestionCalls>());
+  const callsFor = (place: InteractiveVideoSlot): QuestionCalls => {
+    const made = calls.current.get(place.slotId);
+    if (made !== undefined) {
+      return made;
+    }
+    const { slotId } = place;
+    const warned = new Set<string>();
+    // Nothing is submittable in review. The SDK's own components never try; a
+    // host's is told, once per call, that its answer went nowhere.
+    const refused = (call: string): boolean => {
+      if (reportTo.current.renderMode !== 'review') {
+        return false;
+      }
+      if (isDevelopment() && !warned.has(call)) {
+        warned.add(call);
+        console.warn(
+          `InteractiveVideo: \`${call}()\` was called for question "${slotId}" in renderMode "review", where nothing is submittable. It was ignored.`,
+        );
+      }
+      return true;
     };
-    const restored =
-      props.responses !== undefined && Object.hasOwn(props.responses, slot.slotId)
-        ? props.responses[slot.slotId]
-        : undefined;
-    const outcome =
-      props.outcomes !== undefined && Object.hasOwn(props.outcomes, slot.slotId)
-        ? props.outcomes[slot.slotId]
-        : undefined;
+    const next: QuestionCalls = {
+      submit: (response) => {
+        if (!alive.current || refused('submit')) {
+          return;
+        }
+        setSlotAnswered(slotId, true);
+        reportTo.current.onSubmit?.(response, place);
+      },
+      complete: (result) => {
+        if (!alive.current || refused('complete')) {
+          return;
+        }
+        setSlotAnswered(slotId, true);
+        // Latest wins, a result with nothing to score included: the card shows
+        // the score of the answer the question holds now, or none.
+        setSlotScore(slotId, result.maxScore > 0 ? result.score / result.maxScore : undefined);
+        reportTo.current.onActivityComplete?.(result, place);
+      },
+      clear: () => {
+        if (!alive.current || refused('clear')) {
+          return;
+        }
+        setSlotAnswered(slotId, false);
+        setSlotScore(slotId, undefined);
+      },
+      setPending: (on) => {
+        if (!alive.current) {
+          return;
+        }
+        setPendingKey(`host:${slotId}`, on === true);
+      },
+      emit: (type, payload) => {
+        if (!alive.current) {
+          return;
+        }
+        reportTo.current.onInteraction?.({
+          type,
+          activityId: place.activityId,
+          timestamp: Date.now(),
+          ...(payload !== undefined ? { payload } : {}),
+        } as InteractionEvent);
+      },
+    };
+    calls.current.set(slotId, next);
+    return next;
+  };
+
+  /**
+   * What an SDK read-aloud reports about each take, through its slot's channel.
+   * A take being stored or judged is on its way; every other state is not. A
+   * failure the learner may retry is not on its way either: nothing comes of
+   * it unless they press Try again, which reports the take in flight again.
+   * (A pager holds its set for one while the learner is on that question; the
+   * video's Finish is on the end card, where no question is.)
+   */
+  const reportTake = (slotId: string, take: number, state: TakeState): void => {
+    if (!alive.current) {
+      return;
+    }
+    const latest = latestTakes.current.get(slotId);
+    if (latest !== undefined && take < latest) {
+      return;
+    }
+    latestTakes.current.set(slotId, take);
+    setPendingKey(`take:${slotId}`, state === 'in-flight');
+  };
+  // One channel per question for the life of the player: a recorder joins its
+  // capture group once, and a new object each render would re-render it.
+  // `reportTake` reads only refs and stable setters, so the first render's is
+  // as good as any.
+  const channels = useRef(new Map<string, SequenceSlotChannel>());
+  const channelFor = (slotId: string): SequenceSlotChannel => {
+    let channel = channels.current.get(slotId);
+    if (channel === undefined) {
+      channel = {
+        captureGroup: `${playerId}::${slotId}`,
+        takeState: (take, state) => reportTake(slotId, take, state),
+      };
+      channels.current.set(slotId, channel);
+    }
+    return channel;
+  };
+
+  // ── Rendering the questions ──────────────────────────────────────────
+  /** What the host restored for a question: read the way the SDK's components read it. */
+  const seedsFor = (
+    slotId: string,
+  ): { restored: LearnerResponse | undefined; outcome: ItemOutcome | undefined } => ({
+    restored:
+      props.responses !== undefined && Object.hasOwn(props.responses, slotId)
+        ? props.responses[slotId]
+        : undefined,
+    outcome:
+      props.outcomes !== undefined && Object.hasOwn(props.outcomes, slotId)
+        ? props.outcomes[slotId]
+        : undefined,
+  });
+
+  /** The question as `renderQuestion` is handed it. */
+  const questionFor = (
+    slot: SequenceSlot<RenderableActivity>,
+    place: InteractiveVideoSlot,
+    active: boolean,
+  ): InteractiveVideoQuestion => {
+    const { restored, outcome } = seedsFor(slot.slotId);
+    return {
+      activity: slot.activity,
+      slot: place,
+      renderMode,
+      active,
+      ...(locale !== undefined ? { locale } : {}),
+      ...(restored !== undefined ? { defaultValue: restored } : {}),
+      defaultSubmitted: submitted.has(slot.slotId),
+      ...(outcome !== undefined ? { outcome } : {}),
+      portalContainer,
+      ...callsFor(place),
+    };
+  };
+
+  /** The SDK's own component for a question. */
+  const sdkQuestion = (
+    slot: SequenceSlot<RenderableActivity>,
+    place: InteractiveVideoSlot,
+  ): ReactNode => {
+    const activity = slot.activity;
+    const { restored, outcome } = seedsFor(slot.slotId);
+    const reported = callsFor(place);
     const common = {
       renderMode,
       ...(restored !== undefined ? { defaultValue: restored } : {}),
       ...(submitted.has(slot.slotId) ? { defaultSubmitted: true } : {}),
       ...(outcome !== undefined ? { outcome } : {}),
-      onSubmit: (response: LearnerResponse) => {
-        markAnswered(slot.slotId);
-        onSubmit?.(response, place);
-      },
-      onComplete: (result: ActivityResult) => {
-        markAnswered(slot.slotId);
-        if (result.maxScore > 0) {
-          scores.current.set(slot.slotId, result.score / result.maxScore);
-        }
-        onActivityComplete?.(result, place);
-      },
+      onSubmit: reported.submit,
+      onComplete: reported.complete,
       ...(onInteraction !== undefined ? { onInteraction } : {}),
       ...(sanitizeHtml !== undefined ? { sanitizeHtml } : {}),
       ...(props.strings !== undefined ? { strings: props.strings } : {}),
       ...(locale !== undefined ? { locale } : {}),
     };
-    let question: ReactNode;
     switch (activity.type) {
       case 'multiple-choice':
-        question = (
+        return (
           <MultipleChoice
             data={activity}
             {...common}
             {...(shuffleSeed !== undefined ? { shuffleSeed } : {})}
           />
         );
-        break;
       case 'fill-in-the-blanks':
-        question = <FillInTheBlanks data={activity} {...common} />;
-        break;
+        return <FillInTheBlanks data={activity} {...common} />;
       case 'gap-select':
-        question = (
+        return (
           <GapSelect
             data={activity}
             {...common}
             {...(shuffleSeed !== undefined ? { shuffleSeed } : {})}
           />
         );
-        break;
       case 'dictation':
-        question = <Dictation data={activity} {...common} />;
-        break;
+        return <Dictation data={activity} {...common} />;
       case 'read-aloud': {
         const binding = slotBindings.get(slot.slotId);
         const assessment =
           props.assessments !== undefined && Object.hasOwn(props.assessments, slot.slotId)
             ? props.assessments[slot.slotId]
             : undefined;
-        question = (
+        return (
           <ReadAloud
             data={activity}
             {...common}
@@ -1283,23 +1614,10 @@ function Player(props: InteractiveVideoProps) {
             {...(workletUrl !== undefined ? { workletUrl } : {})}
           />
         );
-        break;
       }
       default:
-        question = null;
+        return null;
     }
-    return question;
-  };
-  // One channel per question for the life of the player: a recorder joins its
-  // capture group once, and a new object each render would re-render it.
-  const channels = useRef(new Map<string, SequenceSlotChannel>());
-  const channelFor = (slotId: string): SequenceSlotChannel => {
-    let channel = channels.current.get(slotId);
-    if (channel === undefined) {
-      channel = { captureGroup: `${playerId}::${slotId}`, takeState: () => undefined };
-      channels.current.set(slotId, channel);
-    }
-    return channel;
   };
 
   if (devError !== null) {
@@ -1718,7 +2036,15 @@ function Player(props: InteractiveVideoProps) {
           aria-labelledby={`${playerId}-quiz-title`}
           hidden={openQuiz === null}
           onKeyDown={(event) => {
-            if (event.key === 'Escape' && !required && openQuiz !== null) {
+            // A question that handled Escape itself — a host's popover closing,
+            // whose keydown React carries up through the portal — prevents it,
+            // and the quiz stays open.
+            if (
+              event.key === 'Escape' &&
+              !event.defaultPrevented &&
+              !required &&
+              openQuiz !== null
+            ) {
               event.preventDefault();
               closeQuiz('skip');
             }
@@ -1772,15 +2098,30 @@ function Player(props: InteractiveVideoProps) {
             {cues
               .filter((cue) => mounted.has(cue.id))
               .map((cue) =>
-                (slotsByCue.get(cue.id) ?? []).map((slot, index) => (
-                  <QuestionPane
-                    key={slot.slotId}
-                    hidden={!(openQuiz?.cueId === cue.id && step === index)}
-                    channel={channelFor(slot.slotId)}
-                  >
-                    {renderQuestion(slot, cue.id)}
-                  </QuestionPane>
-                )),
+                (slotsByCue.get(cue.id) ?? []).map((slot, index) => {
+                  const shown = openQuiz?.cueId === cue.id && step === index;
+                  const place = places.get(slot.slotId) as InteractiveVideoSlot;
+                  return (
+                    <QuestionPane
+                      key={slot.slotId}
+                      hidden={!shown}
+                      channel={channelFor(slot.slotId)}
+                    >
+                      <SlotQuestion
+                        title={slot.activity.title}
+                        strings={strings}
+                        render={props.renderQuestion}
+                        question={
+                          props.renderQuestion === undefined
+                            ? undefined
+                            : questionFor(slot, place, shown)
+                        }
+                        sdk={() => sdkQuestion(slot, place)}
+                        setHostPending={callsFor(place).setPending}
+                      />
+                    </QuestionPane>
+                  );
+                }),
               )}
           </div>
           {openCue !== undefined ? (
@@ -1847,7 +2188,20 @@ function Player(props: InteractiveVideoProps) {
               }
             }}
             onWatchAgain={togglePlay}
-            onFinish={renderMode === 'review' ? undefined : finish}
+            pending={answerPending}
+            onFinish={
+              renderMode === 'review'
+                ? undefined
+                : () => {
+                    // Refused out loud: Finish stays in the tab order and says
+                    // it is waiting, rather than doing nothing silently.
+                    if (pendingRef.current.size > 0) {
+                      announce(strings.videoAnswerPending);
+                      return;
+                    }
+                    finish();
+                  }
+            }
           />
         ) : null}
 
@@ -1906,8 +2260,72 @@ function Player(props: InteractiveVideoProps) {
       <div className="lk-iv-live" aria-live="polite" aria-atomic="true">
         {announcement}
       </div>
+
+      {/* A host question's popovers. Last in the shell, so it paints above the
+          quiz and, in fullscreen, is painted at all. */}
+      <div ref={setPortalContainer} className="lk-iv-portal" />
     </div>
   );
+}
+
+/** The calls a question reports through: the part of {@link InteractiveVideoQuestion} that never changes. */
+type QuestionCalls = Pick<
+  InteractiveVideoQuestion,
+  'submit' | 'complete' | 'clear' | 'setPending' | 'emit'
+>;
+
+/**
+ * One question's content: the host's, when `renderQuestion` returns anything
+ * but `undefined`, else the SDK's own component. Inside the boundary either
+ * way, and `renderQuestion` is called inside it too, so a host that throws —
+ * while rendering, or while deciding what to render — loses that one question
+ * and never the video.
+ */
+function SlotQuestion({
+  title,
+  strings,
+  ...content
+}: {
+  title: string | undefined;
+  strings: LkStrings;
+  render: ((question: InteractiveVideoQuestion) => ReactNode | undefined) | undefined;
+  question: InteractiveVideoQuestion | undefined;
+  sdk: () => ReactNode;
+  setHostPending: (pending: boolean) => void;
+}) {
+  return (
+    <ActivityErrorBoundary
+      {...(title !== undefined ? { activityTitle: title } : {})}
+      strings={strings}
+    >
+      <SlotContent {...content} />
+    </ActivityErrorBoundary>
+  );
+}
+
+function SlotContent({
+  render,
+  question,
+  sdk,
+  setHostPending,
+}: {
+  render: ((question: InteractiveVideoQuestion) => ReactNode | undefined) | undefined;
+  question: InteractiveVideoQuestion | undefined;
+  sdk: () => ReactNode;
+  setHostPending: (pending: boolean) => void;
+}) {
+  const hosted = render !== undefined && question !== undefined ? render(question) : undefined;
+  const hosting = hosted !== undefined;
+  // A host tree that goes away — it threw, or the host stopped drawing this
+  // question — can no longer end the work it said was on its way, and a
+  // pending nobody can clear would hold Finish for ever.
+  useEffect(() => {
+    if (!hosting) {
+      return;
+    }
+    return () => setHostPending(false);
+  }, [hosting, setHostPending]);
+  return hosting ? hosted : sdk();
 }
 
 /**
