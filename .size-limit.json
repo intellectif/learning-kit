@@ -110,6 +110,17 @@
     "limit": "50 kB"
   },
   {
+    "name": "useAiHelp",
+    "path": "packages/lk-react/dist/ai/useAiHelp.js",
+    "import": "{ useAiHints, useAiExplanation }",
+    "ignore": [
+      "react",
+      "react-dom",
+      "@intellectif/lk-core"
+    ],
+    "limit": "6 kB"
+  },
+  {
     "name": "useSpeechRecorder",
     "path": "packages/lk-react/dist/hooks/useSpeechRecorder.js",
     "import": "{ useSpeechRecorder }",

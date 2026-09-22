@@ -9,6 +9,7 @@ It describes `@intellectif/lk-core` 0.17.0 and `@intellectif/lk-react` 17.0.0.
 
 - [What a learner sees](#what-a-learner-sees)
 - [Connecting your model](#connecting-your-model)
+- [A question you draw yourself](#a-question-you-draw-yourself)
 - [Where help appears, and who can switch it off](#where-help-appears-and-who-can-switch-it-off)
 - [What your model is given](#what-your-model-is-given)
 - [What the SDK refuses to show](#what-the-sdk-refuses-to-show)
@@ -56,7 +57,8 @@ import { LkAiProvider } from '@intellectif/lk-react/ai/LkAiProvider';
 - **Every component also takes an `ai` prop**, which wins over the provider whole. So do
   `<ActivitySequence>` and `<InteractiveVideo>`. A question you draw yourself — a sequence's
   `renderers` override, or the video's `renderQuestion` — is handed the ports in force as `ai`,
-  except in `exam`, where no question is given them.
+  except in `exam`, where no question is given them, and can offer the same help through the hooks in
+  [A question you draw yourself](#a-question-you-draw-yourself).
 - **Leave a port out to switch that help off.**
 - **`learnerLocale`** is the language to write in. It defaults to the component's `locale`. In a
   language course that is often not the item's language: English items, explained in Spanish.
@@ -90,6 +92,56 @@ app.post('/api/ai/explain', async (req, res) => {
 **The request is built in the browser.** In practice the browser already holds the answer key, so it
 reveals nothing. A server that does not want to trust it can rebuild the request from its own copy of
 the item and the submitted answer, with `aiExplanationRequest` and `aiHintRequest` from lk-core.
+
+## A question you draw yourself
+
+A host that draws its own question — a `renderers` override in `<ActivitySequence>`, or the video's
+`renderQuestion` — gets the ports as `ai`, and the rules as two hooks:
+
+```tsx
+import { useAiExplanation, useAiHints } from '@intellectif/lk-react/ai/useAiHelp';
+
+function MyMultipleChoice({ data, ai, renderMode, outcome, onInteraction }) {
+  const [response, setResponse] = useState({ type: 'multiple-choice', selectedOptionIds: [] });
+  const [submitted, setSubmitted] = useState(false);
+  const shared = { data, response, submitted, renderMode, ai, onInteraction };
+  const hints = useAiHints(shared);
+  const explanation = useAiExplanation({ ...shared, outcome });
+  // ... your own question, and then:
+  return (
+    <>
+      {hints.offered && hints.used < hints.limit ? (
+        <button type="button" onClick={hints.ask} aria-busy={hints.status === 'loading'}>
+          Get a hint
+        </button>
+      ) : null}
+      <ol>{hints.hints.map((hint) => <li key={hint.text}>{hint.text}</li>)}</ol>
+      {explanation.explanation !== null ? <p>{explanation.explanation.text}</p> : null}
+      {hints.used > 0 || explanation.explanation !== null ? (
+        <p>Written by AI. It can make mistakes.</p>
+      ) : null}
+    </>
+  );
+}
+```
+
+They are what the SDK's own components use, so a question you draw follows the same rules, is given
+the same facts and refuses the same answers. What they hand back is state — `offered`, `status`,
+`hints`, `explanation`, `used`, `limit` — and one `ask` per feature, which keeps one identity for the
+life of the question, so it is safe in an effect's dependencies.
+
+- **`offered` is the rule, `ask` is the guard.** `ask` does nothing where `offered` is false, so a
+  page that draws its own button reaches no model in an exam, however it asks, and none on an item
+  whose author switched that help off.
+- **The paper around the question has the last word on the mode.** Pass on the `renderMode` your
+  question was given; leave it out and the set the question sits in answers for it, and an `exam`
+  around it wins over anything you pass. A question standing on its own, in no set, is `practice` as
+  before. So a renderer that forgets the mode, or defaults it to `practice` as components often do,
+  still offers nothing on a paper of record — even under an `LkAiProvider` higher up the page.
+- **Say who wrote it.** The SDK's own surfaces carry "Written by AI. It can make mistakes."; a page
+  that drops that line passes a model's words off as the course's. Render `text` as text, never as
+  HTML.
+- **`ai` beats the provider**, exactly as it does on a component: pass the ports you were handed.
 
 ## Where help appears, and who can switch it off
 

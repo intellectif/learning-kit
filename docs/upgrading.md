@@ -29,6 +29,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.16.0 | 16.0.0 | Two caption languages at once in `<InteractiveVideo>`, `defaultPreferences` and `onPreferencesChange`, `resolveCaptionTracks`. **One tightened rule**: a caption or subtitle track on a dictation's recording, or on a stimulus a dictation plays, is now refused as `captionsUrl` always was. **And one DOM change**: captions sit in a `.lk-iv-captions` container |
 | 0.16.0 | 16.1.0 | `renderQuestion` on `<InteractiveVideo>`: a host draws a video's questions itself, and the video still keeps count. **No `lk-core` change** — a `lk-react` minor on the same peer range as 16.0.0. **One behaviour change**: Finish waits for a read-aloud take still being stored |
 | 0.17.0 | 17.0.0 | AI help for learners: explanations and hints through ports you supply, `LkAiProvider`, the author's `ai` switch, and the AI contract in lk-core (`buildAiFacts`, `aiExplanationRequest`, `aiHintRequest`, `checkAiExplanation`, `checkAiHint`, `hintRevealsAnswer`). **One tightened rule**: a field named `ai` must now be `{ hints?, explanations? }` |
+| 0.18.0 | 18.1.0 | Host-renderer parity in `<ActivitySequence>`: a `renderers` override is handed a `question` (`active`, `setPending`, `portalContainer`, `clear`, `emit`, `slot`), and every call it is given keeps one identity. New hooks `useAiHints` / `useAiExplanation` for AI help in a question you draw. **No `lk-core` change** — a `lk-react` minor on the same peer range as 18.0.0 |
 | 0.18.0 | 18.0.0 | The grade return trip checks its numbers: `outcomeFromGrade` refuses a record that cannot be a grade (`deferred` / `grade_rejected`, the record kept on `rejectedGrade`), `composeAssessmentScore` holds such a slot `provisional` and names it in `rejectedSlotIds`, `gradeFromRubric` refuses a negative weight or an overflowing weight sum, and `aiExplanationRequest` explains no such grade. **Moves recorded grades, for invalid numbers only** — see [0.17 → 0.18](#017--018-lk-core--17x--18x-lk-react). **No React API change** — 18.0.0 is the peer bump |
 
 Every behavioural change here is opt-in, per the
@@ -52,6 +53,71 @@ you record stay exactly what they were.
 - On **0.16.x**? See [0.16 → 0.17](#016--017-lk-core--16x--17x-lk-react) — one tightened rule for a field named `ai`, and eleven new strings.
 - On **0.15.x**? See [0.15 → 0.16](#015--016-lk-core--15x--16x-lk-react) — one tightened dictation rule to check your content against, and one caption DOM change; 16.1.0 adds one Finish change.
 - On **0.17.x**? See [0.17 → 0.18](#017--018-lk-core--17x--18x-lk-react) — a returned grade that cannot be one no longer composes to a final result; look for stored grades it now reports.
+- On **18.0.x**? See [18.0 → 18.1](#180--181-lk-react) — additive, with one possible type error.
+
+---
+
+## 18.0 → 18.1 (`lk-react`)
+
+### A question you draw counts like one the SDK draws *(18.1.0)*
+
+A `renderers` override used to get the shared props and nothing else. It now gets a `question` prop
+as well — the pager's half of the contract, the same one `renderQuestion` gave a host inside
+`<InteractiveVideo>` in 16.1.0.
+
+```tsx
+function MyReadAloud({ data, onSubmit, question }: ActivityProps & { question?: SequenceQuestion }) {
+  useEffect(() => {
+    if (question?.active === false) {
+      stopMyMicrophone(); // the pager cannot reach a recorder it did not start
+    }
+  }, [question?.active]);
+
+  const hand = async (take: Blob) => {
+    question?.setPending(true); // onFinished waits for this
+    try {
+      onSubmit?.(await store(take));
+    } finally {
+      question?.setPending(false); // however it ends, a failure included
+    }
+  };
+  // …
+}
+```
+
+- **`active`** — whether this is the question on screen. **Stop the microphone, any timer and any
+  speech when it turns `false`.**
+- **`setPending`** — hold the set while your own work is in flight. Without it, a set could be
+  reported a moment before its last answer was stored.
+- **`portalContainer`** — a node inside this question's own pane. A popover portalled into
+  `document.body` stayed on screen over the next question; this one is hidden with its own.
+- **`clear()`** — the learner withdrew their answer, so the slot holds nothing again.
+- **`emit(type, payload?)`** — an interaction with the `activityId` and the time filled in.
+- **`slot`** — the identity to store against, the same object `onSubmit` reports.
+
+**Nothing here is required.** A renderer that ignores `question` behaves exactly as it did.
+
+### AI help in your own question *(18.1.0)*
+
+`useAiHints` and `useAiExplanation` (`@intellectif/lk-react/ai/useAiHelp`, also on the root) give a
+host's own renderer the rules, the facts and the refusals the bundled components use, with your own
+markup — see [the AI guide](./ai.md#a-question-you-draw-yourself). `ask` does nothing where the rules
+say no, so a page that draws its own button still reaches no model in an `exam`.
+
+Pass on the `renderMode` your question was given. If you do not, the set the question sits in answers
+for it, and an `exam` around it wins over anything you pass — so a renderer that defaults the mode to
+`practice`, as components often do, still offers nothing on a paper of record.
+
+### One possible type error *(18.1.0)*
+
+`ActivityRenderer` is now `ComponentType<ActivityProps & { question?: SequenceQuestion }>`. Passing a
+renderer typed `ComponentType<ActivityProps>` is still correct. The one assignment that stops
+compiling is the other direction:
+
+```ts
+const mine: ComponentType<ActivityProps> = someActivityRenderer; // now an error
+const mine: ActivityRenderer = someActivityRenderer;             // the fix
+```
 
 ---
 

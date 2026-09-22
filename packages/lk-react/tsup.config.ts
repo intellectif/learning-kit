@@ -20,6 +20,7 @@ export default defineConfig({
     'hooks/useSpeechRecorder': 'src/hooks/useSpeechRecorder.ts',
     'i18n/LkIntlProvider': 'src/i18n/LkIntlProvider.tsx',
     'ai/LkAiProvider': 'src/ai/LkAiProvider.tsx',
+    'ai/useAiHelp': 'src/ai/useAiHelp.ts',
     'hooks/useXAPI': 'src/hooks/useXAPI.ts',
     'theme/ThemeProvider': 'src/theme/ThemeProvider.tsx',
   },

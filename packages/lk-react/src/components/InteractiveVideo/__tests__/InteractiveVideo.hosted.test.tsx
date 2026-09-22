@@ -12,6 +12,7 @@ import { useContext, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type LearnerAi, LkAiProvider } from '../../../ai/LkAiProvider.js';
+import { useAiHints } from '../../../ai/useAiHelp.js';
 import type { InteractiveVideoQuestion as FromTheRoot } from '../../../index.js';
 import { type SpeechCaptureHarness, stubSpeechCapture } from '../../../test-support/speech.js';
 import { SequenceSlotContext } from '../../shared/sequence-slot.js';
@@ -1011,6 +1012,47 @@ describe('InteractiveVideo: AI ports', () => {
     expect(within(quizPanel()).queryByRole('button', { name: 'Explain my answer' })).toBeNull();
     expect(ai.hint).not.toHaveBeenCalled();
     expect(ai.explain).not.toHaveBeenCalled();
+  });
+
+  it('refuses the hooks in an exam video, even for a host that passes no renderMode', async () => {
+    const user = userEvent.setup();
+    const ai = fakePorts();
+    // The worst case the ports alone do not cover: the host draws its own
+    // question, asks the hooks for help without telling them the mode, and a
+    // provider above the player holds the ports the video itself withholds.
+    // The video the question sits in is what decides.
+    function Drawn({ activity }: InteractiveVideoQuestion) {
+      const hints = useAiHints({
+        data: activity,
+        response: { type: 'multiple-choice', selectedOptionIds: [] },
+        submitted: false,
+      });
+      return (
+        <button type="button" onClick={hints.ask}>
+          {`Mine: hints ${hints.offered ? 'on' : 'off'}`}
+        </button>
+      );
+    }
+    await start(
+      <LkAiProvider ai={ai}>
+        <InteractiveVideo
+          group={group()}
+          renderMode="exam"
+          renderQuestion={(question) =>
+            question.activity.type === 'multiple-choice' ? <Drawn {...question} /> : null
+          }
+        />
+      </LkAiProvider>,
+    );
+    await openFirstQuiz();
+    // Past the read-aloud, which this host leaves to nobody, to the question it draws.
+    await user.click(screen.getByRole('button', { name: 'Next question' }));
+
+    const mine = within(quizPanel()).getAllByRole('button', { name: /^Mine: hints/ });
+    expect(mine.length).toBeGreaterThan(0);
+    expect(mine.every((button) => button.textContent === 'Mine: hints off')).toBe(true);
+    await user.click(mine[0] as HTMLElement);
+    expect(ai.hint).not.toHaveBeenCalled();
   });
 });
 

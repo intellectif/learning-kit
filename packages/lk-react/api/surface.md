@@ -31,6 +31,8 @@ function resolveCaptionTracks: declare function resolveCaptionTracks(tracks: rea
 function StimulusPanel: declare function StimulusPanel({ stimulus, range, sanitizeHtml, locale, renderMode, mediaBudget, mediaStrings, onInteraction, disabled, strings, }: StimulusPanelProps): React.JSX.Element;
 function ThemeProvider: declare function ThemeProvider({ theme, children }: ThemeProviderProps): react_jsx_runtime.JSX.Element;
 function useActivityState: declare function useActivityState(initialState?: ActivityState): UseActivityStateResult;
+function useAiExplanation: declare function useAiExplanation(input: AiExplanationInput): AiExplanationHelp;
+function useAiHints: declare function useAiHints(input: AiHintsInput): AiHintsHelp;
 function useLearnerAi: declare function useLearnerAi(override?: LearnerAi): LearnerAi | undefined;
 function useLkDirection: declare function useLkDirection(): 'ltr' | 'rtl';
 function useLkStrings: declare function useLkStrings(override?: LkStringsOverride): LkStrings;
@@ -41,6 +43,11 @@ function WrittenResponse: declare function WrittenResponse(props: WrittenRespons
 interface ActivityPreviewProps: interface ActivityPreviewProps { draft: unknown; renderMode?: RenderMode; response?: LearnerResponse; outcome?: ItemOutcome; fallback?: (result: DraftNotComplete) => ReactNode; renderers?: Readonly<Record<string, ActivityRenderer>>; shuffleSeed?: string; sanitizeHtml?: HtmlSanitizer; strings?: LkStringsOverride; theme?: Partial<ThemeTokens>; locale?: string; }
 interface ActivityProps: interface ActivityProps<TData extends ActivityData = ActivityData> { data: RenderableActivity<TData>; onComplete?: (result: ActivityResult) => void; onSubmit?: (response: LearnerResponse) => void; value?: LearnerResponse; defaultValue?: LearnerResponse; defaultSubmitted?: boolean; onChange?: (response: LearnerResponse) => void; renderMode?: RenderMode; outcome?: ItemOutcome; sanitizeHtml?: HtmlSanitizer; mediaBudget?: MediaBudgetBinding; mediaStrings?: Partial<MediaTransportStrings>; strings?: LkStringsOverride; onInteraction?: (event: InteractionEvent) => void; ai?: LearnerAi; theme?: Partial<ThemeTokens>; locale?: string; disabled?: boolean; }
 interface ActivitySequenceProps: interface ActivitySequenceProps { activities: readonly SequenceEntry<RenderableActivity>[]; renderers?: Readonly<Record<string, ActivityRenderer>>; onActivityComplete?: (result: ActivityResult, index: number, slotId: string) => void; onSubmit?: (response: LearnerResponse, slot: { activityId: string; index: number; slotId: string; }) => void; onComplete?: (results: ActivityResult[]) => void; onFinished?: (items: SequenceItemOutcome[]) => void; onInteraction?: (event: InteractionEvent) => void; renderMode?: RenderMode; mediaBudget?: SequenceMediaBudget; recordingBinding?: SequenceRecordingBinding; assessments?: Readonly<Record<string, SpeechAssessment>>; workletUrl?: string; strings?: LkStringsOverride; ai?: LearnerAi; shuffle?: 'entries' | 'none'; shuffleSeed?: string; defaultIndex?: number; onIndexChange?: (index: number) => void; responses?: Readonly<Record<string, LearnerResponse>>; submittedSlotIds?: readonly string[]; outcomes?: Readonly<Record<string, ItemOutcome>>; sanitizeHtml?: HtmlSanitizer; theme?: Partial<ThemeTokens>; locale?: string; disabled?: boolean; }
+interface AiExplanationHelp: interface AiExplanationHelp { offered: boolean; status: 'idle' | 'loading' | 'shown' | 'unavailable'; explanation: AiTextResult | null; ask: () => void; }
+interface AiExplanationInput: interface AiExplanationInput extends AiHelpSituation { outcome?: ItemOutcome; }
+interface AiHelpSituation: interface AiHelpSituation { data: RenderableActivity; response: LearnerResponse; submitted: boolean; renderMode?: RenderMode; ai?: LearnerAi; locale?: string; onInteraction?: (event: InteractionEvent) => void; }
+interface AiHintsHelp: interface AiHintsHelp { offered: boolean; status: 'idle' | 'loading' | 'unavailable'; hints: readonly AiTextResult[]; limit: number; used: number; ask: () => void; }
+interface AiHintsInput: interface AiHintsInput extends AiHelpSituation { disabled?: boolean; }
 interface CaptionTracks: interface CaptionTracks { primary?: MediaTrack; secondary?: MediaTrack; }
 interface DictationProps: interface DictationProps extends ActivityProps<DictationData> { }
 interface FillInTheBlanksProps: interface FillInTheBlanksProps extends ActivityProps<FillInTheBlanksData> { showCorrectAnswers?: boolean; }
@@ -61,6 +68,7 @@ interface ReadAloudProps: interface ReadAloudProps extends ActivityProps<ReadAlo
 interface RecordedTake: interface RecordedTake { blob: Blob; mimeType: string; durationMs: number; peakLevel: number; }
 interface RecordingBinding: interface RecordingBinding { upload(take: RecordedTake): Promise<RecordingRef>; assess?(ref: RecordingRef): Promise<ReadAloudAssessResult>; playbackUrl?(ref: RecordingRef): Promise<string>; }
 interface SequenceMediaBudget: interface SequenceMediaBudget { plays?: Readonly<Record<string, MediaPlayLedgerEntry>>; resumeKey?: string; enforced?: boolean; onPlayConsumed?: (claim: MediaPlayClaim) => Promise<MediaPlayGrant | undefined> | undefined; onPlayRefunded?: (claim: MediaPlayClaim) => void; onPosition?: (key: string, seconds: number) => void; strings?: Partial<MediaTransportStrings>; }
+interface SequenceQuestion: interface SequenceQuestion { slot: SequenceRecordingSlot; active: boolean; portalContainer: HTMLElement | null; clear(): void; setPending(pending: boolean): void; emit(type: InteractionKind, payload?: Record<string, unknown>): void; }
 interface SequenceRecordingBinding: interface SequenceRecordingBinding { upload(take: RecordedTake, slot: SequenceRecordingSlot): Promise<RecordingRef>; assess?(ref: RecordingRef, slot: SequenceRecordingSlot): Promise<ReadAloudAssessResult>; playbackUrl?(ref: RecordingRef, slot: SequenceRecordingSlot): Promise<string>; }
 interface SequenceRecordingSlot: interface SequenceRecordingSlot { slotId: string; index: number; activityId: string; }
 interface SpeechRecorder: interface SpeechRecorder { status: SpeechRecorderStatus; error: SpeechRecorderError | null; level: number; elapsedMs: number; take: RecordedTake | null; takesUsed: number; canRecord: boolean; start(): Promise<void>; stop(): void; discard(): void; reset(): void; }
@@ -73,7 +81,7 @@ interface UseXAPIResult: interface UseXAPIResult { sendStatement: (statement: XA
 interface VideoPreferences: interface VideoPreferences { speed: number; volume: number; muted: boolean; captions: boolean; captionLanguage: null | string; secondaryCaptionLanguage: null | string; captionSize: CaptionSize; captionBackground: boolean; panel: boolean; shortcuts: boolean; }
 interface WrittenResponseProps: interface WrittenResponseProps { data: Renderable<WrittenResponseData>; onSubmitted?: (submission: WrittenResponseSubmission) => void; onSubmit?: (response: LearnerResponse) => void; value?: LearnerResponse; defaultValue?: LearnerResponse; defaultSubmitted?: boolean; onChange?: (response: LearnerResponse) => void; renderMode?: RenderMode; outcome?: ItemOutcome; sanitizeHtml?: HtmlSanitizer; mediaBudget?: MediaBudgetBinding; mediaStrings?: Partial<MediaTransportStrings>; strings?: LkStringsOverride; onInteraction?: (event: InteractionEvent) => void; theme?: Partial<ThemeTokens>; locale?: string; disabled?: boolean; }
 interface WrittenResponseSubmission: interface WrittenResponseSubmission { text: string; wordCount: number; withinWordBounds: boolean; timeSpent: number; xapiStatement: XAPIStatement; }
-type ActivityRenderer: type ActivityRenderer = ComponentType<ActivityProps>;
+type ActivityRenderer: type ActivityRenderer = ComponentType<ActivityProps & { question?: SequenceQuestion; }>;
 type ActivityState: type ActivityState = 'completed' | 'idle' | 'in-progress' | 'reviewing';
 type CaptionSize: type CaptionSize = 'large' | 'medium' | 'small';
 type HtmlSanitizer: type HtmlSanitizer = (html: string) => string;
@@ -98,6 +106,18 @@ interface LearnerAi: interface LearnerAi { explain?: (request: AiExplanationRequ
 interface LkAiProviderProps: interface LkAiProviderProps { ai: LearnerAi; children: ReactNode; }
 ```
 
+## @intellectif/lk-react/ai/useAiHelp
+
+```ts
+function useAiExplanation: declare function useAiExplanation(input: AiExplanationInput): AiExplanationHelp;
+function useAiHints: declare function useAiHints(input: AiHintsInput): AiHintsHelp;
+interface AiExplanationHelp: interface AiExplanationHelp { offered: boolean; status: 'idle' | 'loading' | 'shown' | 'unavailable'; explanation: AiTextResult | null; ask: () => void; }
+interface AiExplanationInput: interface AiExplanationInput extends AiHelpSituation { outcome?: ItemOutcome; }
+interface AiHelpSituation: interface AiHelpSituation { data: RenderableActivity; response: LearnerResponse; submitted: boolean; renderMode?: RenderMode; ai?: LearnerAi; locale?: string; onInteraction?: (event: InteractionEvent) => void; }
+interface AiHintsHelp: interface AiHintsHelp { offered: boolean; status: 'idle' | 'loading' | 'unavailable'; hints: readonly AiTextResult[]; limit: number; used: number; ask: () => void; }
+interface AiHintsInput: interface AiHintsInput extends AiHelpSituation { disabled?: boolean; }
+```
+
 ## @intellectif/lk-react/components/ActivityPreview
 
 ```ts
@@ -110,7 +130,8 @@ interface ActivityPreviewProps: interface ActivityPreviewProps { draft: unknown;
 ```ts
 function ActivitySequence: declare function ActivitySequence({ activities, renderers, onActivityComplete, onComplete, onFinished, onSubmit, onInteraction, renderMode, shuffle, shuffleSeed, defaultIndex, onIndexChange, responses, submittedSlotIds, outcomes, sanitizeHtml, theme, locale, disabled, mediaBudget, recordingBinding, assessments, workletUrl, strings, ai, }: ActivitySequenceProps): React.JSX.Element;
 interface ActivitySequenceProps: interface ActivitySequenceProps { activities: readonly SequenceEntry<RenderableActivity>[]; renderers?: Readonly<Record<string, ActivityRenderer>>; onActivityComplete?: (result: ActivityResult, index: number, slotId: string) => void; onSubmit?: (response: LearnerResponse, slot: { activityId: string; index: number; slotId: string; }) => void; onComplete?: (results: ActivityResult[]) => void; onFinished?: (items: SequenceItemOutcome[]) => void; onInteraction?: (event: InteractionEvent) => void; renderMode?: RenderMode; mediaBudget?: SequenceMediaBudget; recordingBinding?: SequenceRecordingBinding; assessments?: Readonly<Record<string, SpeechAssessment>>; workletUrl?: string; strings?: LkStringsOverride; ai?: LearnerAi; shuffle?: 'entries' | 'none'; shuffleSeed?: string; defaultIndex?: number; onIndexChange?: (index: number) => void; responses?: Readonly<Record<string, LearnerResponse>>; submittedSlotIds?: readonly string[]; outcomes?: Readonly<Record<string, ItemOutcome>>; sanitizeHtml?: HtmlSanitizer; theme?: Partial<ThemeTokens>; locale?: string; disabled?: boolean; }
-type ActivityRenderer: type ActivityRenderer = ComponentType<ActivityProps>;
+interface SequenceQuestion: interface SequenceQuestion { slot: SequenceRecordingSlot; active: boolean; portalContainer: HTMLElement | null; clear(): void; setPending(pending: boolean): void; emit(type: InteractionKind, payload?: Record<string, unknown>): void; }
+type ActivityRenderer: type ActivityRenderer = ComponentType<ActivityProps & { question?: SequenceQuestion; }>;
 type SequenceItemOutcome: type SequenceItemOutcome = { activityId: string; index: number; kind: 'responded'; response: LearnerResponse; slotId: string; } | { activityId: string; index: number; kind: 'restored'; response?: LearnerResponse; slotId: string; } | { activityId: string; index: number; kind: 'scored'; response?: LearnerResponse; result: ActivityResult; slotId: string; } | { activityId: string; index: number; kind: 'submitted'; slotId: string; submission: WrittenResponseSubmission; } | { activityId: string; index: number; kind: 'unsubmitted'; slotId: string; };
 ```
 

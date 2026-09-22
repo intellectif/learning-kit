@@ -838,7 +838,9 @@ describe('<ReadAloud> events and lifecycle', () => {
     // The group reaches the component only through the slot channel a pager's
     // pane provides — never as a prop.
     render(
-      <SequenceSlotContext.Provider value={{ captureGroup: 'slot-1', takeState: () => {} }}>
+      <SequenceSlotContext.Provider
+        value={{ captureGroup: 'slot-1', renderMode: 'practice', takeState: () => {} }}
+      >
         <ReadAloud data={data} recordingBinding={storeOnly()} />
       </SequenceSlotContext.Provider>,
     );

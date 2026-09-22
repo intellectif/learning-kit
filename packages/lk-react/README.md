@@ -82,7 +82,8 @@ export function Demo() {
 - **`shuffleSeed`** — one seed drives question order *and* each item's option order, so a review render reproduces exactly the arrangement the learner sat. Shuffling in `exam` / `review` mode **requires** it.
 - **`<StimulusPanel>`** — a shared passage / recording / image (an item group's stimulus) as a landmark region; the sequence uses it, and a custom runner can too.
 - **`<ActivityPreview>`** — an editor's preview. Renders a draft in any `renderMode` with a simulated `response` (marked with `evaluate()` in `review`), and a translatable notice — or your `fallback`, handed the issues — while `validateDraft` says the draft is not finished. Nothing it renders is recorded, and a recording's play limit is counted in memory only.
-- **Custom activity types** — `renderers={{ 'my-type': MyRenderer }}` on the sequence; a key matching a built-in overrides it, so you can replace a bundled renderer without forking the sequencer.
+- **Custom activity types** — `renderers={{ 'my-type': MyRenderer }}` on the sequence; a key matching a built-in overrides it, so you can replace a bundled renderer without forking the sequencer. A renderer is given the same contract the SDK's own components have: a `question` prop that says when it is the question on screen (so it can stop its microphone), holds the set while its own work is in flight, gives it somewhere to portal a popover, and reports what the learner did through calls that keep one identity.
+- **AI help in a question you draw** — `useAiHints` and `useAiExplanation` give a host's own renderer the rules, the facts and the refusals the bundled components use, without their buttons. `ask` does nothing where the rules say no, so an exam reaches no model however the page asks.
 - **Rich text, opt-in** — `sanitizeHtml` renders author-supplied `questionHtml` / `promptHtml`. The SDK ships **no** sanitiser and injects no HTML without one; without it the escaped plain-text field is used. (`FillInTheBlanks` ignores `passageHtml` by design — its passage hosts the answer inputs.)
 - **Media per question** — optional `image` / `audio` / `video` / `embed` (YouTube/Vimeo iframe) above the question; alt-text required for `image`/`embed` (WCAG).
 - **Playback policy for listening papers** — an audio recording can declare `maxPlays`, `seek: 'none'` and `rate: 'fixed'`. The SDK then renders its own accessible transport (44px targets, a live plays-remaining status, an exhausted button that stays focusable and says why) and enforces the policy from the element's own events, so a hardware media key goes through the budget too. Wire `mediaBudget` on `<ActivitySequence>` to make a play budget survive a refresh.
@@ -116,6 +117,7 @@ export function Demo() {
 | `@intellectif/lk-react/hooks/useSpeechRecorder` | Microphone capture to 16 kHz mono WAV, and `CAPTURE_PROCESSOR_SOURCE` for a self-hosted worklet |
 | `@intellectif/lk-react/hooks/useXAPI` | LRS delivery (retry, never-throws) |
 | `@intellectif/lk-react/ai/LkAiProvider` | `<LkAiProvider>`, `useLearnerAi`, and the `LearnerAi` type |
+| `@intellectif/lk-react/ai/useAiHelp` | `useAiHints`, `useAiExplanation` — the AI rules without the SDK's own buttons |
 | `@intellectif/lk-react/i18n/LkIntlProvider` | `<LkIntlProvider>`, `useLkStrings`, `useLkDirection`, `DEFAULT_STRINGS`, `mergeStrings`, `directionForLocale` |
 | `@intellectif/lk-react/theme/ThemeProvider` | `<ThemeProvider>`, `darkTheme`, `useTheme`, `createTailwindTheme` |
 | `@intellectif/lk-react/theme/defaults.css` | Tokens (required) |

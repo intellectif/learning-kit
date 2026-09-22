@@ -116,6 +116,7 @@ inside a right-to-left page. See [Internationalisation](./i18n.md).
 | `.lk-iv-portal` | `portalContainer`: the last child of the shell, where a question drawn by `renderQuestion` portals its popovers. Out of the flow and lifted above the stage, so what is portalled into it paints over the quiz and in fullscreen |
 | `.lk-seq`, `.lk-seq-progress`, `.lk-seq-question`, `.lk-seq-nav` | ActivitySequence pager |
 | `.lk-seq-prev`, `.lk-seq-next`, `.lk-seq-slot`, `.lk-seq-stimulus`, `.lk-seq-unsupported` | Pager buttons, the per-question pane, its stimulus wrapper, and the fallback for an unregistered activity type |
+| `.lk-seq-portal` | An empty node inside a host-drawn question's pane, for its own popovers (`SequenceQuestion.portalContainer`). Style it only to position what you put in it |
 | `[aria-live]` (within `.lk-mc` / `.lk-fib`) | Feedback / status region |
 
 State is exposed via `data-correct="true|false"` after submission, but **not at the same level for both types**: on Multiple Choice it lands on `.lk-mc-option` itself, while on Fill-in-the-Blanks it lands on the `input` *inside* `.lk-fib-blank`. So target `.lk-mc-option[data-correct="false"]` but `.lk-fib-blank input[data-correct="false"]` — a rule written against `.lk-fib-blank[data-correct]` silently never matches. (The bundled skin does exactly this; compare its `.lk-mc-option` and `.lk-fib-blank input` rules.) `:has(input:checked)` is for Multiple Choice selection.

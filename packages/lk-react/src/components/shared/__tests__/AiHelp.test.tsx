@@ -13,6 +13,7 @@ import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type LearnerAi, LkAiProvider } from '../../../ai/LkAiProvider.js';
+import { explanationOffered, hintLimit, hintOffered } from '../../../ai/rules.js';
 import { checkA11y } from '../../../test-support/a11y.js';
 import { ActivitySequence } from '../../ActivitySequence/index.js';
 import { Dictation } from '../../Dictation/index.js';
@@ -20,7 +21,6 @@ import { FillInTheBlanks } from '../../FillInTheBlanks/index.js';
 import { GapSelect } from '../../GapSelect/index.js';
 import { MultipleChoice } from '../../MultipleChoice/index.js';
 import { asRenderable } from '../../types.js';
-import { explanationOffered, hintLimit, hintOffered } from '../AiHelp.js';
 
 /**
  * AI help for learners, through ports a host supplies: an explanation of a
