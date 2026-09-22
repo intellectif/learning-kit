@@ -351,9 +351,10 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   an unrecognised stimulus kind returned early and left the stimulus's own media to the schema, and a
   cleared rich-text body — an empty string, not an absent field — tripped the schema's rule and not ours,
   while a `text` stimulus carrying rich text and no plain text reported the same path twice.
-- `@intellectif/lk-ai` (ports only): `LlmBridge`, `generateActivities` + named-semantic-check repair loop +
-  `AiProvenance`, `lintActivity` (item-writing critic), `gradeFreeText` + `RubricConfig` + CEFR descriptor
-  data, `analyzeItem` (facility/discrimination/distractor efficiency).
+- `@intellectif/lk-ai` (ports only): superseded by [Next — the delivery policy, then
+  AI](#next--the-delivery-policy-then-ai), which orders the work and states the rules it follows.
+  `analyzeItem` (facility, discrimination, distractor efficiency) is statistics rather than AI, and is
+  proposed for `lk-core`.
 - Registry v2: descriptor gains `versions`/`migrations` (`migrateActivity`, lazy on read), `semanticChecks`
   (named, for the repair loop), `plan()` seeded presentation.
 - ✅ **Grade-stability vectors, and the non-functionals that had gone stale** — the consumer parity
@@ -419,14 +420,20 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
 
 ### v0.5 — "types and content acquisition"
 
-**Shipped so far in the v0.5 line:** `gap-select` (0.10.0 core / 0.11.0 renderer) and media on
-multiple-choice options (0.10.0). Next: `true-false`, the other P0.
+**Shipped in the v0.5 line:** `gap-select` (0.10.0 core / 0.11.0 renderer), media on multiple-choice
+options (0.10.0), `dictation` (0.13.0), `read-aloud` (0.14.0) and interactive video (0.15.0, with its
+follow-ups through lk-react 16.1.0). The remaining types below wait on evidence of demand. What comes
+next is the [delivery policy, then AI](#next--the-delivery-policy-then-ai).
 
 > **Reordered 2026-08-19 from evidence in a production corpus**, not from a theoretical gap analysis. The
 > earlier ordering (matching first, true/false retired as "a UI variant of MC") did not survive contact with
 > real content: in a 76-container / 408-item legacy corpus, `matching` appears **zero** times, while
 > true/false carries an entire reading testlet and 41% of authored stems are gap-fill sentences faked as
 > multiple-choice. Frequency in real item banks beats taxonomy completeness.
+>
+> **`true-false` was retired again on 2026-09-22.** Multiple choice with two options already delivers
+> a true/false statement, alone or in a reading testlet built as an item group. A separate type would
+> duplicate a renderer, a scorer and an authoring contract without adding a capability.
 
 - ✅ **`gap-select` (dropdown cloze) — P0, SHIPPED** across 0.10.0 and 0.11.0. The single most-faked type:
   authors write `___` gap sentences and encode them as multiple-choice because nothing better exists, which is
@@ -459,9 +466,6 @@ multiple-choice options (0.10.0). Next: `true-false`, the other P0.
   `<GapSelect>`, both dispatch branches, the sequence's seed guard extended to `shuffleChoices`, and the public
   types exported. The guard against a repeat is a test that renders a `gap-select` item through
   `<ActivitySequence>` and asserts the unsupported notice is NOT what comes back.
-- **`true-false` — P0 (reinstated).** Previously retired as an MC variant; it is the backbone of real reading
-  testlets, and collapsing it into MC loses the authoring ergonomics and the interop mapping that make a
-  20-item testlet tractable.
 - ✅ **Media as multiple-choice options — SHIPPED** in 0.10.0, out of order and on consumer evidence rather
   than the queue. Picture-choice (A1/A2 vocabulary) and minimal-pair listening had no expression at all:
   `media` sat above the question, one asset per activity. `MultipleChoiceOption.media` is additive, and
@@ -698,6 +702,58 @@ multiple-choice options (0.10.0). Next: `true-false`, the other P0.
 - `speaking-response` remains high value-to-effort where a CEFR speaking grader already exists.
 - `@intellectif/lk-interop`: H5P import is worth more than first estimated — a real corpus is dominated by
   `H5P.QuestionSet` containers, which map onto the item-group primitive below. Word/PDF/CSV/paste import first.
+
+### Next — the delivery policy, then AI
+
+Chosen 2026-09-22, ahead of any new activity type. The order is deliberate: every AI switch is a
+delivery decision, so the policy that holds those decisions comes first.
+
+1. **The delivery policy, and host-renderer parity in `<ActivitySequence>`.**
+   - **The delivery policy.** `renderMode` (`practice | exam | review`) is three fixed presets. Educators
+     need the settings underneath, so that one activity serves a practice lesson and a final exam
+     without being authored twice:
+     - when correctness and feedback show;
+     - whether solutions show;
+     - whether a learner may retry (today only a read-aloud upload has "Try again");
+     - whether hints are on, and what they cost.
+   - The three modes become named presets that reproduce today's behaviour exactly, so nothing changes
+     for a host that passes no policy. The policy an attempt ran under is frozen into `planAttempt`
+     beside order, identity and points, so a grade records the conditions it was earned under.
+   - Timers, lockdown and proctoring stay consumer-side (§5).
+   - **Host-renderer parity.** A consumer's own renderer in `<ActivitySequence>` gets what
+     `renderQuestion` gave one in `<InteractiveVideo>` in 16.1.0:
+     - being told it left the screen, so a host recorder can stop its microphone;
+     - a pending state the set waits on;
+     - a portal that fullscreen paints;
+     - calls with one identity for the life of the set.
+2. **`@intellectif/lk-ai`, ports only.** In this order:
+   1. help for learners in formative use: explain an answer, graduated hints, feedback on open
+      responses, feedback in the learner's language;
+   2. assistants for authors: drafts generated from a passage, a transcript or a video's captions; an
+      item critic; suggested distractors and accepted answers. Each is a draft a person approves;
+   3. assisted grading of open responses, admitted to summative use only through a calibration against
+      human marks;
+   4. `speaking-response`, built on that grading.
+
+   The rules every AI feature follows, beside the standing decisions:
+   - **The model judges and explains; the SDK computes every number.** `gradeFromRubric` already
+     works this way.
+   - **Grounded in the SDK's own facts.** The context a model receives is the SDK's scoring details: the
+     key, the response, the per-blank matches, the dictation alignment, the read-aloud marks. What
+     comes back is validated, and a hint containing an answer is refused with the scorer's own
+     matching.
+   - **Labelled, and stored with its provenance.** `GradeRecord.grader` already has `model` and
+     `promptHash`. An output is never regenerated on read.
+   - **Off unless three things allow it:** the content, the delivery policy, and a port the host
+     supplied.
+   - **Never blocking.** A failed call removes the feature for that moment; the question stays
+     answerable.
+
+   Proposed, to be settled in the milestone plan:
+   - learner-facing AI off in the `exam` preset, overridable only explicitly and recorded in the
+     attempt plan;
+   - an author's per-item switch beside the educator's per-deployment one;
+   - calibration metrics shipped with no default threshold, as rounding ships no default `dp`.
 
 ### v1.0 — "schema 2.0 and the stability promise"
 
