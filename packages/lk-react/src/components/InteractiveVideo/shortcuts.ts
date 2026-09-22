@@ -15,6 +15,7 @@ export type VideoShortcutAction =
   | 'chapter'
   | 'mute'
   | 'captions'
+  | 'secondary-captions'
   | 'transcript'
   | 'picture-in-picture'
   | 'fullscreen'
@@ -33,6 +34,7 @@ export const SHORTCUT_KEYS: readonly { action: VideoShortcutAction; keys: string
   { action: 'chapter', keys: '[ / ]' },
   { action: 'mute', keys: 'M' },
   { action: 'captions', keys: 'C' },
+  { action: 'secondary-captions', keys: 'Shift + C' },
   { action: 'transcript', keys: 'T' },
   { action: 'picture-in-picture', keys: 'P' },
   { action: 'fullscreen', keys: 'F' },

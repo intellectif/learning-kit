@@ -23,6 +23,19 @@ export interface ThemeTokens {
    * which reads on any video. Set it to a brand colour to match a product.
    */
   '--lk-color-media-accent'?: string;
+  /**
+   * The interactive video's drawn captions. Optional like the accent above, so
+   * a theme written before them still type-checks. The primary line's colour;
+   * the second language's colour, which must clear 4.5:1 on the caption box;
+   * the second line's size as a share of the first (a number, e.g. `0.85`);
+   * and the space between the two lines. The second line differs from the
+   * first by position and size as well as colour: colour alone would fail
+   * WCAG 1.4.1.
+   */
+  '--lk-iv-caption-color'?: string;
+  '--lk-iv-caption-secondary-color'?: string;
+  '--lk-iv-caption-secondary-scale'?: string;
+  '--lk-iv-caption-gap'?: string;
 
   // ── Spacing ──────────────────────────────────────────────────────────────
   '--lk-spacing-xs': string;

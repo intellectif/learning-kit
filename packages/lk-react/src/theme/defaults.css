@@ -24,6 +24,13 @@
   --lk-color-focus-ring: #18181b;
   /* A video player's accent, drawn on its always-dark chrome. */
   --lk-color-media-accent: #ffffff;
+  /* An interactive video's drawn captions: the first line's colour, the second
+     language's, the second line's size as a share of the first, and the
+     space between the two. */
+  --lk-iv-caption-color: #ffffff;
+  --lk-iv-caption-secondary-color: #ffe066;
+  --lk-iv-caption-secondary-scale: 0.85;
+  --lk-iv-caption-gap: 0.25em;
 
   /* Spacing */
   --lk-spacing-xs: 4px;

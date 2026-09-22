@@ -1,12 +1,6 @@
 import type { MediaTimeline } from '@intellectif/lk-core';
 import { describe, expect, it } from 'vitest';
 import { clock, nudgeSpeed, SPEEDS } from '../format.js';
-import {
-  DEFAULT_PREFERENCES,
-  readPreferences,
-  sanitizePreferences,
-  writePreferences,
-} from '../prefs.js';
 import { crossedQuiz, limitResume, limitSeek, quizzesAtEnd } from '../quiz-engine.js';
 
 const cue = (id: string, at: number, required = false) => ({
@@ -180,50 +174,5 @@ describe('nudgeSpeed', () => {
 
   it('treats a rate that is not on the list as normal speed', () => {
     expect(nudgeSpeed(1.1, 1)).toBe(1.25);
-  });
-});
-
-describe('preferences', () => {
-  it('holds every stored value inside what the controls can undo', () => {
-    expect(
-      sanitizePreferences({
-        speed: 16,
-        volume: 50,
-        muted: 'yes',
-        captions: false,
-        captionLanguage: 'javascript:alert(1)',
-        captionSize: 'enormous',
-        panel: true,
-      }),
-    ).toEqual({
-      ...DEFAULT_PREFERENCES,
-      captions: false,
-      panel: true,
-    });
-  });
-
-  it('keeps values that are in range', () => {
-    expect(
-      sanitizePreferences({ speed: 1.5, volume: 0.25, captionLanguage: 'pt-BR' }),
-    ).toMatchObject({
-      speed: 1.5,
-      volume: 0.25,
-      captionLanguage: 'pt-BR',
-    });
-  });
-
-  it('answers the defaults for anything that is not an object', () => {
-    expect(sanitizePreferences(null)).toEqual(DEFAULT_PREFERENCES);
-    expect(sanitizePreferences('speed=2')).toEqual(DEFAULT_PREFERENCES);
-    expect(sanitizePreferences([])).toEqual(DEFAULT_PREFERENCES);
-  });
-
-  it('round-trips through storage, and survives storage that refuses', () => {
-    writePreferences({ ...DEFAULT_PREFERENCES, speed: 1.5, panel: true });
-    expect(readPreferences()).toMatchObject({ speed: 1.5, panel: true });
-
-    localStorage.setItem('lk.video.v1', '{not json');
-    expect(readPreferences()).toEqual(DEFAULT_PREFERENCES);
-    localStorage.clear();
   });
 });

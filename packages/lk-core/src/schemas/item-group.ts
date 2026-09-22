@@ -10,7 +10,7 @@ import {
 } from '../timeline-limits.js';
 import type { ActivityData, ValidationError, ValidationResult } from '../types/activity.js';
 import type { ItemGroup, StimulusKind } from '../types/item-group.js';
-import { GROUP_CAPTIONS_REVEAL_DICTATION, groupCaptionsRevealDictation } from './dictation.js';
+import { GROUP_CAPTIONS_REVEAL_DICTATION, groupCaptionsField } from './dictation.js';
 import { MediaSchema, RedactedMediaSchema } from './media.js';
 
 /**
@@ -401,12 +401,13 @@ export const RedactedItemGroupSchema = z
     for (const issue of timelineIssues(ctx.value, 'redacted')) {
       ctx.issues.push({ code: 'custom', ...issue });
     }
-    if (groupCaptionsRevealDictation(ctx.value)) {
+    const captions = groupCaptionsField(ctx.value);
+    if (captions !== undefined) {
       ctx.issues.push({
         code: 'custom',
-        input: ctx.value.stimulus.media?.captionsUrl,
+        input: ctx.value.stimulus.media?.[captions],
         message: GROUP_CAPTIONS_REVEAL_DICTATION,
-        path: ['stimulus', 'media', 'captionsUrl'],
+        path: ['stimulus', 'media', captions],
       });
     }
   });
@@ -457,9 +458,10 @@ export function validateItemGroup(data: unknown): ValidationResult<ItemGroup> {
     }
     items.push(parsed.data as ActivityData);
   });
-  if (groupCaptionsRevealDictation(container.data)) {
+  const captions = groupCaptionsField(container.data);
+  if (captions !== undefined) {
     errors.push({
-      path: ['stimulus', 'media', 'captionsUrl'],
+      path: ['stimulus', 'media', captions],
       message: GROUP_CAPTIONS_REVEAL_DICTATION,
       code: 'custom',
     });

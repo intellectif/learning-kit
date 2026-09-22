@@ -22,6 +22,13 @@ export const defaultTheme: ThemeTokens = {
   '--lk-color-warning': '#b45309',
   '--lk-color-focus-ring': '#18181b',
   '--lk-color-media-accent': '#ffffff',
+  // An interactive video's two caption lines. The second is warm yellow, the
+  // convention for a second subtitle line, and clears 4.5:1 on the caption box
+  // whatever the video shows through it (see contrast.test.ts).
+  '--lk-iv-caption-color': '#ffffff',
+  '--lk-iv-caption-secondary-color': '#ffe066',
+  '--lk-iv-caption-secondary-scale': '0.85',
+  '--lk-iv-caption-gap': '0.25em',
 
   // ── Spacing ──────────────────────────────────────────────────────────────
   '--lk-spacing-xs': '4px',

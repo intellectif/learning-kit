@@ -933,7 +933,7 @@ A rubric weight above 1 is fine: weights are normalised by their sum.
 | `dc_accepted_transcript_duplicate` | invalid | `acceptedTranscripts` | Equal to the transcript, or to another accepted transcript, once case, punctuation and spacing are ignored |
 | `dc_accepted_transcripts_too_many` | invalid | `acceptedTranscripts` | More than 10: only the first 10 are checked, and past them only for an empty entry |
 | `dc_media_kind` | invalid | `media.type` | A recording that is not `audio` |
-| `dc_captions_not_allowed` | invalid | `media.captionsUrl`, `slowMedia.captionsUrl`; `stimulus.media.captionsUrl` from `validateItemGroupDraft` | A captions track on a dictation recording, or on a group's stimulus recording that a dictation without its own recording plays: the captions are the answer |
+| `dc_captions_not_allowed` | invalid | `media.captionsUrl`, `media.tracks`, `slowMedia.captionsUrl`, `slowMedia.tracks`; `stimulus.media.captionsUrl` or `stimulus.media.tracks` from `validateItemGroupDraft` | Captions on a dictation recording, or on a group's stimulus recording that a dictation without its own recording plays: the captions are the answer. A `captionsUrl`, or a `tracks` list with any entry — whatever its kind or language, since a translation of the words gives them away as surely as a transcription |
 | `dc_slow_media_kind` | invalid | `slowMedia.type` | A slow recording that is not `audio` |
 | `dc_slow_media_playback` | invalid | `slowMedia.playback` | A playback policy on the slow recording; it belongs on `media`, and the slow recording follows it |
 | `dc_slow_media_unbudgeted` | invalid | `slowMedia` | A slow recording beside a `media.playback.maxPlays` budget |

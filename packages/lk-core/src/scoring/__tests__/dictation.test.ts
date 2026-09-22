@@ -448,6 +448,22 @@ describe('dictation — evaluate, redaction and interop', () => {
       ['media.captionsUrl', expect.stringMatching(/captions are the answer/)],
     ]);
 
+    // A track is refused the same way, whatever its kind: before 0.16 this
+    // payload passed, so the words of the dictation reached an exam client.
+    for (const kind of ['captions', 'subtitles'] as const) {
+      const tracked = {
+        ...base,
+        media: {
+          ...recording,
+          tracks: [{ kind, src: 'https://cdn.example/cat.vtt', srclang: 'es', label: 'Español' }],
+        },
+      };
+      expect(pathsOf(tracked)).toEqual(['media.tracks']);
+      expect(refusalOf(tracked)).toEqual([
+        ['media.tracks', expect.stringMatching(/captions are the answer/)],
+      ]);
+    }
+
     const bypass = { ...base, media: { ...recording, playback: { maxPlays: 2 } }, slowMedia };
     expect(pathsOf(bypass)).toEqual(['slowMedia']);
     expect(refusalOf(bypass)).toEqual([['slowMedia', expect.stringMatching(/play budget/)]]);
@@ -605,6 +621,37 @@ describe('dictation — schema guards', () => {
       'captions on the slow recording',
       { slowMedia: { ...full.slowMedia, captionsUrl: '/cat.vtt' } },
       'slowMedia.captionsUrl',
+    ],
+    // A track of any kind: a translation gives the words away as surely.
+    [
+      'a caption track on the recording',
+      {
+        media: {
+          ...activity.media,
+          tracks: [{ kind: 'captions', src: '/cat.vtt', srclang: 'en', label: 'English' }],
+        },
+      },
+      'media.tracks',
+    ],
+    [
+      'a subtitle track on the recording',
+      {
+        media: {
+          ...activity.media,
+          tracks: [{ kind: 'subtitles', src: '/gato.vtt', srclang: 'es', label: 'Español' }],
+        },
+      },
+      'media.tracks',
+    ],
+    [
+      'a track on the slow recording',
+      {
+        slowMedia: {
+          ...full.slowMedia,
+          tracks: [{ kind: 'subtitles', src: '/gato.vtt', srclang: 'es', label: 'Español' }],
+        },
+      },
+      'slowMedia.tracks',
     ],
     ['a title that contains the transcript', { title: 'Type: the cat sat on the mat' }, 'title'],
     [

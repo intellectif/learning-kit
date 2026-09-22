@@ -5,6 +5,7 @@ import {
   READ_ALOUD_MAX_TAKES,
 } from '../scoring/speech/limits.js';
 import { CANONICAL_LOCALE_RE } from '../scoring/speech/locale.js';
+import { captionFieldsOf } from './dictation.js';
 import { MediaUrlSchema, RedactedMediaSchema } from './media.js';
 import { READ_ALOUD_DIMENSIONS, ReadAloudSlowMediaSchema } from './read-aloud.js';
 import { RedactedWrittenResponseRubricSchema } from './written-response.js';
@@ -178,13 +179,13 @@ export const RedactedDictationDataSchema = z
   })
   .check((ctx) => {
     const data = ctx.value;
-    if (data.media?.captionsUrl !== undefined) {
+    for (const captions of captionFieldsOf(data.media)) {
       ctx.issues.push({
         code: 'custom',
-        input: data.media.captionsUrl,
+        input: data.media?.[captions],
         message:
           'A dictation recording cannot carry captions: the captions are the answer, so this payload is not learner-safe.',
-        path: ['media', 'captionsUrl'],
+        path: ['media', captions],
       });
     }
     if (data.slowMedia !== undefined && data.media?.playback?.maxPlays !== undefined) {

@@ -5,7 +5,7 @@ questions**, then carries on. It is not a new activity type: it is an ordinary *
 stimulus is a video and which carries a `timeline` — so every question inside it stays its own
 question, with its own slot id, its own response and its own grade.
 
-It describes `@intellectif/lk-core` 0.15.0 and `@intellectif/lk-react` 15.0.0.
+It describes `@intellectif/lk-core` 0.16.0 and `@intellectif/lk-react` 16.0.0.
 
 - [The model](#the-model)
 - [Authoring one](#authoring-one)
@@ -72,7 +72,9 @@ The rules the schema enforces:
 - every quiz holds at least one `itemIds` entry, each naming an item **of this group**;
 - **every item is placed in exactly one quiz** — an item that no quiz asks would never be seen;
 - each embedded item's type is one the player can show (see below);
-- a dictation inside a video carries its **own** recording: the video's audio is not its stimulus;
+- a dictation inside a video carries its **own** recording: the video's audio is not its stimulus —
+  and that recording carries no captions, neither a `captionsUrl` nor `tracks`: a transcription or a
+  translation of the words it dictates is the answer;
 - chapters are in ascending order by `at`, each with a title;
 - at most 100 quizzes, 200 placed items and 100 chapters, and titles of at most 120 characters.
 
@@ -161,15 +163,113 @@ and judges a take. The SDK never uploads, transcodes, stores or judges anything.
 The player parses WebVTT itself rather than handing it to a `<track>`, because the caption preview
 on the progress bar, the transcript and its search need the cues as data.
 
-- **A public caption file**: list it in `media.tracks` and the player fetches it (`same-origin`
-  credentials).
-- **An authenticated endpoint**: pass `captionsLoader`, which receives the track and returns the
-  WebVTT text. A `<track src>` is a plain subresource fetch and carries no `Authorization` header —
-  this is the reason the prop exists.
+### Tracks
 
-A file that cannot be read never breaks the video: the captions button disappears, and the settings
-menu says the captions could not be loaded. `media.captionsUrl` from earlier versions still works
-and is read as a single English track.
+Give each language its own entry in `media.tracks`:
+
+```jsonc
+"tracks": [
+  { "kind": "captions",  "src": "/api/lessons/2/captions/en.vtt", "srclang": "en", "label": "English", "default": true },
+  { "kind": "subtitles", "src": "/api/lessons/2/captions/es.vtt", "srclang": "es", "label": "Español" },
+  { "kind": "subtitles", "src": "/api/lessons/2/captions/ar.vtt", "srclang": "ar", "label": "العربية" }
+]
+```
+
+- **`captions`** transcribe the audio, in its own language; **`subtitles`** translate it. Where two
+  tracks share a language, the player prefers the `captions` one.
+- **Label each track in its own language** — `Español`, `العربية`, not "Spanish", "Arabic" — so a
+  learner finds their language whatever the interface is in. The player shows labels as given.
+- **Where the file lives:** a public file needs nothing more; the player fetches `src` with
+  `same-origin` credentials. For an endpoint that needs the learner's credentials, pass
+  `captionsLoader`, which receives the track and returns the WebVTT text. A `<track src>` is a plain
+  subresource fetch and carries no `Authorization` header — the reason the prop exists.
+- `media.captionsUrl` from earlier versions still works, read as one track in the player's `locale`
+  (English when none is set). It can never be half of a pair: a pair needs two tracks.
+
+A file that cannot be read never breaks the video. The settings menu says which language failed,
+and a second language that fails never takes the first one with it.
+
+### Two languages at once
+
+A learner can show **a second language under the first** — the language they are learning, and
+their own, one line each, so they can match what they hear to what it means. It is a learner's
+preference, never content: nothing about it is authored, and a track carries no "secondary" flag.
+
+- **Settings → Captions** picks the first line, as it always has. With tracks in two or more
+  languages, **Second language** picks the line under it — any language but the first line's own.
+  The menu row reads `English + Español`.
+- Picking, as the first line, the language the second line shows **swaps** them rather than dropping
+  one.
+- **C** turns captions off and on — both lines, keeping both choices. **Shift + C** turns the second
+  line on and off; on, it brings back the last language the learner had, else the host's suggested
+  one, else the first other language the video has.
+- Each line shows **its own** cue: a translation segmented differently from the audio still reads
+  line for line, and a line with nothing to say at a moment is simply not drawn.
+- The **transcript** shows the second language under each row — each second-language line under
+  the row it overlaps most — and its search finds words in either language. The preview on the
+  progress bar stays first-language only, to keep it small.
+- The player chooses a second line **only when the learner asked for one**: a language the video
+  lacks is no second line at all, never a stand-in. `resolveCaptionTracks(tracks, preferences)`
+  applies exactly the rules the player does, for a host that wants to state them in its own UI.
+
+### Whose choice wins: `preferences` and `defaultPreferences`
+
+Each preference is decided on its own, highest first:
+
+| Layer | Prop | Meaning |
+|---|---|---|
+| 1 | `preferences` | **Forces** the field: overrides what the learner chose, every time a video opens |
+| 2 | — | What the learner chose in this browser |
+| 3 | `defaultPreferences` | **Suggests** the field: applies until the learner chooses otherwise |
+| 4 | — | The SDK's defaults (captions on, the default track, no second line) |
+
+So a host that wants beginners to see English with their own language under it passes
+`defaultPreferences={{ captionLanguage: 'en', secondaryCaptionLanguage: learner.nativeLanguage }}`
+— and a learner who turns the second line off keeps it off. Use `preferences` only for what the
+learner must not change.
+
+The player stores only what the learner chose, never what a host forced or suggested, so a host
+that later suggests a different pair still reaches a learner who never picked one.
+
+**Keeping the choice on the learner's account.** `onPreferencesChange(next, change)` fires after
+every change the learner makes — never when a video opens. Save `next` (or just `change`) to the
+account and pass it back as `defaultPreferences`: on a new device nothing is stored, so the account's
+choice applies; on the same device the stored choice is that same choice. `defaultPreferences` is
+read live, so a value that arrives after the video opens still fills every field nobody chose.
+
+Each change is also reported as a `video-captions-changed` interaction whose payload is the
+languages on screen: `{ srclang, secondary }`, each a track's `srclang` or `null`.
+
+### Drawing
+
+```html
+<div class="lk-iv-captions" data-size="medium" data-background>
+  <div class="lk-iv-caption" data-role="primary"   data-size="medium" data-background lang="en" dir="auto"><span>…</span></div>
+  <div class="lk-iv-caption" data-role="secondary" data-size="medium" data-background lang="es" dir="auto"><span>…</span></div>
+</div>
+```
+
+The container sits over the video and rises with the controls; each line keeps the
+`.lk-iv-caption` class, its `span`, and `data-size` / `data-background`, so a stylesheet written
+against 15.x still matches the lines. Every line — and every transcript row and menu item showing a
+track's text — carries `dir="auto"`, so an Arabic line's punctuation lands on the right side.
+
+Four tokens style the lines:
+
+| Token | Default | |
+|---|---|---|
+| `--lk-iv-caption-color` | `#ffffff` | The first line |
+| `--lk-iv-caption-secondary-color` | `#ffe066` | The second line. Must clear 4.5:1 on the caption box |
+| `--lk-iv-caption-secondary-scale` | `0.85` | The second line's size, as a share of the first |
+| `--lk-iv-caption-gap` | `0.25em` | The space between the lines |
+
+The second line differs from the first by position and size as well as colour — colour alone would
+fail WCAG 1.4.1 — so keep the scale below 1 if you restyle it. In the transcript the second language
+takes the theme's muted text colour instead: the caption colour is chosen for the dark caption box,
+and on the light panel it would not be readable.
+
+Captions are drawn by the player, so a native picture-in-picture window shows none; that is a limit
+of the browser's window, which holds only the video.
 
 ## Resume
 

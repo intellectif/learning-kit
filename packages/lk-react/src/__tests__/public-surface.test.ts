@@ -38,6 +38,7 @@ describe('published export surface', () => {
     'defaultTheme',
     'directionForLocale',
     'mergeStrings',
+    'resolveCaptionTracks',
     'useActivityState',
     'useLkDirection',
     'useLkStrings',

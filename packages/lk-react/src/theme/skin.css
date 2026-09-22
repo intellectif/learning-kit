@@ -2101,11 +2101,19 @@
 
   /* ── Captions ──────────────────────────────────────────────────────────
      Drawn by the player, sized to the player (not the page), and lifted
-     clear of the controls while they show. */
-  .lk-iv-caption {
+     clear of the controls while they show. One line, or two: the first
+     language, and under it the second — smaller and in its own colour, so it
+     differs by position and size as well as colour (WCAG 1.4.1). The
+     container is what sits over the video and rises with the controls; the
+     lines stack inside it and share its width. */
+  .lk-iv-captions {
     z-index: 1;
     align-self: end;
     justify-self: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--lk-iv-caption-gap);
     max-inline-size: min(88%, 42em);
     margin-block-end: max(16px, 4cqw);
     font-size: clamp(14px, 2.4cqw, 30px);
@@ -2115,27 +2123,39 @@
     transition: margin-block-end var(--lk-transition-base);
   }
 
-  .lk-iv-caption[data-size="small"] {
+  .lk-iv-captions[data-size="small"] {
     font-size: clamp(12px, 1.9cqw, 24px);
   }
 
-  .lk-iv-caption[data-size="large"] {
+  .lk-iv-captions[data-size="large"] {
     font-size: clamp(16px, 3.1cqw, 38px);
   }
 
-  .lk-iv[data-chrome="shown"] .lk-iv-caption {
+  .lk-iv[data-chrome="shown"] .lk-iv-captions {
     margin-block-end: 84px;
+  }
+
+  .lk-iv-caption {
+    max-inline-size: 100%;
+  }
+
+  .lk-iv-caption[data-role="secondary"] {
+    font-size: calc(var(--lk-iv-caption-secondary-scale) * 1em);
   }
 
   .lk-iv-caption span {
     padding: 0.1em 0.4em;
     border-radius: 4px;
-    color: #fff;
+    color: var(--lk-iv-caption-color);
     text-shadow:
       0 0 4px rgb(0 0 0 / 0.9),
       0 1px 2px #000;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
+  }
+
+  .lk-iv-caption[data-role="secondary"] span {
+    color: var(--lk-iv-caption-secondary-color);
   }
 
   .lk-iv-caption[data-background] span {
@@ -3060,6 +3080,24 @@
     border-radius: 2px;
     background: color-mix(in srgb, var(--lk-color-warning) 28%, transparent);
     color: inherit;
+  }
+
+  /* With a second language chosen, its words sit under the first language's
+     in each row: smaller, set in from the start, and in the theme's muted
+     text colour. Not the caption colour — that one is chosen for the dark
+     caption box over the video, and on this panel it would fail contrast. */
+  .lk-iv-line-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-inline-size: 0;
+  }
+
+  .lk-iv-line-secondary {
+    padding-inline-start: 8px;
+    border-inline-start: 2px solid var(--lk-color-border);
+    color: var(--lk-color-text-muted);
+    font-size: calc(var(--lk-iv-caption-secondary-scale) * 1em);
   }
 
   .lk-iv-empty {

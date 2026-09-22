@@ -14,6 +14,9 @@ export type {
   RenderableItemGroup,
 } from './InteractiveVideo.js';
 export type { CaptionSize, VideoPreferences } from './prefs.js';
+// Which track each caption line shows, for a host that wants to state it —
+// in its own language menu, say — the way the player will decide it.
+export { type CaptionTracks, resolveCaptionTracks } from './tracks.js';
 
 /**
  * Public interactive video: the player wrapped in `ActivityErrorBoundary`, so a
