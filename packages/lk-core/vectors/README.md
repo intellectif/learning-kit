@@ -70,8 +70,12 @@ a known hazard carry a `note` saying why they exist.
   edges, negative zero, half-even ties and near-ties, and bands that share a
   minimum.
 - **`countWords`**, **`seededShuffle`** in both versions, **`gradeFromRubric`**
-  including its unscorable paths, its opt-in `rounding` option on each of the
-  three ways a pass is decided, and **`outcomeFromGrade`**.
+  including its unscorable paths (a negative weight and an overflowing weight
+  sum among them), its opt-in `rounding` option on each of the three ways a pass
+  is decided, and **`outcomeFromGrade`**: a record lifted as a grade, and each
+  kind of record it refuses as `grade_rejected` — `NaN`, `Infinity`, a negative,
+  raw points against `maxScore` 1, a numeric string, a `maxScore` of 0 or less
+  or not finite — beside the float noise it accepts, up to the exact edge.
 - **`gradeReadAloud`**: every reason a pronunciation assessment is refused
   rather than scored — each `unscorable` code — the weighted total over the
   authored dimensions, a blank take, a dimension scored `0` against one that was
@@ -97,7 +101,9 @@ a known hazard carry a `note` saying why they exist.
   are reported unread instead of guessed at.
 - **`scoredItemsFromPlan`**, which decides what a stored paper's denominator is
   when an outcome is missing, and **`composeAssessmentScore`** across weights,
-  points, provisional and unscorable items, and section thresholds.
+  points, provisional, rejected and unscorable items, and section thresholds —
+  including the outcomes earlier releases stored for a grade that was never
+  one, which now hold a result provisional instead of finalising it.
 
 ## What it does not cover
 

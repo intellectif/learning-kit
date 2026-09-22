@@ -417,6 +417,23 @@ describe('WrittenResponse — ungraded outcomes stay ungraded', () => {
     expect(container.textContent).not.toContain('Passed');
   });
 
+  it('shows a grade outcomeFromGrade refuses as still awaiting its grade, never its numbers', () => {
+    // 85 "out of 1" is raw points from a grader out of contract. lk-core
+    // refuses it as `deferred` / `grade_rejected`: the learner is still owed a
+    // grade, and none of the refused record's numbers or verdict may show.
+    const outcome = outcomeFromGrade(grade({ score: 85, maxScore: 1, feedback: 'Excellent.' }));
+    expect(outcome).toMatchObject({ status: 'deferred', reason: 'grade_rejected' });
+
+    const { container } = renderReview(outcome);
+    expect(feedbackRegion(container)).toHaveTextContent(
+      'Not graded yet. This response is waiting for its grade.',
+    );
+    expect(outcomeBlock(container)).toHaveAttribute('data-status', 'deferred');
+    expect(container.textContent).not.toMatch(/\d+%/);
+    expect(container.textContent).not.toContain('Passed');
+    expect(container.textContent).not.toContain('Excellent.');
+  });
+
   it('renders the could-not-be-graded state for an unscorable outcome', () => {
     const outcome: ItemOutcome = {
       status: 'unscorable',

@@ -160,7 +160,36 @@ unverifiable and irreproducible — two runs can disagree for identical criterio
 scores. `gradeFromRubric` makes the total a pure function of the judgements, so
 a grade can be recomputed and audited years later. Weights are normalised by
 their sum (they need not add to 1), and criteria that are `notApplicable` or
-carry only a `band` are excluded from both numerator and denominator.
+carry only a `band` are excluded from both numerator and denominator. A weight
+must be zero or more, and the weights must sum to a positive, finite number:
+a negative weight beside larger positive ones, or weights so large their sum
+overflows, makes the rubric `unscorable` rather than producing a total outside
+`[0,1]` (0.18.0; before it, `[0 ×2, 1 ×−1]` came back as a real 0 and
+`[1 ×2, 0 ×−1]` as a perfect 1).
+
+**A grade that cannot be one is refused (0.18.0).** `evaluate` already refuses a
+non-finite score, and `gradeFromRubric` one outside `[0,1]`; `outcomeFromGrade`
+now checks the numbers it would mirror too. `maxScore` must be a positive, finite
+number and `score` a finite number from 0 to it — a score one part in a billion
+above `maxScore` is float noise and passes as it is. Anything else (`NaN`, 85
+"out of 1" from a grader that returned raw points, any score out of 0, a numeric
+string) does not come back `graded`:
+
+```ts
+const outcome = outcomeFromGrade({ score: 85, maxScore: 1, passed: true, feedback: null });
+// { status: 'deferred', reason: 'grade_rejected', maxScore: 1, rejectedGrade: { score: 85, … } }
+hasGrade(outcome); // false
+```
+
+It is `deferred` because the slot is still owed a real grade: re-run the grader
+or send it to a person — waiting will not bring one. The record is kept whole
+on `rejectedGrade` for your audit trail, and nothing on it is mirrored onto the
+outcome, so its `passed` is never read as a verdict. It is deliberately not
+`unscorable`, which `composeAssessmentScore` leaves out of the total while
+letting the attempt go `final`: a failing grade on the wrong scale would vanish
+and the rest of the paper would be recorded as a pass. In `review` mode lk-react
+renders it as it renders any deferred outcome — "Not graded yet." — with none of
+the refused record's numbers, verdict or feedback.
 
 `GradeRecord` also carries `corrections` (anchored in the learner's text),
 `evidence`, `rationale`, `confidence`, `requiresHumanReview`, `grader`
@@ -1437,6 +1466,7 @@ result.status;            // 'final' | 'provisional'
 result.score;             // weighted total, scaled [0,1], rounded once
 result.passFailureReason; // 'overall_below_threshold' | 'section_below_threshold' | 'both' | null
 result.pendingSlotIds;    // items still awaiting a grade
+result.rejectedSlotIds;   // of those, the ones whose grade came back unusable (absent when none)
 ```
 
 **Ungraded work is never a zero.** A `deferred` item is left out of the
@@ -1452,6 +1482,21 @@ excluded from the weighted total entirely (remaining weights are renormalised)
 rather than contributing zero — otherwise a midterm with an unmarked essay
 reads as a failing 50%, and a learner sees a fail for work nobody has marked.
 **Do not record a `provisional` score as final.**
+
+**A score that cannot be a grade is not counted, and not dropped (0.18.0).** A
+`scored` or `graded` outcome whose `score` is not a finite number from 0 to its
+`maxScore`, or whose `maxScore` is not a positive, finite number — and the
+`grade_rejected` outcome `outcomeFromGrade` returns for such a record — is left
+out of the denominator like a pending item, listed in `pendingSlotIds`, and
+also in `rejectedSlotIds` (on the result and on its section), so the result
+stays `provisional` with `passed: null`. Counting it put `NaN` or 4300% on the
+record; dropping it, as `unscorable` would, let a failing grade vanish into a
+final pass. `status` is still `provisional` exactly when `pendingSlotIds` is
+not empty. Re-grade the rejected slots, then compose again. Before 0.18.0 a
+`maxScore` of 0 or less was read as 1 — 0.5 "out of 0" counted as 0.5 — and a
+grade outcome stored by an earlier release that carries such numbers is now
+reported this way too. `rejectedSlotIds` is present only when something was
+rejected, so a result without one is exactly what earlier releases returned.
 
 **Use `slotId`, not the activity id.** The same activity can appear in two
 sections; keying on the activity collapses them and scores the second one zero.

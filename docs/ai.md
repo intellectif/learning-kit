@@ -122,7 +122,10 @@ each part:
 
 - **An explanation request** adds `grade`: the score, the maximum, whether it passed, and a
   `category` of `correct`, `partly-correct` or `incorrect`. In `review` it is the grade of record from
-  `outcome`, so the explanation speaks to the grade on the screen.
+  `outcome`, so the explanation speaks to the grade on the screen. A grade of record whose numbers
+  cannot be a grade — a `score` or `maxScore` that is not a finite number, a `maxScore` of 0 or less,
+  a `score` below 0 or above `maxScore` beyond float noise — gets no explanation (0.18.0): there is no
+  request, your port is not called, and the learner reads "No explanation is available right now."
 - **A hint request** adds `hintNumber` and `previousHints`, and its facts carry the key and the
   learner's answer so far, marked part by part. The model can then hint where it helps ("look again at
   blank 2"). The learner never sees the facts.

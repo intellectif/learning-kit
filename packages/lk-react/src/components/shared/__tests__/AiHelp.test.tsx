@@ -398,6 +398,33 @@ describe('review', () => {
     });
   });
 
+  it('never calls the port for a grade of record that cannot be a grade', async () => {
+    // 85 "out of 1" on a wrong answer: lk-core refuses to build the request,
+    // so the model is never told a wrong answer was correct.
+    const user = userEvent.setup();
+    const ai = ports();
+    const corrupt: ItemOutcome = {
+      status: 'scored',
+      score: 85,
+      maxScore: 1,
+      passed: true,
+      feedback: null,
+      details: [],
+    };
+    render(
+      <MultipleChoice
+        data={asRenderable(redact(mc))}
+        renderMode="review"
+        defaultValue={{ type: 'multiple-choice', selectedOptionIds: ['b'] }}
+        outcome={corrupt}
+        ai={ai}
+      />,
+    );
+    await user.click(explainButton() as HTMLElement);
+    expect(await screen.findByText('No explanation is available right now.')).toBeInTheDocument();
+    expect(ai.explain).not.toHaveBeenCalled();
+  });
+
   it('offers nothing to explain until the grade of record is scored', () => {
     render(
       <MultipleChoice

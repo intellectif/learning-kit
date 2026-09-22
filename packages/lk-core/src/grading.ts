@@ -1,3 +1,4 @@
+import { isGradeInRange } from './scoring/grade-numbers.js';
 import { computePassThreshold } from './scoring/pass-threshold.js';
 import { gte, type RoundingPolicy, roundingPolicyOf } from './scoring/rounding.js';
 import type { ActivityData, ItemOutcome } from './types/activity.js';
@@ -48,10 +49,12 @@ export interface GradeFromRubricOptions {
  * total a pure function of the judgements, so a grade can be recomputed and
  * audited years later.
  *
- * Weights are normalised by their sum, so they need not add to 1. Criteria
- * marked `notApplicable`, and those carrying no numeric `score` (a purely
- * banded judgement), are excluded from both numerator and denominator. When
- * nothing scoreable remains the result is `unscorable`, never a zero.
+ * Weights are normalised by their sum, so they need not add to 1; each must be
+ * zero or more, and their sum a positive, finite number, or the result is
+ * `unscorable`. Criteria marked `notApplicable`, and those carrying no numeric
+ * `score` (a purely banded judgement), are excluded from both numerator and
+ * denominator, weight included. When nothing scoreable remains the result is
+ * `unscorable`, never a zero.
  *
  * Scores need not be in [0,1]: set `maxScore` on a criterion to declare what
  * its score is out of, and each is normalised before weighting. A grader
@@ -155,19 +158,37 @@ export function gradeFromRubric(
     };
   }
 
+  // A positive SUM is not enough. A negative weight beside larger positive ones
+  // leaves the sum positive and carries the total outside [0,1] — [0 ×2, 1 ×−1]
+  // totals −1, [1 ×2, 0 ×−1] totals 2 — where the float-noise clamp below then
+  // turned them into a real 0 and a perfect 1. Checked after the sum, so a
+  // rubric already refused for its sum keeps the reason it has always had;
+  // only criteria that enter the arithmetic are read, as for score and maxScore.
+  const negativeWeight = scoreable.find((criterion) => (criterion.weight ?? 1) < 0);
+  if (negativeWeight !== undefined) {
+    return {
+      unscorable: true,
+      reason: `Criterion "${negativeWeight.name}" has weight ${String(negativeWeight.weight)}; a weight must be zero or more.`,
+    };
+  }
+
   const weighted = scoreable.reduce(
     (sum, criterion) => sum + ratioOf(criterion) * (criterion.weight ?? 1),
     0,
   );
   const rawScore = weighted / totalWeight;
-  if (!Number.isFinite(rawScore)) {
+  // Finite weights can still SUM past the largest double, to Infinity, and
+  // every criterion then divides into 0 — [1 ×1e308, 0 ×1e308] graded 0 — so an
+  // infinite sum leaves the total as undefined as an infinite one does.
+  if (!Number.isFinite(totalWeight) || !Number.isFinite(rawScore)) {
     return {
       unscorable: true,
       reason: 'The weighted total is not a finite number, so no grade can be produced.',
     };
   }
   // Clamp the float-noise band only; anything genuinely out of range was
-  // already rejected above.
+  // already rejected above — each ratio within noise of [0,1], and every
+  // weight zero or more, so the weighted mean cannot leave that band.
   const score = Math.min(1, Math.max(0, rawScore));
 
   // Every threshold is compared the same way: the exact raw `>=` it has always
@@ -196,13 +217,32 @@ export function gradeFromRubric(
  * a grade that arrived asynchronously renders through the same path as a
  * synchronously scored item. The score/passed/feedback fields are mirrored
  * onto the outcome for uniform reads; `grade` carries the full record.
+ *
+ * A record whose numbers cannot be a grade is refused, as `evaluate` refuses a
+ * non-finite score and {@link gradeFromRubric} one outside [0,1]. `maxScore`
+ * must be a positive, finite number and `score` a finite number from 0 to it (a
+ * hair above, one part in a billion, is float noise and passes as it is).
+ * Anything else — NaN, 85 "out of 1", a score out of 0 — comes back as
+ * `{ status: 'deferred', reason: 'grade_rejected', maxScore: 1, rejectedGrade }`
+ * with the record kept verbatim. Not `graded`, or its `passed` would be read as
+ * a verdict; not `unscorable`, which `composeAssessmentScore` drops from the
+ * denominator while letting the attempt go final — so a failing grade on the
+ * wrong scale would vanish and the rest would be recorded as a pass. Deferred
+ * is what it is: the slot is still owed a real grade, so a composed attempt
+ * stays `provisional` and names the slot in `rejectedSlotIds`.
  */
 export function outcomeFromGrade(grade: GradeRecord): ItemOutcome {
+  // Read once: a getter that answered the check one value and the mirror
+  // another would put back exactly what the check refused.
+  const { score, maxScore } = grade;
+  if (!isGradeInRange(score, maxScore)) {
+    return { status: 'deferred', reason: 'grade_rejected', maxScore: 1, rejectedGrade: grade };
+  }
   return {
     status: 'graded',
     grade,
-    score: grade.score,
-    maxScore: grade.maxScore,
+    score,
+    maxScore,
     passed: grade.passed,
     feedback: grade.feedback,
   };

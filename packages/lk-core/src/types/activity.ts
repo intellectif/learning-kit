@@ -884,8 +884,13 @@ export interface DeferredScoringPartial {
  *   a grade has not landed, or the attempt is still open has earned nothing
  *   yet, and recording it as zero is how an incomplete attempt becomes a
  *   plausible-looking fail.
+ * - `grade_rejected` — a grade came back, and `outcomeFromGrade` refused it
+ *   because its numbers cannot be a grade (a `score` or `maxScore` that is not
+ *   a finite number, a `maxScore` of 0 or less, or a score outside 0 to
+ *   `maxScore`). The record is kept on `rejectedGrade`. A real grade is still
+ *   owed, so re-grade the slot: waiting will not bring one.
  */
-export type DeferredReason = 'requires_async_grading' | 'no_response_recorded';
+export type DeferredReason = 'requires_async_grading' | 'no_response_recorded' | 'grade_rejected';
 
 /**
  * The outcome of evaluating a learner response against an activity — the
@@ -915,6 +920,12 @@ export type ItemOutcome =
       maxScore: number;
       /** Synchronously computable progress facts (word bounds, counts). */
       partial?: DeferredScoringPartial;
+      /**
+       * The record `outcomeFromGrade` refused, verbatim, when `reason` is
+       * `grade_rejected` — kept for audit and for the re-grade. Nothing on it
+       * is mirrored onto the outcome, and nothing reads it as a grade.
+       */
+      rejectedGrade?: GradeRecord;
     }
   | {
       status: 'graded';

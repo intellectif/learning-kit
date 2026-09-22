@@ -368,12 +368,14 @@ const gradedOutcome = (score) => {
 };
 
 /**
- * A returned grade on a scale that is not 0..1 and not a whole number.
+ * A returned grade on a scale that is not 0..1 and not a whole number, built as
+ * the verbatim mirror `outcomeFromGrade` stored before 0.18, so it can also
+ * carry numbers that are not a grade at all.
  *
- * `earned()` divides by `outcome.maxScore > 0 ? outcome.maxScore : 1`, and every
- * other graded vector uses a maxScore of exactly 1 — so mutating that `0` to a
- * `1` changed nothing the corpus could see, while a grader reporting 0.4 out of
- * 0.5 would have been re-scaled against the wrong denominator.
+ * `earned()` divides by `outcome.maxScore`, and every other graded vector uses a
+ * maxScore of exactly 1 — so a mutant reading the score against 1 changed
+ * nothing the corpus could see, while a grader reporting 0.4 out of 0.5 would
+ * have been re-scaled against the wrong denominator.
  */
 const gradedOutOf = (score, maxScore) => ({
   status: 'graded',
@@ -1939,6 +1941,31 @@ export const CASES = [
   ...[
     ['infinite-max-score', [{ name: 'Task', score: 1, maxScore: Number.POSITIVE_INFINITY }]],
     ['infinite-weight', [{ name: 'Task', score: 0.5, weight: Number.POSITIVE_INFINITY }]],
+    // Only the weight SUM used to be checked. A negative weight beside larger
+    // positive ones leaves it positive and carries the total out of [0,1],
+    // where the float-noise clamp made it a real 0 or a perfect 1.
+    [
+      'negative-weight-pulls-total-down',
+      [
+        { name: 'A', score: 0, weight: 2 },
+        { name: 'B', score: 1, weight: -1 },
+      ],
+    ],
+    [
+      'negative-weight-pushes-total-up',
+      [
+        { name: 'A', score: 1, weight: 2 },
+        { name: 'B', score: 0, weight: -1 },
+      ],
+    ],
+    // Finite weights whose sum is Infinity: every criterion divided into 0.
+    [
+      'weight-sum-overflows',
+      [
+        { name: 'A', score: 1, weight: 1e308 },
+        { name: 'B', score: 0, weight: 1e308 },
+      ],
+    ],
   ].map(([name, criteria]) => ({
     id: `gradeFromRubric/unscorable/${name}`,
     fn: 'gradeFromRubric',
@@ -1946,13 +1973,163 @@ export const CASES = [
     ignore: ['reason'],
   })),
   {
+    id: 'gradeFromRubric/negative-weight-outside-the-arithmetic-ignored',
+    fn: 'gradeFromRubric',
+    args: [
+      [
+        { name: 'Task', score: 0.8, weight: 1 },
+        { name: 'Grammar', score: 0.1, weight: -1, notApplicable: true },
+        { name: 'Style', band: 'B2', weight: -1 },
+      ],
+    ],
+    note: 'A weight is read only where it enters the arithmetic, as score and maxScore are: not applicable and band-only criteria keep being ignored.',
+  },
+  {
     id: 'composeAssessmentScore/item-max-score-zero',
     fn: 'composeAssessmentScore',
     args: [
       [section('a', 1, [item('a1', 2, scoredOutcome(0.5, 0)), item('a2', 2, scoredOutcome(1))])],
       policy(),
     ],
-    note: 'An outcome claiming maxScore 0 is read against 1 rather than divided by zero.',
+    note: 'An outcome claiming maxScore 0 is not a grade. Until 0.18 it was read against 1 (0.5 counted as 0.5 and the result went final); it is now held provisional and reported in rejectedSlotIds. Re-frozen deliberately: the one existing vector the change moves.',
+  },
+
+  // A returned grade whose numbers cannot be one. `outcomeFromGrade` used to
+  // mirror any record, and `composeAssessmentScore` then divided by it, so NaN
+  // composed to a final NaN and 85 "out of 1" to a final pass. `gradedOutOf`
+  // builds the outcome those releases STORED (a verbatim mirror), because that
+  // is what a database already holds and what a re-grade will compose.
+  ...[
+    ['nan-score', Number.NaN, 1],
+    ['infinite-score', Number.POSITIVE_INFINITY, 1],
+    ['zero-max-score', 0, 0],
+    ['negative-score', -0.5, 1],
+    ['raw-points-85-of-1', 85, 1],
+    ['just-past-float-noise', 1 + 2e-9, 1],
+    ['a-hair-below-zero', -1e-10, 1],
+    ['numeric-string-score', '0.85', 1],
+    ['negative-max-score', 0.5, -1],
+    ['nan-max-score', 0.5, Number.NaN],
+    ['infinite-max-score', 0.5, Number.POSITIVE_INFINITY],
+  ].map(([name, score, maxScore]) => ({
+    id: `outcomeFromGrade/rejected/${name}`,
+    fn: 'outcomeFromGrade',
+    args: [{ score, maxScore, passed: true, feedback: 'Excellent.' }],
+    note: 'Not a grade: returned as deferred with reason grade_rejected and the record kept verbatim on rejectedGrade, never mirrored as graded.',
+  })),
+  ...[
+    ['exactly-zero', 0, 1],
+    ['float-noise-above-one', 1 + 1e-10, 1],
+    ['exact-edge-of-float-noise', 1e9 + 1, 1e9],
+  ].map(([name, score, maxScore]) => ({
+    id: `outcomeFromGrade/accepted/${name}`,
+    fn: 'outcomeFromGrade',
+    args: [{ score, maxScore, passed: true, feedback: 'Excellent.' }],
+    note: 'In range, so mirrored exactly as before, unclamped. Float noise is up to one part in a billion above maxScore; 1 past 1e9 is that edge exactly.',
+  })),
+  {
+    id: 'composeAssessmentScore/rejected/nan-grade',
+    fn: 'composeAssessmentScore',
+    args: [
+      [
+        section('a', 1, [
+          item('a1', 1, scoredOutcome(1)),
+          item('a2', 1, gradedOutOf(Number.NaN, 1)),
+        ]),
+      ],
+      policy(),
+    ],
+    note: 'Was final with a NaN score (null in JSON) and a passing section scored null. Now provisional, passed null, the slot pending and rejected.',
+  },
+  {
+    id: 'composeAssessmentScore/rejected/infinite-grade',
+    fn: 'composeAssessmentScore',
+    args: [
+      [
+        section('a', 1, [
+          item('a1', 1, scoredOutcome(1)),
+          item('a2', 1, gradedOutOf(Number.POSITIVE_INFINITY, 1)),
+        ]),
+      ],
+      policy(),
+    ],
+  },
+  {
+    id: 'composeAssessmentScore/rejected/raw-points-85-of-1',
+    fn: 'composeAssessmentScore',
+    args: [
+      [section('a', 1, [item('a1', 1, scoredOutcome(1)), item('a2', 1, gradedOutOf(85, 1))])],
+      policy({ sectionThreshold: 0.6 }),
+    ],
+    note: 'Was final, score 43, passed. A grader returning raw points against maxScore 1 is out of contract.',
+  },
+  {
+    id: 'composeAssessmentScore/rejected/negative-grade',
+    fn: 'composeAssessmentScore',
+    args: [
+      [section('a', 1, [item('a1', 1, scoredOutcome(1)), item('a2', 1, gradedOutOf(-0.5, 1))])],
+      policy(),
+    ],
+  },
+  {
+    id: 'composeAssessmentScore/rejected/failing-grade-out-of-zero',
+    fn: 'composeAssessmentScore',
+    args: [
+      [section('a', 1, [item('a1', 1, scoredOutcome(1)), item('a2', 1, gradedOutOf(0.3, 0))])],
+      policy(),
+    ],
+    note: 'Why rejected is not unscorable: dropping this failing grade would record the attempt as a final pass on the other item alone.',
+  },
+  {
+    id: 'composeAssessmentScore/rejected/zero-out-of-zero',
+    fn: 'composeAssessmentScore',
+    args: [
+      [section('a', 1, [item('a1', 1, scoredOutcome(1)), item('a2', 1, scoredOutcome(0, 0))])],
+      policy(),
+    ],
+    note: 'Nothing out of nothing is still out of 0: maxScore must be above 0, not merely at least 0.',
+  },
+  {
+    id: 'composeAssessmentScore/rejected/outcome-from-grade-refusal',
+    fn: 'composeAssessmentScore',
+    args: [
+      [
+        section('a', 1, [
+          item('a1', 1, scoredOutcome(1)),
+          item('a2', 1, {
+            status: 'deferred',
+            reason: 'grade_rejected',
+            maxScore: 1,
+            rejectedGrade: { score: 85, maxScore: 1, passed: true, feedback: null },
+          }),
+          item('a3', 1, deferredOutcome()),
+        ]),
+      ],
+      policy(),
+    ],
+    note: 'The outcome outcomeFromGrade now returns for a refused record: pending AND rejected. An ordinary deferred slot is pending only.',
+  },
+  {
+    id: 'composeAssessmentScore/rejected/named-on-its-own-section',
+    fn: 'composeAssessmentScore',
+    args: [
+      [
+        section('a', 1, [item('a1', 1, scoredOutcome(0.5))]),
+        section('b', 1, [item('b1', 1, gradedOutOf(85, 1)), item('b2', 1, scoredOutcome(1))]),
+      ],
+      policy(),
+    ],
+  },
+  {
+    id: 'composeAssessmentScore/accepted/float-noise-above-one',
+    fn: 'composeAssessmentScore',
+    args: [[section('a', 1, [item('a1', 1, gradedOutOf(1 + 1e-10, 1))])], policy()],
+    note: 'A hair over 1 is float noise: counted, final, and its earned points unclamped, exactly as before.',
+  },
+  {
+    id: 'composeAssessmentScore/accepted/exact-edge-of-float-noise',
+    fn: 'composeAssessmentScore',
+    args: [[section('a', 1, [item('a1', 1, gradedOutOf(1e9 + 1, 1e9))])], policy()],
   },
   {
     id: 'composeAssessmentScore/nothing-graded-yet',

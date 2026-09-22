@@ -360,6 +360,69 @@ describe('gradeFromRubric() unscorable paths', () => {
     expect(result.reason).toBe(ZERO_WEIGHT);
   });
 
+  it('returns unscorable for a negative weight that leaves the sum positive and pulls the total down', () => {
+    // Weight sum 1, weighted sum -1: a raw total of -1, which the float-noise
+    // clamp used to turn into a real 0.
+    const result = expectUnscorable(
+      gradeFromRubric([
+        { name: 'A', score: 0, weight: 2 },
+        { name: 'B', score: 1, weight: -1 },
+      ]),
+    );
+
+    expect(result.reason).toBe('Criterion "B" has weight -1; a weight must be zero or more.');
+  });
+
+  it('returns unscorable for a negative weight that leaves the sum positive and pushes the total up', () => {
+    // Weight sum 1, weighted sum 2: clamped to a perfect 1 before this check.
+    const result = expectUnscorable(
+      gradeFromRubric([
+        { name: 'A', score: 1, weight: 2 },
+        { name: 'B', score: 0, weight: -1 },
+      ]),
+    );
+
+    expect(result.reason).toBe('Criterion "B" has weight -1; a weight must be zero or more.');
+  });
+
+  it('ignores a negative weight on a criterion that does not enter the arithmetic', () => {
+    // Not applicable, or banded with no numeric score: its weight is never
+    // read, exactly as its score and maxScore are not.
+    const record = grade([
+      { name: 'A', score: 0.8, weight: 1 },
+      { name: 'B', score: 0.1, weight: -1, notApplicable: true },
+      { name: 'C', band: 'B2', weight: -1 },
+    ]);
+
+    expect(record.score).toBe(0.8);
+  });
+
+  it('returns unscorable when finite weights sum past the largest finite number', () => {
+    // 1e308 + 1e308 is Infinity, and every criterion then divides into 0: a
+    // grade of 0 for a rubric whose weighted mean is 0.5.
+    const result = expectUnscorable(
+      gradeFromRubric([
+        { name: 'A', score: 1, weight: 1e308 },
+        { name: 'B', score: 0, weight: 1e308 },
+      ]),
+    );
+
+    expect(result.reason).toBe(
+      'The weighted total is not a finite number, so no grade can be produced.',
+    );
+  });
+
+  it('still returns unscorable when the weighted sum alone overflows', () => {
+    // A finite weight sum, but a score a hair over 1 times it is Infinity.
+    const result = expectUnscorable(
+      gradeFromRubric([{ name: 'A', score: 1 + 1e-10, weight: Number.MAX_VALUE }]),
+    );
+
+    expect(result.reason).toBe(
+      'The weighted total is not a finite number, so no grade can be produced.',
+    );
+  });
+
   it('ignores zero-weight criteria only when SOME applicable weight remains', () => {
     // Guards against the zero-weight check being applied per-criterion.
     const record = grade([
@@ -927,6 +990,107 @@ describe('outcomeFromGrade()', () => {
     expect(outcome.grade.criteria).toHaveLength(3);
     expect(hasGrade(outcome)).toBe(true);
   });
+});
+
+describe('outcomeFromGrade() — a record whose numbers cannot be a grade', () => {
+  const record = (score: number, maxScore = 1): GradeRecord => ({
+    score,
+    maxScore,
+    passed: true,
+    feedback: 'Excellent.',
+    grader: { kind: 'ai', model: 'grader-v3' },
+  });
+
+  const OUT_OF_CONTRACT: [string, number, number][] = [
+    ['a NaN score', Number.NaN, 1],
+    ['an infinite score', Number.POSITIVE_INFINITY, 1],
+    ['a negative score', -0.5, 1],
+    ['raw points against maxScore 1 (85 of 1)', 85, 1],
+    ['a score just past float noise', 1 + 2e-9, 1],
+    ['a score a hair below 0 (no tolerance below)', -1e-10, 1],
+    ['maxScore 0', 0, 0],
+    ['a negative maxScore', 0.5, -1],
+    ['a NaN maxScore', 0.5, Number.NaN],
+    ['an infinite maxScore', 0.5, Number.POSITIVE_INFINITY],
+  ];
+
+  for (const [label, score, maxScore] of OUT_OF_CONTRACT) {
+    it(`returns a rejected deferred outcome, never a grade, for ${label}`, () => {
+      const grade = record(score, maxScore);
+      const outcome = outcomeFromGrade(grade);
+
+      expect(outcome).toEqual({
+        status: 'deferred',
+        reason: 'grade_rejected',
+        maxScore: 1,
+        rejectedGrade: grade,
+      });
+      expect(hasGrade(outcome)).toBe(false);
+    });
+  }
+
+  it('keeps the rejected record whole, by reference, for audit', () => {
+    const grade = record(85);
+    const outcome = outcomeFromGrade(grade);
+
+    if (outcome.status !== 'deferred') {
+      throw new Error('expected a deferred outcome');
+    }
+    expect(outcome.rejectedGrade).toBe(grade);
+  });
+
+  it('mirrors nothing from the rejected record onto the outcome', () => {
+    const outcome = outcomeFromGrade(record(85));
+
+    expect(Object.keys(outcome).sort()).toEqual(['maxScore', 'reason', 'rejectedGrade', 'status']);
+  });
+
+  it('rejects a score that is not a number, such as a numeric string', () => {
+    const outcome = outcomeFromGrade(record('0.85' as unknown as number));
+
+    expect(outcome.status).toBe('deferred');
+  });
+
+  it('reads score and maxScore once, so a getter cannot pass the check and mirror another value', () => {
+    let reads = 0;
+    const grade = {
+      maxScore: 1,
+      passed: true,
+      feedback: null,
+      get score() {
+        reads += 1;
+        return reads === 1 ? 0.5 : 85;
+      },
+    } as GradeRecord;
+    const outcome = outcomeFromGrade(grade);
+
+    expect(reads).toBe(1);
+    expect(outcome.status === 'graded' && outcome.score).toBe(0.5);
+  });
+
+  const IN_RANGE: [string, number, number][] = [
+    ['exactly 0', 0, 1],
+    ['exactly its maximum', 1, 1],
+    ['1 + 1e-10, float noise', 1 + 1e-10, 1],
+    ['4 out of 5', 4, 5],
+    ['1e9 + 1 out of 1e9, the exact edge of the tolerance', 1e9 + 1, 1e9],
+  ];
+
+  for (const [label, score, maxScore] of IN_RANGE) {
+    it(`mirrors ${label} verbatim, unclamped`, () => {
+      const grade = record(score, maxScore);
+      const outcome = outcomeFromGrade(grade);
+
+      expect(outcome).toEqual({
+        status: 'graded',
+        grade,
+        score,
+        maxScore,
+        passed: true,
+        feedback: 'Excellent.',
+      });
+    });
+  }
 });
 
 // ---------------------------------------------------------------------------

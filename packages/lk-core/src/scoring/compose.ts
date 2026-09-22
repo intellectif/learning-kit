@@ -1,5 +1,6 @@
 import { hasGrade } from '../grading.js';
 import type { ItemOutcome } from '../types/activity.js';
+import { isGradeInRange } from './grade-numbers.js';
 import { gte, type RoundingPolicy, roundGrade } from './rounding.js';
 
 /**
@@ -90,8 +91,13 @@ export interface SectionScore {
   passed: boolean;
   /** Threshold this section was judged against, after any override. */
   appliedThreshold: number | null;
-  /** Slots still awaiting a grade. */
+  /**
+   * Slots still awaiting a grade — including any in {@link rejectedSlotIds},
+   * whose grade came back unusable and is still owed.
+   */
   pendingSlotIds: string[];
+  /** See {@link AssessmentScore.rejectedSlotIds}; this section's share of them. */
+  rejectedSlotIds?: string[];
   /** Slots that can never be graded, excluded from the denominator. */
   unscorableSlotIds: string[];
 }
@@ -121,22 +127,49 @@ export interface AssessmentScore {
    * `provisional` while any item is still awaiting a grade — the total is
    * computed over what HAS been graded, so it can still move. Do not record a
    * provisional score as final. Items that can NEVER be graded
-   * (`unscorableSlotIds`) do not hold the result provisional.
+   * (`unscorableSlotIds`) do not hold the result provisional; items whose
+   * grade was rejected (`rejectedSlotIds`) do.
    */
   status: 'final' | 'provisional';
+  /**
+   * Slots still awaiting a grade, excluded from the denominator. `status` is
+   * `provisional` exactly when this is not empty. Includes every slot in
+   * {@link rejectedSlotIds}.
+   */
   pendingSlotIds: string[];
+  /**
+   * Slots whose outcome claimed a grade that cannot be one: a `score` or
+   * `maxScore` that is not a finite number, a `maxScore` of 0 or less, or a
+   * score below 0 or above its `maxScore` (beyond float noise of one part in a
+   * billion) — and deferred outcomes `outcomeFromGrade` returned for such a
+   * record (`reason: 'grade_rejected'`). Each is also in
+   * {@link pendingSlotIds}: its real grade is still owed, so it holds the
+   * result `provisional` with `passed: null` rather than being counted (NaN or
+   * 4300% on the record) or dropped (a failing grade vanishing into a final
+   * pass). Re-grade these slots; waiting will not fix them.
+   *
+   * Present only when at least one slot was rejected, so a result without one
+   * is exactly what earlier versions returned.
+   */
+  rejectedSlotIds?: string[];
   /** Slots that can never be graded. Excluded from the denominator. */
   unscorableSlotIds: string[];
 }
 
 /**
- * What one item contributes. THREE states, not two — collapsing the last two
- * into a single "no points" answer is what made an unscorable item block an
- * attempt from ever becoming final:
+ * What one item contributes. Collapsing any two of these into a single "no
+ * points" answer decides grades wrongly — it is what once made an unscorable
+ * item block an attempt from ever becoming final:
  *
  * - `graded` — real points, counted.
  * - `pending` — a grade is coming (deferred). Excluded from the denominator,
  *   and the assessment stays `provisional` until it arrives.
+ * - `rejected` — a grade came back, but its numbers cannot be one (see
+ *   `isGradeInRange`), or `outcomeFromGrade` already said so. Counted as
+ *   `pending`, because a real grade is still owed, and ALSO reported, so the
+ *   host knows to re-grade rather than wait. Never `unscorable`: that drops
+ *   the slot AND lets the attempt go final, so a failing grade on the wrong
+ *   scale would vanish and the rest would be recorded as a pass.
  * - `unscorable` — a grade is never coming (unregistered type, redacted data,
  *   incomplete key). Also excluded from the denominator, but it must NOT keep
  *   the result provisional forever: `evaluate()` returns this precisely so a
@@ -146,18 +179,33 @@ export interface AssessmentScore {
 type ItemContribution =
   | { state: 'graded'; points: number }
   | { state: 'pending' }
+  | { state: 'rejected' }
   | { state: 'unscorable' };
 
 function earned(item: ScoredItem): ItemContribution {
   const { outcome } = item;
   if (hasGrade(outcome)) {
-    const max = outcome.maxScore > 0 ? outcome.maxScore : 1;
-    return { state: 'graded', points: (outcome.score / max) * item.points };
+    const { score, maxScore } = outcome;
+    // No denominator is invented for a grade out of 0, and nothing is
+    // clamped: a number out of contract is not a grade at all.
+    if (!isGradeInRange(score, maxScore)) {
+      return { state: 'rejected' };
+    }
+    return { state: 'graded', points: (score / maxScore) * item.points };
   }
   if (outcome.status === 'deferred') {
-    return { state: 'pending' };
+    return outcome.reason === 'grade_rejected' ? { state: 'rejected' } : { state: 'pending' };
   }
   return { state: 'unscorable' };
+}
+
+/**
+ * The `rejectedSlotIds` field, present only when something was rejected: a
+ * result with none is then exactly what earlier versions returned, and the
+ * grade-stability corpus compares results exactly.
+ */
+function rejectedField(slotIds: string[]): { rejectedSlotIds?: string[] } {
+  return slotIds.length > 0 ? { rejectedSlotIds: slotIds } : {};
 }
 
 /**
@@ -168,13 +216,16 @@ function earned(item: ScoredItem): ItemContribution {
  * comparison, so the number a learner is shown is the number that decides the
  * outcome. Items still awaiting a grade are excluded from the denominator
  * rather than counted as zero, and the result is reported as `provisional`
- * until every item has a grade.
+ * until every item has a grade. An outcome whose score cannot be a grade out of
+ * its `maxScore` is not a grade either: it is held the same way and named in
+ * `rejectedSlotIds`.
  */
 export function composeAssessmentScore(
   sections: readonly AssessmentSectionInput[],
   policy: CompositionPolicy,
 ): AssessmentScore {
   const pendingAll: string[] = [];
+  const rejectedAll: string[] = [];
   const unscorableAll: string[] = [];
 
   // Pass 1 — score each section over the points that are actually gradable.
@@ -183,14 +234,19 @@ export function composeAssessmentScore(
     let gradedMaxPoints = 0;
     let maxPoints = 0;
     const pendingSlotIds: string[] = [];
+    const rejectedSlotIds: string[] = [];
     const unscorableSlotIds: string[] = [];
 
     for (const item of section.items) {
       maxPoints += item.points;
       const contribution = earned(item);
-      if (contribution.state === 'pending') {
+      if (contribution.state === 'pending' || contribution.state === 'rejected') {
         pendingSlotIds.push(item.slotId);
         pendingAll.push(item.slotId);
+        if (contribution.state === 'rejected') {
+          rejectedSlotIds.push(item.slotId);
+          rejectedAll.push(item.slotId);
+        }
         continue;
       }
       if (contribution.state === 'unscorable') {
@@ -213,6 +269,7 @@ export function composeAssessmentScore(
       score: roundGrade(raw, policy.rounding),
       appliedThreshold,
       pendingSlotIds,
+      rejectedSlotIds,
       unscorableSlotIds,
     };
   });
@@ -249,6 +306,7 @@ export function composeAssessmentScore(
         : gte(partial.score, partial.appliedThreshold, policy.rounding),
     appliedThreshold: partial.appliedThreshold,
     pendingSlotIds: partial.pendingSlotIds,
+    ...rejectedField(partial.rejectedSlotIds),
     unscorableSlotIds: partial.unscorableSlotIds,
   }));
 
@@ -258,9 +316,10 @@ export function composeAssessmentScore(
   );
   const score = roundGrade(weightedRaw, policy.rounding);
 
-  // Only work that is still COMING keeps the result provisional. Work that can
-  // never be graded is excluded from the denominator but must not block the
-  // attempt from being recorded.
+  // Only work that is still COMING keeps the result provisional — a rejected
+  // grade among it, since a real one is still owed. Work that can never be
+  // graded is excluded from the denominator but must not block the attempt
+  // from being recorded.
   const status: 'final' | 'provisional' = pendingAll.length > 0 ? 'provisional' : 'final';
 
   if (status === 'provisional') {
@@ -273,6 +332,7 @@ export function composeAssessmentScore(
       passFailureReason: null,
       status,
       pendingSlotIds: pendingAll,
+      ...rejectedField(rejectedAll),
       unscorableSlotIds: unscorableAll,
     };
   }
@@ -290,6 +350,7 @@ export function composeAssessmentScore(
       passFailureReason: null,
       status,
       pendingSlotIds: pendingAll,
+      ...rejectedField(rejectedAll),
       unscorableSlotIds: unscorableAll,
     };
   }
@@ -313,6 +374,7 @@ export function composeAssessmentScore(
     passFailureReason,
     status,
     pendingSlotIds: pendingAll,
+    ...rejectedField(rejectedAll),
     unscorableSlotIds: unscorableAll,
   };
 }
