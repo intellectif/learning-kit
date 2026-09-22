@@ -23,6 +23,9 @@ export { type CaptionTracks, resolveCaptionTracks } from './tracks.js';
  * Public interactive video: the player wrapped in `ActivityErrorBoundary`, so a
  * render failure — the development-time schema check among them — degrades to
  * an accessible fallback instead of taking the host page down.
+ *
+ * A formative tool, for lessons and practice — not for official summative
+ * exams, which `<ActivitySequence>` delivers.
  */
 export function InteractiveVideo(props: InteractiveVideoProps) {
   const strings = useLkStrings(props.strings);

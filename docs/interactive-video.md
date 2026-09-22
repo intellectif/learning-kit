@@ -5,8 +5,12 @@ questions**, then carries on. It is not a new activity type: it is an ordinary *
 stimulus is a video and which carries a `timeline` — so every question inside it stays its own
 question, with its own slot id, its own response and its own grade.
 
+**It is a formative tool**: for lessons and practice, not for official summative exams — see
+[Formative, not summative](#formative-not-summative).
+
 It describes `@intellectif/lk-core` 0.16.0 and `@intellectif/lk-react` 16.1.0.
 
+- [Formative, not summative](#formative-not-summative)
 - [The model](#the-model)
 - [Authoring one](#authoring-one)
 - [What can be embedded](#what-can-be-embedded)
@@ -20,6 +24,25 @@ It describes `@intellectif/lk-core` 0.16.0 and `@intellectif/lk-react` 16.1.0.
 - [Chapters](#chapters)
 - [What an older build does with it](#what-an-older-build-does-with-it)
 - [What the SDK does not do](#what-the-sdk-does-not-do)
+
+## Formative, not summative
+
+**An interactive video is for learning** — lessons, practice, check-ins that tell a learner and a
+teacher how the lesson is landing. **It is not for official summative exams.** For a mid-term, a
+final or any paper whose grade is of record, deliver the questions with `<ActivitySequence>`.
+
+The reasons are the video's own features, which a summative paper must not have:
+
+- The learner controls the recording: pause, rewind, rewatch, slow it down, turn on captions in two
+  languages, search the transcript — all while the questions are theirs to answer.
+- A quiz can be reopened from the contents list, and one that is not `required` can be skipped.
+- Where the learner resumes is reported by the browser, and nothing in the player times a question
+  or holds a single pass through the recording.
+
+None of this is a defect to fix: it is what makes the video a good lesson, and the SDK will not trade
+it for exam conditions. The **grades are exact** all the same — the questions are the ordinary
+activity types, with the same scorers and the same grade-stability vectors — so a video's scores are
+sound for a formative gradebook, progress tracking and a teacher's view of a class.
 
 ## The model
 
@@ -292,7 +315,8 @@ response, and — in `practice` — `onActivityComplete` with the grade the comp
 read-aloud reports a take through the `recordingBinding` you passed, and its grade arrives when your
 assessor answers.
 
-The video's share of an attempt composes like any other entry:
+The video's share of an attempt — for a formative gradebook or a progress view — composes like any
+other entry:
 
 ```ts
 import { composeTimelineScore } from '@intellectif/lk-core';
@@ -326,7 +350,7 @@ a second pass; it stays theirs to reopen from the contents list.
 | Mode | The video |
 |---|---|
 | `practice` | Questions grade themselves and show feedback; the end card shows the score |
-| `exam` | Questions submit without grading ("Answer saved"); the end card counts answers only |
+| `exam` | A check-in without feedback: questions submit without showing correctness ("Answer saved"), and the end card counts answers only. Still formative — the name is the SDK-wide mode, not a promise of exam conditions |
 | `review` | Every quiz shows how it was marked, nothing is required, seeking is free, and there is nothing to finish |
 
 In `exam` and `review`, pass the **redacted** projection — `redactItemGroup(group)` — exactly as you
