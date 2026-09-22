@@ -298,15 +298,160 @@ describe('composeAssessmentScore — per-item points', () => {
     expect(result.sections[0]?.score).toBe(0.85);
   });
 
-  it('treats a non-positive maxScore as 1 instead of dividing by zero', () => {
+  it('rejects a non-positive maxScore instead of reading the score against 1', () => {
+    // Reversed deliberately (it used to read 0.5 "out of 0" as 0.5 out of 1).
+    // Nothing is out of 0: the outcome is not a grade, so it is neither
+    // divided nor re-scaled against a denominator nobody declared.
     const result = composeAssessmentScore(
-      [section('a', 1, [item('odd', 2, scored(0.5, 0))])],
+      [section('a', 1, [item('odd', 2, scored(0.5, 0)), item('ok', 2, scored(1))])],
       policy(),
     );
-    expect(result.sections[0]?.earnedPoints).toBe(1);
-    expect(result.sections[0]?.score).toBe(0.5);
+    expect(result.sections[0]?.earnedPoints).toBe(2);
+    expect(result.sections[0]?.gradedMaxPoints).toBe(2);
+    expect(result.rejectedSlotIds).toEqual(['odd']);
+    expect(result.status).toBe('provisional');
     expect(Number.isFinite(result.score)).toBe(true);
   });
+});
+
+// ==========================================================================
+// A score that cannot be a grade
+// ==========================================================================
+
+/** The outcome `outcomeFromGrade` stored before it checked the numbers: a verbatim mirror. */
+const mirrored = (score: number, maxScore: number): ItemOutcome => ({
+  status: 'graded',
+  grade: { score, maxScore, passed: true, feedback: null },
+  score,
+  maxScore,
+  passed: true,
+  feedback: null,
+});
+
+describe('composeAssessmentScore — a score that cannot be a grade', () => {
+  const OUT_OF_CONTRACT: [string, number, number][] = [
+    ['NaN', Number.NaN, 1],
+    ['Infinity', Number.POSITIVE_INFINITY, 1],
+    ['-Infinity', Number.NEGATIVE_INFINITY, 1],
+    ['a negative score', -0.5, 1],
+    ['85 out of 1', 85, 1],
+    ['just past float noise', 1 + 2e-9, 1],
+    ['a hair below 0', -1e-10, 1],
+    ['a score out of 0', 0.5, 0],
+    ['a score out of 0, failing', 0.3, 0],
+    ['a negative maxScore', 0.5, -1],
+    ['a NaN maxScore', 0.5, Number.NaN],
+    ['an infinite maxScore', 0.5, Number.POSITIVE_INFINITY],
+  ];
+
+  for (const [label, score, maxScore] of OUT_OF_CONTRACT) {
+    for (const [status, outcome] of [
+      ['graded', mirrored(score, maxScore)],
+      ['scored', scored(score, maxScore)],
+    ] as const) {
+      it(`holds the attempt provisional for a ${status} outcome with ${label}`, () => {
+        const result = composeAssessmentScore(
+          [section('a', 1, [item('ok', 1, scored(1)), item('bad', 1, outcome)])],
+          policy({ sectionThreshold: 0.6 }),
+        );
+        const only = result.sections[0];
+
+        // Never a verdict: a failing grade cannot vanish into a final pass.
+        expect(result.status).toBe('provisional');
+        expect(result.passed).toBeNull();
+        expect(result.passFailureReason).toBeNull();
+        // Still owed a grade, and named as rejected so a host re-grades it.
+        expect(result.pendingSlotIds).toEqual(['bad']);
+        expect(result.rejectedSlotIds).toEqual(['bad']);
+        expect(result.unscorableSlotIds).toEqual([]);
+        expect(only?.unscorableSlotIds).toEqual([]);
+        expect(only?.pendingSlotIds).toEqual(['bad']);
+        expect(only?.rejectedSlotIds).toEqual(['bad']);
+        // Out of the denominator, like any slot still awaiting its grade.
+        expect(only?.gradedMaxPoints).toBe(1);
+        expect(only?.earnedPoints).toBe(1);
+        expect(only?.maxPoints).toBe(2);
+        expect(result.score).toBe(1);
+        expect(Number.isFinite(only?.score)).toBe(true);
+      });
+    }
+  }
+
+  it('rejects a score that is not a number at all, such as a numeric string', () => {
+    const result = composeAssessmentScore(
+      [section('a', 1, [item('bad', 1, mirrored('0.85' as unknown as number, 1))])],
+      policy(),
+    );
+    expect(result.rejectedSlotIds).toEqual(['bad']);
+    expect(result.status).toBe('provisional');
+  });
+
+  it('holds a rejected grade-outcome from outcomeFromGrade as pending AND rejected', () => {
+    const rejected = outcomeFromGrade({ score: 85, maxScore: 1, passed: true, feedback: null });
+    const result = composeAssessmentScore(
+      [section('a', 1, [item('ok', 1, scored(1)), item('bad', 1, rejected)])],
+      policy(),
+    );
+    expect(result.status).toBe('provisional');
+    expect(result.passed).toBeNull();
+    expect(result.pendingSlotIds).toEqual(['bad']);
+    expect(result.rejectedSlotIds).toEqual(['bad']);
+  });
+
+  it('keeps an ordinary deferred slot pending but NOT rejected', () => {
+    const result = composeAssessmentScore(
+      [section('a', 1, [item('d', 1, deferred()), item('bad', 1, mirrored(85, 1))])],
+      policy(),
+    );
+    expect(result.pendingSlotIds).toEqual(['d', 'bad']);
+    expect(result.rejectedSlotIds).toEqual(['bad']);
+  });
+
+  it('names the rejected slot on its own section only', () => {
+    const result = composeAssessmentScore(
+      [
+        section('a', 1, [item('a1', 1, scored(1))]),
+        section('b', 1, [item('b1', 1, mirrored(Number.NaN, 1))]),
+      ],
+      policy(),
+    );
+    expect(result.sections[0]).not.toHaveProperty('rejectedSlotIds');
+    expect(result.sections[1]?.rejectedSlotIds).toEqual(['b1']);
+    expect(result.rejectedSlotIds).toEqual(['b1']);
+  });
+
+  it('adds no rejectedSlotIds key when nothing was rejected, so earlier results are unchanged', () => {
+    const result = composeAssessmentScore(
+      [section('a', 1, [item('s', 1, scored(0.5)), item('d', 1, deferred())])],
+      policy(),
+    );
+    expect(result).not.toHaveProperty('rejectedSlotIds');
+    expect(result.sections[0]).not.toHaveProperty('rejectedSlotIds');
+  });
+
+  const IN_RANGE: [string, number, number, number][] = [
+    // [label, score, maxScore, earned points on a 1-point slot]
+    ['exactly 0', 0, 1, 0],
+    ['exactly its maximum', 1, 1, 1],
+    ['1 + 1e-10, float noise', 1 + 1e-10, 1, 1 + 1e-10],
+    ['8.5 out of 10', 8.5, 10, 0.85],
+    ['10 + 1e-9 out of 10', 10 + 1e-9, 10, (10 + 1e-9) / 10],
+    // The exact edge of the tolerance: 1 past a maximum of 1e9 is 1e9 * 1e-9.
+    ['1e9 + 1 out of 1e9, the exact edge', 1e9 + 1, 1e9, (1e9 + 1) / 1e9],
+  ];
+
+  for (const [label, score, maxScore, points] of IN_RANGE) {
+    it(`counts ${label} as a grade, unclamped`, () => {
+      const result = composeAssessmentScore(
+        [section('a', 1, [item('s', 1, mirrored(score, maxScore))])],
+        policy(),
+      );
+      expect(result.status).toBe('final');
+      expect(result).not.toHaveProperty('rejectedSlotIds');
+      // Exactly the arithmetic it always did: accepted noise is not clamped.
+      expect(result.sections[0]?.earnedPoints).toBe(points);
+    });
+  }
 });
 
 // ==========================================================================

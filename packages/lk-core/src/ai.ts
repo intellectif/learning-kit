@@ -1,5 +1,6 @@
 import { PLACEHOLDER_RE } from './schemas/fill-in-the-blanks.js';
 import { alignDictation } from './scoring/dictation/align.js';
+import { isGradeInRange } from './scoring/grade-numbers.js';
 import { score } from './scoring/index.js';
 import type {
   ActivityData,
@@ -307,11 +308,15 @@ function gradeLocally(
 
 /**
  * The request for an explanation of `response`, or `null` when there is none
- * to give: an unsupported type, an author who switched explanations off, or
- * nothing graded to explain.
+ * to give: an unsupported type, an author who switched explanations off,
+ * nothing graded to explain, or a grade of record that cannot be a grade.
  *
  * A scored `outcome` — the grade of record a review shows — wins over grading
- * locally, so the explanation speaks to the grade on the screen.
+ * locally, so the explanation speaks to the grade on the screen. One whose
+ * numbers cannot be a grade (the rule `outcomeFromGrade` applies: `maxScore`
+ * positive and finite, `score` finite from 0 to it) gets no explanation at all:
+ * explaining 85 "out of 1" would tell the model a wrong answer was correct, and
+ * grading locally instead would speak to a grade the screen does not show.
  */
 export function aiExplanationRequest(input: {
   data: AiActivityInput;
@@ -326,8 +331,13 @@ export function aiExplanationRequest(input: {
   let details: ScoringDetail[] | null = null;
   let grade: AiGrade | null = null;
   if (outcome?.status === 'scored') {
+    // Read once, so the check and the grade handed on see the same numbers.
+    const { score: recorded, maxScore, passed } = outcome;
+    if (!isGradeInRange(recorded, maxScore)) {
+      return null;
+    }
     details = outcome.details;
-    grade = aiGradeOf(outcome);
+    grade = aiGradeOf({ score: recorded, maxScore, passed });
   } else if (response !== null) {
     const local = gradeLocally(data, response);
     if (local !== null) {

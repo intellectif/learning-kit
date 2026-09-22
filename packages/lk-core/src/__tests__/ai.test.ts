@@ -395,6 +395,78 @@ describe('aiExplanationRequest', () => {
     expect(request?.grade.category).toBe('correct');
   });
 
+  it('asks nothing when the grade of record cannot be a grade, rather than explain it', () => {
+    // A wrong answer (b) whose stored outcome claims 85 "out of 1" used to go
+    // to the model as `correct` and passed; NaN went as a null score. Grading
+    // locally instead would speak to a grade the screen does not show.
+    const response = { type: 'multiple-choice' as const, selectedOptionIds: ['b'] };
+    for (const [score, maxScore] of [
+      [85, 1],
+      [Number.NaN, 1],
+      [Number.POSITIVE_INFINITY, 1],
+      [-0.5, 1],
+      [1 + 2e-9, 1],
+      [0.5, 0],
+      [0.5, -1],
+      ['0.85' as unknown as number, 1],
+    ] as const) {
+      const outcome: ItemOutcome = {
+        status: 'scored',
+        score,
+        maxScore,
+        passed: true,
+        feedback: null,
+        details: [],
+      };
+      expect(aiExplanationRequest({ data: mc, response, outcome })).toBeNull();
+      expect(aiExplanationRequest({ data: redact(mc), response, outcome })).toBeNull();
+    }
+  });
+
+  it('reads the grade of record once, so a getter cannot pass the check and hand on another score', () => {
+    let reads = 0;
+    const outcome = {
+      status: 'scored',
+      maxScore: 1,
+      passed: false,
+      feedback: null,
+      details: [],
+      get score() {
+        reads += 1;
+        return reads === 1 ? 0 : 85;
+      },
+    } as ItemOutcome;
+    const request = aiExplanationRequest({
+      data: mc,
+      response: { type: 'multiple-choice', selectedOptionIds: ['b'] },
+      outcome,
+    });
+    expect(reads).toBe(1);
+    expect(request?.grade).toMatchObject({ score: 0, category: 'incorrect' });
+  });
+
+  it('still explains a grade of record a hair over its maximum, unchanged', () => {
+    const outcome: ItemOutcome = {
+      status: 'scored',
+      score: 1 + 1e-10,
+      maxScore: 1,
+      passed: true,
+      feedback: null,
+      details: [],
+    };
+    const request = aiExplanationRequest({
+      data: mc,
+      response: { type: 'multiple-choice', selectedOptionIds: ['a'] },
+      outcome,
+    });
+    expect(request?.grade).toEqual({
+      score: 1 + 1e-10,
+      maxScore: 1,
+      passed: true,
+      category: 'correct',
+    });
+  });
+
   it('explains a redacted item only from a scored outcome', () => {
     const projection = redact(mc);
     const response = { type: 'multiple-choice' as const, selectedOptionIds: ['a'] };

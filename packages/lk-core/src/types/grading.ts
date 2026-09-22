@@ -79,7 +79,11 @@ export interface CriterionScore {
   band?: string;
   /** The grader's comment for this criterion, addressed to the learner. */
   comment?: string;
-  /** Weight actually applied, echoed from the rubric so the total is checkable. */
+  /**
+   * Weight actually applied, echoed from the rubric so the total is checkable.
+   * Defaults to `1`. Zero or more: `gradeFromRubric` refuses a negative weight
+   * rather than let it carry the total outside [0,1].
+   */
   weight?: number;
   /** Not applicable to this submission (e.g. interaction on a monologue task). */
   notApplicable?: boolean;
@@ -104,6 +108,10 @@ export interface InlineCorrection {
  * that works in points does not have to normalise by hand: declare
  * `maxScore` on each {@link CriterionScore} and let `gradeFromRubric` do the
  * arithmetic, which is the whole point of handing it the judgements.
+ *
+ * `maxScore` is a positive, finite number and `score` a finite number from 0
+ * to it. `outcomeFromGrade` refuses a record that is not, rather than mirror
+ * numbers nobody can defend onto an outcome.
  */
 export interface GradeRecord {
   score: number;

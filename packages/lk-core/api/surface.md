@@ -189,7 +189,7 @@ interface AiProvenance: interface AiProvenance { model?: string; promptHash?: st
 interface AiTextResult: interface AiTextResult { text: string; verdict?: AiVerdict; provenance?: AiProvenance; }
 interface AiWordFact: interface AiWordFact { expected: string; typed: string; status: 'correct' | 'extra' | 'incorrect' | 'missing'; }
 interface AnsweredStatementParams: interface AnsweredStatementParams { actor: XAPIActor; object: XAPIObjectParams; scoringResult: ScoringResult; timeSpentMs: number; response?: string; context?: XAPIContext; resultExtensions?: Record<string, unknown>; }
-interface AssessmentScore: interface AssessmentScore { sections: SectionScore[]; score: number; passed: boolean | null; passFailureReason: PassFailureReason; status: 'final' | 'provisional'; pendingSlotIds: string[]; unscorableSlotIds: string[]; }
+interface AssessmentScore: interface AssessmentScore { sections: SectionScore[]; score: number; passed: boolean | null; passFailureReason: PassFailureReason; status: 'final' | 'provisional'; pendingSlotIds: string[]; rejectedSlotIds?: string[]; unscorableSlotIds: string[]; }
 interface AssessmentSectionInput: interface AssessmentSectionInput { id: string; title?: string; weight: number; passThresholdOverride?: number; items: ScoredItem[]; }
 interface AttemptPlan: interface AttemptPlan { planVersion: '1.0'; seed?: string; shuffleEntries?: boolean; planHash: string; slots: AttemptPlanSlot[]; totalPoints: number; }
 interface AttemptPlanDrift: interface AttemptPlanDrift { matches: boolean; missingSlotIds: string[]; addedSlotIds: string[]; changedSlotIds: string[]; changedStimulusSlotIds: string[]; changedCueSlotIds: string[]; changedPointsSlotIds: string[]; reorderedSlotIds: string[]; }
@@ -263,7 +263,7 @@ interface ScoredItem: interface ScoredItem { slotId: string; activityId?: string
 interface ScoringDetail: interface ScoringDetail { itemId: string; correct: boolean; outcome?: ScoringOutcome; learnerResponse: string | string[]; correctResponse: string | string[]; weight?: number; score?: number; }
 interface ScoringOptions: interface ScoringOptions { rounding?: RoundingPolicy; }
 interface ScoringResult: interface ScoringResult { score: number; maxScore: number; passed: boolean; feedback: null | string; details: ScoringDetail[]; }
-interface SectionScore: interface SectionScore { id: string; title?: string; weight: number; normalizedWeight: number; earnedPoints: number; gradedMaxPoints: number; maxPoints: number; score: number; passed: boolean; appliedThreshold: null | number; pendingSlotIds: string[]; unscorableSlotIds: string[]; }
+interface SectionScore: interface SectionScore { id: string; title?: string; weight: number; normalizedWeight: number; earnedPoints: number; gradedMaxPoints: number; maxPoints: number; score: number; passed: boolean; appliedThreshold: null | number; pendingSlotIds: string[]; rejectedSlotIds?: string[]; unscorableSlotIds: string[]; }
 interface SeededShuffleOptions: interface SeededShuffleOptions { version?: ShuffleVersion; }
 interface SequenceSlot: interface SequenceSlot<TItem = ActivityData> { slotId: string; index: number; activity: TItem; group?: SequenceSlotGroup; }
 interface SequenceSlotGroup: interface SequenceSlotGroup { id: string; title?: string; stimulus: Stimulus; position: number; size: number; timeline?: MediaTimeline; cue?: TimelineCue; }
@@ -308,7 +308,7 @@ type AiItemFacts: type AiItemFacts = AiDictationFacts | AiFillInTheBlanksFacts |
 type AiRefusal: type AiRefusal = 'contradicts-grade' | 'empty' | 'malformed' | 'reveals-answer' | 'too-long';
 type AiSupportedActivityType: type AiSupportedActivityType = 'dictation' | 'fill-in-the-blanks' | 'gap-select' | 'multiple-choice';
 type AiVerdict: type AiVerdict = 'correct' | 'incorrect' | 'partly-correct';
-type DeferredReason: type DeferredReason = 'no_response_recorded' | 'requires_async_grading';
+type DeferredReason: type DeferredReason = 'grade_rejected' | 'no_response_recorded' | 'requires_async_grading';
 type DictationReference: type DictationReference = Partial<Pick<DictationData, 'acceptedTranscripts' | 'tolerance' | 'transcript'>>;
 type DraftSeverity: type DraftSeverity = 'incomplete' | 'invalid';
 type DraftValidationResult: type DraftValidationResult<T> = DraftComplete<T> | DraftNotComplete;
@@ -316,7 +316,7 @@ type GraderKind: type GraderKind = 'ai' | 'auto' | 'human';
 type GradingState: type GradingState = 'failed' | 'graded' | 'queued' | 'running' | 'skipped';
 type InteractionKind: type InteractionKind = 'ai-explanation-shown' | 'ai-hint-shown' | 'assessment-failed' | 'assessment-requested' | 'blank-filled' | 'hint-requested' | 'media-play-consumed' | 'media-play-errored' | 'media-play-refunded' | 'media-play-refused' | 'option-deselected' | 'option-selected' | 'recording-discarded' | 'recording-started' | 'recording-stopped' | 'recording-upload-failed' | 'recording-uploaded' | 'submitted' | 'text-changed' | 'video-captions-changed' | 'video-ended' | 'video-fullscreen-changed' | 'video-paused' | 'video-pip-changed' | 'video-played' | 'video-quiz-closed' | 'video-quiz-opened' | 'video-quiz-question-shown' | 'video-quiz-skipped' | 'video-rate-changed' | 'video-seeked' | (string & {});
 type InteractiveVideoItemType: type InteractiveVideoItemType = (typeof INTERACTIVE_VIDEO_ITEM_TYPES)[number];
-type ItemOutcome: type ItemOutcome = { code?: string; maxScore: number; reason: string; status: 'unscorable'; } | { details: ScoringDetail[]; feedback: null | string; maxScore: number; passed: boolean; score: number; status: 'scored'; } | { feedback: null | string; grade: GradeRecord; maxScore: number; passed: boolean; score: number; status: 'graded'; } | { maxScore: number; partial?: DeferredScoringPartial; reason: DeferredReason; status: 'deferred'; };
+type ItemOutcome: type ItemOutcome = { code?: string; maxScore: number; reason: string; status: 'unscorable'; } | { details: ScoringDetail[]; feedback: null | string; maxScore: number; passed: boolean; score: number; status: 'scored'; } | { feedback: null | string; grade: GradeRecord; maxScore: number; passed: boolean; score: number; status: 'graded'; } | { maxScore: number; partial?: DeferredScoringPartial; reason: DeferredReason; rejectedGrade?: GradeRecord; status: 'deferred'; };
 type LearnerResponse: type LearnerResponse = LearnerResponseMap[keyof LearnerResponseMap];
 type MissingOutcomePolicy: type MissingOutcomePolicy = 'deferred' | 'zero' | ((slot: AttemptPlanSlot) => ItemOutcome);
 type NativeControlHint: type NativeControlHint = 'hide-download' | 'hide-rate';
@@ -464,7 +464,7 @@ function outcomeFromUnscorable: declare function outcomeFromUnscorable(result: {
 function roundGrade: declare function roundGrade(value: number, policy: RoundingPolicy): number;
 function score: declare function score(activityType: ActivityType, activityData: ActivityData, learnerResponse: LearnerResponse, options?: ScoringOptions): ScoringResult;
 function validateSpeechAssessment: declare function validateSpeechAssessment(value: unknown): ValidationResult<SpeechAssessment>;
-interface AssessmentScore: interface AssessmentScore { sections: SectionScore[]; score: number; passed: boolean | null; passFailureReason: PassFailureReason; status: 'final' | 'provisional'; pendingSlotIds: string[]; unscorableSlotIds: string[]; }
+interface AssessmentScore: interface AssessmentScore { sections: SectionScore[]; score: number; passed: boolean | null; passFailureReason: PassFailureReason; status: 'final' | 'provisional'; pendingSlotIds: string[]; rejectedSlotIds?: string[]; unscorableSlotIds: string[]; }
 interface AssessmentSectionInput: interface AssessmentSectionInput { id: string; title?: string; weight: number; passThresholdOverride?: number; items: ScoredItem[]; }
 interface Band: interface Band { name: string; min: number; }
 interface CompositionPolicy: interface CompositionPolicy { passThreshold: number; sectionThreshold?: number; rounding: RoundingPolicy; }
@@ -480,7 +480,7 @@ interface RecordingRef: interface RecordingRef { key: string; mimeType: string; 
 interface RoundingPolicy: interface RoundingPolicy { mode: RoundingMode; dp: number; }
 interface ScoredItem: interface ScoredItem { slotId: string; activityId?: string; points: number; outcome: ItemOutcome; }
 interface ScoringOptions: interface ScoringOptions { rounding?: RoundingPolicy; }
-interface SectionScore: interface SectionScore { id: string; title?: string; weight: number; normalizedWeight: number; earnedPoints: number; gradedMaxPoints: number; maxPoints: number; score: number; passed: boolean; appliedThreshold: null | number; pendingSlotIds: string[]; unscorableSlotIds: string[]; }
+interface SectionScore: interface SectionScore { id: string; title?: string; weight: number; normalizedWeight: number; earnedPoints: number; gradedMaxPoints: number; maxPoints: number; score: number; passed: boolean; appliedThreshold: null | number; pendingSlotIds: string[]; rejectedSlotIds?: string[]; unscorableSlotIds: string[]; }
 interface SpeechAssessment: interface SpeechAssessment { assessmentVersion: '1.0'; status: 'assessed' | 'no_speech'; task: 'scripted' | 'unscripted'; locale: string; referenceText?: string; recordingKey?: string; assessor: Grader; scale: 100; scores: { accuracy?: number; completeness?: number; fluency?: number; overall?: number; prosody?: number; }; recognizedText?: string; miscue: 'assessor' | 'none'; phonemeAlphabet?: 'ipa' | 'sapi'; words: SpeechWord[]; prosody?: { monotoneConfidence?: number; }; signal?: { snrDb?: number; }; }
 interface SpeechMeasurement: interface SpeechMeasurement { durationMs: number; voicedMs: number; }
 interface SpeechPhoneme: interface SpeechPhoneme { symbol?: string; accuracy?: number; startMs?: number; durationMs?: number; heardAs?: SpeechPhonemeCandidate[]; }
@@ -493,7 +493,7 @@ interface TextMatchPolicy: interface TextMatchPolicy { caseSensitive?: boolean; 
 interface TextMatchResult: interface TextMatchResult { matched: boolean; via: 'exact' | 'folded' | 'fuzzy' | 'none' | 'normalized'; }
 interface WavInspectionPolicy: interface WavInspectionPolicy { silenceDbfs: number; frameMs: number; }
 type DictationReference: type DictationReference = Partial<Pick<DictationData, 'acceptedTranscripts' | 'tolerance' | 'transcript'>>;
-type ItemOutcome: type ItemOutcome = { code?: string; maxScore: number; reason: string; status: 'unscorable'; } | { details: ScoringDetail[]; feedback: null | string; maxScore: number; passed: boolean; score: number; status: 'scored'; } | { feedback: null | string; grade: GradeRecord; maxScore: number; passed: boolean; score: number; status: 'graded'; } | { maxScore: number; partial?: DeferredScoringPartial; reason: DeferredReason; status: 'deferred'; };
+type ItemOutcome: type ItemOutcome = { code?: string; maxScore: number; reason: string; status: 'unscorable'; } | { details: ScoringDetail[]; feedback: null | string; maxScore: number; passed: boolean; score: number; status: 'scored'; } | { feedback: null | string; grade: GradeRecord; maxScore: number; passed: boolean; score: number; status: 'graded'; } | { maxScore: number; partial?: DeferredScoringPartial; reason: DeferredReason; rejectedGrade?: GradeRecord; status: 'deferred'; };
 type PassFailureReason: type PassFailureReason = 'both' | 'overall_below_threshold' | 'section_below_threshold' | null;
 type ReadAloudWordState: type ReadAloudWordState = 'correct' | 'inserted' | 'mispronounced' | 'omitted';
 type RoundingMode: type RoundingMode = 'ceil' | 'floor' | 'half-even' | 'half-up';

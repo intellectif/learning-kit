@@ -29,15 +29,18 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.16.0 | 16.0.0 | Two caption languages at once in `<InteractiveVideo>`, `defaultPreferences` and `onPreferencesChange`, `resolveCaptionTracks`. **One tightened rule**: a caption or subtitle track on a dictation's recording, or on a stimulus a dictation plays, is now refused as `captionsUrl` always was. **And one DOM change**: captions sit in a `.lk-iv-captions` container |
 | 0.16.0 | 16.1.0 | `renderQuestion` on `<InteractiveVideo>`: a host draws a video's questions itself, and the video still keeps count. **No `lk-core` change** — a `lk-react` minor on the same peer range as 16.0.0. **One behaviour change**: Finish waits for a read-aloud take still being stored |
 | 0.17.0 | 17.0.0 | AI help for learners: explanations and hints through ports you supply, `LkAiProvider`, the author's `ai` switch, and the AI contract in lk-core (`buildAiFacts`, `aiExplanationRequest`, `aiHintRequest`, `checkAiExplanation`, `checkAiHint`, `hintRevealsAnswer`). **One tightened rule**: a field named `ai` must now be `{ hints?, explanations? }` |
+| 0.18.0 | 18.0.0 | The grade return trip checks its numbers: `outcomeFromGrade` refuses a record that cannot be a grade (`deferred` / `grade_rejected`, the record kept on `rejectedGrade`), `composeAssessmentScore` holds such a slot `provisional` and names it in `rejectedSlotIds`, `gradeFromRubric` refuses a negative weight or an overflowing weight sum, and `aiExplanationRequest` explains no such grade. **Moves recorded grades, for invalid numbers only** — see [0.17 → 0.18](#017--018-lk-core--17x--18x-lk-react). **No React API change** — 18.0.0 is the peer bump |
 
 Every behavioural change here is opt-in, per the
-[grade-stability rule](./roadmap.md#5-standing-decisions) — with **one
-exception, in 0.8.0**: a fuzzy-matching fix that stopped an *unanswered* blank
-scoring as correct. That one changes a number, deliberately, because every mark
-it changes was wrong. It is spelled out in
-[0.7 → 0.8](#07--08-lk-core--6x--7x-lk-react). Everywhere else in this table, if
-you upgrade and change no code, the numbers you record stay exactly what they
-were.
+[grade-stability rule](./roadmap.md#5-standing-decisions) — with **two
+exceptions**. In 0.8.0, a fuzzy-matching fix stopped an *unanswered* blank
+scoring as correct; it is spelled out in
+[0.7 → 0.8](#07--08-lk-core--6x--7x-lk-react). In 0.18.0, a grade whose numbers
+cannot be a grade — `NaN`, 85 "out of 1", a score out of 0 — stopped composing
+to a final result; see [0.17 → 0.18](#017--018-lk-core--17x--18x-lk-react). Both
+change numbers, deliberately, because every result they change was wrong.
+Everywhere else in this table, if you upgrade and change no code, the numbers
+you record stay exactly what they were.
 
 - On **0.3.x / 0.4.x / 0.5.x**? Start with [Grade-correctness first](#grade-correctness-first).
 - On **0.6.x**? Skip to [0.6 → 0.7](#06--07-lk-core--5x--6x-lk-react).
@@ -48,8 +51,69 @@ were.
 - On **0.14.x**? See [0.14 → 0.15](#014--015-lk-core--14x--15x-lk-react) — additive.
 - On **0.16.x**? See [0.16 → 0.17](#016--017-lk-core--16x--17x-lk-react) — one tightened rule for a field named `ai`, and eleven new strings.
 - On **0.15.x**? See [0.15 → 0.16](#015--016-lk-core--15x--16x-lk-react) — one tightened dictation rule to check your content against, and one caption DOM change; 16.1.0 adds one Finish change.
+- On **0.17.x**? See [0.17 → 0.18](#017--018-lk-core--17x--18x-lk-react) — a returned grade that cannot be one no longer composes to a final result; look for stored grades it now reports.
 
 ---
+
+## 0.17 → 0.18 (`lk-core`) / 17.x → 18.x (`lk-react`)
+
+### A returned grade must be a grade *(0.18.0)*
+
+`evaluate` refuses a non-finite score and `gradeFromRubric` one outside `[0,1]`, but the return trip
+took any number on trust: `outcomeFromGrade` mirrored any `GradeRecord`, and `composeAssessmentScore`
+divided by whatever it was handed. A grader that returned raw points (85 "out of 1") composed with a
+full-marks item to a **final** result, score 43, passed; `NaN` composed to a final `NaN` (`null` in
+JSON); an infinite score to a final pass; and a score "out of 0" was read against 1. Both now check
+the numbers the same way: `maxScore` a positive, finite number, and `score` a finite number from 0 to
+it, with float noise of one part in a billion above `maxScore` accepted as it is.
+
+- **`outcomeFromGrade`** returns `{ status: 'deferred', reason: 'grade_rejected', maxScore: 1,
+  rejectedGrade }` for a record that fails, keeping the record verbatim. A valid record lifts exactly
+  as before.
+- **`composeAssessmentScore`** treats a `scored` or `graded` outcome with such numbers, and a
+  `grade_rejected` outcome, as still owed a grade: out of the denominator, in `pendingSlotIds`, and
+  in the new **`rejectedSlotIds`** on the result and its section. The result is `provisional` with
+  `passed: null`. Not `unscorable`, which would drop the slot and let the attempt go final — a
+  failing grade on the wrong scale would vanish into a pass.
+- **`gradeFromRubric`** refuses a criterion weight below 0, and a weight sum that overflows to
+  Infinity, as `unscorable`. It used to check only that the weights summed to a positive number, so
+  `[0 ×2, 1 ×−1]` came back as a real 0 and `[1 ×2, 0 ×−1]` as a perfect 1.
+
+See [Getting a deferred grade back](./authoring.md#getting-a-deferred-grade-back-v04) and
+[Scoring a whole assessment](./authoring.md#scoring-a-whole-assessment-v04).
+
+### What can change a recorded grade *(0.18.0)*
+
+Only numbers that were never a grade. Every other input composes byte for byte as before: of the 564
+vectors in the grade-stability corpus, one moves — `composeAssessmentScore/item-max-score-zero`,
+which pinned the old reading of a score out of 0 against 1.
+
+- **Look for stored outcomes it now reports.** A `graded` outcome an earlier release stored from such
+  a record carries the bad numbers mirrored on it, and re-composing an attempt that holds one now
+  returns `provisional` instead of the final result you recorded. Before you upgrade, search stored
+  outcomes for a `score` or `maxScore` that is not a finite number (in JSON, `null`), a `maxScore` of 0
+  or less, or a `score` below 0 or above its `maxScore` — then re-grade those slots.
+- **A host that re-composes on read** sees `rejectedSlotIds` where it recorded a final grade. Route
+  those slots to a re-grade; waiting will not fix them.
+
+### What can stop a build *(0.18.0 / 18.0.0)*
+
+- **`DeferredReason` gains `'grade_rejected'`.** A `switch` or a `Record<DeferredReason, …>` that
+  lists every reason must handle it.
+- `ItemOutcome`'s `deferred` arm gains an optional `rejectedGrade`, and `SectionScore` and
+  `AssessmentScore` gain an optional `rejectedSlotIds`. Additive.
+
+### What can change behaviour *(0.18.0 / 18.0.0)*
+
+- **A refused grade renders as not graded yet.** Nothing in lk-react changed for it, but lk-react
+  renders what `outcomeFromGrade` returns: a record it now refuses is a `deferred` outcome, shown as "Not graded
+  yet." like any other. With lk-react 17, `<WrittenResponse>` showed the `graded` outcome it was
+  handed with the record's own numbers — "Score 8500%. Passed." for 85 out of 1. A `graded` outcome
+  stored by an earlier release is not re-read and still renders that way: re-grade it, as above.
+- **No AI explanation for a grade that cannot be one.** `aiExplanationRequest` returns `null` for a
+  `scored` outcome whose numbers fail the same check, so in `review` "Explain my answer" answers "No
+  explanation is available right now." and your `explain` port is never called. In 17.0.0 such an
+  outcome reached the model: 85 out of 1 on a wrong answer was sent as `correct`, passed.
 
 ## 0.16 → 0.17 (`lk-core`) / 16.x → 17.x (`lk-react`)
 
