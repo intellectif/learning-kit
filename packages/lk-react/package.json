@@ -183,6 +183,16 @@
         "default": "./dist/hooks/useXAPI.cjs"
       }
     },
+    "./ai/LkAiProvider": {
+      "import": {
+        "types": "./dist/ai/LkAiProvider.d.ts",
+        "default": "./dist/ai/LkAiProvider.js"
+      },
+      "require": {
+        "types": "./dist/ai/LkAiProvider.d.cts",
+        "default": "./dist/ai/LkAiProvider.cjs"
+      }
+    },
     "./i18n/LkIntlProvider": {
       "import": {
         "types": "./dist/i18n/LkIntlProvider.d.ts",

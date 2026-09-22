@@ -501,6 +501,19 @@ describe('validateDraft: fields every activity shares', () => {
     ]);
   });
 
+  it('names a malformed AI switch with a code of its own, never a raw schema code', () => {
+    expect(summary(validateDraft('written-response', wr({ ai: 'off' })))).toEqual([
+      ['ai_permissions_invalid', 'invalid', 'ai'],
+    ]);
+    expect(
+      summary(validateDraft('written-response', wr({ ai: { hints: 'no', explanations: 1 } }))),
+    ).toEqual([
+      ['ai_permissions_invalid', 'invalid', 'ai.explanations'],
+      ['ai_permissions_invalid', 'invalid', 'ai.hints'],
+    ]);
+    expect(summary(validateDraft('written-response', wr({ ai: { hints: false } })))).toEqual([]);
+  });
+
   it('reports an empty feedback message as something still to write', () => {
     expect(
       summary(

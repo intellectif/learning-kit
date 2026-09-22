@@ -19,6 +19,7 @@ import {
   type ThemeTokens,
 } from '@intellectif/lk-core';
 import { type ComponentType, useEffect, useMemo, useRef, useState } from 'react';
+import type { LearnerAi } from '../../ai/LkAiProvider.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStringsOverride } from '../../i18n/strings.js';
 import { randomSessionId } from '../_internal.js';
@@ -292,6 +293,13 @@ export interface ActivitySequenceProps {
   /** Overrides the SDK's chrome text for this sequence. See {@link LkIntlProvider}. */
   strings?: LkStringsOverride;
   /**
+   * The host's AI ports, for every question this renders: explanations after
+   * grading, hints before submit. The same as `LkAiProvider`, for this one
+   * sequence, and a `renderers` override receives them as its own `ai` prop.
+   * Nothing AI appears in `exam`. See {@link LearnerAi}.
+   */
+  ai?: LearnerAi;
+  /**
    * `entries` shuffles the top-level entries; a group moves as one block, and
    * the order INSIDE a group follows the group's own `shuffle` setting.
    * Default `none`: authored order.
@@ -534,6 +542,7 @@ export function ActivitySequence({
   assessments,
   workletUrl,
   strings,
+  ai,
 }: ActivitySequenceProps): React.JSX.Element {
   const sessionIdRef = useRef<string | null>(null);
   const s = useLkStrings(strings);
@@ -1144,6 +1153,7 @@ export function ActivitySequence({
     renderMode,
     ...(sanitizeHtml ? { sanitizeHtml } : {}),
     ...(strings !== undefined ? { strings } : {}),
+    ...(ai !== undefined ? { ai } : {}),
     ...(theme ? { theme } : {}),
     ...(locale ? { locale } : {}),
     ...(disabled ? { disabled } : {}),

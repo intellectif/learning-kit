@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { AiPermissionsSchema } from './ai.js';
 import { FeedbackSchema } from './feedback.js';
 import { MediaSchema } from './media.js';
 
@@ -75,6 +76,7 @@ export const FillInTheBlanksDataSchema = z
     locale: z.string().optional(),
     learningObjectives: z.array(z.string()).optional(),
     difficultyLevel: z.literal([1, 2, 3, 4, 5]).optional(),
+    ai: AiPermissionsSchema.optional(),
   })
   .refine(
     (data) => {

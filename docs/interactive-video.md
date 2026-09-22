@@ -8,7 +8,7 @@ question, with its own slot id, its own response and its own grade.
 **It is a formative tool**: for lessons and practice, not for official summative exams — see
 [Formative, not summative](#formative-not-summative).
 
-It describes `@intellectif/lk-core` 0.16.0 and `@intellectif/lk-react` 16.1.0.
+It describes `@intellectif/lk-core` 0.17.0 and `@intellectif/lk-react` 17.0.0.
 
 - [Formative, not summative](#formative-not-summative)
 - [The model](#the-model)
@@ -177,6 +177,9 @@ quiz, a caption preview under the pointer, speed, volume, captions, a settings m
 picture, fullscreen, a keyboard map with a shortcut sheet (`?`), a contents and transcript panel,
 and the quiz panel that covers the video when a quiz opens. It ships as its own subpath and weighs
 about 34 kB brotli **including all five question types**.
+
+The `ai` prop — or an `LkAiProvider` around the player — gives the questions the SDK draws
+explanations and hints, as anywhere else; see [AI help for learners](./ai.md).
 
 **What the host still owns:** the video file and its hosting, the caption endpoint, storage for
 answers, grades and the resume point, and — for a read-aloud — the `recordingBinding` that stores

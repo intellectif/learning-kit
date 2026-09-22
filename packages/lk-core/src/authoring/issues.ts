@@ -20,6 +20,7 @@ export const DRAFT_ISSUE_SEVERITY = {
   scoring_strategy_required: 'incomplete',
   pass_threshold_invalid: 'invalid',
   difficulty_level_invalid: 'invalid',
+  ai_permissions_invalid: 'invalid',
   feedback_empty: 'incomplete',
   redacted_data: 'invalid',
   media_type_required: 'incomplete',
@@ -331,6 +332,31 @@ export function checkSharedOptional(draft: DraftFields): DraftIssue[] {
         'The difficulty level must be a whole number from 1 to 5.',
       ),
     );
+  }
+  // What an author allows AI to do: an object of on/off flags, or nothing.
+  const ai = draft.ai;
+  if (!isUnset(ai)) {
+    if (!isRecord(ai)) {
+      issues.push(
+        issue(
+          'ai_permissions_invalid',
+          ['ai'],
+          'AI permissions must be an object of on/off flags, such as { hints: false }.',
+        ),
+      );
+    } else {
+      for (const key of ['explanations', 'hints'] as const) {
+        if (!isUnset(ai[key]) && typeof ai[key] !== 'boolean') {
+          issues.push(
+            issue(
+              'ai_permissions_invalid',
+              ['ai', key],
+              'Set this to true or false, or remove it.',
+            ),
+          );
+        }
+      }
+    }
   }
   const feedback = draft.feedback;
   if (isRecord(feedback)) {

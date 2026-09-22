@@ -32,6 +32,9 @@ const redactedBase = {
   locale: z.string().optional(),
   learningObjectives: z.array(z.string()).optional(),
   difficultyLevel: z.literal([1, 2, 3, 4, 5]).optional(),
+  ai: z
+    .strictObject({ explanations: z.boolean().optional(), hints: z.boolean().optional() })
+    .optional(),
 };
 
 /** A redacted Multiple Choice option: id and display text only — no `isCorrect`, no feedback. */

@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { AiPermissionsSchema } from './ai.js';
 import { FeedbackSchema } from './feedback.js';
 import { MediaSchema } from './media.js';
 
@@ -62,6 +63,7 @@ export const WrittenResponseDataSchema = z
     locale: z.string().optional(),
     learningObjectives: z.array(z.string()).optional(),
     difficultyLevel: z.literal([1, 2, 3, 4, 5]).optional(),
+    ai: AiPermissionsSchema.optional(),
   })
   .refine((data) => data.maxWords >= data.minWords, {
     error: 'maxWords must be greater than or equal to minWords.',

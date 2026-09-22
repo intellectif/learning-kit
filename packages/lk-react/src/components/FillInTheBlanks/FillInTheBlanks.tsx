@@ -14,10 +14,12 @@ import {
   xapiDefinitionFor,
 } from '@intellectif/lk-core';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { useLearnerAi } from '../../ai/LkAiProvider.js';
 import { useActivityState } from '../../hooks/useActivityState.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
+import { AiExplanation, AiHints } from '../shared/AiHelp.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import type { ActivityProps } from '../types.js';
 
@@ -112,6 +114,7 @@ export function FillInTheBlanks({
   locale,
   disabled,
   showCorrectAnswers,
+  ai: aiProp,
 }: FillInTheBlanksProps) {
   const isExam = renderMode === 'exam';
   const isReview = renderMode === 'review';
@@ -119,6 +122,7 @@ export function FillInTheBlanks({
   // Dev-only boundary validation (Req 2.3); throws in render so the wrapping
   // ActivityErrorBoundary catches it. Re-runs only when data changes.
   const s = useLkStrings(strings);
+  const ai = useLearnerAi(aiProp);
 
   const devError = useMemo(() => {
     if (!isDevelopment()) {
@@ -539,6 +543,17 @@ export function FillInTheBlanks({
             );
           })}
         </p>
+        <AiHints
+          ai={ai}
+          data={data}
+          renderMode={renderMode}
+          submitted={submitted}
+          disabled={disabled === true}
+          response={{ type: 'fill-in-the-blanks', answers }}
+          locale={locale}
+          onInteraction={onInteraction}
+          strings={s}
+        />
         {/* Review is read-only: there is nothing to submit. */}
         {isReview ? null : (
           <button type="submit" disabled={inactive}>
@@ -559,6 +574,17 @@ export function FillInTheBlanks({
       <FeedbackRegion id={`${data.id}-feedback`}>
         {isReview ? reviewSummary : summary}
       </FeedbackRegion>
+      <AiExplanation
+        ai={ai}
+        data={data}
+        renderMode={renderMode}
+        submitted={submitted}
+        response={{ type: 'fill-in-the-blanks', answers }}
+        outcome={outcome}
+        locale={locale}
+        onInteraction={onInteraction}
+        strings={s}
+      />
     </form>
   );
 }

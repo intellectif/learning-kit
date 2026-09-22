@@ -1,4 +1,5 @@
 import type { TextMatchPolicy } from '../scoring/text-match.js';
+import type { ActivityAiPermissions } from './ai.js';
 import type { GradeRecord } from './grading.js';
 import type { XAPIStatement } from './xapi.js';
 
@@ -248,6 +249,8 @@ export interface MultipleChoiceData {
   learningObjectives?: string[];
   /** Subjective difficulty on a 1–5 scale. */
   difficultyLevel?: 1 | 2 | 3 | 4 | 5;
+  /** What an author allows AI to do for this item: see {@link ActivityAiPermissions}. */
+  ai?: ActivityAiPermissions;
 }
 
 /** Configuration for a single fill-in-the-blank slot. */
@@ -387,6 +390,8 @@ export interface GapSelectData {
   learningObjectives?: string[];
   /** Subjective difficulty on a 1–5 scale. */
   difficultyLevel?: 1 | 2 | 3 | 4 | 5;
+  /** What an author allows AI to do for this item: see {@link ActivityAiPermissions}. */
+  ai?: ActivityAiPermissions;
 }
 
 export interface FillInTheBlanksData {
@@ -420,6 +425,8 @@ export interface FillInTheBlanksData {
   learningObjectives?: string[];
   /** Subjective difficulty on a 1–5 scale. */
   difficultyLevel?: 1 | 2 | 3 | 4 | 5;
+  /** What an author allows AI to do for this item: see {@link ActivityAiPermissions}. */
+  ai?: ActivityAiPermissions;
 }
 
 /** A single criterion within a written-response grading rubric. */
@@ -485,6 +492,8 @@ export interface WrittenResponseData {
   learningObjectives?: string[];
   /** Subjective difficulty on a 1–5 scale. */
   difficultyLevel?: 1 | 2 | 3 | 4 | 5;
+  /** What an author allows AI to do for this item: see {@link ActivityAiPermissions}. */
+  ai?: ActivityAiPermissions;
 }
 
 /**
@@ -589,6 +598,8 @@ export interface DictationData {
   learningObjectives?: string[];
   /** Subjective difficulty on a 1–5 scale. */
   difficultyLevel?: 1 | 2 | 3 | 4 | 5;
+  /** What an author allows AI to do for this item: see {@link ActivityAiPermissions}. */
+  ai?: ActivityAiPermissions;
 }
 
 /** A dimension of speech a pronunciation assessor scores, on a 0–100 scale. */
@@ -682,6 +693,8 @@ export interface ReadAloudData {
   learningObjectives?: string[];
   /** Subjective difficulty on a 1–5 scale. */
   difficultyLevel?: 1 | 2 | 3 | 4 | 5;
+  /** What an author allows AI to do for this item: see {@link ActivityAiPermissions}. */
+  ai?: ActivityAiPermissions;
 }
 
 /**
@@ -1024,6 +1037,14 @@ export type InteractionKind =
   | 'video-captions-changed'
   | 'video-fullscreen-changed'
   | 'video-pip-changed'
+  /**
+   * An AI hint was shown to the learner (`hintNumber`, and the port's
+   * `provenance` when it sent one). Only a hint the SDK accepted: a refused one
+   * is never shown and never reported here.
+   */
+  | 'ai-hint-shown'
+  /** An AI explanation of the graded answer was shown (`provenance` when sent). */
+  | 'ai-explanation-shown'
   // `string & {}` preserves literal autocompletion while keeping the union open
   // for registered custom types.
   | (string & {});

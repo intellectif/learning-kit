@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { AiPermissionsSchema } from './ai.js';
 import { FeedbackSchema } from './feedback.js';
 import { MediaSchema, MediaUrlSchema } from './media.js';
 
@@ -92,6 +93,7 @@ export const MultipleChoiceDataSchema = z
     locale: z.string().optional(),
     learningObjectives: z.array(z.string()).optional(),
     difficultyLevel: z.literal([1, 2, 3, 4, 5]).optional(),
+    ai: AiPermissionsSchema.optional(),
   })
   .refine((data) => data.options.some((option) => option.isCorrect), {
     error: 'At least one option must be marked correct.',

@@ -43,7 +43,7 @@ render(<MultipleChoice data={result.data} onComplete={persistAndSend} />);
 
 ## Activity data model
 
-Shared optional fields on **every** activity: `passThreshold` (0–1, default 0.7), `locale`, `learningObjectives`, `difficultyLevel` (1–5), `media`, `feedback`.
+Shared optional fields on **every** activity: `passThreshold` (0–1, default 0.7), `locale`, `learningObjectives`, `difficultyLevel` (1–5), `media`, `feedback`, and `ai` — `{ hints?: boolean, explanations?: boolean }`, where `false` switches that AI help off for the item wherever it is delivered (see [AI help for learners](./ai.md)). An author can only switch help off; `true`, or leaving a flag out, leaves it to the deployment.
 
 ### Multiple Choice
 
@@ -823,6 +823,7 @@ Every built-in activity:
 | `scoring_strategy_required` | incomplete | `scoringStrategy` | Not set, empty, or only whitespace (multiple choice and fill in the blanks) |
 | `pass_threshold_invalid` | invalid | `passThreshold` | Present, and not a number from 0 to 1 |
 | `difficulty_level_invalid` | invalid | `difficultyLevel` | Present, and not a whole number from 1 to 5 |
+| `ai_permissions_invalid` | invalid | `ai`, or `ai.hints` / `ai.explanations` | Present, and not an object; or a flag present and not `true` or `false` |
 | `feedback_empty` | incomplete | `feedback.correct`, `feedback.incorrect` | An empty string, or only whitespace |
 | `redacted_data` | invalid | `redacted` | `redacted: true`: what `redact()` produces for a learner, with the answer key gone, is not a draft |
 | `media_type_required` | incomplete | `media.type`, `options.N.media.type` | Not chosen yet |

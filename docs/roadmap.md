@@ -705,8 +705,12 @@ next is the [delivery policy, then AI](#next--the-delivery-policy-then-ai).
 
 ### Next — the delivery policy, then AI
 
-Chosen 2026-09-22, ahead of any new activity type. The order is deliberate: every AI switch is a
-delivery decision, so the policy that holds those decisions comes first.
+Chosen 2026-09-22, ahead of any new activity type.
+
+✅ **AI help for learners shipped first, in 0.17.0 / 17.0.0, by the maintainer's choice** (2026-09-22).
+It covers explanations and hints for four types, with an author's per-item switch and no AI in
+`exam`; see [docs/ai.md](./ai.md). Its switches sit on the ports a host passes and on the item. The
+delivery policy that follows gives them a per-deployment home, and hint penalties with it.
 
 1. **The delivery policy, and host-renderer parity in `<ActivitySequence>`.**
    - **The delivery policy.** `renderMode` (`practice | exam | review`) is three fixed presets. Educators

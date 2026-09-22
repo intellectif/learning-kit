@@ -28,6 +28,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.15.0 | 15.0.0 | Interactive video: `timeline` on an item group, `readMediaProgress`, `composeTimelineScore`, the `ig_timeline_*` codes; `<InteractiveVideo>`. **Additive** — the major is the peer bump, plus one component and its strings |
 | 0.16.0 | 16.0.0 | Two caption languages at once in `<InteractiveVideo>`, `defaultPreferences` and `onPreferencesChange`, `resolveCaptionTracks`. **One tightened rule**: a caption or subtitle track on a dictation's recording, or on a stimulus a dictation plays, is now refused as `captionsUrl` always was. **And one DOM change**: captions sit in a `.lk-iv-captions` container |
 | 0.16.0 | 16.1.0 | `renderQuestion` on `<InteractiveVideo>`: a host draws a video's questions itself, and the video still keeps count. **No `lk-core` change** — a `lk-react` minor on the same peer range as 16.0.0. **One behaviour change**: Finish waits for a read-aloud take still being stored |
+| 0.17.0 | 17.0.0 | AI help for learners: explanations and hints through ports you supply, `LkAiProvider`, the author's `ai` switch, and the AI contract in lk-core (`buildAiFacts`, `aiExplanationRequest`, `aiHintRequest`, `checkAiExplanation`, `checkAiHint`, `hintRevealsAnswer`). **One tightened rule**: a field named `ai` must now be `{ hints?, explanations? }` |
 
 Every behavioural change here is opt-in, per the
 [grade-stability rule](./roadmap.md#5-standing-decisions) — with **one
@@ -45,9 +46,37 @@ were.
 - On **0.9.x – 0.12.x**? See [0.12 → 0.13](#012--013-lk-core--12x--13x-lk-react) — additive, with the type errors it lists. The releases in between add the same kinds: `gap-select` joined the activity unions in 0.10.0, `gapLabel` and `gapPlaceholder` joined `LkStrings` in 10.0.0, and 0.11.0 needs Node 22 or later.
 - On **0.13.x**? See [0.13 → 0.14](#013--014-lk-core--13x--14x-lk-react) — additive, with the type errors and the behaviour changes it lists.
 - On **0.14.x**? See [0.14 → 0.15](#014--015-lk-core--14x--15x-lk-react) — additive.
+- On **0.16.x**? See [0.16 → 0.17](#016--017-lk-core--16x--17x-lk-react) — one tightened rule for a field named `ai`, and eleven new strings.
 - On **0.15.x**? See [0.15 → 0.16](#015--016-lk-core--15x--16x-lk-react) — one tightened dictation rule to check your content against, and one caption DOM change; 16.1.0 adds one Finish change.
 
 ---
+
+## 0.16 → 0.17 (`lk-core`) / 16.x → 17.x (`lk-react`)
+
+### Learners can ask an AI for help *(0.17.0 / 17.0.0)*
+
+"Explain my answer" after grading and "Get a hint" before submit, in multiple choice,
+fill-in-the-blanks, gap select and dictation (explanations only). Your model is reached through
+ports you supply (`<LkAiProvider>` or an `ai` prop), and nothing appears without one. See
+[AI help for learners](./ai.md).
+
+### What can stop a build *(0.17.0 / 17.0.0)*
+
+- **`LkStrings` gains eleven keys** (`aiExplain` … `aiNotice`). An object typed as a whole `LkStrings`
+  must add them; an `LkStringsOverride` needs nothing.
+- **Content with a field named `ai` of another shape now fails validation.** Every built-in type now
+  defines `ai` as `{ hints?: boolean, explanations?: boolean }`. The loose schemas used to keep an
+  unknown `ai` whatever it held, so a sidecar such as `ai: 'generated'` validated. It is now refused,
+  and so is a non-boolean flag. Check stored content before upgrading, and rename a sidecar that used
+  the name.
+- `ActivityProps`, `ActivitySequenceProps` and `InteractiveVideoProps` gain an optional `ai`, and
+  `InteractionKind` gains `ai-hint-shown` and `ai-explanation-shown`. All additive.
+
+### What can change behaviour *(0.17.0 / 17.0.0)*
+
+- **`redact()` now keeps `ai.hints` and `ai.explanations`.** They are public, flag by flag, so a
+  review honours an author who switched help off. Any other key inside `ai` is still removed.
+- Nothing else changes for a host that passes no AI port.
 
 ## 0.15 → 0.16 (`lk-core`) / 15.x → 16.x (`lk-react`)
 

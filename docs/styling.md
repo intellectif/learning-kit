@@ -53,6 +53,11 @@ inside a right-to-left page. See [Internationalisation](./i18n.md).
 | `.lk-gs`, `.lk-gs-passage`, `.lk-gs-gap`, `.lk-gs-select` | Gap Select container / passage / one gap / its selector — `data-correct` lands on the `select` itself after submit |
 | `.lk-gs-gap-feedback`, `.lk-gs-feedback-toggle` | Per-gap feedback note + the Hide/Show feedback toggle |
 | `.lk-dc`, `.lk-dc-title`, `.lk-dc-recordings`, `.lk-dc-recording`, `.lk-dc-recording-label` | Dictation container / title / the recordings block / one recording's fieldset (`[data-slow="true"]` for the slower file) / its legend |
+| `.lk-ai`, `.lk-ai-hint-area` | AI help: the block under an answer (an explanation) or before submit (hints), `data-state="idle" \| "loading" \| "shown" \| "unavailable"` |
+| `.lk-ai-button` | "Explain my answer" / "Get a hint". While a call is on its way it is `[aria-busy="true"][aria-disabled="true"]`, not `:disabled`, so focus stays on it |
+| `.lk-ai-panel`, `.lk-ai-heading`, `.lk-ai-text` | An explanation: its dashed panel (focusable, `tabIndex=-1`, so focus can move to it), its heading, and the model's plain text (`white-space: pre-line`) |
+| `.lk-ai-hints`, `.lk-ai-hint`, `.lk-ai-hint-label` | The list of hints given, one item each, and its "Hint 1" label |
+| `.lk-ai-notice`, `.lk-ai-note`, `.lk-ai-unavailable` | "Written by AI…" under every AI text; "No more hints…"; and "not available" after a failed or refused call |
 | `.lk-dc-hints`, `.lk-dc-hint-btn`, `.lk-dc-hint-reset`, `.lk-dc-hint` | Progressive hints: the block, the reveal button, the reset button, and the live paragraph holding the revealed words. Once every word is shown the reveal button is `[aria-disabled="true"]`, not `:disabled`, so keyboard focus stays on it: style both |
 | `.lk-dc-input` | The answer box; `data-correct="true\|false"` carries the pass state once the attempt is marked |
 | `.lk-dc-result`, `.lk-dc-nothing` | The marked result block, and the note shown when nothing was typed |

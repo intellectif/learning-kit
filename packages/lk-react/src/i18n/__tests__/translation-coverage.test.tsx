@@ -1,6 +1,7 @@
 import type {
   ActivityData,
   ActivityMedia as ActivityMediaData,
+  AiTextResult,
   DictationData,
   FillInTheBlanksData,
   GapSelectData,
@@ -1028,6 +1029,54 @@ describe('translation coverage', () => {
     act(() => {
       (document.querySelector('video') as HTMLVideoElement).dispatchEvent(new Event('ended'));
     });
+    keep(document.body);
+    cleanup();
+
+    // ── AI help: a hint on its way, hints given and used up, one refused;
+    // then an explanation on its way, shown, and one that failed ───────────
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const hintLater = defer<AiTextResult>();
+    sweep(<MultipleChoice data={mc} ai={{ hint: vi.fn(() => hintLater.promise), maxHints: 1 }} />);
+    await user.click(screen.getByRole('button', { name: sentinel('aiHint') }));
+    keep(document.body);
+    await act(async () => {
+      hintLater.settle({ text: 'Piensa en pares.' });
+    });
+    keep(document.body);
+    cleanup();
+
+    sweep(<MultipleChoice data={mc} ai={{ hint: async () => ({ text: 'Es cuatro, claro.' }) }} />);
+    await user.click(screen.getByRole('button', { name: sentinel('aiHint') }));
+    await waitFor(() => expect(document.querySelector('.lk-ai-unavailable')).not.toBeNull());
+    keep(document.body);
+    cleanup();
+
+    const explainLater = defer<AiTextResult>();
+    sweep(<MultipleChoice data={mc} ai={{ explain: vi.fn(() => explainLater.promise) }} />);
+    await user.click(screen.getByRole('radio', { name: 'Cuatro' }));
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    await user.click(screen.getByRole('button', { name: sentinel('aiExplain') }));
+    keep(document.body);
+    await act(async () => {
+      explainLater.settle({ text: 'Dos y dos son cuatro.' });
+    });
+    keep(document.body);
+    cleanup();
+
+    sweep(
+      <MultipleChoice
+        data={mc}
+        ai={{
+          explain: async () => {
+            throw new Error('503');
+          },
+        }}
+      />,
+    );
+    await user.click(screen.getByRole('radio', { name: 'Cuatro' }));
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    await user.click(screen.getByRole('button', { name: sentinel('aiExplain') }));
+    await waitFor(() => expect(document.querySelector('.lk-ai-unavailable')).not.toBeNull());
     keep(document.body);
     cleanup();
 

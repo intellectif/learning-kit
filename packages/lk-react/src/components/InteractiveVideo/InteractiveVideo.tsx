@@ -29,6 +29,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import type { LearnerAi } from '../../ai/LkAiProvider.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStrings, LkStringsOverride } from '../../i18n/strings.js';
 import { isDevelopment } from '../_internal.js';
@@ -295,6 +296,12 @@ export interface InteractiveVideoProps {
   shuffleSeed?: string;
   locale?: string;
   strings?: LkStringsOverride;
+  /**
+   * The host's AI ports, for every question the SDK draws: explanations after
+   * grading, hints before submit. The same as `LkAiProvider`, for this one
+   * video. Nothing AI appears in `exam`. See {@link LearnerAi}.
+   */
+  ai?: LearnerAi;
   theme?: Partial<ThemeTokens>;
   sanitizeHtml?: HtmlSanitizer;
 }
@@ -1590,6 +1597,7 @@ function Player(props: InteractiveVideoProps) {
       ...(onInteraction !== undefined ? { onInteraction } : {}),
       ...(sanitizeHtml !== undefined ? { sanitizeHtml } : {}),
       ...(props.strings !== undefined ? { strings: props.strings } : {}),
+      ...(props.ai !== undefined ? { ai: props.ai } : {}),
       ...(locale !== undefined ? { locale } : {}),
     };
     switch (activity.type) {
