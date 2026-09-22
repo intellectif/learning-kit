@@ -543,6 +543,22 @@ describe('the other types', () => {
     expect(request.grade.category).toBe('partly-correct');
   });
 
+  it('hands a renderers override the ports outside exam, and none in it', () => {
+    const handed: unknown[] = [];
+    const renderers = {
+      'multiple-choice': (props: { ai?: LearnerAi }) => {
+        handed.push(props.ai);
+        return <p>Mine</p>;
+      },
+    };
+    const ai = ports();
+    render(<ActivitySequence activities={[mc]} ai={ai} renderers={renderers} />);
+    expect(handed.at(-1)).toBe(ai);
+    cleanup();
+    render(<ActivitySequence activities={[mc]} ai={ai} renderers={renderers} renderMode="exam" />);
+    expect(handed.at(-1)).toBeUndefined();
+  });
+
   it('reaches every question of a sequence through its own `ai` prop', async () => {
     const user = userEvent.setup();
     const ai = ports();

@@ -8,9 +8,10 @@ explanations only; it has word hints of its own.
 
 - **Your model, through ports you supply.** `<LkAiProvider ai={{ explain, hint, maxHints, learnerLocale }}>`
   (new subpath `@intellectif/lk-react/ai/LkAiProvider`, also on the root) supplies them. So does an
-  `ai` prop on every activity, on `<ActivitySequence>` (which a `renderers` override also receives) and
-  on `<InteractiveVideo>`. A component's own `ai` wins over the provider's, whole. Leave a port out and
-  that help does not appear.
+  `ai` prop on every activity, on `<ActivitySequence>` and on `<InteractiveVideo>`. A component's own
+  `ai` wins over the provider's, whole. A question a host draws — a `renderers` override, or the video's
+  `renderQuestion` (as the new `ai` field of `InteractiveVideoQuestion`) — is handed the ports in force,
+  except in `exam`. Leave a port out and that help does not appear.
 - **Where it appears:**
   - hints in `practice` before submit, up to `maxHints` (3 by default, at most 10), on a question that
     is not disabled;

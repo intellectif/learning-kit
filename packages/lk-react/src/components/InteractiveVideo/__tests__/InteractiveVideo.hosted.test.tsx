@@ -11,6 +11,7 @@ import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { useContext, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type LearnerAi, LkAiProvider } from '../../../ai/LkAiProvider.js';
 import type { InteractiveVideoQuestion as FromTheRoot } from '../../../index.js';
 import { type SpeechCaptureHarness, stubSpeechCapture } from '../../../test-support/speech.js';
 import { SequenceSlotContext } from '../../shared/sequence-slot.js';
@@ -941,6 +942,75 @@ describe('InteractiveVideo: Finish waits for an answer on its way', () => {
     expect(finishButton()).toHaveAttribute('aria-disabled', 'true');
     report(6, 'settled');
     expect(finishButton()).not.toHaveAttribute('aria-disabled');
+  });
+});
+
+describe('InteractiveVideo: AI ports', () => {
+  const fakePorts = () => ({
+    hint: vi.fn(async () => ({ text: 'Piensa en la hora.' })),
+    explain: vi.fn(async () => ({ text: 'Porque es la capital.' })),
+  });
+  /** Draws nothing for the read-aloud, and records what each question was handed. */
+  const recording = (seen: (LearnerAi | undefined)[]) => (question: InteractiveVideoQuestion) => {
+    seen.push(question.ai);
+    return question.activity.type === 'read-aloud' ? null : undefined;
+  };
+
+  it('hands a question the host draws the ports in force: its prop, else a provider above it', async () => {
+    const own = fakePorts();
+    const seen: (LearnerAi | undefined)[] = [];
+    await start(<InteractiveVideo group={group()} ai={own} renderQuestion={recording(seen)} />);
+    await openFirstQuiz();
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((ai) => ai === own)).toBe(true);
+    cleanup();
+
+    const provided = fakePorts();
+    const fromAbove: (LearnerAi | undefined)[] = [];
+    await start(
+      <LkAiProvider ai={provided}>
+        <InteractiveVideo group={group()} renderQuestion={recording(fromAbove)} />
+      </LkAiProvider>,
+    );
+    await openFirstQuiz();
+    expect(fromAbove.every((ai) => ai === provided)).toBe(true);
+  });
+
+  it('gives a question the SDK draws in a quiz the same help as anywhere else', async () => {
+    const user = userEvent.setup();
+    const ai = fakePorts();
+    await start(<InteractiveVideo group={group()} ai={ai} renderQuestion={recording([])} />);
+    await openFirstQuiz();
+    await user.click(screen.getByRole('button', { name: 'Next question' }));
+    await user.click(within(quizPanel()).getByRole('button', { name: 'Get a hint' }));
+    expect(await within(quizPanel()).findByText('Piensa en la hora.')).toBeInTheDocument();
+  });
+
+  it('gives no question AI help in exam: the SDK draws none, and a host is handed no ports', async () => {
+    const user = userEvent.setup();
+    const ai = fakePorts();
+    const seen: (LearnerAi | undefined)[] = [];
+    await start(
+      <LkAiProvider ai={ai}>
+        <InteractiveVideo
+          group={group()}
+          renderMode="exam"
+          ai={ai}
+          renderQuestion={recording(seen)}
+        />
+      </LkAiProvider>,
+    );
+    await openFirstQuiz();
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((handed) => handed === undefined)).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: 'Next question' }));
+    expect(within(quizPanel()).queryByRole('button', { name: 'Get a hint' })).toBeNull();
+    await user.click(within(quizPanel()).getByRole('radio', { name: 'q1 correcta' }));
+    await user.click(within(quizPanel()).getByRole('button', { name: 'Submit' }));
+    expect(within(quizPanel()).queryByRole('button', { name: 'Explain my answer' })).toBeNull();
+    expect(ai.hint).not.toHaveBeenCalled();
+    expect(ai.explain).not.toHaveBeenCalled();
   });
 });
 

@@ -295,8 +295,9 @@ export interface ActivitySequenceProps {
   /**
    * The host's AI ports, for every question this renders: explanations after
    * grading, hints before submit. The same as `LkAiProvider`, for this one
-   * sequence, and a `renderers` override receives them as its own `ai` prop.
-   * Nothing AI appears in `exam`. See {@link LearnerAi}.
+   * sequence, and a `renderers` override receives them as its own `ai` prop —
+   * except in `exam`, where nothing AI appears and no question is given them.
+   * See {@link LearnerAi}.
    */
   ai?: LearnerAi;
   /**
@@ -1153,7 +1154,9 @@ export function ActivitySequence({
     renderMode,
     ...(sanitizeHtml ? { sanitizeHtml } : {}),
     ...(strings !== undefined ? { strings } : {}),
-    ...(ai !== undefined ? { ai } : {}),
+    // Handed to no question in `exam`, where none gives AI help: a
+    // `renderers` override is not given ports it must then know to ignore.
+    ...(ai !== undefined && renderMode !== 'exam' ? { ai } : {}),
     ...(theme ? { theme } : {}),
     ...(locale ? { locale } : {}),
     ...(disabled ? { disabled } : {}),

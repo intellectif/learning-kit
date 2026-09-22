@@ -54,7 +54,9 @@ import { LkAiProvider } from '@intellectif/lk-react/ai/LkAiProvider';
 ```
 
 - **Every component also takes an `ai` prop**, which wins over the provider whole. So do
-  `<ActivitySequence>` and `<InteractiveVideo>`, and a `renderers` override receives it too.
+  `<ActivitySequence>` and `<InteractiveVideo>`. A question you draw yourself — a sequence's
+  `renderers` override, or the video's `renderQuestion` — is handed the ports in force as `ai`,
+  except in `exam`, where no question is given them.
 - **Leave a port out to switch that help off.**
 - **`learnerLocale`** is the language to write in. It defaults to the component's `locale`. In a
   language course that is often not the item's language: English items, explained in Spanish.
@@ -63,7 +65,10 @@ import { LkAiProvider } from '@intellectif/lk-react/ai/LkAiProvider';
   changes, or the component unmounts. A late answer is dropped whether or not you honour the signal.
 
 On your server, the request carries everything a prompt needs. Ask the model for the verdict it is
-explaining, as well as the text: the SDK refuses an explanation of a verdict it did not reach.
+explaining, as well as the text: the SDK refuses an explanation of a verdict it did not reach. The
+check works only on a verdict the model itself produced. An explanation without one is shown
+unchecked, because agreement cannot be read out of prose. Echoing `request.grade.category` back
+passes the check without testing anything.
 
 ```ts
 import { type AiExplanationRequest, checkAiExplanation } from '@intellectif/lk-core';

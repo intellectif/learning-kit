@@ -69,7 +69,7 @@ ports you supply (`<LkAiProvider>` or an `ai` prop), and nothing appears without
   unknown `ai` whatever it held, so a sidecar such as `ai: 'generated'` validated. It is now refused,
   and so is a non-boolean flag. Check stored content before upgrading, and rename a sidecar that used
   the name.
-- `ActivityProps`, `ActivitySequenceProps` and `InteractiveVideoProps` gain an optional `ai`, and
+- `ActivityProps`, `ActivitySequenceProps`, `InteractiveVideoProps` and `InteractiveVideoQuestion` gain an optional `ai`, and
   `InteractionKind` gains `ai-hint-shown` and `ai-explanation-shown`. All additive.
 
 ### What can change behaviour *(0.17.0 / 17.0.0)*

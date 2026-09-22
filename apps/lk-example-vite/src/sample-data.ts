@@ -19,6 +19,29 @@ const sampleImage =
       'text-anchor="middle" dominant-baseline="middle">Sample question media</text></svg>',
   );
 
+/**
+ * The same question twice, for the AI help section: once in practice, where a
+ * learner can ask for hints and an explanation, and once in an exam, where no
+ * question gives AI help. Two ids, because two copies of one id on a page share
+ * their element ids.
+ */
+const aiQuestion = (id: string): MultipleChoiceData => ({
+  schemaVersion: '1.0',
+  type: 'multiple-choice',
+  id,
+  title: 'To be',
+  question: 'Which sentence is right?',
+  mode: 'single',
+  scoringStrategy: 'all-or-nothing',
+  options: [
+    { id: 'is', text: 'She is tired', isCorrect: true },
+    { id: 'are', text: 'She are tired', isCorrect: false },
+  ],
+});
+
+export const sampleAiPractice = aiQuestion('demo-ai-practice');
+export const sampleAiExam = aiQuestion('demo-ai-exam');
+
 export const sampleMultipleChoice: MultipleChoiceData = {
   schemaVersion: '1.0',
   type: 'multiple-choice',
