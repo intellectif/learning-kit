@@ -712,24 +712,40 @@ It covers explanations and hints for four types, with an author's per-item switc
 `exam`; see [docs/ai.md](./ai.md). Its switches sit on the ports a host passes and on the item. The
 delivery policy that follows gives them a per-deployment home, and hint penalties with it.
 
-1. **The delivery policy, and host-renderer parity in `<ActivitySequence>`.**
-   - **The delivery policy.** `renderMode` (`practice | exam | review`) is three fixed presets. Educators
-     need the settings underneath, so that one activity serves a practice lesson and a final exam
-     without being authored twice:
-     - when correctness and feedback show;
-     - whether solutions show;
-     - whether a learner may retry (today only a read-aloud upload has "Try again");
-     - whether hints are on, and what they cost.
-   - The three modes become named presets that reproduce today's behaviour exactly, so nothing changes
-     for a host that passes no policy. The policy an attempt ran under is frozen into `planAttempt`
-     beside order, identity and points, so a grade records the conditions it was earned under.
-   - Timers, lockdown and proctoring stay consumer-side (§5).
-   - **Host-renderer parity.** A consumer's own renderer in `<ActivitySequence>` gets what
-     `renderQuestion` gave one in `<InteractiveVideo>` in 16.1.0:
-     - being told it left the screen, so a host recorder can stop its microphone;
-     - a pending state the set waits on;
-     - a portal that fullscreen paints;
-     - calls with one identity for the life of the set.
+✅ **Host-renderer parity in `<ActivitySequence>` shipped** in 18.1.0 (2026-09-22), ahead of
+the delivery policy it was paired with. A `renderers` override is handed a `question`: `active`
+(so a host's recorder is told when its question leaves the screen), `setPending` (so `onFinished`
+waits for an upload of its own), `portalContainer` (a node inside its own pane, since a popover
+portalled to `document.body` stayed over the next question and vanished in fullscreen), `clear`,
+`emit` and its `slot` — with every call, `onSubmit` and `onComplete` included, keeping one
+identity for the life of the set. **The AI half shipped with it**, as `useAiHints` and
+`useAiExplanation`: the audit that closed 0.17 gave host-drawn questions the ports, but the rules
+behind them — when help is offered, the hint limit, the checks, the abort — were the
+components’ own, so a host had to rebuild them. The components are now built on those hooks, so
+there is one implementation and a host’s question refuses what the SDK’s refuses. `ask` is
+the guard rather than the button: it does nothing where the rules say no, so a page that draws its
+own button reaches no model in an `exam`.
+
+1. **The delivery policy.** `renderMode` (`practice | exam | review`) is three fixed presets. Educators
+   need the settings underneath, so that one activity serves a practice lesson and a final exam
+   without being authored twice:
+   - when correctness and feedback show;
+   - whether solutions show;
+   - whether a learner may retry (today only a read-aloud upload has "Try again");
+   - whether hints are on, and what they cost, which is the one part of it that decides a grade and
+     therefore belongs with `ItemScoringPolicy` (partial credit, negative marking) rather than beside
+     it: a penalty is computed by the SDK and pinned by the grade vectors, and the policy only chooses
+     which one applies.
+
+   The three modes become named presets that reproduce today's behaviour exactly, so nothing changes
+   for a host that passes no policy. The policy an attempt ran under is frozen into `planAttempt`
+   beside order, identity and points, so a grade records the conditions it was earned under. Timers,
+   lockdown and proctoring stay consumer-side (§5).
+
+   **An authored hint may be allowed in an exam by policy; AI help may not.** An authored hint is the
+   same for every learner and its penalty is computed, so a deployment can price it. Two learners
+   sitting one paper would not get the same AI help, so the rule that shipped in 0.17.0 — nothing AI
+   in `exam`, whatever is passed — stands rather than becoming a switch.
 2. **`@intellectif/lk-ai`, ports only.** In this order:
    1. help for learners in formative use: explain an answer, graduated hints, feedback on open
       responses, feedback in the learner's language;
@@ -753,11 +769,16 @@ delivery policy that follows gives them a per-deployment home, and hint penaltie
    - **Never blocking.** A failed call removes the feature for that moment; the question stays
      answerable.
 
-   Proposed, to be settled in the milestone plan:
-   - learner-facing AI off in the `exam` preset, overridable only explicitly and recorded in the
-     attempt plan;
-   - an author's per-item switch beside the educator's per-deployment one;
-   - calibration metrics shipped with no default threshold, as rounding ships no default `dp`.
+   Settled by what shipped in 0.17.0:
+   - **learner-facing AI is off in `exam` and not overridable.** The proposal was an explicit
+     override recorded in the attempt plan; a model that answers two learners differently on one
+     paper of record is not something a recording makes fair;
+   - **the author's per-item switch** (`ai: { hints, explanations }`) is in content, classified
+     public, and survives `redact()`. The educator's per-deployment switch joins it in the delivery
+     policy, and a feature appears only where both say yes and the host supplied a port.
+
+   Still to settle in the milestone plan: calibration metrics shipped with no default threshold, as
+   rounding ships no default `dp`.
 
 ### v1.0 — "schema 2.0 and the stability promise"
 

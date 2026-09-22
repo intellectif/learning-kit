@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext } from 'react';
+import type { RenderMode } from '../types.js';
 
 /**
  * How far a take that was handed in has got, as a pager deciding whether its
@@ -26,6 +27,17 @@ export interface SequenceSlotChannel {
    * hidden. Minted per pager and per slot, so no two pagers share one.
    */
   readonly captureGroup: string;
+  /**
+   * The mode the PAPER around this question is being delivered in, read live.
+   *
+   * It is how the AI hooks know an exam they were not told about. A host that
+   * draws its own question passes `renderMode` on to them, but nothing makes
+   * it: the hooks would then default to `practice` and, under an
+   * `LkAiProvider` somewhere above, offer hints on a paper of record. The set
+   * around the question decides, and an `exam` here wins over anything the
+   * caller passes or forgets to pass.
+   */
+  readonly renderMode: RenderMode;
   /**
    * Reports the state of the take numbered `take`, a number from
    * {@link mintTake}. A take numbered below the slot's latest is a take the

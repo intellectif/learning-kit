@@ -5,6 +5,7 @@ import {
   type ActivityResult,
   flattenSequence,
   type InteractionEvent,
+  type InteractionKind,
   type ItemOutcome,
   isItemGroup,
   type LearnerResponse,
@@ -144,11 +145,88 @@ export type SequenceItemOutcome =
     };
 
 /**
+ * Where a question sits in the set, and the calls that tell the pager what the
+ * learner did with it — handed to a `renderers` override as its `question`
+ * prop, beside the shared {@link ActivityProps}.
+ *
+ * The SDK's own components make the same calls, so a question a host draws
+ * counts exactly as one the SDK draws: in `onFinished`, in whether the set is
+ * complete, and in what a resumed attempt reopens. Every call here keeps ONE
+ * identity for the life of the set, so it is safe in an effect's dependencies,
+ * and does nothing once the set has changed or the pager has gone.
+ */
+export interface SequenceQuestion {
+  /**
+   * The identity to store this question's answer against — the same object
+   * `onSubmit` and `onActivityComplete` are handed, for the life of the set.
+   * `slotId`, never `index`: the position moves under shuffling.
+   */
+  slot: SequenceRecordingSlot;
+  /**
+   * `true` while this is the question on screen. `false` from the moment the
+   * learner pages away, and `true` again when they come back.
+   *
+   * WHEN IT TURNS `false`, STOP THE MICROPHONE, ANY TIMER AND ANY SPEECH. The
+   * pager pauses the `<audio>` and `<video>` elements inside the question and
+   * stops the recorders the SDK started, but it cannot reach a recorder it did
+   * not create.
+   */
+  active: boolean;
+  /**
+   * An element inside this question's own pane, for popovers, tooltips and
+   * dialogs. Portal into it rather than into `document.body`: a pane the
+   * learner has paged away from is hidden, and anything portalled out of it
+   * stays on screen over the next question — and in fullscreen, only the
+   * subtree being painted is visible at all.
+   *
+   * It is the same element for as long as the set is on screen, and is `null`
+   * only before the first commit.
+   */
+  portalContainer: HTMLElement | null;
+  /**
+   * The learner withdrew their answer — a "Try again". The question counts as
+   * unanswered again and its outcome is forgotten, so the set is not complete
+   * until it is answered again. Calls no host callback: the host already knows.
+   */
+  clear(): void;
+  /**
+   * Work is on its way for this question — an upload, an assessment, a save.
+   * While any question is pending, the set is not reported: `onFinished` and
+   * `onComplete` wait for it. Paging does not wait.
+   *
+   * Call `setPending(false)` however the work ends, a failure included.
+   */
+  setPending(pending: boolean): void;
+  /** Forwards to `onInteraction`, with this question's `activityId` and the time filled in. */
+  emit(type: InteractionKind, payload?: Record<string, unknown>): void;
+}
+
+/**
  * A component that can render one activity inside a sequence. Register one per
  * activity `type` to put a consumer-defined type on screen — the React half of
  * the activity-type registry, matching `registerActivityType` in lk-core.
+ *
+ * It receives the shared {@link ActivityProps} and one prop beyond them:
+ * `question`, the pager's half of the contract ({@link SequenceQuestion}). A
+ * renderer written as `ComponentType<ActivityProps>` still fits and simply
+ * ignores it.
  */
-export type ActivityRenderer = ComponentType<ActivityProps>;
+export type ActivityRenderer = ComponentType<ActivityProps & { question?: SequenceQuestion }>;
+
+/** A slot as its own calls know it: its identity, plus the type that decides how an answer is recorded. */
+interface SlotIdentity extends SequenceRecordingSlot {
+  type: string;
+}
+
+/** One slot's calls, made once per slot per set. */
+interface SlotCalls {
+  slot: SequenceRecordingSlot;
+  onSubmit: (response: LearnerResponse) => void;
+  onComplete: (result: ActivityResult) => void;
+  clear: () => void;
+  setPending: (pending: boolean) => void;
+  emit: (type: InteractionKind, payload?: Record<string, unknown>) => void;
+}
 
 export interface ActivitySequenceProps {
   /**
@@ -167,12 +245,13 @@ export interface ActivitySequenceProps {
    * A key matching a built-in overrides it, so a consumer can replace the
    * bundled renderer without forking the sequencer.
    *
-   * A registered renderer is an `ActivityRenderer`, which is
-   * `ComponentType<ActivityProps>` — so it receives the shared prop contract
-   * and nothing beyond it. `shuffleSeed`, `recordingBinding`, `assessment` and
-   * `workletUrl` are all outside that contract and none of them reaches an
-   * override: a replacement for `read-aloud` has to be given its own binding by
-   * whoever wrote it.
+   * A registered renderer is an {@link ActivityRenderer}: it receives the
+   * shared prop contract, plus `question` — the pager's half of the contract
+   * ({@link SequenceQuestion}), which tells it when its question is on screen,
+   * holds the set while its work is in flight, and gives it somewhere to
+   * portal a popover. `shuffleSeed`, `recordingBinding`, `assessment` and
+   * `workletUrl` are outside both and reach no override: a replacement for
+   * `read-aloud` has to be given its own binding by whoever wrote it.
    */
   renderers?: Readonly<Record<string, ActivityRenderer>>;
   /**
@@ -392,6 +471,14 @@ interface StimulusMount {
   group: SequenceSlotGroup;
   first: number;
   last: number;
+}
+
+/**
+ * One slot's key for the life of a set: its pane's React key, and the name its
+ * portal node is held under.
+ */
+function slotKeyOf(setKey: string, slot: SequenceSlot<RenderableActivity>): string {
+  return `${setKey}::slot-${slot.slotId}-${slot.activity.id}`;
 }
 
 /** The authored-entry prefix of a slot id: `"3"` for `"3"` and for `"3.1"`. */
@@ -655,10 +742,38 @@ export function ActivitySequence({
   // The channel each slot pane hands its content, one per slot per set, so it
   // keeps one identity for as long as its set is on screen.
   const channelsRef = useRef<Map<string, SequenceSlotChannel>>(new Map());
+  // The calls each slot makes, on the same terms and for the same reason: a
+  // host renderer may hold them in an effect, and a new identity each render
+  // would re-run it.
+  const callsRef = useRef<Map<string, SlotCalls>>(new Map());
+  // Questions whose host says work is on its way, by presented position. The
+  // set is not reported while any of them is pending — the pager's own
+  // read-aloud takes are tracked separately, by take, in `takesRef`.
+  const hostPendingRef = useRef<Set<number>>(new Set());
+  // The element each host-drawn question portals into, and the ref callbacks
+  // that collect them. The callbacks are made once per slot: a new one each
+  // render would detach and re-attach on every commit.
+  const [portals, setPortals] = useState<ReadonlyMap<string, HTMLElement>>(() => new Map());
+  const portalRefsRef = useRef<Map<string, (node: HTMLDivElement | null) => void>>(new Map());
+  // The mode this pager is delivering in, as of the latest render: a channel
+  // reads it through this ref rather than holding a copy, so a set switched
+  // from practice to exam in place is an exam at once.
+  const modeRef = useRef<RenderMode>(renderMode);
+  modeRef.current = renderMode;
   // What a channel calls, as of the latest render — assigned below `updateTake`.
   const latestRef = useRef<{
     updateTake: (generation: number, at: number, take: number, state: TakeState) => void;
     reportIfFinished: () => void;
+    submitSlot: (generation: number, at: SlotIdentity, response: LearnerResponse) => void;
+    completeSlot: (generation: number, at: SlotIdentity, result: ActivityResult) => void;
+    clearSlot: (generation: number, at: SlotIdentity) => void;
+    hostPending: (generation: number, at: SlotIdentity, pending: boolean) => void;
+    emit: (
+      generation: number,
+      at: SlotIdentity,
+      type: InteractionKind,
+      payload: Record<string, unknown> | undefined,
+    ) => void;
   } | null>(null);
   // Cleared as this pager unmounts. A slot's own teardown tells the pager its
   // take is over, and a pager on its way out must not report a set on the
@@ -735,6 +850,9 @@ export function ActivitySequence({
     takesRef.current = new Map();
     setGenerationRef.current += 1;
     channelsRef.current = new Map();
+    callsRef.current = new Map();
+    hostPendingRef.current = new Set();
+    portalRefsRef.current = new Map();
     reportedRef.current = false;
   }
   const setGeneration = setGenerationRef.current;
@@ -834,6 +952,12 @@ export function ActivitySequence({
     const held = outcomesRef.current;
     const presented = outcomeSlotsRef.current;
     if (held === null || presented === null || reportedRef.current) {
+      return;
+    }
+    // A host's question says work is on its way for it: an upload, a save, a
+    // judgement. Reporting now would describe the set as the learner left it a
+    // moment before it settled.
+    if (hostPendingRef.current.size > 0) {
       return;
     }
     const items: SequenceItemOutcome[] = [];
@@ -970,6 +1094,130 @@ export function ActivitySequence({
   };
 
   /**
+   * The learner committed an answer to a slot: the body of the `onSubmit` every
+   * question is handed, the SDK's own components and a host's renderer alike.
+   */
+  const submitSlot = (generation: number, at: SlotIdentity, response: LearnerResponse): void => {
+    // A submit through a callback handed out for an earlier set is a
+    // consumer renderer's late one, for a question no longer on screen: the
+    // host would file it against whatever slot reuses these ids now.
+    if (generation !== setGenerationRef.current) {
+      return;
+    }
+    onSubmit?.(response, { slotId: at.slotId, index: at.index, activityId: at.activityId });
+    // Written responses are excluded in every mode because they report
+    // something richer through `onSubmitted` a moment later, and the first
+    // outcome wins.
+    if (at.type === 'written-response') {
+      return;
+    }
+    // Outside `practice` the components do not grade, so a raw response is
+    // the ONLY outcome this slot will ever produce — record it, or the set
+    // could never complete and `onFinished` would be dead in exam mode.
+    if (renderMode !== 'practice') {
+      record(
+        {
+          kind: 'responded',
+          index: at.index,
+          slotId: at.slotId,
+          activityId: at.activityId,
+          response,
+        },
+        generation,
+      );
+      return;
+    }
+    // A `practice` read-aloud is the one type that can submit and then
+    // produce no score: an unscorable take, an assessor that failed, or a
+    // binding that stores without judging all end the attempt with nothing
+    // to grade, and `onComplete` fires only on a grade. Recorded for its
+    // take, so the grade that may still arrive for that take replaces it —
+    // and a take recorded again replaces the one before, grade and all.
+    if (at.type === 'read-aloud') {
+      record(
+        {
+          kind: 'responded',
+          index: at.index,
+          slotId: at.slotId,
+          activityId: at.activityId,
+          response,
+        },
+        generation,
+        takeOf(response) ?? mintTake(),
+      );
+    }
+  };
+
+  /** A slot produced a grade: the body of the `onComplete` every question is handed. */
+  const completeSlot = (generation: number, at: SlotIdentity, result: ActivityResult): void => {
+    const takesAnswers = renderMode === 'practice' && at.type === 'read-aloud';
+    record(
+      { kind: 'scored', index: at.index, slotId: at.slotId, activityId: at.activityId, result },
+      generation,
+      // The take the grade is for: stamped by `<ReadAloud>`, and for a
+      // consumer's renderer, which cannot stamp one, the slot's latest.
+      takesAnswers ? (takeOf(result) ?? takesRef.current.get(at.index)?.take) : undefined,
+    );
+  };
+
+  /**
+   * A host's question withdrew its answer. The slot holds nothing again — its
+   * outcome and, with it, the take any grade would be filed against — so the
+   * set is unfinished until it is answered again.
+   *
+   * A set already reported stays reported: the whole-set callbacks fire once,
+   * and a consumer who persists on them must not be handed one attempt twice.
+   */
+  const clearSlot = (generation: number, at: SlotIdentity): void => {
+    const held = outcomesRef.current;
+    if (!aliveRef.current || held === null || generation !== setGenerationRef.current) {
+      return;
+    }
+    takesRef.current.delete(at.index);
+    if (held[at.index] == null) {
+      return;
+    }
+    const next = held.slice();
+    next[at.index] = null;
+    outcomesRef.current = next;
+  };
+
+  /** A host's question is waiting on work of its own, or has stopped waiting. */
+  const hostPending = (generation: number, at: SlotIdentity, pending: boolean): void => {
+    if (!aliveRef.current || generation !== setGenerationRef.current) {
+      return;
+    }
+    const waiting = hostPendingRef.current;
+    if (pending) {
+      waiting.add(at.index);
+      return;
+    }
+    if (!waiting.delete(at.index)) {
+      return;
+    }
+    // The last thing the set was waiting for may just have arrived.
+    reportIfFinished();
+  };
+
+  /** A host's question reported an interaction: its activity and the moment, filled in. */
+  const emitFor = (
+    generation: number,
+    at: SlotIdentity,
+    type: InteractionKind,
+    payload: Record<string, unknown> | undefined,
+  ): void => {
+    if (!aliveRef.current || generation !== setGenerationRef.current) {
+      return;
+    }
+    onInteraction?.({
+      type,
+      activityId: at.activityId,
+      timestamp: Date.now(),
+      payload: payload ?? {},
+    });
+  };
+
+  /**
    * What a slot's channel reports: the state of one of its takes. A take older
    * than the slot's latest has been replaced, and a report from a set that is
    * no longer current, or reaching a pager that is unmounting, describes
@@ -988,9 +1236,80 @@ export function ActivitySequence({
     takesRef.current.set(at, latest?.take === take ? { ...latest, state } : { take, state });
     reportIfFinished();
   };
-  // Channels keep one identity for a whole set, so they call through this ref
-  // and always reach the latest render's props.
-  latestRef.current = { updateTake, reportIfFinished };
+  // Channels and slot calls keep one identity for a whole set, so they call
+  // through this ref and always reach the latest render's props.
+  latestRef.current = {
+    updateTake,
+    reportIfFinished,
+    submitSlot,
+    completeSlot,
+    clearSlot,
+    hostPending,
+    emit: emitFor,
+  };
+
+  /**
+   * The calls one slot makes, made once per slot per set. They reach the latest
+   * render through `latestRef`, so they can keep one identity while the props
+   * they report to change — what a host renderer needs to hold them in an
+   * effect, and what the pager needs so a host that re-renders on every
+   * keystroke does not re-run one.
+   */
+  const callsFor = (slot: SequenceSlot<RenderableActivity>): SlotCalls => {
+    const key = `${slot.index}::${slot.slotId}`;
+    let calls = callsRef.current.get(key);
+    if (calls === undefined) {
+      const generation = setGeneration;
+      const at: SlotIdentity = {
+        slotId: slot.slotId,
+        index: slot.index,
+        activityId: slot.activity.id,
+        type: slot.activity.type,
+      };
+      calls = {
+        slot: { slotId: at.slotId, index: at.index, activityId: at.activityId },
+        onSubmit: (response) => latestRef.current?.submitSlot(generation, at, response),
+        onComplete: (result) => latestRef.current?.completeSlot(generation, at, result),
+        clear: () => latestRef.current?.clearSlot(generation, at),
+        setPending: (pending) => latestRef.current?.hostPending(generation, at, pending === true),
+        emit: (type, payload) => latestRef.current?.emit(generation, at, type, payload),
+      };
+      callsRef.current.set(key, calls);
+    }
+    return calls;
+  };
+
+  /**
+   * Where a host-drawn question portals: a node inside its own pane, so it is
+   * hidden with the question it belongs to and painted with it in fullscreen.
+   * One ref callback per slot, kept, because a new one each render detaches and
+   * re-attaches the node on every commit.
+   */
+  const portalRefFor = (key: string): ((node: HTMLDivElement | null) => void) => {
+    let callback = portalRefsRef.current.get(key);
+    if (callback === undefined) {
+      callback = (node: HTMLDivElement | null) => {
+        setPortals((held) => {
+          if (node === null) {
+            if (!held.has(key)) {
+              return held;
+            }
+            const next = new Map(held);
+            next.delete(key);
+            return next;
+          }
+          if (held.get(key) === node) {
+            return held;
+          }
+          const next = new Map(held);
+          next.set(key, node);
+          return next;
+        });
+      };
+      portalRefsRef.current.set(key, callback);
+    }
+    return callback;
+  };
 
   /** The channel a slot's pane hands its content: its capture group and its takes. */
   const channelFor = (slot: SequenceSlot<RenderableActivity>): SequenceSlotChannel => {
@@ -1001,6 +1320,11 @@ export function ActivitySequence({
       const at = slot.index;
       channel = {
         captureGroup: `${captureScope}::${slot.slotId}`,
+        // A getter, so the channel keeps the one identity a recorder joined
+        // while still answering for the mode in force now.
+        get renderMode() {
+          return modeRef.current;
+        },
         takeState: (take, state) => {
           latestRef.current?.updateTake(generation, at, take, state);
         },
@@ -1173,8 +1497,7 @@ export function ActivitySequence({
     const slotOutcome =
       outcomes !== undefined && Object.hasOwn(outcomes, slotId) ? outcomes[slotId] : undefined;
     const slotBinding = bindingFor(slotMediaKey(slotId), slot);
-    // Whether this slot's answers are numbered by take — see `record`.
-    const takesAnswers = renderMode === 'practice' && activity.type === 'read-aloud';
+    const calls = callsFor(slot);
     const childProps = {
       // `defaultValue`, not `value`: the learner must be able to keep editing
       // a restored answer. A controlled `value` would freeze it unless the
@@ -1182,59 +1505,42 @@ export function ActivitySequence({
       ...(restored !== undefined ? { defaultValue: restored } : {}),
       ...(seedsApply && submitted.has(slotId) ? { defaultSubmitted: true } : {}),
       ...(slotOutcome !== undefined ? { outcome: slotOutcome } : {}),
-      onComplete: (result: ActivityResult) =>
-        record(
-          { kind: 'scored', index: slotIndex, slotId, activityId, result },
-          setGeneration,
-          // The take the grade is for: stamped by `<ReadAloud>`, and for a
-          // consumer's renderer, which cannot stamp one, the slot's latest.
-          takesAnswers ? (takeOf(result) ?? takesRef.current.get(slotIndex)?.take) : undefined,
-        ),
-      onSubmit: (response: LearnerResponse) => {
-        // A submit through a callback handed out for an earlier set is a
-        // consumer renderer's late one, for a question no longer on screen: the
-        // host would file it against whatever slot reuses these ids now.
-        if (setGeneration !== setGenerationRef.current) {
-          return;
-        }
-        onSubmit?.(response, { slotId, index: slotIndex, activityId });
-        // Written responses are excluded in every mode because they report
-        // something richer through `onSubmitted` a moment later, and the first
-        // outcome wins.
-        if (activity.type === 'written-response') {
-          return;
-        }
-        // Outside `practice` the components do not grade, so a raw response is
-        // the ONLY outcome this slot will ever produce — record it, or the set
-        // could never complete and `onFinished` would be dead in exam mode.
-        if (renderMode !== 'practice') {
-          record(
-            { kind: 'responded', index: slotIndex, slotId, activityId, response },
-            setGeneration,
-          );
-          return;
-        }
-        // A `practice` read-aloud is the one type that can submit and then
-        // produce no score: an unscorable take, an assessor that failed, or a
-        // binding that stores without judging all end the attempt with nothing
-        // to grade, and `onComplete` fires only on a grade. Recorded for its
-        // take, so the grade that may still arrive for that take replaces it —
-        // and a take recorded again replaces the one before, grade and all.
-        if (takesAnswers) {
-          record(
-            { kind: 'responded', index: slotIndex, slotId, activityId, response },
-            setGeneration,
-            takeOf(response) ?? mintTake(),
-          );
-        }
-      },
+      // One identity per slot for the life of the set — see `callsFor`. Their
+      // bodies are `submitSlot` and `completeSlot`, the same ones a host's own
+      // renderer calls, so a question the host draws is recorded exactly as one
+      // the SDK draws.
+      onComplete: calls.onComplete,
+      onSubmit: calls.onSubmit,
       ...forwarded,
       ...(slotBinding !== undefined ? { mediaBudget: slotBinding } : {}),
     };
 
     const CustomRenderer = renderers?.[activity.type];
     if (CustomRenderer) {
-      return <CustomRenderer data={activity} {...childProps} />;
+      const portalKey = slotKeyOf(setKey, slot);
+      return (
+        <>
+          <CustomRenderer
+            data={activity}
+            {...childProps}
+            question={{
+              slot: calls.slot,
+              active: slotIndex === index,
+              portalContainer: portals.get(portalKey) ?? null,
+              clear: calls.clear,
+              setPending: calls.setPending,
+              emit: calls.emit,
+            }}
+          />
+          {/*
+            After the question, so a popover portalled into it paints above.
+            Inside the pane, so it is hidden with the question and painted with
+            it in fullscreen — the two things portalling into `document.body`
+            gets wrong here.
+          */}
+          <div className="lk-seq-portal" ref={portalRefFor(portalKey)} />
+        </>
+      );
     }
     if (activity.type === 'multiple-choice') {
       return (
@@ -1405,7 +1711,7 @@ export function ActivitySequence({
           // both halves or neither. A parent re-creating a structurally
           // identical array leaves `setKey` untouched, so answers still
           // survive that.
-          const slotKey = `${setKey}::slot-${slot.slotId}-${slot.activity.id}`;
+          const slotKey = slotKeyOf(setKey, slot);
           return (
             <SequencePane
               className="lk-seq-slot"

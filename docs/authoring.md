@@ -1205,7 +1205,8 @@ A shuffled multiple-choice question uses a fixed seed unless you pass
 `shuffleSeed`, so its options hold still while their text is edited; adding or
 removing an option deals them again, because the shuffle orders by position.
 `renderers` works as it does on `<ActivitySequence>`, and there as here a renderer
-is given no seed.
+is given no seed. Nor does a preview hand one the `question` a sequence does: a
+preview is one question with no set around it.
 
 A draft with no string `type`, an unregistered type, and a `response` of a
 different type from the draft all throw — the last as soon as it is passed,

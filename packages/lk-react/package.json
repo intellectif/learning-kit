@@ -193,6 +193,16 @@
         "default": "./dist/ai/LkAiProvider.cjs"
       }
     },
+    "./ai/useAiHelp": {
+      "import": {
+        "types": "./dist/ai/useAiHelp.d.ts",
+        "default": "./dist/ai/useAiHelp.js"
+      },
+      "require": {
+        "types": "./dist/ai/useAiHelp.d.cts",
+        "default": "./dist/ai/useAiHelp.cjs"
+      }
+    },
     "./i18n/LkIntlProvider": {
       "import": {
         "types": "./dist/i18n/LkIntlProvider.d.ts",

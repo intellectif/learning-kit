@@ -97,7 +97,11 @@ export interface ActivityPreviewProps {
    * Renderers for activity types beyond the built-ins, keyed by `type`, as on
    * `<ActivitySequence>`. An entry receives the shared prop contract and
    * nothing else, so — like the shuffle seed below — the in-memory recording
-   * binding a previewed read-aloud is given does not reach one.
+   * binding a previewed read-aloud is given does not reach one. Nor does the
+   * `question` a sequence hands a renderer: a preview is one question with no
+   * set around it, so there is no slot to report to and nothing to page away
+   * from. A renderer that uses it must treat it as optional, which its type
+   * already says.
    */
   renderers?: Readonly<Record<string, ActivityRenderer>>;
   /**

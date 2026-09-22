@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as aiEntry from '../ai/LkAiProvider.js';
+import * as aiHelpEntry from '../ai/useAiHelp.js';
 import * as intlEntry from '../i18n/LkIntlProvider.js';
 import * as barrel from '../index.js';
 import * as themeEntry from '../theme/ThemeProvider.js';
@@ -42,6 +43,8 @@ describe('published export surface', () => {
     'mergeStrings',
     'resolveCaptionTracks',
     'useActivityState',
+    'useAiExplanation',
+    'useAiHints',
     'useLearnerAi',
     'useLkDirection',
     'useLkStrings',
@@ -92,10 +95,19 @@ describe('published export surface', () => {
   // The README's subpath table names these as the contents of
   // `@intellectif/lk-react/ai/LkAiProvider`.
   const aiExports = ['LkAiProvider', 'useLearnerAi'] as const;
+  const aiHelpExports = ['useAiExplanation', 'useAiHints'] as const;
 
   const aiNames = Object.keys(aiEntry);
 
   it.each(aiExports)('ai/LkAiProvider exports %s', (name) => {
     expect(aiNames).toContain(name);
+  });
+
+  // `@intellectif/lk-react/ai/useAiHelp`: the AI rules without the SDK's own
+  // buttons, for a question a host draws itself.
+  const aiHelpNames = Object.keys(aiHelpEntry);
+
+  it.each(aiHelpExports)('ai/useAiHelp exports %s', (name) => {
+    expect(aiHelpNames).toContain(name);
   });
 });

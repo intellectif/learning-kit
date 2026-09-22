@@ -1,4 +1,5 @@
 export * from './ai/LkAiProvider.js';
+export * from './ai/useAiHelp.js';
 export * from './components/ActivityPreview/index.js';
 export * from './components/ActivitySequence/index.js';
 export * from './components/Dictation/index.js';

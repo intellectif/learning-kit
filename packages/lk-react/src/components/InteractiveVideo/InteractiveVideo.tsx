@@ -1544,6 +1544,11 @@ function Player(props: InteractiveVideoProps) {
     if (channel === undefined) {
       channel = {
         captureGroup: `${playerId}::${slotId}`,
+        // Read live, so a question drawn by the host cannot be offered AI help
+        // by a provider above the player while the video is an exam.
+        get renderMode() {
+          return reportTo.current.renderMode;
+        },
         takeState: (take, state) => reportTake(slotId, take, state),
       };
       channels.current.set(slotId, channel);
