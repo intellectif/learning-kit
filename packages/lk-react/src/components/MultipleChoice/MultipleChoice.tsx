@@ -15,11 +15,13 @@ import {
   xapiDefinitionFor,
 } from '@intellectif/lk-core';
 import { type CSSProperties, Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useLearnerAi } from '../../ai/LkAiProvider.js';
 import { useActivityState } from '../../hooks/useActivityState.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStrings } from '../../i18n/strings.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor, randomSessionId } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
+import { AiExplanation, AiHints } from '../shared/AiHelp.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import type { ActivityProps } from '../types.js';
 
@@ -114,8 +116,10 @@ export function MultipleChoice({
   disabled,
   shuffleSeed,
   strings,
+  ai: aiProp,
 }: MultipleChoiceProps) {
   const s = useLkStrings(strings);
+  const ai = useLearnerAi(aiProp);
 
   // Dev-only boundary validation (Req 2.3). Throwing during render lets
   // ActivityErrorBoundary catch it. Memoised so it only re-runs on data change.
@@ -449,6 +453,17 @@ export function MultipleChoice({
           ) : (
             <div>{optionList}</div>
           )}
+          <AiHints
+            ai={ai}
+            data={data}
+            renderMode={renderMode}
+            submitted={submitted}
+            disabled={disabled === true}
+            response={{ type: 'multiple-choice', selectedOptionIds: selected }}
+            locale={locale}
+            onInteraction={onInteraction}
+            strings={s}
+          />
           {/* review is read-only: there is nothing left to submit. */}
           {isReview ? null : (
             <button type="submit" disabled={inactive}>
@@ -460,6 +475,17 @@ export function MultipleChoice({
       <FeedbackRegion id={`${data.id}-feedback`}>
         {isReview ? reviewAnnouncement(outcome, s) : summary}
       </FeedbackRegion>
+      <AiExplanation
+        ai={ai}
+        data={data}
+        renderMode={renderMode}
+        submitted={submitted}
+        response={{ type: 'multiple-choice', selectedOptionIds: selected }}
+        outcome={outcome}
+        locale={locale}
+        onInteraction={onInteraction}
+        strings={s}
+      />
     </div>
   );
 }

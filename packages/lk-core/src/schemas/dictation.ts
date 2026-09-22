@@ -13,6 +13,7 @@ import {
   revealsCandidate,
   WORKING_LENGTH,
 } from '../scoring/dictation/normalize.js';
+import { AiPermissionsSchema } from './ai.js';
 import { FeedbackSchema } from './feedback.js';
 import { MediaSchema, MediaUrlSchema } from './media.js';
 
@@ -179,6 +180,7 @@ const DictationDataShape = z.looseObject({
   locale: z.string().optional(),
   learningObjectives: z.array(z.string()).optional(),
   difficultyLevel: z.literal([1, 2, 3, 4, 5]).optional(),
+  ai: AiPermissionsSchema.optional(),
 });
 
 export const DictationDataSchema = DictationDataShape.check(

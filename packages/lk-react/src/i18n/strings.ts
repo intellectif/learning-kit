@@ -382,6 +382,30 @@ export interface LkStrings {
   /** Production fallback when the activity has no title to name. */
   activityFailedUnnamed: string;
 
+  // ── AI help ────────────────────────────────────────────────────────────
+  /** The button that asks for an explanation of a graded answer. */
+  aiExplain: string;
+  /** The same button while the explanation is being written. */
+  aiExplaining: string;
+  /** The heading over an explanation, and its accessible name. */
+  aiExplanation: string;
+  /** When no explanation can be shown: the port failed, or its answer was refused. */
+  aiExplanationUnavailable: string;
+  /** The button that asks for a hint. */
+  aiHint: string;
+  /** The same button while the hint is being written. */
+  aiHintLoading: string;
+  /** The label before each hint. */
+  aiHintNumber: (hintNumber: number) => string;
+  /** The accessible name of the list of hints. */
+  aiHints: string;
+  /** When no hint can be shown: the port failed, or its hint gave the answer away. */
+  aiHintUnavailable: string;
+  /** In place of the hint button once every hint has been used. */
+  aiNoMoreHints: string;
+  /** Beneath every AI text: who wrote it. */
+  aiNotice: string;
+
   // ── Audio transport ────────────────────────────────────────────────────
   /**
    * The listening-paper transport. Shipped in 0.8.0 as its own `mediaStrings`
@@ -660,6 +684,17 @@ export const DEFAULT_STRINGS: LkStrings = {
   activityFailed: 'Activity failed to render',
   activityFailedNamed: (title) => `"${title}" could not be displayed.`,
   activityFailedUnnamed: 'This activity could not be displayed.',
+  aiExplain: 'Explain my answer',
+  aiExplaining: 'Explaining…',
+  aiExplanation: 'Explanation',
+  aiExplanationUnavailable: 'No explanation is available right now.',
+  aiHint: 'Get a hint',
+  aiHintLoading: 'Finding a hint…',
+  aiHintNumber: (hintNumber) => `Hint ${hintNumber}`,
+  aiHints: 'Hints',
+  aiHintUnavailable: 'No hint is available right now.',
+  aiNoMoreHints: 'No more hints for this question.',
+  aiNotice: 'Written by AI. It can make mistakes.',
 
   media: {
     play: 'Play',

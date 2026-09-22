@@ -18,10 +18,12 @@ import {
   xapiDefinitionFor,
 } from '@intellectif/lk-core';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { useLearnerAi } from '../../ai/LkAiProvider.js';
 import { useActivityState } from '../../hooks/useActivityState.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor, randomSessionId } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
+import { AiExplanation, AiHints } from '../shared/AiHelp.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import type { ActivityProps } from '../types.js';
 
@@ -122,10 +124,12 @@ export function GapSelect({
   locale,
   disabled,
   shuffleSeed,
+  ai: aiProp,
 }: GapSelectProps) {
   const isExam = renderMode === 'exam';
   const isReview = renderMode === 'review';
   const s = useLkStrings(strings);
+  const ai = useLearnerAi(aiProp);
 
   const devError = useMemo(() => {
     if (!isDevelopment()) {
@@ -421,6 +425,17 @@ export function GapSelect({
             );
           })}
         </p>
+        <AiHints
+          ai={ai}
+          data={data}
+          renderMode={renderMode}
+          submitted={submitted}
+          disabled={disabled === true}
+          response={{ type: 'gap-select', selections }}
+          locale={locale}
+          onInteraction={onInteraction}
+          strings={s}
+        />
         {isReview ? null : (
           <button type="submit" disabled={inactive}>
             {isExam ? s.submitAnswers : s.checkAnswers}
@@ -440,6 +455,17 @@ export function GapSelect({
       <FeedbackRegion id={`${data.id}-feedback`}>
         {isReview ? reviewSummary : summary}
       </FeedbackRegion>
+      <AiExplanation
+        ai={ai}
+        data={data}
+        renderMode={renderMode}
+        submitted={submitted}
+        response={{ type: 'gap-select', selections }}
+        outcome={outcome}
+        locale={locale}
+        onInteraction={onInteraction}
+        strings={s}
+      />
     </form>
   );
 }

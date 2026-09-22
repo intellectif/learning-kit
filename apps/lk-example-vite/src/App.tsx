@@ -7,6 +7,7 @@ import {
   type SpeechPlausibilityPolicy,
   type WavInspectionPolicy,
 } from '@intellectif/lk-core';
+import { type LearnerAi, LkAiProvider } from '@intellectif/lk-react/ai/LkAiProvider';
 import { ActivitySequence } from '@intellectif/lk-react/components/ActivitySequence';
 import { Dictation } from '@intellectif/lk-react/components/Dictation';
 import { GapSelect } from '@intellectif/lk-react/components/GapSelect';
@@ -18,6 +19,8 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { LRS_ENDPOINT } from './config';
 import {
   demoSpeechAssessment,
+  sampleAiExam,
+  sampleAiPractice,
   sampleDictation,
   sampleGapSelect,
   sampleMultipleChoice,
@@ -57,6 +60,52 @@ const READ_ALOUD_EVENTS: readonly string[] = [
 
 /** Long enough to show the component's own pending state. A real assessor is slower. */
 const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * A stand-in for your model, so the AI help can be tried with no server and no
+ * key. A real application's ports post the request to its own server, which
+ * holds the key and the prompt and chooses the model.
+ *
+ * Its second hint gives the answer away on purpose: the SDK refuses to show
+ * it. And its explanation states the verdict it read from the facts, as a
+ * model's structured output would, so the SDK can check it against the grade.
+ */
+let demoHintCalls = 0;
+const demoAi: LearnerAi = {
+  hint: async (request) => {
+    await pause(300);
+    demoHintCalls += 1;
+    if (demoHintCalls === 2) {
+      return { text: 'The answer is: she is tired.' };
+    }
+    return {
+      text:
+        request.hintNumber === 1
+          ? 'Is "she" one person, or several?'
+          : 'Which form of "to be" goes with one person?',
+      provenance: { model: 'demo-stand-in' },
+    };
+  },
+  explain: async (request) => {
+    await pause(300);
+    const facts = request.facts;
+    const chosen =
+      facts.activityType === 'multiple-choice'
+        ? facts.options.find((option) => option.chosen)
+        : undefined;
+    const right = chosen?.correct === true;
+    return {
+      verdict: right ? 'correct' : 'incorrect',
+      text: right
+        ? '"She" is one person, so the verb is "is".'
+        : '"She" is one person, so the verb is "is", not "are".',
+      provenance: { model: 'demo-stand-in' },
+    };
+  },
+  maxHints: 3,
+};
+
+const AI_EVENTS: readonly string[] = ['ai-hint-shown', 'ai-explanation-shown'];
 
 export function App(): React.JSX.Element {
   const [log, setLog] = useState<{ id: string; text: string }[]>([]);
@@ -169,8 +218,9 @@ export function App(): React.JSX.Element {
         </p>
         <h3>Answer key:</h3>
         <p>
-          Tokyo; from, from, in; The cat isn&apos;t on the mat; evaporation, precipitation,
-          condensation, groundwater; twice a day, when the sun and the moon line up, moon
+          Tokyo; She is tired; from, from, in; The cat isn&apos;t on the mat; evaporation,
+          precipitation, condensation, groundwater; twice a day, when the sun and the moon line up,
+          moon
         </p>
 
         <section aria-labelledby="mc-heading">
@@ -214,6 +264,29 @@ export function App(): React.JSX.Element {
             onSubmit={(response) => append(`Read Aloud response ${JSON.stringify(response)}`)}
             onInteraction={logInteraction('Read Aloud', READ_ALOUD_EVENTS)}
           />
+        </section>
+
+        <section aria-labelledby="ai-heading">
+          <h2 id="ai-heading">AI help</h2>
+          <p>
+            The same question twice, answered by a stand-in model in this page. In practice a
+            learner can ask for hints and, once graded, an explanation — and the second hint, which
+            gives the answer away on purpose, is refused. In an exam no question gives AI help,
+            whatever the page connects.
+          </p>
+          <LkAiProvider ai={demoAi}>
+            <section aria-labelledby="ai-practice-heading">
+              <h3 id="ai-practice-heading">AI help in practice</h3>
+              <MultipleChoice
+                data={sampleAiPractice}
+                onInteraction={logInteraction('AI help', AI_EVENTS)}
+              />
+            </section>
+            <section aria-labelledby="ai-exam-heading">
+              <h3 id="ai-exam-heading">AI help in an exam</h3>
+              <MultipleChoice data={sampleAiExam} renderMode="exam" />
+            </section>
+          </LkAiProvider>
         </section>
 
         <section aria-labelledby="set-heading">

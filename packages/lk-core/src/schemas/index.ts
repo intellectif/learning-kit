@@ -2,6 +2,7 @@ import { UnknownActivityTypeError } from '../errors.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
 import type { ActivityDataMap, ActivityType, ValidationResult } from '../types/activity.js';
 
+export { AiPermissionsSchema } from './ai.js';
 export {
   DictationDataSchema,
   DictationEquivalenceSchema,

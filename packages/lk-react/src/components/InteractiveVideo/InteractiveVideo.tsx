@@ -29,6 +29,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { type LearnerAi, useLearnerAi } from '../../ai/LkAiProvider.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStrings, LkStringsOverride } from '../../i18n/strings.js';
 import { isDevelopment } from '../_internal.js';
@@ -157,6 +158,13 @@ export interface InteractiveVideoQuestion {
    * commit.
    */
   portalContainer: HTMLElement | null;
+  /**
+   * The AI ports in force for this video — its `ai` prop, else an
+   * `LkAiProvider` above it — for a host that offers its own explanations or
+   * hints. Absent in `exam`: no question gives AI help there, and the SDK
+   * hands its ports to none.
+   */
+  ai?: LearnerAi;
   /**
    * The learner committed an answer: marks the question answered and forwards
    * to `onSubmit(response, slot)`. Latest wins: call it again for a new take or
@@ -295,6 +303,12 @@ export interface InteractiveVideoProps {
   shuffleSeed?: string;
   locale?: string;
   strings?: LkStringsOverride;
+  /**
+   * The host's AI ports, for every question the SDK draws: explanations after
+   * grading, hints before submit. The same as `LkAiProvider`, for this one
+   * video. Nothing AI appears in `exam`. See {@link LearnerAi}.
+   */
+  ai?: LearnerAi;
   theme?: Partial<ThemeTokens>;
   sanitizeHtml?: HtmlSanitizer;
 }
@@ -437,6 +451,7 @@ function Player(props: InteractiveVideoProps) {
     sanitizeHtml,
   } = props;
   const strings = useLkStrings(props.strings);
+  const aiInForce = useLearnerAi(props.ai);
 
   // The group this mount was made for. The key above changes whenever the
   // content does, so reading the first one keeps every question's `data`
@@ -1568,6 +1583,7 @@ function Player(props: InteractiveVideoProps) {
       defaultSubmitted: submitted.has(slot.slotId),
       ...(outcome !== undefined ? { outcome } : {}),
       portalContainer,
+      ...(aiInForce !== undefined && renderMode !== 'exam' ? { ai: aiInForce } : {}),
       ...callsFor(place),
     };
   };
@@ -1590,6 +1606,7 @@ function Player(props: InteractiveVideoProps) {
       ...(onInteraction !== undefined ? { onInteraction } : {}),
       ...(sanitizeHtml !== undefined ? { sanitizeHtml } : {}),
       ...(props.strings !== undefined ? { strings: props.strings } : {}),
+      ...(props.ai !== undefined ? { ai: props.ai } : {}),
       ...(locale !== undefined ? { locale } : {}),
     };
     switch (activity.type) {

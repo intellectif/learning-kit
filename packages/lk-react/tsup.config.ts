@@ -19,6 +19,7 @@ export default defineConfig({
     'hooks/useActivityState': 'src/hooks/useActivityState.ts',
     'hooks/useSpeechRecorder': 'src/hooks/useSpeechRecorder.ts',
     'i18n/LkIntlProvider': 'src/i18n/LkIntlProvider.tsx',
+    'ai/LkAiProvider': 'src/ai/LkAiProvider.tsx',
     'hooks/useXAPI': 'src/hooks/useXAPI.ts',
     'theme/ThemeProvider': 'src/theme/ThemeProvider.tsx',
   },

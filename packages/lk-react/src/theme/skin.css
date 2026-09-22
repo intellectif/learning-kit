@@ -3337,3 +3337,93 @@
     }
   }
 }
+
+@layer lk-skin {
+  /* ── AI help: an explanation after grading, hints before submit ─────────
+     Set apart from the author's own feedback by a dashed rule and a notice
+     under it, so a learner can always tell what a model wrote from what a
+     teacher did. On the plain surface, where the muted notice is a colour
+     pair the contrast test checks. */
+  .lk-ai {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--lk-spacing-sm);
+    margin-top: var(--lk-spacing-md);
+  }
+
+  .lk-ai-button {
+    padding: var(--lk-spacing-xs) var(--lk-spacing-md);
+    font: inherit;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    cursor: pointer;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-ai-button:hover:not([aria-disabled="true"]) {
+    border-color: var(--lk-color-primary);
+  }
+
+  /* Working: aria-disabled rather than disabled, so focus stays on it. */
+  .lk-ai-button[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: progress;
+  }
+
+  .lk-ai-panel {
+    align-self: stretch;
+    padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+    border: 1px dashed var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    background: var(--lk-color-surface);
+  }
+
+  .lk-ai-heading {
+    margin: 0 0 var(--lk-spacing-xs);
+    font-size: var(--lk-font-size-sm);
+    font-weight: 600;
+  }
+
+  /* Plain text from a model: its line breaks are kept, nothing else. */
+  .lk-ai-text {
+    margin: 0;
+    white-space: pre-line;
+  }
+
+  .lk-ai-notice,
+  .lk-ai-note,
+  .lk-ai-unavailable {
+    margin: var(--lk-spacing-xs) 0 0;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-ai-hints {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-xs);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lk-ai-hint {
+    padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    border-inline-start: 3px dashed var(--lk-color-primary);
+    background: var(--lk-color-surface);
+  }
+
+  .lk-ai-hint-label {
+    font-weight: 600;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lk-ai-button {
+      transition: none;
+    }
+  }
+}

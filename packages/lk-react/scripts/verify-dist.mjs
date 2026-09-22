@@ -87,6 +87,7 @@ const REQUIRED_EXPORTS = {
     'defaultTheme',
     'useTheme',
   ],
+  'dist/ai/LkAiProvider.js': ['LkAiProvider', 'useLearnerAi'],
   'dist/i18n/LkIntlProvider.js': [
     'DEFAULT_STRINGS',
     'LkIntlProvider',
@@ -97,6 +98,7 @@ const REQUIRED_EXPORTS = {
   ],
   'dist/index.js': [
     'ActivityPreview',
+    'LkAiProvider',
     'ActivitySequence',
     'CAPTURE_PROCESSOR_SOURCE',
     'DEFAULT_STRINGS',

@@ -6,6 +6,7 @@ import {
   countWords,
   evaluate,
   type GradeRecord,
+  type InlineCorrection,
   type InteractionEvent,
   type ItemOutcome,
   type LearnerResponse,
@@ -153,6 +154,28 @@ function criterionPercent(criterion: CriterionScore): string {
 }
 
 /**
+ * Pairs each correction with a list key that is unique by construction. The
+ * same mistake made twice carries the same `original`/`corrected` pair, so
+ * the grader's `range` is what tells the occurrences apart. `range` is
+ * optional and nothing validates it, so a correction without one — or one
+ * whose range the grader already used — is keyed by its position instead.
+ * Only position keys start with `#`, so the two kinds never collide.
+ */
+function keyedCorrections(
+  corrections: readonly InlineCorrection[],
+): { key: string; correction: InlineCorrection }[] {
+  const used = new Set<string>();
+  return corrections.map((correction, index) => {
+    const anchored = correction.range
+      ? `${correction.range.start}-${correction.range.end}:${correction.corrected}`
+      : undefined;
+    const key = anchored !== undefined && !used.has(anchored) ? anchored : `#${index}`;
+    used.add(key);
+    return { key, correction };
+  });
+}
+
+/**
  * Renders the server-computed outcome in `review` mode. The grade shown here
  * always came back from the asynchronous grader — nothing on this path scores,
  * infers, or defaults a grade. A `written-response` outcome carries no
@@ -189,8 +212,8 @@ function GradeBody({ grade, s }: { grade: GradeRecord; s: LkStrings }) {
       ) : null}
       {grade.corrections && grade.corrections.length > 0 ? (
         <ul className="lk-wr-corrections">
-          {grade.corrections.map((correction) => (
-            <li className="lk-wr-correction" key={`${correction.original}:${correction.corrected}`}>
+          {keyedCorrections(grade.corrections).map(({ key, correction }) => (
+            <li className="lk-wr-correction" key={key}>
               <del className="lk-wr-correction-original">{correction.original}</del>{' '}
               <ins className="lk-wr-correction-corrected">{correction.corrected}</ins>
               {correction.explanation ? (

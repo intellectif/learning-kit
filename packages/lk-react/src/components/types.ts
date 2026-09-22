@@ -13,6 +13,7 @@ import type {
   SequenceEntry,
   ThemeTokens,
 } from '@intellectif/lk-core';
+import type { LearnerAi } from '../ai/LkAiProvider.js';
 import type { RecordedTake } from '../hooks/useSpeechRecorder.js';
 import type { LkStringsOverride } from '../i18n/strings.js';
 import type { ReadAloudAssessResult } from './ReadAloud/ReadAloud.js';
@@ -146,6 +147,13 @@ export interface ActivityProps<TData extends ActivityData = ActivityData> {
    */
   strings?: LkStringsOverride;
   onInteraction?: (event: InteractionEvent) => void;
+  /**
+   * The host's AI ports for this activity — an explanation after grading, hints
+   * before submit — overriding `LkAiProvider`'s. Leave a port out to switch
+   * that help off. Nothing AI appears in `exam`, and an item whose author
+   * switched a feature off (`data.ai`) never shows it. See {@link LearnerAi}.
+   */
+  ai?: LearnerAi;
   /** Per-instance token overrides, applied as inline CSS vars on the root. */
   theme?: Partial<ThemeTokens>;
   /**

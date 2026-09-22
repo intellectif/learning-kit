@@ -49,6 +49,28 @@ export type {
   WrittenResponseRubric,
   WrittenResponseRubricCriterion,
 } from './activity.js';
+export type {
+  ActivityAiPermissions,
+  AiActivityInput,
+  AiBlankFact,
+  AiDictationFacts,
+  AiExplanationRequest,
+  AiFeature,
+  AiFillInTheBlanksFacts,
+  AiGapFact,
+  AiGapSelectFacts,
+  AiGrade,
+  AiHintRequest,
+  AiItemFacts,
+  AiMultipleChoiceFacts,
+  AiOptionFact,
+  AiProvenance,
+  AiRefusal,
+  AiSupportedActivityType,
+  AiTextResult,
+  AiVerdict,
+  AiWordFact,
+} from './ai.js';
 export type { AttemptPlan, AttemptPlanDrift, AttemptPlanSlot } from './attempt-plan.js';
 export type { AttemptState, ResponseDiffEntry } from './attempt-state.js';
 export type {

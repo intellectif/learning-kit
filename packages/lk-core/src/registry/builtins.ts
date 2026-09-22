@@ -108,6 +108,10 @@ const SHARED_PUBLIC_FIELDS: FieldPolicy = {
   locale: 'public',
   learningObjectives: 'public',
   difficultyLevel: 'public',
+  // What an author allows AI to do for the item. Public, field by field: a
+  // review that explains an answer must still honour an author who said no,
+  // and an unclassified key parked inside it must not ride along.
+  ai: { explanations: 'public', hints: 'public' },
 };
 
 /**

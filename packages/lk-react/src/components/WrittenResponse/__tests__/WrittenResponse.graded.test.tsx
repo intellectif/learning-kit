@@ -1,5 +1,6 @@
 import type {
   GradeRecord,
+  InlineCorrection,
   ItemOutcome,
   LearnerResponse,
   WrittenResponseData,
@@ -7,7 +8,7 @@ import type {
 import { gradeFromRubric, outcomeFromGrade } from '@intellectif/lk-core';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { checkA11y } from '../../../test-support/a11y.js';
 import { WrittenResponse } from '../index.js';
 
@@ -66,6 +67,20 @@ const correctionRows = (container: HTMLElement) =>
     corrected: row.querySelector('.lk-wr-correction-corrected')?.textContent,
     explanation: row.querySelector('.lk-wr-correction-explanation')?.textContent ?? null,
   }));
+
+/**
+ * Watches console.error for the rest of the test and returns a reader for
+ * React's duplicate-key warnings. The spy passes calls through, so any other
+ * error still reaches the log.
+ */
+function watchDuplicateKeys() {
+  const spy = vi.spyOn(console, 'error');
+  onTestFinished(() => spy.mockRestore());
+  return () =>
+    spy.mock.calls.filter(([message]) =>
+      String(message).includes('Encountered two children with the same key'),
+    );
+}
 
 describe('WrittenResponse — returned grade (review mode)', () => {
   it('renders the percentage, the pass wording, and the grader narrative', () => {
@@ -230,20 +245,61 @@ describe('WrittenResponse — returned grade (review mode)', () => {
 
   // A grader that anchors corrections by `range` legitimately returns the same
   // fix twice when the learner made the same mistake twice. Both occurrences
-  // render — though React warns about the non-unique list key derived from
-  // `original:corrected` (reported, not fixed here).
-  it('renders repeated identical corrections once per occurrence', () => {
+  // render, each under its own list key: a shared key is unsupported by React
+  // and can drop or duplicate a row when the grade re-renders.
+  it('renders repeated identical corrections once per occurrence, keyed apart', () => {
+    const duplicateKeys = watchDuplicateKeys();
+    const twice: InlineCorrection[] = [
+      { original: 'a apple', corrected: 'an apple', range: { start: 3, end: 10 } },
+      { original: 'a apple', corrected: 'an apple', range: { start: 41, end: 48 } },
+    ];
+    const { container, rerender } = renderReview(outcomeFromGrade(grade({ corrections: twice })));
+    expect(correctionRows(container)).toHaveLength(2);
+
+    // A regrade arrives: a new correction ahead of the two, and an explanation
+    // on the second occurrence only. Every row lands where the grade puts it.
+    rerender(
+      <WrittenResponse
+        data={wr()}
+        renderMode="review"
+        value={submitted}
+        outcome={outcomeFromGrade(
+          grade({
+            corrections: [
+              { original: 'I go', corrected: 'I went', range: { start: 0, end: 4 } },
+              twice[0],
+              { ...twice[1], explanation: 'Use "an" before a vowel sound.' },
+            ],
+          }),
+        )}
+      />,
+    );
+    expect(correctionRows(container)).toEqual([
+      { original: 'I go', corrected: 'I went', explanation: null },
+      { original: 'a apple', corrected: 'an apple', explanation: null },
+      { original: 'a apple', corrected: 'an apple', explanation: 'Use "an" before a vowel sound.' },
+    ]);
+    expect(duplicateKeys()).toEqual([]);
+  });
+
+  // `range` is optional and unvalidated: a grader may omit it, or repeat one
+  // (an anchor it could not compute). Neither may collapse two rows onto one key.
+  it('keys corrections apart when the grader omits or repeats the range', () => {
+    const duplicateKeys = watchDuplicateKeys();
     const { container } = renderReview(
       outcomeFromGrade(
         grade({
           corrections: [
-            { original: 'a apple', corrected: 'an apple', range: { start: 3, end: 10 } },
-            { original: 'a apple', corrected: 'an apple', range: { start: 41, end: 48 } },
+            { original: 'a apple', corrected: 'an apple' },
+            { original: 'a apple', corrected: 'an apple' },
+            { original: 'a egg', corrected: 'an egg', range: { start: 0, end: 0 } },
+            { original: 'a egg', corrected: 'an egg', range: { start: 0, end: 0 } },
           ],
         }),
       ),
     );
-    expect(correctionRows(container)).toHaveLength(2);
+    expect(correctionRows(container)).toHaveLength(4);
+    expect(duplicateKeys()).toEqual([]);
   });
 
   it('omits the corrections list when the grade carries none', () => {

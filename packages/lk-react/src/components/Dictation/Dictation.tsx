@@ -22,11 +22,13 @@ import {
   xapiDefinitionFor,
 } from '@intellectif/lk-core';
 import { type CSSProperties, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useLearnerAi } from '../../ai/LkAiProvider.js';
 import { useActivityState } from '../../hooks/useActivityState.js';
 import { characterDirectionOf, localeDirectionOf, textDirectionOf } from '../../i18n/direction.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
+import { AiExplanation } from '../shared/AiHelp.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import type { ActivityProps, Renderable } from '../types.js';
 
@@ -549,10 +551,12 @@ export function Dictation({
   theme,
   locale,
   disabled,
+  ai: aiProp,
 }: DictationProps) {
   const isExam = renderMode === 'exam';
   const isReview = renderMode === 'review';
   const s = useLkStrings(strings);
+  const ai = useLearnerAi(aiProp);
 
   // Whether the payload carries the transcript at all — the KEY, not the
   // `redacted` marker. `redact(data, { reveal: 'after-submit' })` stamps
@@ -1196,6 +1200,17 @@ export function Dictation({
       <FeedbackRegion id={`${data.id}-feedback`}>
         <AnnouncementText announcement={isReview ? reviewSummary : summary} />
       </FeedbackRegion>
+      <AiExplanation
+        ai={ai}
+        data={data}
+        renderMode={renderMode}
+        submitted={submitted}
+        response={responseOf(text, reportedHints)}
+        outcome={outcome}
+        locale={locale}
+        onInteraction={onInteraction}
+        strings={s}
+      />
     </form>
   );
 }

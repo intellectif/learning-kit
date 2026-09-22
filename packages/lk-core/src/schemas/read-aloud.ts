@@ -7,6 +7,7 @@ import {
   READ_ALOUD_MAX_TAKES,
 } from '../scoring/speech/limits.js';
 import { CANONICAL_LOCALE_RE } from '../scoring/speech/locale.js';
+import { AiPermissionsSchema } from './ai.js';
 import { FeedbackSchema } from './feedback.js';
 import { MediaSchema, MediaUrlSchema } from './media.js';
 
@@ -98,6 +99,7 @@ const ReadAloudDataShape = z.looseObject({
   feedback: FeedbackSchema.optional(),
   learningObjectives: z.array(z.string()).optional(),
   difficultyLevel: z.literal([1, 2, 3, 4, 5]).optional(),
+  ai: AiPermissionsSchema.optional(),
 });
 
 /**
