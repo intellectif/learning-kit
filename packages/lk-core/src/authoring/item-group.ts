@@ -1,9 +1,6 @@
 import { UnknownActivityTypeError } from '../errors.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
-import {
-  GROUP_CAPTIONS_REVEAL_DICTATION,
-  groupCaptionsRevealDictation,
-} from '../schemas/dictation.js';
+import { GROUP_CAPTIONS_REVEAL_DICTATION, groupCaptionsField } from '../schemas/dictation.js';
 import { ItemGroupSchema, validateItemGroup } from '../schemas/item-group.js';
 import { INTERACTIVE_VIDEO_ITEM_TYPES, isInteractiveVideoItemType } from '../timeline-limits.js';
 import type { ActivityType } from '../types/activity.js';
@@ -135,11 +132,12 @@ function validateItemGroupDraftInScope(draft: unknown): DraftValidationResult<It
   if (draft.timeline !== undefined && draft.timeline !== null) {
     issues.push(...checkTimeline(draft));
   }
-  if (groupCaptionsRevealDictation(draft, (captionsUrl) => !isUnwritten(captionsUrl))) {
+  const captions = groupCaptionsField(draft, (captionsUrl) => !isUnwritten(captionsUrl));
+  if (captions !== undefined) {
     issues.push(
       issue(
         'dc_captions_not_allowed',
-        ['stimulus', 'media', 'captionsUrl'],
+        ['stimulus', 'media', captions],
         GROUP_CAPTIONS_REVEAL_DICTATION,
       ),
     );

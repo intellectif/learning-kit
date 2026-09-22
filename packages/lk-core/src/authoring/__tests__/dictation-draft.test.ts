@@ -114,6 +114,19 @@ describe('validateDraft: dictation', () => {
     expect(
       summary(validateDraft('dictation', dc({ slowMedia: { ...slow, captionsUrl: '/a.vtt' } }))),
     ).toEqual([['dc_captions_not_allowed', 'invalid', 'slowMedia.captionsUrl']]);
+    // A track counts as soon as it has an entry, whatever its kind or language.
+    const track = { kind: 'subtitles', src: '/a.es.vtt', srclang: 'es', label: 'Español' };
+    expect(
+      summary(
+        validateDraft(
+          'dictation',
+          dc({ media: { type: 'audio', url: '/a.mp3', tracks: [track] } }),
+        ),
+      ),
+    ).toEqual([['dc_captions_not_allowed', 'invalid', 'media.tracks']]);
+    expect(
+      summary(validateDraft('dictation', dc({ slowMedia: { ...slow, tracks: [track] } }))),
+    ).toEqual([['dc_captions_not_allowed', 'invalid', 'slowMedia.tracks']]);
     // An unwritten kind is media_type_required, as for any recording.
     expect(summary(validateDraft('dictation', dc({ media: { type: '', url: '/a.mp3' } })))).toEqual(
       [['media_type_required', 'incomplete', 'media.type']],

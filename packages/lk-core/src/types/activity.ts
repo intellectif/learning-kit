@@ -1016,7 +1016,11 @@ export type InteractionKind =
   | 'video-quiz-question-shown'
   | 'video-quiz-skipped'
   | 'video-quiz-closed'
-  /** Interactive video: captions turned on (the track's `srclang`) or off (`null`). */
+  /**
+   * Interactive video: the captions a learner chose. `payload.srclang` is the
+   * primary line's language, or `null` with captions off; `payload.secondary` is
+   * the second line's, or `null` with none showing. Fires when either changes.
+   */
   | 'video-captions-changed'
   | 'video-fullscreen-changed'
   | 'video-pip-changed'

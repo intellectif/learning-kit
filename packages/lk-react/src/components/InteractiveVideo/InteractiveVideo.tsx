@@ -70,14 +70,17 @@ import {
   SpeedMenu,
 } from './panels.js';
 import {
-  DEFAULT_PREFERENCES,
-  readPreferences,
+  applyPreferenceChange,
+  readStoredPreferences,
+  rememberPreferences,
+  resolvePreferences,
+  sanitizePartialPreferences,
   type VideoPreferences,
-  writePreferences,
 } from './prefs.js';
 import { crossedQuiz, limitResume, limitSeek, quizzesAtEnd } from './quiz-engine.js';
 import { type MarkerState, Scrubber, type ScrubberMarker } from './Scrubber.js';
 import { FRAME_SECONDS, JUMP_SECONDS } from './shortcuts.js';
+import { resolveCaptionTracks, secondaryCandidates } from './tracks.js';
 import { type Cue, cueIndexAt, parseWebVtt } from './vtt.js';
 
 /** An item group whose items may be `redact()` projections: the client's view of an interactive video. */
@@ -134,8 +137,30 @@ export interface InteractiveVideoProps {
    * could not do for a URL that needs an Authorization header.
    */
   captionsLoader?: (track: MediaTrack) => Promise<string>;
-  /** Overrides what the learner's browser remembers. */
+  /**
+   * FORCES preferences: each field given here overrides what the learner chose,
+   * every time the video opens. For a starting point the learner can still
+   * change — a language pair, say — pass `defaultPreferences` instead. Read when
+   * the video opens; the learner's own changes after that hold.
+   */
   preferences?: Partial<VideoPreferences>;
+  /**
+   * Preferences to start from, below what the learner chose in this browser:
+   * each field applies until the learner changes it. A host that keeps the
+   * learner's choice on their account passes it back here — on a new device
+   * nothing is stored, so the account's choice applies; on the same device the
+   * stored choice is that same choice. Read live: a value that arrives after
+   * the video opens still fills every field nobody chose.
+   */
+  defaultPreferences?: Partial<VideoPreferences>;
+  /**
+   * After each change the learner makes — a menu, a shortcut, the volume, the
+   * speed — with the preferences now in force and the fields that changed.
+   * Never when the video opens, and never for `preferences`. The player still
+   * remembers the change in this browser; this is for a host that keeps it on
+   * the learner's account as well.
+   */
+  onPreferencesChange?: (next: VideoPreferences, change: Partial<VideoPreferences>) => void;
   /** A short label in the corner, such as a lesson code. */
   label?: string;
   /** Seed for the option order of multiple-choice and gap-select questions: the attempt id. */
@@ -181,6 +206,75 @@ function onNextFrame(run: () => void): () => void {
   }
   const timer = setTimeout(run, 33);
   return () => clearTimeout(timer);
+}
+
+/** A track as the cue cache knows it. */
+function trackKey(track: MediaTrack): string {
+  return `${track.kind}:${track.srclang}:${track.src}`;
+}
+
+const NO_CUES: Cue[] = [];
+
+/**
+ * One caption line's cues: loaded when its track changes, and never another
+ * track's. A late answer for a track the line has since left is dropped — a
+ * slow Spanish file must never land in a line that now shows Portuguese — and
+ * until the new track's cues arrive the line shows nothing rather than the old
+ * language, unless they are cached already.
+ */
+function useCaptionLine(
+  track: MediaTrack | undefined,
+  load: (track: MediaTrack) => Promise<Cue[]>,
+  peek: (key: string) => Cue[] | undefined,
+): { cues: Cue[]; failed: boolean } {
+  const key = track === undefined ? undefined : trackKey(track);
+  const [line, setLine] = useState<{ key?: string; cues: Cue[]; failed: boolean }>({
+    cues: NO_CUES,
+    failed: false,
+  });
+  const trackRef = useRef(track);
+  trackRef.current = track;
+  useEffect(() => {
+    const wanted = trackRef.current;
+    if (key === undefined || wanted === undefined) {
+      return;
+    }
+    let live = true;
+    load(wanted).then(
+      (cues) => {
+        if (live) {
+          setLine({ key, cues, failed: false });
+        }
+      },
+      () => {
+        if (live) {
+          setLine({ key, cues: NO_CUES, failed: true });
+        }
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [key, load]);
+  if (key === undefined) {
+    return { cues: NO_CUES, failed: false };
+  }
+  if (line.key === key) {
+    return line;
+  }
+  return { cues: peek(key) ?? NO_CUES, failed: false };
+}
+
+/** What `video-captions-changed` reports: the language of each line on screen, or `null`. */
+function captionsShown(
+  tracks: readonly MediaTrack[],
+  preferences: VideoPreferences,
+): { srclang: string | null; secondary: string | null } {
+  if (!preferences.captions) {
+    return { srclang: null, secondary: null };
+  }
+  const shown = resolveCaptionTracks(tracks, preferences);
+  return { srclang: shown.primary?.srclang ?? null, secondary: shown.secondary?.srclang ?? null };
 }
 
 /** One id per mount, for the quiz capture groups. Module-level: never a render-time `useId`. */
@@ -275,23 +369,31 @@ function Player(props: InteractiveVideoProps) {
   });
 
   // ── Preferences ──────────────────────────────────────────────────────
-  // Read after mount, not during render: a server render has no storage, and
-  // a first client render that read it would disagree with the server's.
-  const [preferences, setPreferences] = useState<VideoPreferences>(() => ({
-    ...DEFAULT_PREFERENCES,
-    ...props.preferences,
-  }));
-  const preferenceOverride = useRef(props.preferences);
+  // Four layers, field by field — see `resolvePreferences`. Storage is read
+  // after mount, not during render: a server render has no storage, and a
+  // first client render that read it would disagree with the server's.
+  const forced = useRef(props.preferences).current;
+  // The host's defaults, by content: a host that builds the object afresh on
+  // every render must not have them re-resolved on every render.
+  const defaultsKey = JSON.stringify(props.defaultPreferences ?? null);
+  const defaults = useMemo<unknown>(() => JSON.parse(defaultsKey), [defaultsKey]);
+  // What the learner changed while this video has been open.
+  const chosen = useRef<Partial<VideoPreferences>>({});
+  const [preferences, setPreferences] = useState<VideoPreferences>(() =>
+    resolvePreferences({ force: forced, defaults: props.defaultPreferences }),
+  );
+  const preferencesRef = useRef(preferences);
+  preferencesRef.current = preferences;
   useEffect(() => {
-    setPreferences({ ...readPreferences(), ...preferenceOverride.current });
-  }, []);
-  const changePreferences = useCallback((change: Partial<VideoPreferences>) => {
-    setPreferences((previous) => {
-      const next = { ...previous, ...change };
-      writePreferences(next);
-      return next;
-    });
-  }, []);
+    setPreferences(
+      resolvePreferences({
+        force: forced,
+        stored: readStoredPreferences(),
+        defaults,
+        chosen: chosen.current,
+      }),
+    );
+  }, [forced, defaults]);
 
   // ── Answers ──────────────────────────────────────────────────────────
   // Read at mount, like `responses`: a later change is a different attempt,
@@ -613,53 +715,168 @@ function Player(props: InteractiveVideoProps) {
         ]
       : [];
   }, [media, locale, strings.videoCaptionLanguage]);
-  const activeTrack =
-    tracks.find((track) => track.srclang === preferences.captionLanguage) ??
-    tracks.find((track) => track.default === true) ??
-    tracks[0];
-  const [captionCues, setCaptionCues] = useState<Cue[]>([]);
-  const [captionsFailed, setCaptionsFailed] = useState(false);
+  const { primary: primaryTrack, secondary: secondaryTrack } = useMemo(
+    () =>
+      resolveCaptionTracks(tracks, {
+        captionLanguage: preferences.captionLanguage,
+        secondaryCaptionLanguage: preferences.secondaryCaptionLanguage,
+      }),
+    [tracks, preferences.captionLanguage, preferences.secondaryCaptionLanguage],
+  );
   const loaderRef = useRef(captionsLoader);
   loaderRef.current = captionsLoader;
-  useEffect(() => {
-    if (activeTrack === undefined) {
-      setCaptionCues([]);
-      return;
+  // Parsed cues per track, for the life of the mount: switching languages back
+  // and forth never refetches. The promise while a file loads — so a swap, which
+  // asks for a file both lines want, makes one request — and the cues once it
+  // has. A failure is forgotten, so coming back to that language tries again.
+  const loading = useRef(new Map<string, Promise<Cue[]>>());
+  const loaded = useRef(new Map<string, Cue[]>());
+  const loadCues = useCallback((track: MediaTrack): Promise<Cue[]> => {
+    const key = trackKey(track);
+    const pending = loading.current.get(key);
+    if (pending !== undefined) {
+      return pending;
     }
-    let live = true;
-    setCaptionsFailed(false);
-    const load = loaderRef.current
-      ? loaderRef.current(activeTrack)
-      : fetch(activeTrack.src, { credentials: 'same-origin' }).then((response) => {
-          if (!response.ok) {
-            throw new Error(String(response.status));
-          }
-          return response.text();
-        });
-    Promise.resolve(load)
+    const request = Promise.resolve()
+      .then(() =>
+        loaderRef.current
+          ? loaderRef.current(track)
+          : fetch(track.src, { credentials: 'same-origin' }).then((response) => {
+              if (!response.ok) {
+                throw new Error(String(response.status));
+              }
+              return response.text();
+            }),
+      )
       .then((text) => {
-        if (live) {
-          const parsed = parseWebVtt(text);
-          setCaptionCues(parsed);
-          setCaptionsFailed(parsed.length === 0);
+        const parsed = parseWebVtt(text);
+        if (parsed.length === 0) {
+          throw new Error('The caption file held no cues.');
         }
-      })
-      .catch(() => {
-        if (live) {
-          setCaptionCues([]);
-          setCaptionsFailed(true);
-        }
+        loaded.current.set(key, parsed);
+        return parsed;
       });
-    return () => {
-      live = false;
-    };
-  }, [activeTrack]);
-  const hasCaptions = captionCues.length > 0;
-  const activeCueIndex = useMemo(() => cueIndexAt(captionCues, current), [captionCues, current]);
+    loading.current.set(key, request);
+    request.catch(() => {
+      loading.current.delete(key);
+    });
+    return request;
+  }, []);
+  const peekCues = useCallback((key: string) => loaded.current.get(key), []);
+  const primaryLine = useCaptionLine(primaryTrack, loadCues, peekCues);
+  const secondaryLine = useCaptionLine(secondaryTrack, loadCues, peekCues);
+  const primaryCues = primaryLine.cues;
+  const secondaryCues = secondaryLine.cues;
+  // Per line: a second language that failed never takes the first one with it.
+  const captionsFailed = { primary: primaryLine.failed, secondary: secondaryLine.failed };
+  const hasCaptions = primaryCues.length > 0 || secondaryCues.length > 0;
+  // The transcript and the preview on the bar are the first line's.
+  const hasTranscript = primaryCues.length > 0;
+  const activeCueIndex = useMemo(() => cueIndexAt(primaryCues, current), [primaryCues, current]);
+  const secondaryCueIndex = useMemo(
+    () => cueIndexAt(secondaryCues, current),
+    [secondaryCues, current],
+  );
   const spoilerLimit =
     timeline.navigation === 'no-skip-ahead' && renderMode !== 'review'
       ? Math.max(furthestShown, current)
       : Number.POSITIVE_INFINITY;
+
+  // ── Changing preferences ─────────────────────────────────────────────
+  const onPreferencesChangeRef = useRef(props.onPreferencesChange);
+  onPreferencesChangeRef.current = props.onPreferencesChange;
+  const tracksRef = useRef(tracks);
+  tracksRef.current = tracks;
+  /** The last second language the learner had, for Shift + C to bring back. */
+  const lastSecondary = useRef<string | null>(null);
+  /**
+   * A change the learner made: applied, remembered in this browser, handed to
+   * the host, and — when it changes the captions on screen — reported.
+   */
+  const changePreferences = useCallback(
+    (change: Partial<VideoPreferences>) => {
+      const previous = preferencesRef.current;
+      const next = applyPreferenceChange(previous, change);
+      if (previous.secondaryCaptionLanguage !== null) {
+        lastSecondary.current = previous.secondaryCaptionLanguage;
+      }
+      chosen.current = { ...chosen.current, ...change };
+      preferencesRef.current = next;
+      setPreferences(next);
+      rememberPreferences(change);
+      onPreferencesChangeRef.current?.(next, change);
+      const before = captionsShown(tracksRef.current, previous);
+      const after = captionsShown(tracksRef.current, next);
+      if (before.srclang !== after.srclang || before.secondary !== after.secondary) {
+        emit('video-captions-changed', after);
+      }
+    },
+    [emit],
+  );
+
+  /**
+   * A first language picked from the menu. Picking the language the second
+   * line shows swaps the two — English + Español becomes Español + English —
+   * rather than silently dropping one.
+   */
+  const chooseCaptionTrack = (track: MediaTrack): void => {
+    const swaps =
+      primaryTrack !== undefined &&
+      secondaryTrack !== undefined &&
+      track.srclang.toLowerCase() === secondaryTrack.srclang.toLowerCase();
+    changePreferences({
+      captions: true,
+      captionLanguage: track.srclang,
+      ...(swaps ? { secondaryCaptionLanguage: primaryTrack.srclang } : {}),
+    });
+  };
+
+  /** A second language picked from the menu, or none. Picking one shows the captions. */
+  const chooseSecondaryTrack = (track: MediaTrack | null): void => {
+    changePreferences(
+      track === null
+        ? { secondaryCaptionLanguage: null }
+        : { secondaryCaptionLanguage: track.srclang, captions: true },
+    );
+  };
+
+  /**
+   * Shift + C. With a second line showing, it goes; with one chosen but the
+   * captions off, the pair comes back; otherwise a second line comes on — the
+   * last language the learner had, else the host's suggestion, else the first
+   * other language the video has. Pressing the key is asking for a second
+   * line, so that first language is the learner's choice, not a fallback the
+   * player made for them. With no other language at all, it says so and
+   * changes nothing.
+   */
+  const toggleSecondary = (): void => {
+    if (secondaryTrack !== undefined) {
+      changePreferences(
+        preferences.captions ? { secondaryCaptionLanguage: null } : { captions: true },
+      );
+      return;
+    }
+    const wanted = [
+      lastSecondary.current,
+      preferences.secondaryCaptionLanguage,
+      sanitizePartialPreferences(defaults).secondaryCaptionLanguage ?? null,
+      secondaryCandidates(tracks, primaryTrack)[0]?.srclang ?? null,
+    ];
+    for (const language of wanted) {
+      if (language === null) {
+        continue;
+      }
+      const { secondary } = resolveCaptionTracks(tracks, {
+        captionLanguage: preferences.captionLanguage,
+        secondaryCaptionLanguage: language,
+      });
+      if (secondary !== undefined) {
+        changePreferences({ secondaryCaptionLanguage: secondary.srclang, captions: true });
+        return;
+      }
+    }
+    announce(strings.videoNoSecondLanguage);
+  };
 
   // ── Element state React does not own ─────────────────────────────────
   useEffect(() => {
@@ -852,14 +1069,18 @@ function Player(props: InteractiveVideoProps) {
         return;
       case 'c':
       case 'C':
-        if (hasCaptions) {
+        // Shift + C is the second line; C is both lines together.
+        if (event.shiftKey) {
+          done();
+          toggleSecondary();
+        } else if (hasCaptions) {
           done();
           changePreferences({ captions: !preferences.captions });
         }
         return;
       case 't':
       case 'T':
-        if (hasCaptions) {
+        if (hasTranscript) {
           done();
           setPanelTab('transcript');
           changePreferences({ panel: !(preferences.panel && panelTab === 'transcript') });
@@ -1103,15 +1324,13 @@ function Player(props: InteractiveVideoProps) {
     }
   };
 
-  // Never over a quiz, the end card or a failure: the caption belongs to the
-  // video, and nothing is being spoken behind any of the three.
-  const showCaption =
-    preferences.captions &&
-    hasCaptions &&
-    activeCueIndex !== -1 &&
-    openQuiz === null &&
-    !ended &&
-    errorCode === null;
+  // Never over a quiz, the end card or a failure: the captions belong to the
+  // video, and nothing is being spoken behind any of the three. Each line shows
+  // its own cue — the two tracks need not share timings — and a line with
+  // nothing to say at this moment is not drawn, while the other stays.
+  const captionsHidden = !preferences.captions || openQuiz !== null || ended || errorCode !== null;
+  const primaryText = captionsHidden ? undefined : primaryCues[activeCueIndex]?.text;
+  const secondaryText = captionsHidden ? undefined : secondaryCues[secondaryCueIndex]?.text;
   const chromeVisible =
     !playing ||
     chromeShown ||
@@ -1236,14 +1455,38 @@ function Player(props: InteractiveVideoProps) {
 
         {label !== undefined ? <span className="lk-iv-label">{label}</span> : null}
 
-        {showCaption ? (
+        {primaryText !== undefined || secondaryText !== undefined ? (
+          // The lines keep `.lk-iv-caption`, `data-size` and `data-background`
+          // as well, so a stylesheet written against 15.x still matches them.
           <div
-            className="lk-iv-caption"
+            className="lk-iv-captions"
             data-size={preferences.captionSize}
             data-background={preferences.captionBackground || undefined}
-            lang={activeTrack?.srclang}
           >
-            <span>{captionCues[activeCueIndex]?.text}</span>
+            {primaryText !== undefined ? (
+              <div
+                className="lk-iv-caption"
+                data-role="primary"
+                data-size={preferences.captionSize}
+                data-background={preferences.captionBackground || undefined}
+                lang={primaryTrack?.srclang}
+                dir="auto"
+              >
+                <span>{primaryText}</span>
+              </div>
+            ) : null}
+            {secondaryText !== undefined ? (
+              <div
+                className="lk-iv-caption"
+                data-role="secondary"
+                data-size={preferences.captionSize}
+                data-background={preferences.captionBackground || undefined}
+                lang={secondaryTrack?.srclang}
+                dir="auto"
+              >
+                <span>{secondaryText}</span>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -1296,7 +1539,7 @@ function Player(props: InteractiveVideoProps) {
             buffered={buffered}
             chapters={chapters}
             markers={markers}
-            cues={captionCues}
+            cues={primaryCues}
             previewLimit={spoilerLimit}
             strings={strings}
             onSeek={seek}
@@ -1368,7 +1611,7 @@ function Player(props: InteractiveVideoProps) {
               </button>
             </div>
             <div className="lk-iv-bar-group">
-              {quizzes.length > 0 || chapters.length > 0 || hasCaptions ? (
+              {quizzes.length > 0 || chapters.length > 0 || hasTranscript ? (
                 <button
                   type="button"
                   className="lk-iv-button"
@@ -1387,12 +1630,7 @@ function Player(props: InteractiveVideoProps) {
                     preferences.captions ? strings.videoCaptionsHide : strings.videoCaptionsShow
                   }
                   aria-pressed={preferences.captions}
-                  onClick={() => {
-                    changePreferences({ captions: !preferences.captions });
-                    emit('video-captions-changed', {
-                      srclang: preferences.captions ? null : (activeTrack?.srclang ?? null),
-                    });
-                  }}
+                  onClick={() => changePreferences({ captions: !preferences.captions })}
                 >
                   <CaptionsIcon on={preferences.captions} />
                 </button>
@@ -1435,8 +1673,11 @@ function Player(props: InteractiveVideoProps) {
                   <SettingsMenu
                     preferences={preferences}
                     tracks={tracks}
-                    activeTrack={activeTrack}
+                    primaryTrack={primaryTrack}
+                    secondaryTrack={secondaryTrack}
                     captionsFailed={captionsFailed}
+                    onCaptionTrack={chooseCaptionTrack}
+                    onSecondaryTrack={chooseSecondaryTrack}
                     strings={strings}
                     onChange={changePreferences}
                     onShowShortcuts={() => {
@@ -1628,7 +1869,10 @@ function Player(props: InteractiveVideoProps) {
           onTab={setPanelTab}
           chapters={chapters}
           quizzes={quizzes}
-          cues={captionCues}
+          cues={primaryCues}
+          primaryLanguage={primaryTrack?.srclang}
+          secondaryCues={secondaryTrack === undefined ? NO_CUES : secondaryCues}
+          secondaryLanguage={secondaryTrack?.srclang}
           activeCue={activeCueIndex}
           limit={spoilerLimit}
           strings={strings}

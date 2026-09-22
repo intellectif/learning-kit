@@ -75,7 +75,7 @@ const REQUIRED_EXPORTS = {
   'dist/components/GapSelect.js': ['GapSelect'],
   'dist/components/Dictation.js': ['Dictation'],
   'dist/components/ReadAloud.js': ['ReadAloud'],
-  'dist/components/InteractiveVideo.js': ['InteractiveVideo'],
+  'dist/components/InteractiveVideo.js': ['InteractiveVideo', 'resolveCaptionTracks'],
   'dist/components/PronunciationFeedback.js': ['PronunciationFeedback'],
   // The processor source is pinned beside the hook: `workletUrl` is unusable
   // without it, and a missing re-export fails silently into a fallback.
@@ -106,6 +106,7 @@ const REQUIRED_EXPORTS = {
     'PronunciationFeedback',
     'ReadAloud',
     'createTailwindTheme',
+    'resolveCaptionTracks',
     'useLkStrings',
     'useSpeechRecorder',
     'useXAPI',

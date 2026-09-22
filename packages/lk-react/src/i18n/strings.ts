@@ -268,10 +268,22 @@ export interface LkStrings {
   videoCaptionsHide: string;
   /** In the captions menu when a caption file could not be read. */
   videoCaptionsFailed: string;
+  /** The same, for the second language: the first line keeps working. */
+  videoSecondaryCaptionsFailed: string;
   /** A speed in the speed menu, e.g. "1.25×". */
   videoSpeedValue: (rate: number) => string;
   videoSettings: string;
   videoCaptionLanguage: string;
+  /** The captions page's item, and page, for a second caption line under the first. */
+  videoSecondCaptionLanguage: string;
+  /**
+   * The captions row of the settings menu when two languages show, from the
+   * tracks' own labels: "English + Español". A translation may order them as its
+   * language reads, but the first argument is always the upper line.
+   */
+  videoCaptionPair: (primary: string, secondary: string) => string;
+  /** Announced when Shift + C finds no other language to show. */
+  videoNoSecondLanguage: string;
   videoCaptionSize: string;
   videoCaptionSizeValue: (size: CaptionSize) => string;
   videoCaptionBackground: string;
@@ -533,9 +545,13 @@ export const DEFAULT_STRINGS: LkStrings = {
   videoCaptionsShow: 'Show captions',
   videoCaptionsHide: 'Hide captions',
   videoCaptionsFailed: 'Captions could not be loaded.',
+  videoSecondaryCaptionsFailed: 'The second language could not be loaded.',
   videoSpeedValue: (rate) => (rate === 1 ? 'Normal' : `${rate}×`),
   videoSettings: 'Settings',
   videoCaptionLanguage: 'Captions',
+  videoSecondCaptionLanguage: 'Second language',
+  videoCaptionPair: (primary, secondary) => `${primary} + ${secondary}`,
+  videoNoSecondLanguage: 'No second language for this video.',
   videoCaptionSize: 'Caption size',
   videoCaptionSizeValue: (size) =>
     size === 'small' ? 'Small' : size === 'large' ? 'Large' : 'Medium',
@@ -569,6 +585,8 @@ export const DEFAULT_STRINGS: LkStrings = {
         return 'Mute';
       case 'captions':
         return 'Captions';
+      case 'secondary-captions':
+        return 'Second caption language on/off';
       case 'transcript':
         return 'Transcript';
       case 'picture-in-picture':

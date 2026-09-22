@@ -8,28 +8,37 @@ import { CheckIcon, ChevronIcon, CloseIcon, ReplayIcon } from './icons.js';
 import type { CaptionSize, VideoPreferences } from './prefs.js';
 import type { MarkerState } from './Scrubber.js';
 import { SHORTCUT_KEYS } from './shortcuts.js';
+import { pairSecondaryCues, secondaryCandidates } from './tracks.js';
 import type { Cue } from './vtt.js';
 
 /**
  * A menu of items, with the arrow keys moving between them and Escape closing
- * it — focus then goes back to the button that opened it. The first item, or
- * the checked one, takes focus when the menu opens.
+ * it — focus then goes back to the button that opened it. When the menu opens
+ * focus goes to the row a sub-page was left for, when coming back from one;
+ * else the checked item; else the first.
  */
 function Menu({
   label,
   onClose,
   children,
+  returnTo,
 }: {
   label: string;
   onClose: () => void;
   children: ReactNode;
+  /** The `data-menu-key` of the row to focus, when this page is returned to. */
+  returnTo?: string | undefined;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const items = ref.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]');
+    const back =
+      returnTo === undefined
+        ? null
+        : ref.current?.querySelector<HTMLElement>(`[data-menu-key="${returnTo}"]`);
     const checked = ref.current?.querySelector<HTMLElement>('[aria-checked="true"]');
-    (checked ?? items?.[0])?.focus();
-  }, []);
+    (back ?? checked ?? items?.[0])?.focus();
+  }, [returnTo]);
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
     const items = Array.from(
       ref.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [],
@@ -92,44 +101,110 @@ export function SpeedMenu({
   );
 }
 
-type SettingsPage = 'main' | 'captions' | 'size';
+type SettingsPage = 'main' | 'captions' | 'second' | 'size';
 
 export function SettingsMenu({
   preferences,
   tracks,
-  activeTrack,
+  primaryTrack,
+  secondaryTrack,
   captionsFailed,
   strings,
   onChange,
+  onCaptionTrack,
+  onSecondaryTrack,
   onShowShortcuts,
   onClose,
 }: {
   preferences: VideoPreferences;
   tracks: readonly MediaTrack[];
-  activeTrack: MediaTrack | undefined;
-  captionsFailed: boolean;
+  /** The track each caption line shows now; see `resolveCaptionTracks`. */
+  primaryTrack: MediaTrack | undefined;
+  secondaryTrack: MediaTrack | undefined;
+  /** Per line: which language could not be loaded. */
+  captionsFailed: { primary: boolean; secondary: boolean };
   strings: LkStrings;
   onChange: (change: Partial<VideoPreferences>) => void;
+  /** A first language picked; the player swaps it with the second when they meet. */
+  onCaptionTrack: (track: MediaTrack) => void;
+  /** A second language picked, or `null` for none. */
+  onSecondaryTrack: (track: MediaTrack | null) => void;
   onShowShortcuts: () => void;
   onClose: () => void;
 }) {
   const [page, setPage] = useState<SettingsPage>('main');
+  // The page just left, so its row on the page returned to takes focus again.
+  const [returnTo, setReturnTo] = useState<SettingsPage | undefined>(undefined);
+  const open = (next: SettingsPage): void => {
+    setReturnTo(undefined);
+    setPage(next);
+  };
+  const leave = (): void => {
+    setReturnTo(page);
+    setPage(page === 'second' ? 'captions' : 'main');
+  };
   const captionsValue =
-    !preferences.captions || activeTrack === undefined ? strings.videoOff : activeTrack.label;
+    !preferences.captions || primaryTrack === undefined
+      ? strings.videoOff
+      : secondaryTrack === undefined
+        ? primaryTrack.label
+        : strings.videoCaptionPair(primaryTrack.label, secondaryTrack.label);
+  // Every other language: never the first line's own, which would print the same words twice.
+  const partners = secondaryCandidates(tracks, primaryTrack);
+  const failedNotes = (
+    <>
+      {captionsFailed.primary && page === 'captions' ? (
+        <p className="lk-iv-menu-note" role="status">
+          {strings.videoCaptionsFailed}
+        </p>
+      ) : null}
+      {captionsFailed.secondary ? (
+        <p className="lk-iv-menu-note" role="status">
+          {strings.videoSecondaryCaptionsFailed}
+        </p>
+      ) : null}
+    </>
+  );
   const back = (
     <button
       type="button"
       role="menuitem"
       className="lk-iv-menu-item lk-iv-menu-back"
-      onClick={() => setPage('main')}
+      onClick={leave}
     >
       <ChevronIcon direction="left" />
-      <span>{page === 'captions' ? strings.videoCaptionLanguage : strings.videoCaptionSize}</span>
+      <span>
+        {page === 'captions'
+          ? strings.videoCaptionLanguage
+          : page === 'second'
+            ? strings.videoSecondCaptionLanguage
+            : strings.videoCaptionSize}
+      </span>
+    </button>
+  );
+  /** A radio naming a track in its own language and writing direction. */
+  const trackRadio = (track: MediaTrack, on: boolean, choose: () => void): ReactNode => (
+    <button
+      key={`${track.kind}:${track.srclang}`}
+      type="button"
+      role="menuitemradio"
+      aria-checked={on}
+      className="lk-iv-menu-item"
+      lang={track.srclang}
+      onClick={choose}
+    >
+      <span dir="auto">{track.label}</span>
+      {on ? <CheckIcon /> : null}
     </button>
   );
   if (page === 'captions') {
     return (
-      <Menu key="captions" label={strings.videoCaptionLanguage} onClose={onClose}>
+      <Menu
+        key="captions"
+        label={strings.videoCaptionLanguage}
+        onClose={onClose}
+        returnTo={returnTo}
+      >
         {back}
         <button
           type="button"
@@ -141,28 +216,50 @@ export function SettingsMenu({
           <span>{strings.videoOff}</span>
           {!preferences.captions ? <CheckIcon /> : null}
         </button>
-        {tracks.map((track) => {
-          const on = preferences.captions && activeTrack === track;
-          return (
-            <button
-              key={`${track.kind}:${track.srclang}`}
-              type="button"
-              role="menuitemradio"
-              aria-checked={on}
-              className="lk-iv-menu-item"
-              lang={track.srclang}
-              onClick={() => onChange({ captions: true, captionLanguage: track.srclang })}
-            >
-              <span>{track.label}</span>
-              {on ? <CheckIcon /> : null}
-            </button>
-          );
-        })}
-        {captionsFailed ? (
-          <p className="lk-iv-menu-note" role="status">
-            {strings.videoCaptionsFailed}
-          </p>
+        {tracks.map((track) =>
+          trackRadio(track, preferences.captions && primaryTrack === track, () =>
+            onCaptionTrack(track),
+          ),
+        )}
+        {partners.length > 0 ? (
+          <button
+            type="button"
+            role="menuitem"
+            className="lk-iv-menu-item"
+            data-menu-key="second"
+            onClick={() => open('second')}
+          >
+            <span>{strings.videoSecondCaptionLanguage}</span>
+            <span className="lk-iv-menu-value">
+              <span dir="auto" lang={secondaryTrack?.srclang}>
+                {secondaryTrack === undefined ? strings.videoOff : secondaryTrack.label}
+              </span>
+              <ChevronIcon direction="right" />
+            </span>
+          </button>
         ) : null}
+        {failedNotes}
+      </Menu>
+    );
+  }
+  if (page === 'second') {
+    return (
+      <Menu key="second" label={strings.videoSecondCaptionLanguage} onClose={onClose}>
+        {back}
+        <button
+          type="button"
+          role="menuitemradio"
+          aria-checked={secondaryTrack === undefined}
+          className="lk-iv-menu-item"
+          onClick={() => onSecondaryTrack(null)}
+        >
+          <span>{strings.videoOff}</span>
+          {secondaryTrack === undefined ? <CheckIcon /> : null}
+        </button>
+        {partners.map((track) =>
+          trackRadio(track, secondaryTrack === track, () => onSecondaryTrack(track)),
+        )}
+        {failedNotes}
       </Menu>
     );
   }
@@ -187,18 +284,19 @@ export function SettingsMenu({
     );
   }
   return (
-    <Menu key="main" label={strings.videoSettings} onClose={onClose}>
+    <Menu key="main" label={strings.videoSettings} onClose={onClose} returnTo={returnTo}>
       {tracks.length > 0 ? (
         <>
           <button
             type="button"
             role="menuitem"
             className="lk-iv-menu-item"
-            onClick={() => setPage('captions')}
+            data-menu-key="captions"
+            onClick={() => open('captions')}
           >
             <span>{strings.videoCaptionLanguage}</span>
             <span className="lk-iv-menu-value">
-              {captionsValue}
+              <span dir="auto">{captionsValue}</span>
               <ChevronIcon direction="right" />
             </span>
           </button>
@@ -206,7 +304,8 @@ export function SettingsMenu({
             type="button"
             role="menuitem"
             className="lk-iv-menu-item"
-            onClick={() => setPage('size')}
+            data-menu-key="size"
+            onClick={() => open('size')}
           >
             <span>{strings.videoCaptionSize}</span>
             <span className="lk-iv-menu-value">
@@ -316,6 +415,9 @@ export function ContentsPanel({
   chapters,
   quizzes,
   cues,
+  primaryLanguage,
+  secondaryCues,
+  secondaryLanguage,
   activeCue,
   limit,
   strings,
@@ -328,7 +430,12 @@ export function ContentsPanel({
   onTab: (tab: 'contents' | 'transcript') => void;
   chapters: readonly TimelineChapter[];
   quizzes: readonly ContentsQuiz[];
+  /** The first caption line's cues: one transcript row each. */
   cues: readonly Cue[];
+  primaryLanguage?: string | undefined;
+  /** The second line's cues, shown under the row each overlaps most; empty for none. */
+  secondaryCues: readonly Cue[];
+  secondaryLanguage?: string | undefined;
   activeCue: number;
   /** No line past this point is listed (the no-skip-ahead spoiler rule). */
   limit: number;
@@ -342,13 +449,29 @@ export function ContentsPanel({
   const hasTranscript = cues.length > 0;
   const shownTab = hasTranscript ? tab : 'contents';
 
+  // Paired once per pair of tracks; the spoiler limit and the search filter
+  // what is paired, so neither re-pairs as the video plays.
+  const paired = useMemo(() => pairSecondaryCues(cues, secondaryCues), [cues, secondaryCues]);
   const lines = useMemo(() => {
     const trimmed = query.trim().toLowerCase();
     return cues
-      .map((cue, index) => ({ cue, index }))
+      .map((cue, index) => ({
+        cue,
+        index,
+        // The spoiler limit holds for the second language as for the first.
+        second: (paired[index] ?? [])
+          .filter((line) => line.start <= limit)
+          .map((line) => line.text)
+          .join(' '),
+      }))
       .filter(({ cue }) => cue.start <= limit)
-      .filter(({ cue }) => trimmed === '' || cue.text.toLowerCase().includes(trimmed));
-  }, [cues, limit, query]);
+      .filter(
+        ({ cue, second }) =>
+          trimmed === '' ||
+          cue.text.toLowerCase().includes(trimmed) ||
+          second.toLowerCase().includes(trimmed),
+      );
+  }, [cues, paired, limit, query]);
 
   // Follows the spoken line, unless the learner scrolled the list themselves a
   // moment ago, or is searching: a list that jumps away mid-read is worse than
@@ -491,7 +614,7 @@ export function ContentsPanel({
             {lines.length === 0 ? (
               <p className="lk-iv-empty">{strings.videoTranscriptNoMatch}</p>
             ) : (
-              lines.map(({ cue, index }) => (
+              lines.map(({ cue, index, second }) => (
                 <button
                   key={`${cue.start}-${index}`}
                   type="button"
@@ -500,7 +623,22 @@ export function ContentsPanel({
                   onClick={() => onSeek(cue.start)}
                 >
                   <span className="lk-iv-row-time">{clock(cue.start)}</span>
-                  <span>{highlight(cue.text)}</span>
+                  {secondaryCues.length === 0 ? (
+                    <span lang={primaryLanguage} dir="auto">
+                      {highlight(cue.text)}
+                    </span>
+                  ) : (
+                    <span className="lk-iv-line-text">
+                      <span lang={primaryLanguage} dir="auto">
+                        {highlight(cue.text)}
+                      </span>
+                      {second === '' ? null : (
+                        <span className="lk-iv-line-secondary" lang={secondaryLanguage} dir="auto">
+                          {highlight(second)}
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </button>
               ))
             )}

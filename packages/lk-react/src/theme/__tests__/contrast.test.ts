@@ -50,6 +50,24 @@ function assertPalette(t: ThemeTokens, label: string): void {
   ).toBeGreaterThanOrEqual(3);
 }
 
+describe('Interactive video caption colours', () => {
+  /**
+   * The caption box is black at 75% over whatever the video shows. The worst
+   * case for light text is a white frame under it, which composites to #404040:
+   * a colour that clears 4.5:1 there clears it over any frame.
+   */
+  const worstBox = '#404040';
+
+  it('both lines clear 4.5:1 on the caption box over a white frame', () => {
+    const primary = defaultTheme['--lk-iv-caption-color'] as string;
+    const secondary = defaultTheme['--lk-iv-caption-secondary-color'] as string;
+    expect(contrast(primary, worstBox), 'first line').toBeGreaterThanOrEqual(4.5);
+    expect(contrast(secondary, worstBox), 'second line').toBeGreaterThanOrEqual(4.5);
+    // And against the black of its own outline, when the box is off.
+    expect(contrast(secondary, '#000000'), 'second line, outline only').toBeGreaterThanOrEqual(4.5);
+  });
+});
+
 describe('Default theme WCAG 2.2 AA contrast', () => {
   it('light palette meets AA', () => {
     assertPalette(defaultTheme, 'light');

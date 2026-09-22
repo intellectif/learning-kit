@@ -146,7 +146,8 @@ function checkEvenAfterIssues<T>(
  *     checked BEFORE the punctuation strip, or the remedy for `&` could not
  *     be authored), and `to` must survive full normalisation, so no rule can
  *     empty a word.
- * 11. **No captions on either recording** — the captions are the answer.
+ * 11. **No captions on either recording** — the captions are the answer. A
+ *     `captionsUrl`, and a non-empty `tracks` list of any kind or language.
  * 12. **The title and the recording descriptions do not contain the
  *     transcript** — they are shown before the learner types — and each is
  *     short enough, raw and once its rules are applied, to be searched in full.
@@ -302,11 +303,11 @@ export const DictationDataSchema = DictationDataShape.check(
     }
 
     for (const field of ['media', 'slowMedia'] as const) {
-      const recording = data[field] as { captionsUrl?: unknown } | undefined;
-      if (recording?.captionsUrl !== undefined) {
+      const recording = data[field] as { captionsUrl?: unknown; tracks?: unknown } | undefined;
+      for (const captions of captionFieldsOf(recording)) {
         report(
-          [field, 'captionsUrl'],
-          recording.captionsUrl,
+          [field, captions],
+          recording?.[captions],
           'A dictation recording cannot carry captions: the captions are the answer. Offer an accessible alternative as a different item.',
         );
       }
@@ -344,29 +345,75 @@ export const DictationDataSchema = DictationDataShape.check(
   }),
 );
 
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
 /**
- * Whether a group plays a captioned recording to a dictation: its stimulus
- * media carries captions while one of its items is a dictation with no
+ * The fields of a recording that carry captions, in the order they are
+ * reported: `captionsUrl`, and a non-empty `tracks` list.
+ *
+ * `tracks` counts whatever its `kind` or language. A caption track in the
+ * language of the recording transcribes it; a subtitle track translates it —
+ * and a translation of the words a dictation asks for gives them away as surely
+ * as a transcription does, to a learner who knows both languages or has a
+ * dictionary. Before 0.16 only `captionsUrl` was read here, so a recording with
+ * `tracks` passed every one of these rules, and redaction — which keeps tracks,
+ * because on any other recording they are what a learner is meant to see —
+ * shipped them to an exam client.
+ *
+ * `written` decides what counts as a written `captionsUrl`: the schema counts
+ * any value, a draft only a written one. A `tracks` list counts as soon as it
+ * has an entry, however unfinished, because an author who added one meant it.
+ */
+export function captionFieldsOf(
+  media: unknown,
+  written: (captionsUrl: unknown) => boolean = (captionsUrl) => captionsUrl !== undefined,
+): ('captionsUrl' | 'tracks')[] {
+  if (!isObject(media)) {
+    return [];
+  }
+  const fields: ('captionsUrl' | 'tracks')[] = [];
+  if (written(media.captionsUrl)) {
+    fields.push('captionsUrl');
+  }
+  if (Array.isArray(media.tracks) && media.tracks.length > 0) {
+    fields.push('tracks');
+  }
+  return fields;
+}
+
+/**
+ * The stimulus field whose captions a group plays to a dictation, or
+ * `undefined` when it plays none: its stimulus media carries captions — see
+ * {@link captionFieldsOf} — while one of its items is a dictation with no
  * recording of its own, which therefore plays the stimulus recording. The
  * captions are then the answer, as they would be on the dictation's own
- * recording. `hasCaptions` decides what counts as captions written — the
- * schema counts any value, a draft only a written one.
+ * recording. With both fields written, `captionsUrl` is the one reported: one
+ * refusal, at the path it has always had.
  */
-export function groupCaptionsRevealDictation(
+export function groupCaptionsField(
   group: unknown,
-  hasCaptions: (captionsUrl: unknown) => boolean = (captionsUrl) => captionsUrl !== undefined,
-): boolean {
-  const isObject = (value: unknown): value is Record<string, unknown> =>
-    typeof value === 'object' && value !== null && !Array.isArray(value);
-  if (!isObject(group) || !isObject(group.stimulus) || !isObject(group.stimulus.media)) {
-    return false;
+  written?: (captionsUrl: unknown) => boolean,
+): 'captionsUrl' | 'tracks' | undefined {
+  if (!isObject(group) || !isObject(group.stimulus) || !Array.isArray(group.items)) {
+    return undefined;
   }
-  if (!hasCaptions(group.stimulus.media.captionsUrl) || !Array.isArray(group.items)) {
-    return false;
+  const [field] = captionFieldsOf(group.stimulus.media, written);
+  if (field === undefined) {
+    return undefined;
   }
-  return group.items.some(
+  const played = group.items.some(
     (item) => isObject(item) && item.type === 'dictation' && item.media === undefined,
   );
+  return played ? field : undefined;
+}
+
+/** Whether a group plays a captioned recording to a dictation: {@link groupCaptionsField} as a yes or no. */
+export function groupCaptionsRevealDictation(
+  group: unknown,
+  written?: (captionsUrl: unknown) => boolean,
+): boolean {
+  return groupCaptionsField(group, written) !== undefined;
 }
 
 /** The message every validator gives for {@link groupCaptionsRevealDictation}. */

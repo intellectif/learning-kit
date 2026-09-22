@@ -24,6 +24,9 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.12.0 | 12.0.0 | `validateItemGroupDraft` / `createItemGroupDraft`: a testlet's own draft contract. **No React API change** — the peer bump |
 | 0.13.0 | 13.0.0 | `dictation`: `<Dictation>`, `alignDictation`, `diffDictationChars`, `dictationReferenceWords`, `ScoringDetail.score`, an optional `{ rounding }` on `score()` / `evaluate()`, `dictationType` / `gapSelectType` on the barrel, the dictation draft contract. **Additive** — the major is the peer bump, plus one new component and the dictation strings |
 | 0.14.0 | 14.0.0 | `read-aloud`: `gradeReadAloud`, `inspectWav`, `validateSpeechAssessment`, `alignReadAloud`, `outcomeFromUnscorable`; `<ReadAloud>`, `<PronunciationFeedback>`, `useSpeechRecorder`, and `recordingBinding` / `assessments` on `<ActivitySequence>`. **Additive, with one pager fix for every type** — the major is the peer bump plus two components and a hook, and a sequence now refuses an outcome that belongs to a paper it has since been handed |
+| 0.14.1 | 14.1.0 | Read-aloud follow-ups: a resumed play that bypassed a play budget, recording under a strict Content-Security-Policy, and a production check in the xAPI validators. **No API removed** |
+| 0.15.0 | 15.0.0 | Interactive video: `timeline` on an item group, `readMediaProgress`, `composeTimelineScore`, the `ig_timeline_*` codes; `<InteractiveVideo>`. **Additive** — the major is the peer bump, plus one component and its strings |
+| 0.16.0 | 16.0.0 | Two caption languages at once in `<InteractiveVideo>`, `defaultPreferences` and `onPreferencesChange`, `resolveCaptionTracks`. **One tightened rule**: a caption or subtitle track on a dictation's recording, or on a stimulus a dictation plays, is now refused as `captionsUrl` always was. **And one DOM change**: captions sit in a `.lk-iv-captions` container |
 
 Every behavioural change here is opt-in, per the
 [grade-stability rule](./roadmap.md#5-standing-decisions) — with **one
@@ -40,8 +43,62 @@ were.
 - On **0.8.x**? See [0.8 → 0.9](#08--09-lk-core--7x--8x-lk-react) — additive, with one possible type error.
 - On **0.9.x – 0.12.x**? See [0.12 → 0.13](#012--013-lk-core--12x--13x-lk-react) — additive, with the type errors it lists. The releases in between add the same kinds: `gap-select` joined the activity unions in 0.10.0, `gapLabel` and `gapPlaceholder` joined `LkStrings` in 10.0.0, and 0.11.0 needs Node 22 or later.
 - On **0.13.x**? See [0.13 → 0.14](#013--014-lk-core--13x--14x-lk-react) — additive, with the type errors and the behaviour changes it lists.
+- On **0.14.x**? See [0.14 → 0.15](#014--015-lk-core--14x--15x-lk-react) — additive.
+- On **0.15.x**? See [0.15 → 0.16](#015--016-lk-core--15x--16x-lk-react) — one tightened dictation rule to check your content against, and one caption DOM change.
 
 ---
+
+## 0.15 → 0.16 (`lk-core`) / 15.x → 16.x (`lk-react`)
+
+### A learner can read two caption languages *(16.0.0)*
+
+`<InteractiveVideo>` can show a second caption language under the first — the language a learner
+is learning, and their own. It is a learner's preference; nothing is authored. See
+[Captions and the transcript](./interactive-video.md#captions-and-the-transcript).
+
+- `VideoPreferences` gains `secondaryCaptionLanguage` (`null` for none).
+- **`defaultPreferences`** is a new prop: a starting point below what the learner chose. Use it for a
+  language pair you suggest. `preferences` keeps its meaning — it *forces* each field it names, every
+  time a video opens — and is now documented as such.
+- **`onPreferencesChange(next, change)`** reports every change the learner makes, for a host that
+  keeps the choice on the learner's account and passes it back as `defaultPreferences`.
+- `resolveCaptionTracks(tracks, preferences)` is exported: the rules the player uses to choose each
+  line's track.
+- The `video-captions-changed` interaction's payload gains `secondary`, and the event now fires when
+  either line changes.
+- Four optional tokens: `--lk-iv-caption-color`, `--lk-iv-caption-secondary-color`,
+  `--lk-iv-caption-secondary-scale`, `--lk-iv-caption-gap`. Four new strings, listed in
+  [docs/i18n.md](./i18n.md).
+
+### What can stop a build *(0.16.0 / 16.0.0)*
+
+- **A dictation whose recording carries `tracks` is now invalid**, and so is a group whose stimulus
+  carries `tracks` while one of its dictations plays that stimulus. Both were already refused for
+  `captionsUrl`; a track of either kind — a transcription or a translation of the words a dictation
+  asks for — gives the answer away just as surely, and before this release redaction shipped such a
+  track to an exam client. `validateActivity`, `validateItemGroup`, `assertRedacted`,
+  `assertRedactedItemGroup` and `redact()` / `redactItemGroup()` now refuse it, with the same
+  message, at `media.tracks`, `slowMedia.tracks` or `stimulus.media.tracks`; the drafts report
+  `dc_captions_not_allowed` there. **Find any stored content like this before you upgrade**: remove the
+  tracks, or give the dictation a recording of its own without them.
+- A hand-built `LkStrings` needs the four new `video*` keys; an `LkStringsOverride` needs nothing.
+- Nothing else: every new field and prop is optional.
+
+### What can change behaviour *(16.0.0)*
+
+- **The caption DOM.** The caption lines now sit inside a `<div class="lk-iv-captions">`, which is
+  what is positioned over the video and lifted clear of the controls. Each line keeps its
+  `.lk-iv-caption` class, its `span`, and `data-size` / `data-background`, and gains `data-role`
+  (`primary` or `secondary`), `lang` and `dir="auto"` — so a rule that styles `.lk-iv-caption`'s text
+  still applies. A rule that **positions** `.lk-iv-caption` (its margin, its alignment in the
+  player) now positions a line inside the container: move it to `.lk-iv-captions`.
+- **What the player remembers.** It now stores only the fields a learner changed, never a value a
+  host forced, so a host suggestion reaches a learner who never chose that field. A payload stored by
+  15.x reads as every field chosen — it behaves as it did.
+- **A caption language is matched more loosely.** `captionLanguage: 'pt'` now finds a `pt-BR` track
+  (and `es-MX` finds `es`) instead of falling back to the default track; where two tracks share a
+  language, the `captions` one wins.
+- `dir="auto"` on every caption line, transcript row and menu item that shows a track's text.
 
 ## 0.14 → 0.15 (`lk-core`) / 14.x → 15.x (`lk-react`)
 

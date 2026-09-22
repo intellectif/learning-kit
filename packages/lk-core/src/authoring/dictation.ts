@@ -1,5 +1,9 @@
 import type { ActivityTypeAuthoring } from '../registry/registry.js';
-import { DictationSlowMediaSchema, DictationToleranceSchema } from '../schemas/dictation.js';
+import {
+  captionFieldsOf,
+  DictationSlowMediaSchema,
+  DictationToleranceSchema,
+} from '../schemas/dictation.js';
 import {
   DICTATION_MAX_ACCEPTED_TRANSCRIPTS,
   DICTATION_MAX_EQUIVALENCES,
@@ -210,10 +214,8 @@ function checkRecording(media: unknown): DraftIssue[] {
       ),
     );
   }
-  if (!isUnset(media.captionsUrl)) {
-    issues.push(
-      issue('dc_captions_not_allowed', ['media', 'captionsUrl'], CAPTIONS_ARE_THE_ANSWER),
-    );
+  for (const captions of captionFieldsOf(media, (captionsUrl) => !isUnset(captionsUrl))) {
+    issues.push(issue('dc_captions_not_allowed', ['media', captions], CAPTIONS_ARE_THE_ANSWER));
   }
   return issues;
 }
@@ -250,10 +252,8 @@ function checkSlowRecording(draft: DraftFields): DraftIssue[] {
       DictationSlowMediaSchema,
     ),
   );
-  if (!isUnset(slow.captionsUrl)) {
-    issues.push(
-      issue('dc_captions_not_allowed', ['slowMedia', 'captionsUrl'], CAPTIONS_ARE_THE_ANSWER),
-    );
+  for (const captions of captionFieldsOf(slow, (captionsUrl) => !isUnset(captionsUrl))) {
+    issues.push(issue('dc_captions_not_allowed', ['slowMedia', captions], CAPTIONS_ARE_THE_ANSWER));
   }
   if (slow.playback !== undefined) {
     issues.push(

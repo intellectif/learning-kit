@@ -280,10 +280,10 @@ const loadVideo = () =>
     );
   });
 
-const pressKey = async (key: string): Promise<void> => {
+const pressKey = async (key: string, init: KeyboardEventInit = {}): Promise<void> => {
   await act(async () => {
     (document.querySelector('.lk-iv') as HTMLElement).dispatchEvent(
-      new KeyboardEvent('keydown', { key, bubbles: true }),
+      new KeyboardEvent('keydown', { key, bubbles: true, ...init }),
     );
     // What the player announces is set on the next frame, so that the same
     // sentence twice is read out twice; the harvest has to wait for it.
@@ -929,6 +929,54 @@ describe('translation coverage', () => {
     loadVideo();
     await user.click(screen.getByRole('button', { name: sentinel('videoSettings') }));
     await user.click(screen.getByRole('menuitem', { name: /videoCaptionLanguage/ }));
+    keep(document.body);
+    // One language only: Shift + C says there is no second one.
+    await user.keyboard('{Escape}');
+    await pressKey('C', { shiftKey: true });
+    keep(document.body);
+    cleanup();
+
+    // Two languages: the pair on the main page, the second-language item and
+    // its page, and the note when the second one fails to load.
+    const twoLanguages = videoGroup({
+      stimulus: {
+        id: 'sv',
+        kind: 'video',
+        media: {
+          type: 'video',
+          url: '/v.mp4',
+          alt: 'Vídeo',
+          tracks: [
+            { kind: 'captions', src: '/c.vtt', srclang: 'es', label: 'Español' },
+            { kind: 'subtitles', src: '/p.vtt', srclang: 'pt', label: 'Portugués' },
+          ],
+        },
+      },
+    } as Partial<ItemGroup>);
+    // A browser that remembers nothing: a sweep above turned the captions off,
+    // and the player rightly remembers that.
+    localStorage.clear();
+    sweep(
+      <InteractiveVideo
+        group={twoLanguages}
+        defaultPreferences={{ secondaryCaptionLanguage: 'pt' }}
+        captionsLoader={async (track) => {
+          if (track.srclang === 'pt') {
+            throw new Error('403');
+          }
+          return spanishCaptions;
+        }}
+      />,
+    );
+    loadVideo();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await user.click(screen.getByRole('button', { name: sentinel('videoSettings') }));
+    keep(document.body);
+    await user.click(screen.getByRole('menuitem', { name: /videoCaptionLanguage/ }));
+    keep(document.body);
+    await user.click(screen.getByRole('menuitem', { name: /videoSecondCaptionLanguage/ }));
     keep(document.body);
     cleanup();
 
