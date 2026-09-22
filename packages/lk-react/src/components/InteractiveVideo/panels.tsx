@@ -660,6 +660,7 @@ export function EndScreen({
   strings,
   onOpenQuiz,
   onWatchAgain,
+  pending,
   onFinish,
 }: {
   idPrefix: string;
@@ -671,8 +672,11 @@ export function EndScreen({
   strings: LkStrings;
   onOpenQuiz: (id: string) => void;
   onWatchAgain: () => void;
+  /** An answer is still being stored or graded: Finish waits, and says so. */
+  pending: boolean;
   onFinish: (() => void) | undefined;
 }) {
+  const pendingId = `${idPrefix}-end-pending`;
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     headingRef.current?.focus();
@@ -713,13 +717,24 @@ export function EndScreen({
             ))}
           </ol>
         ) : null}
+        {onFinish !== undefined && pending ? (
+          <p id={pendingId} className="lk-iv-end-pending" role="status">
+            {strings.videoAnswerPending}
+          </p>
+        ) : null}
         <div className="lk-iv-end-actions">
           <button type="button" className="lk-iv-action" onClick={onWatchAgain}>
             <ReplayIcon />
             {strings.videoWatchAgain}
           </button>
           {onFinish !== undefined ? (
-            <button type="button" className="lk-iv-action lk-iv-action-primary" onClick={onFinish}>
+            <button
+              type="button"
+              className="lk-iv-action lk-iv-action-primary"
+              aria-disabled={pending || undefined}
+              aria-describedby={pending ? pendingId : undefined}
+              onClick={onFinish}
+            >
               {strings.videoFinish}
             </button>
           ) : null}

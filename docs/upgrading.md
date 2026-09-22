@@ -27,6 +27,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.14.1 | 14.1.0 | Read-aloud follow-ups: a resumed play that bypassed a play budget, recording under a strict Content-Security-Policy, and a production check in the xAPI validators. **No API removed** |
 | 0.15.0 | 15.0.0 | Interactive video: `timeline` on an item group, `readMediaProgress`, `composeTimelineScore`, the `ig_timeline_*` codes; `<InteractiveVideo>`. **Additive** — the major is the peer bump, plus one component and its strings |
 | 0.16.0 | 16.0.0 | Two caption languages at once in `<InteractiveVideo>`, `defaultPreferences` and `onPreferencesChange`, `resolveCaptionTracks`. **One tightened rule**: a caption or subtitle track on a dictation's recording, or on a stimulus a dictation plays, is now refused as `captionsUrl` always was. **And one DOM change**: captions sit in a `.lk-iv-captions` container |
+| 0.16.0 | 16.1.0 | `renderQuestion` on `<InteractiveVideo>`: a host draws a video's questions itself, and the video still keeps count. **No `lk-core` change** — a `lk-react` minor on the same peer range as 16.0.0. **One behaviour change**: Finish waits for a read-aloud take still being stored |
 
 Every behavioural change here is opt-in, per the
 [grade-stability rule](./roadmap.md#5-standing-decisions) — with **one
@@ -44,7 +45,7 @@ were.
 - On **0.9.x – 0.12.x**? See [0.12 → 0.13](#012--013-lk-core--12x--13x-lk-react) — additive, with the type errors it lists. The releases in between add the same kinds: `gap-select` joined the activity unions in 0.10.0, `gapLabel` and `gapPlaceholder` joined `LkStrings` in 10.0.0, and 0.11.0 needs Node 22 or later.
 - On **0.13.x**? See [0.13 → 0.14](#013--014-lk-core--13x--14x-lk-react) — additive, with the type errors and the behaviour changes it lists.
 - On **0.14.x**? See [0.14 → 0.15](#014--015-lk-core--14x--15x-lk-react) — additive.
-- On **0.15.x**? See [0.15 → 0.16](#015--016-lk-core--15x--16x-lk-react) — one tightened dictation rule to check your content against, and one caption DOM change.
+- On **0.15.x**? See [0.15 → 0.16](#015--016-lk-core--15x--16x-lk-react) — one tightened dictation rule to check your content against, and one caption DOM change; 16.1.0 adds one Finish change.
 
 ---
 
@@ -99,6 +100,28 @@ is learning, and their own. It is a learner's preference; nothing is authored. S
   (and `es-MX` finds `es`) instead of falling back to the default track; where two tracks share a
   language, the `captions` one wins.
 - `dir="auto"` on every caption line, transcript row and menu item that shows a track's text.
+
+### A host can draw a video's questions *(16.1.0)*
+
+`renderQuestion` hands each question to you to draw, and the video keeps counting it: answered,
+required, the end card, `onFinished`. Return `undefined` to keep the SDK's component for a type. A
+question you draw is told when it leaves the screen (`active`), has a place to portal popovers that
+fullscreen paints (`portalContainer`), and can make Finish wait for work on its way
+(`setPending`). See
+[Rendering questions yourself](./interactive-video.md#rendering-questions-yourself). Nothing to do if
+you do not use it — every addition is optional, and `recordingBinding` is now needed only for a
+read-aloud the SDK draws.
+
+### What can change behaviour *(16.1.0)*
+
+- **Finish waits for a take still being stored.** A read-aloud whose take is uploading or being
+  judged now holds Finish on the end card — `aria-disabled`, with "Saving your answer…"
+  (`videoAnswerPending`, a new string) — and a video that ends with every answer in finishes once the
+  take lands. Before, Finish reported that question `skipped`, and its answer reached `onSubmit` after
+  the summary that called it skipped.
+- **The end card's score follows a question's latest grade.** A grade that arrives while the card is
+  on screen now shows at once, and a result with nothing to score (`maxScore: 0`) removes the
+  question's score instead of leaving the earlier one.
 
 ## 0.14 → 0.15 (`lk-core`) / 14.x → 15.x (`lk-react`)
 

@@ -24,6 +24,11 @@ import { expect, test } from '@playwright/test';
  * element that does not have it.
  */
 
+/** The page's wait: see `until` in {@link PAGE}. */
+interface Waiting {
+  until: (check: () => boolean, limitMs?: number) => Promise<void>;
+}
+
 /** Two audio elements: `#control` has no mechanism, `#probe` gets one. */
 const PAGE = `
   <!doctype html><meta charset="utf-8">
@@ -63,6 +68,20 @@ const PAGE = `
       el.muted = true;
     }
 
+    /*
+     * Waits for something the clip DOES, never for an amount of time. A loaded
+     * runner can spend a fixed sleep before its audio clock has started, and
+     * the spec then measured the machine instead of the browser: a control
+     * played 0.042 s of a 300 ms sleep and failed. Gives up after ten seconds,
+     * and the assertions then fail on the state as it stands.
+     */
+    window.until = async (check, limitMs = 10000) => {
+      const deadline = performance.now() + limitMs;
+      while (!check() && performance.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    };
+
     window.ready = Promise.all(
       [...document.querySelectorAll('audio')].map(
         (el) =>
@@ -101,7 +120,11 @@ test.describe('what the browser actually enforces', () => {
           () => false,
         ),
       ]);
-      await new Promise((r) => setTimeout(r, 300));
+      // Until the control has PLAYED 0.3 s — the distance a probe that failed
+      // to stop would have travelled too — however long the runner takes.
+      await (window as unknown as Waiting).until(
+        () => control.currentTime >= 0.3 || control.paused || control.ended,
+      );
 
       return {
         blocked: started[0] === false,
@@ -115,7 +138,9 @@ test.describe('what the browser actually enforces', () => {
     // Control: the identical clip advances freely, so the probe below is
     // measuring the mechanism and not a clip that never played.
     expect(seen.control.paused, 'control: playback should be running').toBe(false);
-    expect(seen.control.currentTime, 'control: the playhead should advance').toBeGreaterThan(0.05);
+    expect(seen.control.currentTime, 'control: the playhead should advance').toBeGreaterThanOrEqual(
+      0.3,
+    );
 
     expect(seen.probe.paused).toBe(true);
     expect(seen.probe.currentTime).toBeLessThan(0.25);
@@ -230,7 +255,11 @@ test.describe('what the browser only hints at', () => {
 
       pane.hidden = true;
       const atHide = el.currentTime;
-      await new Promise((r) => setTimeout(r, 300));
+      // Until the playhead has moved on, or has stopped: a hidden pane that
+      // paused playback ends the wait at once, and fails below.
+      await (window as unknown as Waiting).until(
+        () => el.currentTime >= atHide + 0.1 || el.paused || el.ended,
+      );
 
       return {
         blocked: false,

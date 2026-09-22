@@ -102,11 +102,13 @@ inside a right-to-left page. See [Internationalisation](./i18n.md).
 | `.lk-iv-quiz-body`, `.lk-iv-question` | The panel's body and one question. Every question of an opened quiz stays mounted behind `hidden`, so an answer survives a rewind — a rule that makes `[hidden]` visible shows all of them at once |
 | `.lk-iv-quiz-foot`, `.lk-iv-quiz-foot-start`, `.lk-iv-quiz-foot-end`, `.lk-iv-link`, `.lk-iv-action`, `.lk-iv-action-primary`, `.lk-iv-saved` | The footer, its two ends, Rewatch / Skip quiz, the button that moves on (`aria-disabled` while a required question is unanswered, never `:disabled`), and the exam's "Answer saved" |
 | `.lk-iv-end`, `.lk-iv-end-card`, `.lk-iv-end-title`, `.lk-iv-end-summary`, `.lk-iv-end-list`, `.lk-iv-end-actions` | The end card over the last frame, clear of the controls so the learner can still scrub back |
+| `.lk-iv-end-pending` | The status line under the summary while an answer is still being stored or graded; Finish is `aria-disabled` and described by it |
 | `.lk-iv-panel`, `.lk-iv-tabs`, `.lk-iv-tab`, `.lk-iv-contents`, `.lk-iv-contents-chapter`, `.lk-iv-contents-quiz` | The panel below the video, its tabs, the contents list, a chapter row and a quiz row |
 | `.lk-iv-row`, `.lk-iv-row-time`, `.lk-iv-row-title`, `.lk-iv-row-status`, `.lk-iv-marker-dot[data-state]` | A row in the contents or on the end card: its time, its name, how much of it is answered, and the quiz's state as a dot |
 | `.lk-iv-transcript`, `.lk-iv-search`, `.lk-iv-lines`, `.lk-iv-line[data-active]`, `.lk-iv-empty` | The transcript, its search box, the list, the line being spoken, and the no-match note |
 | `.lk-iv-line-text`, `.lk-iv-line-secondary` | With a second caption language chosen: a row's two texts, and the second language's under the first (smaller, set in, the theme's muted colour — the caption colour is for the dark caption box). Absent with none, so the row is as it was |
 | `.lk-iv-live` | The player's polite live region (visually hidden) |
+| `.lk-iv-portal` | `portalContainer`: the last child of the shell, where a question drawn by `renderQuestion` portals its popovers. Out of the flow and lifted above the stage, so what is portalled into it paints over the quiz and in fullscreen |
 | `.lk-seq`, `.lk-seq-progress`, `.lk-seq-question`, `.lk-seq-nav` | ActivitySequence pager |
 | `.lk-seq-prev`, `.lk-seq-next`, `.lk-seq-slot`, `.lk-seq-stimulus`, `.lk-seq-unsupported` | Pager buttons, the per-question pane, its stimulus wrapper, and the fallback for an unregistered activity type |
 | `[aria-live]` (within `.lk-mc` / `.lk-fib`) | Feedback / status region |

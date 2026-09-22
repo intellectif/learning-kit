@@ -5,7 +5,7 @@ questions**, then carries on. It is not a new activity type: it is an ordinary *
 stimulus is a video and which carries a `timeline` — so every question inside it stays its own
 question, with its own slot id, its own response and its own grade.
 
-It describes `@intellectif/lk-core` 0.16.0 and `@intellectif/lk-react` 16.0.0.
+It describes `@intellectif/lk-core` 0.16.0 and `@intellectif/lk-react` 16.1.0.
 
 - [The model](#the-model)
 - [Authoring one](#authoring-one)
@@ -16,6 +16,7 @@ It describes `@intellectif/lk-core` 0.16.0 and `@intellectif/lk-react` 16.0.0.
 - [Answers, grades and the score](#answers-grades-and-the-score)
 - [Navigation and required quizzes](#navigation-and-required-quizzes)
 - [Modes](#modes)
+- [Rendering questions yourself](#rendering-questions-yourself)
 - [Chapters](#chapters)
 - [What an older build does with it](#what-an-older-build-does-with-it)
 - [What the SDK does not do](#what-the-sdk-does-not-do)
@@ -136,7 +137,7 @@ import { InteractiveVideo } from '@intellectif/lk-react/components/InteractiveVi
   submittedSlotIds={attempt.submittedSlotIds}
   outcomes={attempt.outcomes}          // read live: grades that arrive later
   captionsLoader={(track) => api.captions(track.src)}
-  recordingBinding={binding}          // required when a read-aloud is embedded
+  recordingBinding={binding}          // required for a read-aloud the SDK draws
   onSubmit={(response, slot) => save(slot.slotId, response)}
   onActivityComplete={(result, slot) => record(slot.slotId, result)}
   onFinished={(summary) => finish(summary)}
@@ -330,6 +331,157 @@ a second pass; it stays theirs to reopen from the contents list.
 
 In `exam` and `review`, pass the **redacted** projection — `redactItemGroup(group)` — exactly as you
 would for a question set. The player asserts it in development.
+
+## Rendering questions yourself
+
+`renderQuestion` hands a question to you to draw — each question once its quiz has opened, and
+again on every render after. Use it when you have a renderer of your own that
+**behaves** differently — a read-aloud that assesses the moment a take is recorded, stops on its own
+after silence, or restores a take stored earlier. To make the SDK's questions merely *look* like
+yours, you do not need it: use the skin tokens and class hooks in [styling.md](./styling.md).
+
+Return `undefined` for the SDK's own component, so you can take over one type and leave the rest.
+`null` draws nothing, and is kept — it is never a fallback.
+
+```tsx
+import {
+  InteractiveVideo,
+  type InteractiveVideoQuestion,
+} from '@intellectif/lk-react/components/InteractiveVideo';
+
+<InteractiveVideo
+  group={video}
+  renderMode="practice"
+  renderQuestion={(question) =>
+    question.activity.type === 'read-aloud' ? <MyReadAloud question={question} /> : undefined
+  }
+  onSubmit={(response, slot) => save(slot.slotId, response)}
+  onActivityComplete={(result, slot) => record(slot.slotId, result)}
+  onFinished={(summary) => finish(summary)}
+/>
+```
+
+The video still owns everything around the question: when it opens, whether it counts as answered,
+whether a required quiz lets the learner go on, pausing, resume, and the end card and summary. **It
+never treats a question you draw differently from one it draws**: the step dots, the Continue gate
+of a required quiz, the end card's count and score and `onFinished`'s statuses read the same state.
+
+What you draw is keyed by the question's slot and **stays mounted for the life of the player**, as the
+SDK's own questions do — a rewind loses nothing. It sits inside the same error boundary: a throw,
+while rendering or inside `renderQuestion` itself, replaces that one question with the fallback and
+never stops the video.
+
+### What a question is handed
+
+| Field | What it is |
+|---|---|
+| `activity` | The question as the SDK would have rendered it: full data, or a `redact()` projection |
+| `slot` | `{ slotId, index, activityId, cueId }` — the same object `onSubmit` is handed, for the life of the player |
+| `renderMode` | Passed through untouched; see the rules below |
+| `active` | `true` while this question is on screen; see [the microphone rule](#the-microphone-rule) |
+| `locale` | The player's `locale`, when you gave one |
+| `defaultValue` | The answer restored from `responses`: a starting value, read once |
+| `defaultSubmitted` | Whether `submittedSlotIds` names it: handed in before the attempt resumed |
+| `outcome` | Its stored outcome from `outcomes`: review, or a grade that arrived later. Read live |
+| `portalContainer` | Where to portal popovers; see [Popovers and fullscreen](#popovers-and-fullscreen) |
+
+And the calls through which the video learns what the learner did — the same calls the SDK's own
+components make:
+
+| Call | What the video does | What it forwards |
+|---|---|---|
+| `submit(response)` | Marks the question answered | `onSubmit(response, slot)` |
+| `complete(result)` | Marks it answered; keeps `score / maxScore` for the end card when `maxScore > 0` | `onActivityComplete(result, slot)` |
+| `clear()` | Unanswered again, its score forgotten: the dot empties, a required quiz holds again, `onFinished` would say `skipped` | Nothing — you already know |
+| `setPending(on)` | While any question is pending, Finish waits | Nothing |
+| `emit(type, payload?)` | — | `onInteraction`, with this question's `activityId` and the time |
+
+- **Latest wins.** Call `submit` or `complete` again for a second take or a corrected answer; the
+  score on the end card is the latest one, and a result with nothing to score (`maxScore: 0`) leaves
+  it with none.
+- **Either on its own is an answer.** A type graded later calls `submit` alone; a host that grades
+  in the browser may call only `complete`. Nothing you did not call is forwarded — `complete` does
+  not invent an `onSubmit`.
+- **One identity each, for the life of the player**, so they are safe in an effect's dependencies.
+  Called after the player has unmounted, each does nothing.
+- **In `review`, `submit`, `complete` and `clear` are ignored**, with one development warning per
+  call. The SDK cannot keep a mode for pixels it does not draw: in `exam`, reveal no correctness; in
+  `review`, accept no answer.
+
+### The microphone rule
+
+`active` is `false` from the moment the question leaves the screen — the learner pages to another
+question, the quiz closes (Continue, Skip, Rewatch), another quiz opens — and `true` again when they
+come back. **When it turns `false`, stop your microphone, your timers and anything speaking.** The
+video pauses the `<audio>` and `<video>` elements inside the question and stops the recorders the SDK
+started; it cannot reach one it did not create.
+
+A video error while a quiz is open does not turn it `false`: the quiz stays on top of the error, and
+the question on it is still the learner's to answer.
+
+### Finish waits for an answer on its way
+
+`setPending(true)` says work is on its way for the question — an upload, an assessment. While any
+question is pending:
+
+- **Finish** on the end card is `aria-disabled`, described by a status line (`videoAnswerPending`,
+  "Saving your answer…"), and pressing it says so instead of finishing.
+- A video that **ends** with every question answered finishes once nothing is pending, not before.
+- Closing the quiz, paging, skipping and seeking do not wait: the question stays mounted, so the
+  work completes and reports late, which is what you want.
+
+Call `setPending(false)` however the work ends, a failure included. A question you stop drawing —
+or one that throws — is released for you, so a pending nobody can clear never holds Finish for good.
+
+The SDK's own read-aloud does the same for its takes: a take being stored or judged holds Finish,
+where before 16.1.0 Finish reported that question skipped and its answer arrived after the summary.
+
+### Popovers and fullscreen
+
+In fullscreen only the player is painted, so a tooltip portalled into `document.body` silently
+vanishes. Portal into `portalContainer` instead: one element for the whole player, inside it, drawn
+above the quiz, the same element for the life of the player — key what you put in it. It is `null`
+only before the player's first commit.
+
+```tsx
+createPortal(<MyTooltip key={question.slot.slotId} />, question.portalContainer ?? document.body);
+```
+
+Escape on an open quiz skips it. React carries a keydown up through a portal to the quiz, so a
+popover of yours that closes on Escape should call `event.preventDefault()`: the quiz leaves a
+prevented Escape alone.
+
+### A read-aloud of your own, end to end
+
+```tsx
+function MyReadAloud({ question }: { question: InteractiveVideoQuestion }) {
+  const { active, setPending, submit, complete, portalContainer } = question;
+  const recorder = useMyRecorder(); // your microphone, your silence detection
+
+  // THE MICROPHONE STOPS WHEN THE QUESTION LEAVES THE SCREEN.
+  useEffect(() => {
+    if (!active) {
+      recorder.stop();
+    }
+  }, [active, recorder]);
+
+  const onTake = async (take: Blob) => {
+    setPending(true); // Finish waits from here…
+    try {
+      const key = await myApi.upload(take); // your storage
+      submit({ type: 'read-aloud', recording: { key, mimeType: take.type } });
+      complete(await myApi.assess(key)); // your grade, as an ActivityResult
+    } finally {
+      setPending(false); // …to here, however it ends
+    }
+  };
+
+  return <MyRecorder recorder={recorder} onTake={onTake} tooltipContainer={portalContainer} />;
+}
+```
+
+A video whose read-alouds are all drawn this way needs no `recordingBinding`: the binding is
+required only for a read-aloud the SDK draws itself.
 
 ## Chapters
 
