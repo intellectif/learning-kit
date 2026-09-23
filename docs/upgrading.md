@@ -33,6 +33,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.18.0 | 18.1.0 | Host-renderer parity in `<ActivitySequence>`: a `renderers` override is handed a `question` (`active`, `setPending`, `portalContainer`, `clear`, `emit`, `slot`), and every call it is given keeps one identity. New hooks `useAiHints` / `useAiExplanation` for AI help in a question you draw. **No `lk-core` change** — a `lk-react` minor on the same peer range as 18.0.0 |
 | 0.19.0 | 19.0.0 | AI groundwork: `AiTextResult.usage` (what a call cost, carried to `ai-hint-shown` / `ai-explanation-shown`), the new `ai-help-refused` interaction, and `@intellectif/lk-core/ai-check` — a kit that runs your AI prompts against the SDK's own checks in CI. The empty `@intellectif/lk-ai` placeholder is deleted. **Additive** — the major is the peer bump, plus one new interaction kind |
 | 0.20.0 | 20.0.0 | Delivery policies: `delivery` on every activity and both pagers switches off feedback, solutions, hints or AI help per paper; `resolveDeliveryPolicy`, `validateDeliveryPolicy`, `combineDeliveryPolicies`; `planAttempt(…, { delivery })` records it in the plan and its hash, and `verifyAttemptPlan` reports `deliveryChanged`. **No grade changes, and an absent policy changes nothing** — the major is the peer bump, plus a required `delivery` on `InteractiveVideoQuestion` |
+| 0.21.0 | 21.0.0 | Scoring policies: `scoring` on every activity and both pagers — "Try again" in `practice` (`retries`), which try `counts`, and what tries and hints cost (`retryPenalty`, `hintPenalty`); `scoreTries`, `evaluateTries` and `evaluate(…, { scoring })`; `resolveItemScoringPolicy` / `validateItemScoringPolicy`; `planAttempt(…, { scoring })` and `scoringChanged`; `hintsRevealed` on multiple-choice, fill-in-the-blanks and gap-select responses. **No grade changes without a policy.** One fix to 0.20's `solutions: false` on a dictation, and one possible type error — see [0.20 → 0.21](#020--021-lk-core--20x--21x-lk-react) |
 
 Every behavioural change here is opt-in, per the
 [grade-stability rule](./roadmap.md#5-standing-decisions) — with **two
@@ -58,6 +59,49 @@ you record stay exactly what they were.
 - On **18.0.x**? See [18.0 → 18.1](#180--181-lk-react) — additive, with one possible type error.
 - On **18.1.x**? See [0.18 → 0.19](#018--019-lk-core--18x--19x-lk-react) — additive: what an AI call cost, a refusal you can watch, and a kit for your prompts.
 - On **19.0.x**? See [0.19 → 0.20](#019--020-lk-core--19x--20x-lk-react) — nothing changes until you pass a policy; one possible type error.
+- On **20.0.x**? See [0.20 → 0.21](#020--021-lk-core--20x--21x-lk-react) — no grade moves until you pass a scoring policy; a dictation under `solutions: false` stops naming the words it corrects; one possible type error.
+
+---
+
+## 0.20 → 0.21 (`lk-core`) / 20.x → 21.x (`lk-react`)
+
+### Tries, and what hints cost *(0.21.0 / 21.0.0)*
+
+`scoring` on any activity, on `<ActivitySequence>` or on `<InteractiveVideo>` gives a practice
+question more tries, chooses which counts, and charges for tries and hints. **No grade moves until
+you pass one** — an absent or empty policy scores exactly as now. See
+[Scoring policies](./scoring.md).
+
+**One thing is new without a policy:** a `practice` answer on which a learner was shown a hint says
+how many — `hintsRevealed` on multiple-choice, fill-in-the-blanks and gap-select responses, as
+dictation's already did — and `onChange` reports it when a hint is shown. A server that rebuilds a
+response field by field drops it harmlessly; keep it if you mean to charge for hints there, with
+`evaluate(item, response, { scoring })`.
+
+**Record the policy with the attempt** — `planAttempt(entries, { seed, delivery, scoring })`. A plan
+made without one is unchanged, `planHash` included.
+
+### A fix to `solutions: false` on a dictation *(21.0.0)*
+
+In 20.0.0 a dictation under `delivery={{ solutions: false }}` hid "Show solution" but its marks still
+named every word it corrected — "“cta” should be “cat”", "“cat” is missing" — and drew the right
+letters in its character diff: the answer, on a paper meant to be sat again. Where the right answer
+may not show, the marks now say "“cta” is wrong" and "A word is missing", and draw no diff. Nothing
+changes where solutions show. Two new strings carry it: `dictationWordWrongUnnamed` and
+`dictationWordMissingUnnamed`.
+
+### One possible type error *(21.0.0)*
+
+`InteractiveVideoQuestion` gains a required `scoring` field, as it gained `delivery` in 20.0.0.
+`renderQuestion` is handed it and needs no change; a question you construct by hand needs one:
+
+```ts
+import { DEFAULT_ITEM_SCORING_POLICY } from '@intellectif/lk-core';
+const question: InteractiveVideoQuestion = { ...rest, scoring: DEFAULT_ITEM_SCORING_POLICY };
+```
+
+`LkStrings` gains nine keys. An override (`LkStringsOverride`) needs no change; a complete `LkStrings`
+object of your own needs them — see [Tries and what they cost](./i18n.md#tries-and-what-they-cost).
 
 ---
 

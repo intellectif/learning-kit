@@ -5,6 +5,7 @@ import type {
   InteractionEvent,
   ItemGroup,
   ItemOutcome,
+  ItemScoringPolicy,
   LearnerResponse,
   MediaPlayClaim,
   MediaPlayGrant,
@@ -163,6 +164,22 @@ export interface ActivityProps<TData extends ActivityData = ActivityData> {
    * as well, whichever is stricter. See `DeliveryPolicy` in lk-core.
    */
   delivery?: DeliveryPolicy | null;
+  /**
+   * How this question is scored when the learner can try again or ask for
+   * hints: how many tries, which counts, what tries and hints cost. Applies in
+   * `practice`, where the component grades — `<MultipleChoice>`,
+   * `<FillInTheBlanks>`, `<GapSelect>` and `<Dictation>`. `<ReadAloud>` takes
+   * the prop and ignores it: its tries are its own `recording.maxTakes`, and
+   * its grade comes from your assessor, not from the component. Inside
+   * `<ActivitySequence>` or `<InteractiveVideo>`, the paper's own policy wins
+   * over this one. See `ItemScoringPolicy` in lk-core.
+   *
+   * With tries, `onComplete` fires after every graded try: `score` and
+   * `passed` are the question's under the policy so far, and `xapiStatement`
+   * records the try just made. A policy `validateItemScoringPolicy` refuses
+   * throws at render.
+   */
+  scoring?: ItemScoringPolicy | null;
   /** Per-instance token overrides, applied as inline CSS vars on the root. */
   theme?: Partial<ThemeTokens>;
   /**

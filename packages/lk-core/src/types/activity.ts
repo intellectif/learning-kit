@@ -718,6 +718,14 @@ export interface MultipleChoiceLearnerResponse {
   type: 'multiple-choice';
   /** IDs of the options the learner selected. */
   selectedOptionIds: string[];
+  /**
+   * Hints the learner was shown before submitting this answer, counted from
+   * the start of the question — the author's and AI hints alike. Written by
+   * the SDK's components in `practice`; absent or 0 means none. A scoring
+   * policy's `hintPenalty` charges for them. Client-reported, like any count
+   * a browser makes.
+   */
+  hintsRevealed?: number;
 }
 
 /** Learner response for a Fill-in-the-Blanks activity. */
@@ -725,6 +733,14 @@ export interface FillInTheBlanksLearnerResponse {
   type: 'fill-in-the-blanks';
   /** Map of blank ID to the learner's typed answer. */
   answers: Record<string, string>;
+  /**
+   * Hints the learner was shown before submitting this answer, counted from
+   * the start of the question — the author's and AI hints alike. Written by
+   * the SDK's components in `practice`; absent or 0 means none. A scoring
+   * policy's `hintPenalty` charges for them. Client-reported, like any count
+   * a browser makes.
+   */
+  hintsRevealed?: number;
 }
 
 /**
@@ -740,6 +756,14 @@ export interface GapSelectLearnerResponse {
   type: 'gap-select';
   /** Map of gap ID to the ID of the choice the learner selected. */
   selections: Record<string, string>;
+  /**
+   * Hints the learner was shown before submitting this answer, counted from
+   * the start of the question — the author's and AI hints alike. Written by
+   * the SDK's components in `practice`; absent or 0 means none. A scoring
+   * policy's `hintPenalty` charges for them. Client-reported, like any count
+   * a browser makes.
+   */
+  hintsRevealed?: number;
 }
 
 /** Learner response for a Written Response activity. */
@@ -755,15 +779,18 @@ export interface WrittenResponseLearnerResponse {
  * Learner response for a Dictation activity.
  *
  * `text` is exactly what the learner typed; every normalisation happens in the
- * scorer. `hintsRevealed` is client-reported telemetry — how many hint words
- * were shown before submitting — that the scorer ignores and a consumer may
- * log or penalise, knowing it cannot be verified.
+ * scorer. `hintsRevealed` is client-reported — how many hint words were shown
+ * before submitting. The scorer ignores it; a scoring policy's `hintPenalty`
+ * charges for it, knowing it cannot be verified.
  */
 export interface DictationLearnerResponse {
   type: 'dictation';
   /** The learner's text, as typed. */
   text: string;
-  /** Hint words revealed before submitting (practice only). Absent or 0 means none. */
+  /**
+   * Hint words shown before submitting (practice only), counted from the start
+   * of the question. Absent or 0 means none.
+   */
   hintsRevealed?: number;
 }
 

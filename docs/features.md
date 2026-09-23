@@ -40,6 +40,7 @@ What changed in each release, and what to do about it: the [upgrading guide](./u
 | A question the host draws itself, counted like the SDK's own — in a video | 0.16.0 / 16.1.0 | [Interactive video](./interactive-video.md) |
 | …and in a question set | 0.18.0 / 18.1.0 | [Upgrading](./upgrading.md) |
 | **Delivery policies** — what a paper shows: feedback, solutions, hints, AI help | 0.20.0 / 20.0.0 | [Delivery policies](./delivery.md) |
+| **Scoring policies** — "Try again" in practice, which try counts, what tries and hints cost | 0.21.0 / 21.0.0 | [Scoring policies](./scoring.md) |
 
 ## Grading
 
@@ -49,6 +50,7 @@ What changed in each release, and what to do about it: the [upgrading guide](./u
 | Weighted, sectioned totals with an explicit rounding policy | 0.4.0 / 3.0.0 | [Upgrading](./upgrading.md) |
 | Rubric grading from a grader's judgements (`gradeFromRubric`, `GradeRecord`) | 0.4.0 / 3.0.0 | [Upgrading](./upgrading.md) |
 | A returned grade whose numbers cannot be a grade is refused | 0.18.0 / 18.0.0 | [Upgrading](./upgrading.md) |
+| What tries and hints cost, reached the same way on a server (`scoreTries`, `evaluateTries`) | 0.21.0 / — | [Scoring policies](./scoring.md#scoring-on-your-server) |
 | Grade-stability vectors: every grading path frozen and replayed on each release | 0.8.2 / — | [Vectors](../packages/lk-core/vectors/README.md) |
 
 ## Authoring

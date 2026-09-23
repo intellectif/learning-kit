@@ -320,6 +320,18 @@ const typed = (text, hintsRevealed) => ({
 
 const rules = (...pairs) => ({ equivalences: pairs.map(([from, to]) => ({ from, to })) });
 
+// -- Tries and hint costs ------------------------------------------------------
+
+/** One try as scoreTries reads it. */
+const attempt = (score, hintsRevealed, maxScore = 1) => ({
+  score,
+  maxScore,
+  ...(hintsRevealed === undefined ? {} : { hintsRevealed }),
+});
+const hinted = (response, hintsRevealed) => ({ ...response, hintsRevealed });
+/** A mastery policy: three tries, each after the first costing a quarter, the best counting. */
+const MASTERY = { retries: 2, retryPenalty: 0.25, counts: 'best', hintPenalty: 0.1 };
+
 /** 2000 characters against 2003 with 601 substitutions: raw 0.69995…, "70%" once rounded. */
 const TIE_TRANSCRIPT = 'a'.repeat(2000);
 const TIE_ATTEMPT = `${'a'.repeat(1402)}${'b'.repeat(601)}`;
@@ -4543,4 +4555,259 @@ export const CASES = [
   { id: 'const/READ_ALOUD_MAX_TAKES', const: 'READ_ALOUD_MAX_TAKES' },
   { id: 'const/READ_ALOUD_MAX_DIMENSION_WEIGHT', const: 'READ_ALOUD_MAX_DIMENSION_WEIGHT' },
   { id: 'const/SPEECH_ASSESSMENT_MAX_WORDS', const: 'SPEECH_ASSESSMENT_MAX_WORDS' },
+  { id: 'const/DEFAULT_ITEM_SCORING_POLICY', const: 'DEFAULT_ITEM_SCORING_POLICY' },
+  { id: 'const/ITEM_SCORING_MAX_RETRIES', const: 'ITEM_SCORING_MAX_RETRIES' },
+  {
+    id: 'resolveItemScoringPolicy/none-is-scoring-before-policies',
+    fn: 'resolveItemScoringPolicy',
+    args: [null],
+    note: 'No policy is one try, nothing costing anything, the first try counting: exactly how every question was scored before policies existed.',
+  },
+  {
+    id: 'resolveItemScoringPolicy/settings-left-null-are-defaults',
+    fn: 'resolveItemScoringPolicy',
+    args: [{ hintPenalty: 0.1, retries: null, retryPenalty: null, counts: null }],
+  },
+  {
+    id: 'resolveItemScoringPolicy/refuses-a-cost-it-cannot-read',
+    fn: 'resolveItemScoringPolicy',
+    args: [{ hintPenalty: '0.1' }],
+    note: 'A grade-moving setting has no safe reading: a cost misread as 0 raises grades, as 1 lowers them. It throws, where a delivery policy would restrict.',
+  },
+  {
+    id: 'resolveItemScoringPolicy/refuses-a-retry-cost-never-charged',
+    fn: 'resolveItemScoringPolicy',
+    args: [{ retries: 2, retryPenalty: 0.25 }],
+    note: 'The first try counts by default, so a retry cost would never be charged: a school that set one believes retries cost something.',
+  },
+  {
+    id: 'resolveItemScoringPolicy/accepts-every-setting-at-its-limit',
+    fn: 'resolveItemScoringPolicy',
+    args: [{ hintPenalty: 1, retries: 10, retryPenalty: 1, counts: 'last' }],
+    note: 'A cost of the whole mark and ten retries are policies a school may set; refusing them would fail every paper that uses them.',
+  },
+  {
+    id: 'resolveItemScoringPolicy/refuses-a-policy-that-is-not-an-object',
+    fn: 'resolveItemScoringPolicy',
+    args: [3],
+    note: 'A number where a policy belongs is refused, not read as the default policy: it names no setting, and a stored column that holds one is broken.',
+  },
+  {
+    id: 'validateItemScoringPolicy/no-policy-is-valid',
+    fn: 'validateItemScoringPolicy',
+    args: [null],
+  },
+  {
+    id: 'resolveItemScoringPolicy/refuses-retries-past-the-limit',
+    fn: 'resolveItemScoringPolicy',
+    args: [{ retries: 11 }],
+  },
+  {
+    id: 'validateItemScoringPolicy/names-each-setting-it-refuses',
+    fn: 'validateItemScoringPolicy',
+    args: [{ hintPenalty: 1.5, retries: 1.5, counts: 'average', hintPenalties: 0.1 }],
+    ignore: ['message'],
+  },
+  {
+    id: 'scoreTries/no-policy-is-the-first-answer-as-it-scored',
+    fn: 'scoreTries',
+    args: [[attempt(0.5, 3), attempt(1)], null],
+    note: 'Hints reported and later tries made, and no policy: the question scores what its first answer scored, to the bit.',
+  },
+  {
+    id: 'scoreTries/hint-cost-is-a-fraction-of-the-marks',
+    fn: 'scoreTries',
+    args: [[attempt(1, 2)], { hintPenalty: 0.25 }],
+  },
+  {
+    id: 'scoreTries/hint-cost-on-a-partial-answer-subtracts',
+    fn: 'scoreTries',
+    args: [[attempt(0.5, 1)], { hintPenalty: 0.25 }],
+    note: 'Subtracted from what the answer scored, not multiplied into it: half marks less a quarter is a quarter, not three eighths.',
+  },
+  {
+    id: 'scoreTries/cost-never-takes-a-try-below-zero',
+    fn: 'scoreTries',
+    args: [[attempt(0.5, 3)], { hintPenalty: 0.25 }],
+  },
+  {
+    id: 'scoreTries/no-floating-point-residue-under-a-pass-line',
+    fn: 'scoreTries',
+    args: [[attempt(0.7, 2)], { hintPenalty: 0.1 }],
+    note: '0.7 - 0.2 is 0.49999999999999994 in floating point, which fails a 0.5 pass line the learner met. A costed score is snapped to twelve decimal places.',
+  },
+  {
+    id: 'scoreTries/a-hint-count-it-cannot-read-is-none',
+    fn: 'scoreTries',
+    args: [[attempt(1, 1.5), attempt(1, -2)], { hintPenalty: 0.5, retries: 1, counts: 'last' }],
+  },
+  {
+    id: 'scoreTries/first-counts-by-default',
+    fn: 'scoreTries',
+    args: [[attempt(0.5), attempt(1)], { retries: 1 }],
+    note: 'The default: tries after the first are for learning. Switching tries on moves no grade until a school chooses best or last.',
+  },
+  {
+    id: 'scoreTries/best-after-costs-earliest-of-equals',
+    fn: 'scoreTries',
+    args: [[attempt(0.5), attempt(0.5), attempt(1), attempt(1, 1)], { ...MASTERY, retries: 3 }],
+    note: 'The third try scores 1 less two retries at a quarter: 0.5, equal to the first. The earliest of equal tries counts.',
+  },
+  {
+    id: 'scoreTries/best-compares-fractions-of-the-marks',
+    fn: 'scoreTries',
+    args: [[attempt(5, 0, 10), attempt(0.6, 0, 1)], { retries: 1, counts: 'best' }],
+    note: 'Best is the highest share of the marks: 0.6 out of 1 (60%) beats 5 out of 10 (50%), though 5 is more points.',
+  },
+  {
+    id: 'scoreTries/best-a-later-right-answer',
+    fn: 'scoreTries',
+    args: [[attempt(0), attempt(1)], MASTERY],
+  },
+  {
+    id: 'scoreTries/last-counts-even-when-lower',
+    fn: 'scoreTries',
+    args: [[attempt(1), attempt(0)], { retries: 1, counts: 'last' }],
+  },
+  {
+    id: 'scoreTries/no-try-past-the-allowance-is-believed',
+    fn: 'scoreTries',
+    args: [[attempt(0), attempt(0.5), attempt(1)], { retries: 1, counts: 'last' }],
+    note: 'Two tries allowed and three recorded: the third cannot have come from a learner under this policy, and is not read.',
+  },
+  {
+    id: 'scoreTries/later-hint-count-includes-earlier-hints',
+    fn: 'scoreTries',
+    args: [
+      [attempt(0, 1), attempt(1, 2)],
+      { hintPenalty: 0.1, retries: 1, retryPenalty: 0.2, counts: 'last' },
+    ],
+  },
+  {
+    id: 'scoreTries/cost-out-of-any-maximum',
+    fn: 'scoreTries',
+    args: [[attempt(8, 1, 10)], { hintPenalty: 0.1 }],
+  },
+  {
+    id: 'scoreTries/throws-on-no-try',
+    fn: 'scoreTries',
+    args: [[], null],
+  },
+  {
+    id: 'scoreTries/throws-on-a-try-that-is-not-a-grade',
+    fn: 'scoreTries',
+    args: [[attempt(85)], { hintPenalty: 0.1 }],
+  },
+  {
+    id: 'evaluate/mc/hint-cost-reads-the-pass-line-after-it',
+    fn: 'evaluate',
+    args: [mc(), hinted(pick('a', 'c'), 2), { scoring: { hintPenalty: 0.2 } }],
+    note: "A right answer after two hints at a fifth: 0.6, below the default 0.7 pass line. The details and the feedback stay the answer's.",
+  },
+  {
+    id: 'evaluate/mc/hint-cost-policy-empty-changes-nothing',
+    fn: 'evaluate',
+    args: [mc(), hinted(pick('a', 'c'), 2), { scoring: {} }],
+  },
+  {
+    id: 'evaluate/fib/hint-cost-on-partial-credit',
+    fn: 'evaluate',
+    args: [
+      fib(),
+      hinted(fill({ b1: 'a', b2: 'the', b3: 'wrong' }), 1),
+      { scoring: { hintPenalty: 0.1 } },
+    ],
+  },
+  {
+    id: 'evaluate/gs/hint-cost',
+    fn: 'evaluate',
+    args: [gs(), hinted(choose({ a: 'from', b: 'from' }), 1), { scoring: { hintPenalty: 0.3 } }],
+  },
+  {
+    id: 'evaluate/dc/hint-cost-on-the-word-hints',
+    fn: 'evaluate',
+    args: [dc(), typed("It isn't raining in Lisbon today.", 3), { scoring: { hintPenalty: 0.05 } }],
+    note: 'A dictation has always reported the hint words it showed; a policy now charges for them.',
+  },
+  {
+    id: 'evaluate/mc/hint-cost-with-rounding-meets-the-line',
+    fn: 'evaluate',
+    args: [
+      mc({ passThreshold: 0.5 }),
+      hinted(pick('a', 'c'), 2),
+      { scoring: { hintPenalty: 0.25 }, rounding: { mode: 'half-up', dp: 2 } },
+    ],
+  },
+  {
+    id: 'evaluate/mc/hint-cost-rounded-pass-line',
+    fn: 'evaluate',
+    args: [
+      mc({ passThreshold: 0.7 }),
+      hinted(pick('a', 'c'), 1),
+      { scoring: { hintPenalty: 0.305 }, rounding: { mode: 'half-up', dp: 2 } },
+    ],
+    note: 'A right answer less one hint at 0.305 is 0.695: a fail against 0.7 raw, a pass once both sides are rounded half-up to two places. The pass line after a cost is read with the rounding the call was given.',
+  },
+  {
+    id: 'evaluate/mc/hint-cost-raw-pass-line',
+    fn: 'evaluate',
+    args: [
+      mc({ passThreshold: 0.7 }),
+      hinted(pick('a', 'c'), 1),
+      { scoring: { hintPenalty: 0.305 } },
+    ],
+  },
+  {
+    id: 'evaluateTries/mc/best-a-later-right-answer',
+    fn: 'evaluateTries',
+    args: [mc(), [pick('a'), hinted(pick('a', 'c'), 1)], { scoring: MASTERY }],
+  },
+  {
+    id: 'evaluateTries/fib/last-on-partial-credit',
+    fn: 'evaluateTries',
+    args: [
+      fib(),
+      [fill({ b1: 'a', b2: 'x', b3: 'x' }), hinted(fill({ b1: 'a', b2: 'the', b3: 'x' }), 1)],
+      { scoring: { retries: 1, counts: 'last', hintPenalty: 0.1 } },
+    ],
+  },
+  {
+    id: 'evaluateTries/gs/first-counts-by-default',
+    fn: 'evaluateTries',
+    args: [
+      gs(),
+      [choose({ a: 'of' }), choose({ a: 'from', b: 'from' })],
+      { scoring: { retries: 1 } },
+    ],
+  },
+  {
+    id: 'evaluateTries/dc/best',
+    fn: 'evaluateTries',
+    args: [
+      dc(),
+      [typed('It is raining in Lisbon.'), typed("It isn't raining in Lisbon today.", 2)],
+      { scoring: { retries: 1, retryPenalty: 0.1, counts: 'best', hintPenalty: 0.05 } },
+    ],
+  },
+  {
+    id: 'evaluate/wr/scoring-policy-leaves-deferred',
+    fn: 'evaluate',
+    args: [wr(), write('One two three four five six.'), { scoring: { hintPenalty: 0.5 } }],
+    note: 'A written response is graded later: a scoring policy has nothing to charge yet, and the outcome stays deferred rather than turning unscorable.',
+  },
+  {
+    id: 'evaluateTries/wr/scoring-policy-leaves-deferred',
+    fn: 'evaluateTries',
+    args: [wr(), [write('One two three four five six.')], { scoring: { retries: 1 } }],
+  },
+  {
+    id: 'evaluateTries/no-try-is-no-response-recorded',
+    fn: 'evaluateTries',
+    args: [mc(), [], { scoring: MASTERY }],
+  },
+  {
+    id: 'evaluateTries/no-policy-is-evaluate-of-the-first',
+    fn: 'evaluateTries',
+    args: [mc(), [pick('a'), pick('a', 'c')]],
+  },
 ];

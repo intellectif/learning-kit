@@ -498,6 +498,60 @@ describe('translation coverage', () => {
     sweep(<Dictation data={dc} renderMode="review" outcome={deferred} />);
     cleanup();
 
+    // Where the right answer may not show, the marks say a word is wrong or
+    // missing without naming what it should be.
+    sweep(<Dictation data={dc} delivery={{ solutions: false }} onComplete={vi.fn()} />);
+    await user.type(
+      screen.getByRole('textbox', { name: sentinel('dictationInputLabel') }),
+      'gato durme en la cama hoy',
+    );
+    await user.click(screen.getByRole('button', { name: sentinel('checkAnswers') }));
+    keep(document.body);
+    cleanup();
+
+    // ── Tries and what they cost ───────────────────────────────────────────
+    // A wrong first try with one more to come, costing a quarter: the tries
+    // left, "Try again" and "Show answer"; then a right second try, whose
+    // score before its cost is said beside the score that counts.
+    const mastery = { retries: 1, retryPenalty: 0.25, counts: 'best' as const };
+    sweep(<MultipleChoice data={mc} scoring={mastery} onComplete={vi.fn()} />);
+    await user.click(screen.getByRole('radio', { name: 'Tres' }));
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('tryAgain') }));
+    await user.click(screen.getByRole('radio', { name: 'Cuatro' }));
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    keep(document.body);
+    cleanup();
+
+    // The first try counting, and a later one scoring more: which counts is said.
+    sweep(<MultipleChoice data={mc} scoring={{ retries: 1 }} onComplete={vi.fn()} />);
+    await user.click(screen.getByRole('radio', { name: 'Tres' }));
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    await user.click(screen.getByRole('button', { name: sentinel('tryAgain') }));
+    await user.click(screen.getByRole('radio', { name: 'Cuatro' }));
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    keep(document.body);
+    cleanup();
+
+    // A paper that shows no right answers closes a question's tries with
+    // "Keep this answer"; a hint that costs marks says so before it is asked.
+    sweep(
+      <FillInTheBlanks
+        data={fib}
+        delivery={{ solutions: false }}
+        scoring={{ retries: 1, hintPenalty: 0.1 }}
+        onComplete={vi.fn()}
+      />,
+    );
+    keep(document.body);
+    await user.type(screen.getByRole('textbox', { name: sentinel('blankLabel(1)') }), 'Roma');
+    await user.click(screen.getByRole('button', { name: sentinel('checkAnswers') }));
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('keepAnswer') }));
+    keep(document.body);
+    cleanup();
+
     // ── Read aloud: the recorder, the take, and every way a take can end ───
     const ra = {
       schemaVersion: '1.0',

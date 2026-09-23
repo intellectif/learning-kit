@@ -8,6 +8,13 @@ import type {
   LearnerResponse,
   ScoringResult,
 } from '../types/activity.js';
+import type {
+  ItemScoringPolicy,
+  ItemTryScore,
+  ResolvedItemScoringPolicy,
+} from '../types/item-scoring.js';
+import { isGradeInRange } from './grade-numbers.js';
+import { resolveItemScoringPolicy, scoreTries } from './item-scoring.js';
 import { computePassThreshold, selectFeedback } from './pass-threshold.js';
 import { type RoundingPolicy, roundingPolicyOf } from './rounding.js';
 
@@ -24,6 +31,15 @@ export type {
   RecordingRef,
 } from '../types/activity.js';
 export type { GradeRecord } from '../types/grading.js';
+export type {
+  ItemScoringCount,
+  ItemScoringPolicy,
+  ItemScoringPolicyIssue,
+  ItemTriesScore,
+  ItemTry,
+  ItemTryScore,
+  ResolvedItemScoringPolicy,
+} from '../types/item-scoring.js';
 export type {
   GradeReadAloudOptions,
   ReadAloudWordAlignment,
@@ -66,6 +82,13 @@ export {
   dictationReferenceWords,
   diffDictationChars,
 } from './dictation/index.js';
+export {
+  DEFAULT_ITEM_SCORING_POLICY,
+  ITEM_SCORING_MAX_RETRIES,
+  resolveItemScoringPolicy,
+  scoreTries,
+  validateItemScoringPolicy,
+} from './item-scoring.js';
 export { computePassThreshold, DEFAULT_PASS_THRESHOLD } from './pass-threshold.js';
 export type { Band, RoundingMode, RoundingPolicy } from './rounding.js';
 export { classifyBand, gte, roundGrade } from './rounding.js';
@@ -102,6 +125,29 @@ export interface ScoringOptions {
    * 15 — throws a `RangeError` instead of quietly failing every comparison.
    */
   rounding?: RoundingPolicy;
+}
+
+/**
+ * Options for {@link evaluate} and {@link evaluateTries}: {@link ScoringOptions},
+ * and the paper's scoring policy.
+ */
+export interface EvaluateOptions extends ScoringOptions {
+  /**
+   * What hints and tries cost, and which try counts — see
+   * {@link ItemScoringPolicy}. Absent or `null`, nothing costs anything and the
+   * outcome is exactly what it was before policies existed.
+   *
+   * `evaluate` reads the hints from the response's `hintsRevealed`. The count
+   * is the client's: when your server knows better — it served the AI hints,
+   * say — write its own count there before you evaluate.
+   *
+   * Checked at the call: a policy `validateItemScoringPolicy` refuses throws a
+   * `RangeError`. A grade-moving setting has no safe way to be misread. Under a
+   * policy, a scored outcome whose numbers cannot be a grade — a registered
+   * scorer out of contract — has nothing to charge a cost to, and comes back
+   * `unscorable`.
+   */
+  scoring?: ItemScoringPolicy | null;
 }
 
 /**
@@ -156,6 +202,10 @@ export function score(
  *   "wrong".
  * - An unregistered `data.type` returns `{ status: 'unscorable' }` rather
  *   than throwing, so a mixed-version content bank cannot crash an exam run.
+ * - With a scoring policy (`options.scoring`), a scored outcome is charged what
+ *   the response's hints cost, and `passed` is read from what is left. The
+ *   `details` and authored `feedback` stay the answer's. For several tries at
+ *   one question, use {@link evaluateTries}.
  *
  * The activity type is read from `data.type` — there is no separate type
  * parameter to disagree with the payload.
@@ -163,11 +213,26 @@ export function score(
 export function evaluate(
   data: ActivityData,
   response: LearnerResponse,
-  options?: ScoringOptions,
+  options?: EvaluateOptions,
 ): ItemOutcome {
   // A malformed option is the caller's configuration, not the content bank's:
   // it throws before any item is read, rather than grading every item wrong.
   const rounding = roundingPolicyOf(options?.rounding);
+  const scoring = options?.scoring;
+  const rules = resolveItemScoringPolicy(scoring);
+  const outcome = evaluateAnswer(data, response, rounding);
+  if (scoring === undefined || scoring === null || outcome.status !== 'scored') {
+    return outcome;
+  }
+  return costed(data, outcome, [{ response, outcome }], rules, rounding).outcome;
+}
+
+/** What `evaluate` does with no policy: the answer's own outcome. */
+function evaluateAnswer(
+  data: ActivityData,
+  response: LearnerResponse,
+  rounding: RoundingPolicy | undefined,
+): ItemOutcome {
   const type = (data as { type?: unknown }).type;
   const descriptor = typeof type === 'string' ? getActivityTypeDescriptor(type) : undefined;
 
@@ -217,5 +282,127 @@ export function evaluate(
     passed,
     feedback: result.feedback ?? selectFeedback(data, passed),
     details: result.details,
+  };
+}
+
+type ScoredOutcome = Extract<ItemOutcome, { status: 'scored' }>;
+
+/** A question's outcome over its tries: see {@link evaluateTries}. */
+export interface ItemTriesOutcome {
+  /**
+   * The question's outcome under the policy. Scored: the counted try's
+   * `details` and authored `feedback` — they describe that answer — with its
+   * `score` after what it cost and `passed` read from that score. Anything
+   * else — deferred, unscorable — is the first try's outcome as `evaluate`
+   * gives it.
+   */
+  outcome: ItemOutcome;
+  /** 0-based: the try whose score counts. `null` when the outcome is not scored. */
+  counted: number | null;
+  /**
+   * Every try the policy allows, as scored: before and after what it cost.
+   * Empty when the outcome is not scored, or when, with no policy, it is an
+   * outcome `evaluate` passes through that cannot be a grade.
+   */
+  tries: ItemTryScore[];
+}
+
+/**
+ * A question's outcome from every try a learner made at it, in order, under a
+ * paper's scoring policy: what a server that scores practice itself calls,
+ * with the tries it stored, to reach the grade the SDK's components reached.
+ *
+ * Each response is scored as {@link evaluate} scores it, and costed and chosen
+ * as {@link scoreTries} does: hints from each response's `hintsRevealed`,
+ * which counts from the start of the question; the tries before each one;
+ * and the try `counts` names. Only the first `1 + retries` responses are read.
+ *
+ * With no policy it is `evaluate` of the first response: one try, as before.
+ * With no response at all, the question was never answered —
+ * `{ status: 'deferred', reason: 'no_response_recorded' }`, as a missing slot
+ * is everywhere else.
+ */
+export function evaluateTries(
+  data: ActivityData,
+  responses: readonly LearnerResponse[],
+  options?: EvaluateOptions,
+): ItemTriesOutcome {
+  const rounding = roundingPolicyOf(options?.rounding);
+  const rules = resolveItemScoringPolicy(options?.scoring);
+  if (responses.length === 0) {
+    return {
+      outcome: { status: 'deferred', reason: 'no_response_recorded', maxScore: 1 },
+      counted: null,
+      tries: [],
+    };
+  }
+  const graded = responses
+    .slice(0, 1 + rules.retries)
+    .map((response) => ({ response, outcome: evaluateAnswer(data, response, rounding) }));
+  const opening = (graded[0] as { outcome: ItemOutcome }).outcome;
+  if (opening.status !== 'scored') {
+    return { outcome: opening, counted: null, tries: [] };
+  }
+  // No policy is one try that costs nothing: `evaluate` of the first answer,
+  // exactly — even an outcome `evaluate` passes through that is not a grade.
+  const unset = options?.scoring === undefined || options.scoring === null;
+  if (unset && !isGradeInRange(opening.score, opening.maxScore)) {
+    return { outcome: opening, counted: 0, tries: [] };
+  }
+  return costed(data, opening, graded, rules, rounding);
+}
+
+/**
+ * Charges each try what it cost and picks the one that counts. A try whose
+ * numbers cannot be a grade — a registered scorer out of contract — has
+ * nothing to charge a cost to, and leaves the question unscorable rather than
+ * scored on the other tries.
+ */
+function costed(
+  data: ActivityData,
+  opening: ScoredOutcome,
+  graded: readonly { response: LearnerResponse; outcome: ItemOutcome }[],
+  rules: ResolvedItemScoringPolicy,
+  rounding: RoundingPolicy | undefined,
+): ItemTriesOutcome {
+  const scored: ScoredOutcome[] = [];
+  for (const [index, one] of graded.entries()) {
+    if (
+      one.outcome.status !== 'scored' ||
+      !isGradeInRange(one.outcome.score, one.outcome.maxScore)
+    ) {
+      return {
+        outcome: {
+          status: 'unscorable',
+          reason: `Try ${index + 1} has no grade to charge a cost to, so the question has none under this scoring policy.`,
+          maxScore: opening.maxScore,
+        },
+        counted: null,
+        tries: [],
+      };
+    }
+    scored.push(one.outcome);
+  }
+  const result = scoreTries(
+    scored.map((outcome, index) => ({
+      score: outcome.score,
+      maxScore: outcome.maxScore,
+      hintsRevealed: (graded[index]?.response as { hintsRevealed?: number } | undefined)
+        ?.hintsRevealed,
+    })),
+    rules,
+  );
+  const chosen = scored[result.counted] as ScoredOutcome;
+  return {
+    outcome:
+      result.score === chosen.score
+        ? chosen
+        : {
+            ...chosen,
+            score: result.score,
+            passed: computePassThreshold(data, result.score, rounding),
+          },
+    counted: result.counted,
+    tries: result.tries,
   };
 }

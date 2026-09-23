@@ -101,6 +101,13 @@ const REQUIRED_EXPORTS = [
   'validateDeliveryPolicy',
   'combineDeliveryPolicies',
   'OPEN_DELIVERY_POLICY',
+  // item scoring policies: tries and hint costs
+  'resolveItemScoringPolicy',
+  'validateItemScoringPolicy',
+  'scoreTries',
+  'evaluateTries',
+  'DEFAULT_ITEM_SCORING_POLICY',
+  'ITEM_SCORING_MAX_RETRIES',
   // attempts
   'planAttempt',
   'verifyAttemptPlan',
@@ -234,6 +241,50 @@ if (typeof core.resolveDeliveryPolicy === 'function' && typeof core.planAttempt 
   }
 }
 
+// A scoring policy moves grades, so the build must refuse one it cannot read
+// rather than guess — there is no safe way round, unlike a delivery policy —
+// and must change nothing at all without one: not a score, not a plan.
+if (typeof core.resolveItemScoringPolicy === 'function' && typeof core.evaluate === 'function') {
+  let refused = false;
+  try {
+    core.resolveItemScoringPolicy({ hintPenalty: '0.1' });
+  } catch (error) {
+    refused = error instanceof RangeError;
+  }
+  if (!refused) {
+    failures.push('resolveItemScoringPolicy() read an unreadable cost instead of refusing it');
+  }
+  const answer = { type: 'multiple-choice', selectedOptionIds: ['a'], hintsRevealed: 2 };
+  const before = JSON.stringify(core.evaluate(activity, answer));
+  if (JSON.stringify(core.evaluate(activity, answer, { scoring: {} })) !== before) {
+    failures.push('evaluate() with an empty scoring policy changed the outcome');
+  }
+  if (core.evaluate(activity, answer, { scoring: { hintPenalty: 0.1 } }).score !== 0.8) {
+    failures.push('evaluate() did not charge two hints at a tenth each');
+  }
+  const unplanned = core.planAttempt([activity]);
+  if (Object.hasOwn(unplanned, 'scoring')) {
+    failures.push('planAttempt() recorded a scoring policy nobody gave it');
+  }
+  // Two policies, two fingerprints: the policy is hashed, not only its presence.
+  const priced = core.planAttempt([activity], { scoring: { hintPenalty: 0.1 } }).planHash;
+  if (
+    priced === unplanned.planHash ||
+    priced === core.planAttempt([activity], { scoring: { hintPenalty: 0.2 } }).planHash
+  ) {
+    failures.push('planAttempt() left a scoring policy out of the plan fingerprint');
+  }
+}
+
+// The scoring subpath is built from its own entry, so the barrel check above
+// cannot see it drop the functions a server that scores practice imports.
+const scoringEntry = await import(pathToFileURL(join(PKG_ROOT, 'dist', 'scoring.js')).href);
+for (const name of ['evaluate', 'evaluateTries', 'scoreTries', 'resolveItemScoringPolicy']) {
+  if (typeof scoringEntry[name] !== 'function') {
+    failures.push(`@intellectif/lk-core/scoring does not export ${name}`);
+  }
+}
+
 // The AI test kit is a subpath of its own, and a subpath is exactly what the
 // barrel check above cannot see: it is built from its own entry, so a rename
 // or a dropped re-export reaches a consumer's CI rather than ours. It also has
@@ -319,7 +370,7 @@ if (failures.length > 0) {
 
 console.log(
   `verify-dist OK: ${REQUIRED_EXPORTS.length} documented exports resolve from dist; redaction is fail-closed; ` +
-    'new drafts are incomplete; an unreadable delivery setting restricts; ' +
+    'new drafts are incomplete; an unreadable delivery setting restricts; an unreadable scoring setting is refused; ' +
     'the AI check kit runs from its own subpath; ' +
     `${corpus.vectors.length} grade vectors replay identically against CJS and ESM.`,
 );

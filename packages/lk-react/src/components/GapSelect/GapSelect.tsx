@@ -3,6 +3,7 @@
 import {
   ActivitySchemaError,
   assertRedacted,
+  computePassThreshold,
   type GapSelectBank,
   type GapSelectChoice,
   type GapSelectData,
@@ -23,9 +24,18 @@ import { useActivityState } from '../../hooks/useActivityState.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor, randomSessionId } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
-import { AiExplanation, AiHints } from '../shared/AiHelp.js';
+import { AiExplanation, AiHints, useComponentAiHints } from '../shared/AiHelp.js';
 import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
+import { mintTake, stampTake } from '../shared/sequence-slot.js';
+import {
+  HintCost,
+  hintsOf,
+  TryActions,
+  triesSummary,
+  useItemScoringPolicy,
+  useTries,
+} from '../shared/tries.js';
 import type { ActivityProps } from '../types.js';
 
 export interface GapSelectProps extends ActivityProps<GapSelectData> {
@@ -127,12 +137,14 @@ export function GapSelect({
   shuffleSeed,
   ai: aiProp,
   delivery,
+  scoring,
 }: GapSelectProps) {
   const isExam = renderMode === 'exam';
   const isReview = renderMode === 'review';
   const s = useLkStrings(strings);
   const ai = useLearnerAi(aiProp);
   const policy = useDeliveryPolicy(delivery);
+  const scoringPolicy = useItemScoringPolicy(scoring);
 
   const devError = useMemo(() => {
     if (!isDevelopment()) {
@@ -153,13 +165,28 @@ export function GapSelect({
   const { state, start, complete, getTimeSpent, reset } = useActivityState(
     defaultSubmitted === true ? 'completed' : 'idle',
   );
+  // Before anything that resets them: a new question starts with no tries.
+  const tries = useTries({
+    policy: scoringPolicy,
+    graded: renderMode === 'practice' && policy.feedback,
+    submitted: state === 'completed',
+    disabled: disabled === true,
+  });
+  const resetTries = tries.reset;
   const isControlled = value !== undefined;
   const [internalSelections, setInternalSelections] = useState<Record<string, string>>(() =>
     selectionsOf(defaultValue),
   );
   const [result, setResult] = useState<ScoringResult | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
+  const [overall, setOverall] = useState<string | null>(null);
   const [feedbackHidden, setFeedbackHidden] = useState(false);
+  // Hints the learner had been shown before this mount: a restored answer's
+  // count stands, and the hints shown here add to it.
+  const seedHintsRef = useRef(hintsOf(value ?? defaultValue));
+  const formRef = useRef<HTMLFormElement>(null);
+  const feedbackRef = useRef<HTMLDivElement>(null);
+  const focusAfterRef = useRef<'answer' | 'feedback' | null>(null);
 
   const selections = isControlled ? selectionsOf(value) : internalSelections;
 
@@ -184,9 +211,12 @@ export function GapSelect({
     setInternalSelections(selectionsOf(defaultValueRef.current));
     setResult(null);
     setSummary(null);
+    setOverall(null);
     setFeedbackHidden(false);
+    seedHintsRef.current = hintsOf(defaultValueRef.current);
+    resetTries();
     reset(defaultSubmittedRef.current === true ? 'completed' : 'idle');
-  }, [data, reset]);
+  }, [data, reset, resetTries]);
 
   const segments = useMemo(() => parsePassage(data.passage), [data.passage]);
   const gapById = useMemo(() => new Map(data.gaps.map((gap) => [gap.id, gap])), [data.gaps]);
@@ -214,6 +244,53 @@ export function GapSelect({
     }
     return map;
   }, [data, shuffleSeed]);
+
+  // Hints are a hook, so they are read here, before the throws below.
+  const answered = state === 'completed';
+  const aiHints = useComponentAiHints({
+    ai,
+    data,
+    renderMode,
+    submitted: answered,
+    disabled: disabled === true,
+    response: { type: 'gap-select', selections },
+    locale,
+    onInteraction,
+    strings: s,
+    delivery: policy,
+  });
+  // Every hint the learner has been shown on this question, counted from its
+  // start: what a scoring policy charges for. Hints exist only in practice.
+  const hintsRevealed = renderMode === 'practice' ? seedHintsRef.current + aiHints.used : 0;
+  const responseOf = (next: Record<string, string>): GapSelectLearnerResponse => ({
+    type: 'gap-select',
+    selections: next,
+    ...(hintsRevealed > 0 ? { hintsRevealed } : {}),
+  });
+  // A hint shown is part of the answer's record: say so as it happens.
+  const hintsSeenRef = useRef(aiHints.used);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new hint is the trigger, and the response it reports is this render's
+  useEffect(() => {
+    if (hintsSeenRef.current === aiHints.used) {
+      return;
+    }
+    hintsSeenRef.current = aiHints.used;
+    if (aiHints.used > 0) {
+      onChange?.(responseOf(selections));
+    }
+  }, [aiHints.used]);
+  useEffect(() => {
+    const target = focusAfterRef.current;
+    if (target === null) {
+      return;
+    }
+    focusAfterRef.current = null;
+    if (target === 'answer') {
+      formRef.current?.querySelector<HTMLElement>('select:not(:disabled)')?.focus();
+    } else {
+      feedbackRef.current?.focus();
+    }
+  });
 
   // All hooks are called before these throws, so hook order stays stable.
   if (devError) {
@@ -264,7 +341,7 @@ export function GapSelect({
     if (!isControlled) {
       setInternalSelections(next);
     }
-    onChange?.({ type: 'gap-select', selections: next });
+    onChange?.(responseOf(next));
     fireInteraction('gap-selected', { gapId, choiceId });
   };
 
@@ -273,7 +350,7 @@ export function GapSelect({
     if (inactive) {
       return;
     }
-    const response: GapSelectLearnerResponse = { type: 'gap-select', selections };
+    const response = responseOf(selections);
     onSubmit?.(response);
 
     if (isExam) {
@@ -286,9 +363,25 @@ export function GapSelect({
       return;
     }
 
-    const scoringResult = score('gap-select', data as GapSelectData, response);
+    const answer = score('gap-select', data as GapSelectData, response);
     complete();
     const timeSpent = getTimeSpent();
+    // The question's score under the policy — see MultipleChoice.
+    const counted = tries.record({
+      score: answer.score,
+      maxScore: answer.maxScore,
+      hintsRevealed,
+    });
+    const mine = counted.tries[counted.tries.length - 1];
+    const costed = mine === undefined ? answer.score : mine.scored;
+    const scoringResult =
+      costed === answer.score
+        ? answer
+        : { ...answer, score: costed, passed: computePassThreshold(data as GapSelectData, costed) };
+    const passed =
+      counted.score === scoringResult.score
+        ? scoringResult.passed
+        : computePassThreshold(data as GapSelectData, counted.score);
     const xapiStatement = xAPIBuilder.buildAnsweredStatement({
       actor: ANONYMOUS_ACTOR,
       object: {
@@ -300,22 +393,32 @@ export function GapSelect({
       timeSpentMs: timeSpent,
       response: JSON.stringify(selections),
     });
-    setResult(scoringResult);
-    onComplete?.({
-      score: scoringResult.score,
-      maxScore: scoringResult.maxScore,
-      passed: scoringResult.passed,
-      timeSpent,
-      xapiStatement,
-    });
-    const overall = scoringResult.feedback;
+    setResult(answer);
+    onComplete?.(
+      stampTake(
+        { score: counted.score, maxScore: counted.maxScore, passed, timeSpent, xapiStatement },
+        mintTake(),
+      ),
+    );
+    setOverall(answer.feedback);
     setSummary(
-      `${s.answerSubmitted} ${s.scoreAnnouncement(
-        Math.round(scoringResult.score * 100),
-        scoringResult.passed,
-      )}${overall ? ` ${overall}` : ''}`,
+      `${s.answerSubmitted} ${s.scoreAnnouncement(Math.round(counted.score * 100), passed)}`,
     );
     fireInteraction('submitted', { selections, score: scoringResult.score });
+  };
+
+  /** "Try again": the choices stay, to be changed; the marks go. */
+  const retry = (): void => {
+    reset('idle');
+    setSummary(null);
+    setOverall(null);
+    focusAfterRef.current = 'answer';
+  };
+
+  /** "Keep this answer": no more tries. A gap select never writes in the right choice. */
+  const closeTries = (): void => {
+    tries.close();
+    focusAfterRef.current = 'feedback';
   };
 
   const correctByGap = useMemo(() => {
@@ -355,9 +458,18 @@ export function GapSelect({
   }, [isReview, outcome, s]);
 
   const anyFeedback = data.gaps.some((gap) => gap.feedback !== undefined);
+  const extra =
+    !isReview && policy.feedback && submitted && tries.counted !== null
+      ? triesSummary(s, scoringPolicy, tries.counted, tries.open)
+      : '';
+  const announced =
+    summary === null
+      ? null
+      : `${summary}${extra ? ` ${extra}` : ''}${overall ? ` ${overall}` : ''}`;
 
   return (
     <form
+      ref={formRef}
       className="lk-gs"
       aria-label={data.title}
       lang={locale}
@@ -432,18 +544,10 @@ export function GapSelect({
             );
           })}
         </p>
-        <AiHints
-          ai={ai}
-          data={data}
-          renderMode={renderMode}
-          submitted={submitted}
-          disabled={disabled === true}
-          response={{ type: 'gap-select', selections }}
-          locale={locale}
-          onInteraction={onInteraction}
-          strings={s}
-          delivery={policy}
-        />
+        {aiHints.offered && renderMode === 'practice' ? (
+          <HintCost policy={scoringPolicy} strings={s} />
+        ) : null}
+        <AiHints help={aiHints} ai={ai} strings={s} />
         {isReview ? null : (
           <button type="submit" disabled={inactive}>
             {isExam ? s.submitAnswers : s.checkAnswers}
@@ -460,15 +564,25 @@ export function GapSelect({
           {feedbackHidden ? s.showFeedback : s.hideFeedback}
         </button>
       ) : null}
-      <FeedbackRegion id={`${data.id}-feedback`}>
+      <FeedbackRegion
+        id={`${data.id}-feedback`}
+        {...(scoringPolicy.retries > 0 ? { ref: feedbackRef } : {})}
+      >
         {isReview
           ? policy.feedback || !outcomeShowsMarks(outcome)
             ? reviewSummary
             : null
           : policy.feedback || summary === null
-            ? summary
+            ? announced
             : s.answerSubmitted}
       </FeedbackRegion>
+      <TryActions
+        tries={tries}
+        solutions={false}
+        strings={s}
+        onRetry={retry}
+        onClose={closeTries}
+      />
       <AiExplanation
         ai={ai}
         data={data}
@@ -479,7 +593,9 @@ export function GapSelect({
         locale={locale}
         onInteraction={onInteraction}
         strings={s}
-        delivery={policy}
+        // An explanation all but always names the answer: not while another
+        // try is on offer.
+        delivery={tries.open ? { ...policy, solutions: false } : policy}
       />
     </form>
   );

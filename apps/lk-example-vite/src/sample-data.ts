@@ -413,3 +413,35 @@ export const sampleReadingGroup: ItemGroup = {
 
 /** Two loose questions followed by a reading group — what the pager presents. */
 export const sampleQuestionSet: SequenceEntry[] = [...sampleFibSet, sampleReadingGroup];
+
+/** A question with more than one try: none of its words appear elsewhere on the page. */
+export const sampleTriesQuestion: MultipleChoiceData = {
+  schemaVersion: '1.0',
+  type: 'multiple-choice',
+  id: 'demo-tries-mc',
+  title: 'Rivers',
+  question: 'Which river flows through Cairo?',
+  mode: 'single',
+  scoringStrategy: 'all-or-nothing',
+  options: [
+    {
+      id: 'nile',
+      text: 'The Nile',
+      isCorrect: true,
+      feedback: 'Yes: the Nile runs through Cairo.',
+    },
+    { id: 'danube', text: 'The Danube', isCorrect: false, feedback: 'The Danube is in Europe.' },
+    { id: 'ganges', text: 'The Ganges', isCorrect: false, feedback: 'The Ganges is in India.' },
+  ],
+};
+
+/** A blank with a hint that costs marks. */
+export const sampleHintCostBlank: FillInTheBlanksData = {
+  schemaVersion: '1.0',
+  type: 'fill-in-the-blanks',
+  id: 'demo-hint-cost',
+  title: 'Past simple',
+  passage: 'Yesterday we {{went}} to the market.',
+  blanks: [{ id: 'went', acceptedAnswers: ['went'], hint: 'The past of "go" is irregular.' }],
+  scoringStrategy: 'partial',
+};

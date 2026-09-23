@@ -10,6 +10,7 @@ import {
 import { type LearnerAi, LkAiProvider } from '@intellectif/lk-react/ai/LkAiProvider';
 import { ActivitySequence } from '@intellectif/lk-react/components/ActivitySequence';
 import { Dictation } from '@intellectif/lk-react/components/Dictation';
+import { FillInTheBlanks } from '@intellectif/lk-react/components/FillInTheBlanks';
 import { GapSelect } from '@intellectif/lk-react/components/GapSelect';
 import { MultipleChoice } from '@intellectif/lk-react/components/MultipleChoice';
 import { ReadAloud, type RecordingBinding } from '@intellectif/lk-react/components/ReadAloud';
@@ -23,9 +24,11 @@ import {
   sampleAiPractice,
   sampleDictation,
   sampleGapSelect,
+  sampleHintCostBlank,
   sampleMultipleChoice,
   sampleQuestionSet,
   sampleReadAloud,
+  sampleTriesQuestion,
 } from './sample-data';
 
 /**
@@ -287,6 +290,29 @@ export function App(): React.JSX.Element {
               <MultipleChoice data={sampleAiExam} renderMode="exam" />
             </section>
           </LkAiProvider>
+        </section>
+
+        <section aria-labelledby="tries-heading">
+          <h2 id="tries-heading">Tries and hint costs</h2>
+          <p>
+            Under a scoring policy a practice question gives more than one try, and a hint costs
+            marks. Here each try after the first costs a quarter and the best counts; a hint costs a
+            tenth.
+          </p>
+          <section aria-label="A question with a second try">
+            <MultipleChoice
+              data={sampleTriesQuestion}
+              scoring={{ retries: 1, retryPenalty: 0.25, counts: 'best' }}
+              onComplete={handleComplete('Tries')}
+            />
+          </section>
+          <section aria-label="A hint that costs marks">
+            <FillInTheBlanks
+              data={sampleHintCostBlank}
+              scoring={{ hintPenalty: 0.1 }}
+              onComplete={handleComplete('Hint cost')}
+            />
+          </section>
         </section>
 
         <section aria-labelledby="set-heading">

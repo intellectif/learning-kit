@@ -3,6 +3,7 @@
 import {
   ActivitySchemaError,
   assertRedacted,
+  computePassThreshold,
   type FillInTheBlanksData,
   type FillInTheBlanksLearnerResponse,
   type LearnerResponse,
@@ -19,9 +20,18 @@ import { useActivityState } from '../../hooks/useActivityState.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
-import { AiExplanation, AiHints } from '../shared/AiHelp.js';
+import { AiExplanation, AiHints, useComponentAiHints } from '../shared/AiHelp.js';
 import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
+import { mintTake, stampTake } from '../shared/sequence-slot.js';
+import {
+  HintCost,
+  hintsOf,
+  TryActions,
+  triesSummary,
+  useItemScoringPolicy,
+  useTries,
+} from '../shared/tries.js';
 import type { ActivityProps } from '../types.js';
 
 export interface FillInTheBlanksProps extends ActivityProps<FillInTheBlanksData> {
@@ -117,6 +127,7 @@ export function FillInTheBlanks({
   showCorrectAnswers,
   ai: aiProp,
   delivery,
+  scoring,
 }: FillInTheBlanksProps) {
   const isExam = renderMode === 'exam';
   const isReview = renderMode === 'review';
@@ -126,6 +137,7 @@ export function FillInTheBlanks({
   const s = useLkStrings(strings);
   const ai = useLearnerAi(aiProp);
   const policy = useDeliveryPolicy(delivery);
+  const scoringPolicy = useItemScoringPolicy(scoring);
 
   const devError = useMemo(() => {
     if (!isDevelopment()) {
@@ -149,6 +161,14 @@ export function FillInTheBlanks({
   const { state, start, complete, getTimeSpent, reset } = useActivityState(
     defaultSubmitted === true ? 'completed' : 'idle',
   );
+  // Before anything that resets them: a new question starts with no tries.
+  const tries = useTries({
+    policy: scoringPolicy,
+    graded: renderMode === 'practice' && policy.feedback,
+    submitted: state === 'completed',
+    disabled: disabled === true,
+  });
+  const resetTries = tries.reset;
   // Controlled when `value` is supplied: the answers rendered are ALWAYS the
   // caller's, and internal state is never read. Uncontrolled otherwise,
   // seeded from `defaultValue`.
@@ -157,9 +177,19 @@ export function FillInTheBlanks({
     answersOf(defaultValue),
   );
   const [revealed, setRevealed] = useState<Set<string>>(() => new Set());
+  // Every blank whose hint has been shown on this mount, hidden again or not:
+  // hiding a hint does not unsee it.
+  const [seen, setSeen] = useState<ReadonlySet<string>>(() => new Set());
   const [result, setResult] = useState<ScoringResult | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
+  const [overall, setOverall] = useState<string | null>(null);
   const [feedbackHidden, setFeedbackHidden] = useState(false);
+  // Hints the learner had been shown before this mount: a restored answer's
+  // count stands, and the hints shown here add to it.
+  const seedHintsRef = useRef(hintsOf(value ?? defaultValue));
+  const formRef = useRef<HTMLFormElement>(null);
+  const feedbackRef = useRef<HTMLDivElement>(null);
+  const focusAfterRef = useRef<'answer' | 'feedback' | null>(null);
 
   const answers = isControlled ? answersOf(value) : internalAnswers;
 
@@ -197,11 +227,15 @@ export function FillInTheBlanks({
     lastDataRef.current = data;
     setInternalAnswers(answersOf(defaultValueRef.current));
     setRevealed(new Set());
+    setSeen(new Set());
     setResult(null);
     setSummary(null);
+    setOverall(null);
     setFeedbackHidden(false);
+    seedHintsRef.current = hintsOf(defaultValueRef.current);
+    resetTries();
     reset(defaultSubmittedRef.current === true ? 'completed' : 'idle');
-  }, [data, reset]);
+  }, [data, reset, resetTries]);
 
   /*
    * RICH TEXT — deliberate, documented limitation (see `sanitizeHtml`).
@@ -247,6 +281,58 @@ export function FillInTheBlanks({
   const segments = useMemo(() => parsePassage(data.passage), [data.passage]);
   const blankById = useMemo(() => new Map(data.blanks.map((b) => [b.id, b])), [data.blanks]);
 
+  // Hints are a hook, so they are read here, before the throws below.
+  const answered = state === 'completed';
+  const aiHints = useComponentAiHints({
+    ai,
+    data,
+    renderMode,
+    submitted: answered,
+    disabled: disabled === true,
+    response: { type: 'fill-in-the-blanks', answers },
+    locale,
+    onInteraction,
+    strings: s,
+    delivery: policy,
+  });
+  // Every hint the learner has been shown on this question, counted from its
+  // start: the author's, one per blank, and AI hints. What a scoring policy
+  // charges for — in practice only: an exam's hints are free and uncounted.
+  const hintsRevealed =
+    renderMode === 'practice' ? seedHintsRef.current + seen.size + aiHints.used : 0;
+  const responseOf = (
+    next: Record<string, string>,
+    hints: number = hintsRevealed,
+  ): FillInTheBlanksLearnerResponse => ({
+    type: 'fill-in-the-blanks',
+    answers: next,
+    ...(hints > 0 ? { hintsRevealed: hints } : {}),
+  });
+  // An AI hint shown is part of the answer's record: say so as it happens.
+  const aiSeenRef = useRef(aiHints.used);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new hint is the trigger, and the response it reports is this render's
+  useEffect(() => {
+    if (aiSeenRef.current === aiHints.used) {
+      return;
+    }
+    aiSeenRef.current = aiHints.used;
+    if (aiHints.used > 0) {
+      onChange?.(responseOf(answers));
+    }
+  }, [aiHints.used]);
+  useEffect(() => {
+    const target = focusAfterRef.current;
+    if (target === null) {
+      return;
+    }
+    focusAfterRef.current = null;
+    if (target === 'answer') {
+      formRef.current?.querySelector<HTMLElement>('input:not(:disabled)')?.focus();
+    } else {
+      feedbackRef.current?.focus();
+    }
+  });
+
   if (devError) {
     throw devError;
   }
@@ -281,7 +367,8 @@ export function FillInTheBlanks({
   // with the author's feedback, and the correct answers `showCorrectAnswers`
   // would write into a wrong blank.
   const marking = revealing && policy.feedback;
-  const showingAnswers = marking && policy.solutions && showCorrectAnswers === true;
+  // Not while the learner is offered another try: the next try is for finding them.
+  const showingAnswers = marking && policy.solutions && showCorrectAnswers === true && !tries.open;
 
   const fireInteraction = (
     type: 'blank-filled' | 'hint-requested' | 'submitted',
@@ -301,7 +388,7 @@ export function FillInTheBlanks({
     if (!isControlled) {
       setInternalAnswers(next);
     }
-    onChange?.({ type: 'fill-in-the-blanks', answers: next });
+    onChange?.(responseOf(next));
     fireInteraction('blank-filled', { blankId, value: text });
   };
 
@@ -325,6 +412,13 @@ export function FillInTheBlanks({
     if (!revealed.has(blankId)) {
       fireInteraction('hint-requested', { blankId });
     }
+    // The first time a blank's hint shows, the answer's record says so.
+    if (!seen.has(blankId)) {
+      setSeen((prev) => new Set(prev).add(blankId));
+      if (renderMode === 'practice') {
+        onChange?.(responseOf(answers, hintsRevealed + 1));
+      }
+    }
   };
 
   const handleSubmit = (event: React.FormEvent): void => {
@@ -332,7 +426,7 @@ export function FillInTheBlanks({
     if (inactive) {
       return;
     }
-    const response: FillInTheBlanksLearnerResponse = { type: 'fill-in-the-blanks', answers };
+    const response = responseOf(answers);
     // Fires in every submitting mode and always BEFORE onComplete, so an exam
     // runner can persist the raw response regardless of local grading.
     onSubmit?.(response);
@@ -350,9 +444,29 @@ export function FillInTheBlanks({
 
     // PRACTICE: unchanged v1 behaviour. `data` carries the key here — exam
     // mode is the only path that may be handed a redact() projection.
-    const scoringResult = score('fill-in-the-blanks', data as FillInTheBlanksData, response);
+    const answer = score('fill-in-the-blanks', data as FillInTheBlanksData, response);
     complete();
     const timeSpent = getTimeSpent();
+    // The question's score under the policy — see MultipleChoice.
+    const counted = tries.record({
+      score: answer.score,
+      maxScore: answer.maxScore,
+      hintsRevealed,
+    });
+    const mine = counted.tries[counted.tries.length - 1];
+    const costed = mine === undefined ? answer.score : mine.scored;
+    const scoringResult =
+      costed === answer.score
+        ? answer
+        : {
+            ...answer,
+            score: costed,
+            passed: computePassThreshold(data as FillInTheBlanksData, costed),
+          };
+    const passed =
+      counted.score === scoringResult.score
+        ? scoringResult.passed
+        : computePassThreshold(data as FillInTheBlanksData, counted.score);
     const xapiStatement = xAPIBuilder.buildAnsweredStatement({
       actor: ANONYMOUS_ACTOR,
       object: {
@@ -364,23 +478,33 @@ export function FillInTheBlanks({
       timeSpentMs: timeSpent,
       response: JSON.stringify(answers),
     });
-    setResult(scoringResult);
-    onComplete?.({
-      score: scoringResult.score,
-      maxScore: scoringResult.maxScore,
-      passed: scoringResult.passed,
-      timeSpent,
-      xapiStatement,
-    });
-    // Core selects the authored overall feedback on `passed` (B3 fix).
-    const overall = scoringResult.feedback;
+    setResult(answer);
+    onComplete?.(
+      stampTake(
+        { score: counted.score, maxScore: counted.maxScore, passed, timeSpent, xapiStatement },
+        mintTake(),
+      ),
+    );
+    // Core selects the authored overall feedback on `passed` (B3 fix): the answer's.
+    setOverall(answer.feedback);
     setSummary(
-      `${s.answerSubmitted} ${s.scoreAnnouncement(
-        Math.round(scoringResult.score * 100),
-        scoringResult.passed,
-      )}${overall ? ` ${overall}` : ''}`,
+      `${s.answerSubmitted} ${s.scoreAnnouncement(Math.round(counted.score * 100), passed)}`,
     );
     fireInteraction('submitted', { answers, score: scoringResult.score });
+  };
+
+  /** "Try again": the answers stay, to be changed; the marks go. */
+  const retry = (): void => {
+    reset('idle');
+    setSummary(null);
+    setOverall(null);
+    focusAfterRef.current = 'answer';
+  };
+
+  /** "Show answer": no more tries; the question shows what a finished one shows. */
+  const closeTries = (): void => {
+    tries.close();
+    focusAfterRef.current = 'feedback';
   };
 
   const correctByBlank = useMemo(() => {
@@ -427,8 +551,22 @@ export function FillInTheBlanks({
     return s.noGradeAvailable;
   }, [isReview, outcome, s]);
 
+  const extra =
+    !isReview && policy.feedback && submitted && tries.counted !== null
+      ? triesSummary(s, scoringPolicy, tries.counted, tries.open)
+      : '';
+  const announced =
+    summary === null
+      ? null
+      : `${summary}${extra ? ` ${extra}` : ''}${overall ? ` ${overall}` : ''}`;
+  const hintsOffered =
+    renderMode === 'practice' &&
+    !submitted &&
+    (aiHints.offered || (policy.hints && data.blanks.some((blank) => blank.hint)));
+
   return (
     <form
+      ref={formRef}
       className="lk-fib"
       aria-label={data.title}
       lang={locale}
@@ -554,18 +692,8 @@ export function FillInTheBlanks({
             );
           })}
         </p>
-        <AiHints
-          ai={ai}
-          data={data}
-          renderMode={renderMode}
-          submitted={submitted}
-          disabled={disabled === true}
-          response={{ type: 'fill-in-the-blanks', answers }}
-          locale={locale}
-          onInteraction={onInteraction}
-          strings={s}
-          delivery={policy}
-        />
+        {hintsOffered ? <HintCost policy={scoringPolicy} strings={s} /> : null}
+        <AiHints help={aiHints} ai={ai} strings={s} />
         {/* Review is read-only: there is nothing to submit. */}
         {isReview ? null : (
           <button type="submit" disabled={inactive}>
@@ -583,15 +711,25 @@ export function FillInTheBlanks({
           {feedbackHidden ? s.showFeedback : s.hideFeedback}
         </button>
       ) : null}
-      <FeedbackRegion id={`${data.id}-feedback`}>
+      <FeedbackRegion
+        id={`${data.id}-feedback`}
+        {...(scoringPolicy.retries > 0 ? { ref: feedbackRef } : {})}
+      >
         {isReview
           ? policy.feedback || !outcomeShowsMarks(outcome)
             ? reviewSummary
             : null
           : policy.feedback || summary === null
-            ? summary
+            ? announced
             : s.answerSubmitted}
       </FeedbackRegion>
+      <TryActions
+        tries={tries}
+        solutions={policy.solutions && showCorrectAnswers === true}
+        strings={s}
+        onRetry={retry}
+        onClose={closeTries}
+      />
       <AiExplanation
         ai={ai}
         data={data}
@@ -602,7 +740,9 @@ export function FillInTheBlanks({
         locale={locale}
         onInteraction={onInteraction}
         strings={s}
-        delivery={policy}
+        // An explanation all but always names the answer: not while another
+        // try is on offer.
+        delivery={tries.open ? { ...policy, solutions: false } : policy}
       />
     </form>
   );
