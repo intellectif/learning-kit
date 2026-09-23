@@ -26,6 +26,7 @@ Trusted Publishing attaches to a package; the initial publish establishes each p
 pnpm install
 pnpm turbo run build lint test coverage e2e   # must be 14/14 green
 pnpm version-packages                          # applies changesets → versions + CHANGELOGs
+                                               # (needs GITHUB_TOKEN set: entries link their PRs)
 git add -A && git commit -m "chore: version packages"
 
 npm login                                      # interactive; complete the 2FA prompt
@@ -111,9 +112,13 @@ that finishes in ~30s did **not** publish — it opened/updated the version PR.
 pnpm changeset
 ```
 
-Pick the packages and bump type, write the summary. This creates `.changeset/<name>.md`.
-Remember it becomes the **public CHANGELOG on npm and GitHub** — write it for strangers,
-never name a private consumer or its internal files.
+Pick the packages and bump type, write the summary. This creates `.changeset/<name>.md`, with the
+summary exactly as typed — then open it and shape it to the template below, since the prompt takes one
+line and the template needs a second paragraph. `pnpm docs-check` says whether it passes.
+Remember it becomes the **public release note** — in the CHANGELOG on npm, in the GitHub Release,
+and in the upgrade PR a consumer's Renovate or Dependabot opens. Write it for strangers, never name a
+private consumer or its internal files, and follow [the template](#writing-the-release-note):
+`pnpm docs-check` fails a note that does not.
 
 **2. Commit, push, open a PR, merge it to `main`.** CI + E2E must be green.
 
@@ -137,9 +142,52 @@ and publishes both packages to npm with provenance.
 npm view @intellectif/lk-core version && npm view @intellectif/lk-react version
 ```
 
+### Writing the release note
+
+A changeset is read by someone deciding whether to upgrade, usually from a list. Lead with what they
+need to decide, in this order:
+
+```md
+---
+'@intellectif/lk-react': major
+---
+
+**Delivery policies**: decide per paper whether learners see feedback, solutions, hints and AI help.
+
+**Action required:** none. No policy, no change — major only because the peer range moves to
+`@intellectif/lk-core@^0.20.0`.
+
+- `feedback: false` — no marks, no score, no authored feedback; `onComplete` still gets the grade.
+- …the detail, as long as it needs to be.
+
+Guide: https://github.com/intellectif/learning-kit/blob/main/docs/delivery.md
+```
+
+`pnpm docs-check` (and CI) holds every pending changeset to it:
+
+| Rule | Why |
+|---|---|
+| **The first paragraph is one line, starting with a bold headline** — at most 200 characters | It is the entry's headline in the CHANGELOG, the GitHub Release and a bot's PR. |
+| **The second paragraph starts `**Action required:**`** — `none`, or what to do | The question every reader has, answered before the detail rather than in its last sentence. |
+| **A major that requires nothing says why it is a major** | In this repository a `lk-react` major is usually just the `lk-core` peer bump, and reads as an alarm unless it says so. |
+| **Links are full URLs** — no `docs/…md` paths, no relative links | The note is read on npm and in GitHub Releases, where a repository path links nowhere. |
+| **It names only packages this repository publishes, with `major`, `minor` or `patch`** | A typo there would release the wrong thing, or nothing. |
+
+What the check cannot see, the reviewer must: no private consumer named, nothing a stranger could not
+act on, and the detail proportionate — a changeset is the record of one change, not its design
+document. The design belongs in the guide it links to.
+
+**Each entry links its pull request and commit.** `.changeset/config.json` uses
+`@changesets/changelog-github`, which looks both up through the GitHub API when the version PR is
+built. The Release job has the token it needs; running `pnpm version-packages` on your own machine
+needs a `GITHUB_TOKEN` in the environment, for the same reason.
+
+**Private workspace packages are never versioned** (`privatePackages` in the same file), so the demo
+app and the Storybook do not appear in the version PR or the release notes.
+
 ### Checklist
 
-- [ ] `pnpm changeset` written, and the text is safe to publish publicly
+- [ ] `pnpm changeset` written to [the template](#writing-the-release-note), and safe to publish publicly
 - [ ] Feature PR green and merged to `main`
 - [ ] “chore: version packages” PR checks approved (**Approve and run**) and green
 - [ ] Version numbers in that PR reviewed — especially the `lk-react` major
@@ -240,7 +288,8 @@ This does not change the limitation above: Release is not gated on CI. It does v
 `pnpm release` runs `verify-release` first, on Node 24:
 
 - build, test, lint, typecheck, publint, attw and verify-dist, in one turbo run;
-- then `api-check` and `size`.
+- then `api-check`, `docs-check` (the README's package table, the release-note template and every
+  link between the docs) and `size`.
 
 A moved grade therefore fails the Release job before `changeset publish`. That run is not the one a pull request
 passes, though. CI splits those tasks into steps and runs `api-check` and `size` on Node 22 only. So the required

@@ -159,15 +159,41 @@ that an exhaustive `switch` must handle, and a changed reset target for
 [CHANGELOG](https://github.com/intellectif/learning-kit/blob/main/packages/lk-react/CHANGELOG.md)
 before assuming a migration is needed.
 
+## Releases & upgrading
+
+- **What is supported, and since when** — [Features](https://github.com/intellectif/learning-kit/blob/main/docs/features.md): every activity and capability, the `lk-core` / `lk-react` versions it arrived in, and its guide.
+- **What changed** — [GitHub Releases](https://github.com/intellectif/learning-kit/releases), one per package version, and the same notes in each package's `CHANGELOG.md` (it ships in the npm package, so it is in your `node_modules` too). Notes written since release notes gained a template — every release after lk-core 0.20.0 / lk-react 20.0.0 — start with a one-line summary and **Action required**: `none`, or what to do. Earlier notes lead with the detail; the version map in the upgrading guide says what each one asks of you.
+- **How to upgrade** — [Upgrading](https://github.com/intellectif/learning-kit/blob/main/docs/upgrading.md): which `lk-core` goes with which `lk-react`, and a section per release saying what, if anything, you need to change. A `lk-react` major is often only the `lk-core` peer bump; the map says so.
+- **Hearing about a release** — on GitHub, **Watch → Custom → Releases**, or subscribe to [the releases feed](https://github.com/intellectif/learning-kit/releases.atom). Better still, let your dependency bot bring each release to you as a pull request, with its notes — and keep the two packages together in one, since they move together:
+
+  ```yaml
+  # .github/dependabot.yml — one entry per directory with a package.json
+  version: 2
+  updates:
+    - package-ecosystem: npm
+      directory: /
+      schedule: { interval: weekly }
+      groups:
+        learning-kit:
+          patterns: ["@intellectif/lk-*"]
+  ```
+
+  With Renovate: `"packageRules": [{ "matchPackageNames": ["@intellectif/lk-core", "@intellectif/lk-react"], "groupName": "learning-kit" }]`.
+
+  `lk-core` is still `0.x`, and a caret range on a `0.x` version matches only that minor: `^0.18.0` never installs `0.19.0`. A bot is how you find out there is one.
+
 ## Documentation
 
-- [Upgrading](https://github.com/intellectif/learning-kit/blob/main/docs/upgrading.md) — start here on any upgrade from 2.x, 3.x, 4.x or 5.x.
+- [Features](https://github.com/intellectif/learning-kit/blob/main/docs/features.md) — everything supported, and the versions each arrived in.
+- [Upgrading](https://github.com/intellectif/learning-kit/blob/main/docs/upgrading.md) — which `lk-core` goes with which `lk-react`, and what each release asks of you.
 - [Changelog](https://github.com/intellectif/learning-kit/blob/main/packages/lk-react/CHANGELOG.md) — every release, with the reasoning.
 - [Authoring & content storage](https://github.com/intellectif/learning-kit/blob/main/docs/authoring.md)
 - [Styling](https://github.com/intellectif/learning-kit/blob/main/docs/styling.md) — tokens, the skin, overrides, dark mode, Tailwind.
 - [Internationalisation](https://github.com/intellectif/learning-kit/blob/main/docs/i18n.md) — the full string surface, precedence, plurals, RTL.
 - [Interactive video](https://github.com/intellectif/learning-kit/blob/main/docs/interactive-video.md) — the timeline model, the player's props, captions, resume and required quizzes.
 - [Speech assessment](https://github.com/intellectif/learning-kit/blob/main/docs/speech-assessment.md) — the read-aloud item, the evidence an assessor must produce, and how a grade is computed.
+- [Delivery policies](https://github.com/intellectif/learning-kit/blob/main/docs/delivery.md) — what a school lets a learner see: feedback, solutions, hints and AI help, per paper.
+- [AI help for learners](https://github.com/intellectif/learning-kit/blob/main/docs/ai.md) — connecting your model, what it is given, what the SDK refuses to show, and testing your prompts.
 - [Project README](https://github.com/intellectif/learning-kit#readme) — full picture & monorepo layout.
 
 ## License

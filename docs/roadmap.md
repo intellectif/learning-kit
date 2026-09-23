@@ -202,7 +202,8 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   `value`/`defaultValue`/`onChange`, `practice | exam | review`, components accept `redact()` output,
   opt-in `sanitizeHtml`. FIB `passageHtml` deliberately deferred — see the changeset for why slicing
   sanitised HTML at `{{id}}` placeholders is both lossy and unsafe.
-- ✅ **Packaging: CommonJS type resolution + CI gate** (0.3.2 / 2.1.1). `exports` now nests `types` per
+- ✅ **Packaging: CommonJS type resolution + CI gate** — prepared as 0.3.2 / 2.1.1, which were never
+  published; it first reached npm in 0.4.0 / 3.0.0. `exports` now nests `types` per
   format so a CJS TypeScript service can import the SDK at all; `publint` + `attw` gate every build.
 - ✅ **The deferred-grading return trip**: `GradeRecord`, a `graded` arm on `ItemOutcome`,
   `gradeFromRubric()` (weighted total as a pure function of the grader's judgements — never the model's
