@@ -29,6 +29,7 @@ import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation } from '../shared/AiHelp.js';
+import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import type { ActivityProps, Renderable } from '../types.js';
 
@@ -552,11 +553,13 @@ export function Dictation({
   locale,
   disabled,
   ai: aiProp,
+  delivery,
 }: DictationProps) {
   const isExam = renderMode === 'exam';
   const isReview = renderMode === 'review';
   const s = useLkStrings(strings);
   const ai = useLearnerAi(aiProp);
+  const policy = useDeliveryPolicy(delivery);
 
   // Whether the payload carries the transcript at all — the KEY, not the
   // `redacted` marker. `redact(data, { reveal: 'after-submit' })` stamps
@@ -691,6 +694,10 @@ export function Dictation({
    * caller supplies a SCORED outcome.
    */
   const revealing = isReview ? outcome?.status === 'scored' : !isExam && submitted;
+  // What the delivery policy lets that reveal show: the marks, the score and
+  // the author's feedback — and, only where solutions show too, the "Show
+  // solution" panel, since the transcript is the whole answer.
+  const marking = revealing && policy.feedback;
 
   // The transcript, read only outside `exam`. `Renderable` says it is a
   // string; a plain redacted projection has none, so it is read defensively
@@ -705,7 +712,11 @@ export function Dictation({
     [transcript],
   );
   const hintsOffered =
-    data.hints?.mode === 'progressive-words' && !isExam && !isReview && transcript !== undefined;
+    policy.hints &&
+    data.hints?.mode === 'progressive-words' &&
+    !isExam &&
+    !isReview &&
+    transcript !== undefined;
   const hintsEnabled = hintsOffered && !submitted;
   const hintTotal = hintWords.length;
   const hintsShown = Math.min(revealed, hintTotal);
@@ -863,10 +874,10 @@ export function Dictation({
   // of the two lengths, so it lives here and nowhere near `score()`.
   const alignment = useMemo<DictationAlignment | null>(
     () =>
-      revealing && transcript !== undefined && (!isReview || hasResponse)
+      marking && transcript !== undefined && (!isReview || hasResponse)
         ? alignDictation(data, text)
         : null,
-    [revealing, transcript, isReview, hasResponse, data, text],
+    [marking, transcript, isReview, hasResponse, data, text],
   );
   const sentenceDiff = useMemo<DictationCharOp[] | null>(
     () =>
@@ -887,7 +898,7 @@ export function Dictation({
   );
 
   const words: DictationWordAlignment[] | null = alignment?.words ?? detailWords;
-  const marksShown = revealing && words !== null;
+  const marksShown = marking && words !== null;
   // The authored content's direction: from its language, or else from the first
   // letter of the transcript (or of the stored words, when only they are here).
   // Never `auto` on a container: its first strong character could be a hidden
@@ -1069,7 +1080,7 @@ export function Dictation({
           disabled={inactive}
           aria-disabled={inactive || undefined}
           data-correct={
-            revealing && passed !== undefined && (!isReview || hasResponse)
+            marking && passed !== undefined && (!isReview || hasResponse)
               ? String(passed)
               : undefined
           }
@@ -1164,7 +1175,7 @@ export function Dictation({
             nothing is the one who most needs to read the sentence, and a
             single typed letter would reveal it anyway.
           */}
-          {transcript !== undefined ? (
+          {transcript !== undefined && policy.solutions ? (
             <>
               <button
                 type="button"
@@ -1198,7 +1209,17 @@ export function Dictation({
       ) : null}
 
       <FeedbackRegion id={`${data.id}-feedback`}>
-        <AnnouncementText announcement={isReview ? reviewSummary : summary} />
+        <AnnouncementText
+          announcement={
+            isReview
+              ? policy.feedback || !outcomeShowsMarks(outcome)
+                ? reviewSummary
+                : null
+              : policy.feedback || summary === null
+                ? summary
+                : { text: s.answerSubmitted, feedback: null }
+          }
+        />
       </FeedbackRegion>
       <AiExplanation
         ai={ai}
@@ -1210,6 +1231,7 @@ export function Dictation({
         locale={locale}
         onInteraction={onInteraction}
         strings={s}
+        delivery={policy}
       />
     </form>
   );

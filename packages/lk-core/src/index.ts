@@ -4,6 +4,7 @@ export * from './attempt-state.js';
 export * from './authoring/index.js';
 export * from './content-hash.js';
 export * from './count-words.js';
+export * from './delivery.js';
 export * from './errors.js';
 export * from './grading.js';
 export * from './item-group.js';

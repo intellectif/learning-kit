@@ -3,6 +3,7 @@
 import {
   type ActivityMedia,
   type ActivityResult,
+  type DeliveryPolicy,
   flattenSequence,
   type InteractionEvent,
   type InteractionKind,
@@ -10,6 +11,8 @@ import {
   isItemGroup,
   type LearnerResponse,
   type RecordingRef,
+  type ResolvedDeliveryPolicy,
+  resolveDeliveryPolicy,
   resolvePlaybackPolicy,
   type SequenceEntry,
   type SequenceSlot,
@@ -380,6 +383,18 @@ export interface ActivitySequenceProps {
    */
   ai?: LearnerAi;
   /**
+   * What the school running this paper lets a learner see — feedback,
+   * solutions, hints, AI help — for every question in it. Each setting only
+   * takes away from what `renderMode` shows; an absent policy takes nothing.
+   *
+   * It holds in every question however it is drawn: the SDK's own components
+   * and a `renderers` override are handed it as `delivery`, and a question
+   * that ignores what it was handed still cannot show AI help the paper
+   * forbids. Record the same policy in the attempt with
+   * `planAttempt(entries, { delivery })`. See `DeliveryPolicy` in lk-core.
+   */
+  delivery?: DeliveryPolicy | null;
+  /**
    * `entries` shuffles the top-level entries; a group moves as one block, and
    * the order INSIDE a group follows the group's own `shuffle` setting.
    * Default `none`: authored order.
@@ -631,6 +646,7 @@ export function ActivitySequence({
   workletUrl,
   strings,
   ai,
+  delivery,
 }: ActivitySequenceProps): React.JSX.Element {
   const sessionIdRef = useRef<string | null>(null);
   const s = useLkStrings(strings);
@@ -760,6 +776,9 @@ export function ActivitySequence({
   // from practice to exam in place is an exam at once.
   const modeRef = useRef<RenderMode>(renderMode);
   modeRef.current = renderMode;
+  // The paper's policy, read by every slot's channel the same way.
+  const deliveryRef = useRef<ResolvedDeliveryPolicy>(resolveDeliveryPolicy(delivery));
+  deliveryRef.current = resolveDeliveryPolicy(delivery);
   // What a channel calls, as of the latest render — assigned below `updateTake`.
   const latestRef = useRef<{
     updateTake: (generation: number, at: number, take: number, state: TakeState) => void;
@@ -1325,6 +1344,9 @@ export function ActivitySequence({
         get renderMode() {
           return modeRef.current;
         },
+        get delivery() {
+          return deliveryRef.current;
+        },
         takeState: (take, state) => {
           latestRef.current?.updateTake(generation, at, take, state);
         },
@@ -1481,6 +1503,9 @@ export function ActivitySequence({
     // Handed to no question in `exam`, where none gives AI help: a
     // `renderers` override is not given ports it must then know to ignore.
     ...(ai !== undefined && renderMode !== 'exam' ? { ai } : {}),
+    // As given: each question combines it with the paper's through its
+    // channel, so what it is handed and what holds cannot disagree.
+    ...(delivery !== undefined && delivery !== null ? { delivery } : {}),
     ...(theme ? { theme } : {}),
     ...(locale ? { locale } : {}),
     ...(disabled ? { disabled } : {}),

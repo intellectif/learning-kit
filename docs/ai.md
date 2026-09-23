@@ -152,7 +152,7 @@ life of the question, so it is safe in an effect's dependencies.
 | `exam` | **Never** | **Never** |
 | `review` | Never | When the grade of record (`outcome`) is scored |
 
-Help appears only where three things allow it:
+Help appears only where four things allow it:
 
 1. **The mode**, as above. An exam question gives no help, whatever ports are passed.
 2. **You**: a port for that kind of help.
@@ -160,6 +160,12 @@ Help appears only where three things allow it:
    that help off wherever the item is delivered. Use it where any hint would give the answer away, as
    on a one-word vocabulary item. An author can only switch help off, never force it on. The field
    survives `redact()`, so a review honours it too.
+4. **The school running the paper**, through its [delivery policy](./delivery.md):
+   `delivery={{ ai: { explanations: false } }}` on a component or a pager switches a feature off for
+   that paper, and `hints: false` switches every hint off, the author's included. An explanation also
+   needs the policy's `feedback` and `solutions`: it explains a grade and all but always names the
+   right answer, so it cannot appear where either is hidden. Like the author, a policy can only switch
+   help off.
 
 ## What your model is given
 
@@ -241,8 +247,8 @@ prompt should forbid giving the answer, and this check catches the model that do
 - **Tokens, quotas and rate limits are yours**, and belong on your server: it holds the key, the
   model, the billing and the identity of the learner, and the SDK has none of those. Your port is the
   one place every call passes through, which makes it the place to count them.
-- **Hints do not change a score in this release.** A penalty for hints belongs to the delivery policy,
-  the next milestone on the [roadmap](./roadmap.md).
+- **Hints do not change a score in this release.** A penalty for hints comes with scoring policies,
+  the next milestone on the [roadmap](./roadmap.md): it changes grades, so it ships with grade vectors.
 - **Cost:** a call happens only when a learner presses a button. Two calls asking the same thing have
   the same request, so `contentHash(request)` from lk-core is a cache key: canonical, key-order
   independent, and the same on your server as in the browser.
@@ -292,6 +298,7 @@ expect(report.refused).toBe(0);
 - **Assistants for authors:** generated drafts, an item critic, suggested distractors and accepted
   answers.
 - **Assisted grading** with a calibration gate.
-- **Hint penalties and per-deployment AI switches**, which come with the delivery policy.
+- **Hint penalties**, which come with scoring policies. The per-deployment switches shipped as the
+  [delivery policy](./delivery.md).
 
 Each is on the [roadmap](./roadmap.md#next--the-delivery-policy-then-ai).

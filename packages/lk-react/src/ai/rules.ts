@@ -11,6 +11,8 @@ import {
   aiSupports,
   type ItemOutcome,
   type LearnerResponse,
+  OPEN_DELIVERY_POLICY,
+  type ResolvedDeliveryPolicy,
 } from '@intellectif/lk-core';
 import { isDevelopment } from '../components/_internal.js';
 import type { RenderableActivity, RenderMode } from '../components/types.js';
@@ -38,9 +40,14 @@ export function hintOffered(input: {
   renderMode: RenderMode;
   submitted: boolean;
   disabled: boolean;
+  /** The paper's policy: hints at all, and AI hints in particular. Open when absent. */
+  delivery?: ResolvedDeliveryPolicy;
 }): boolean {
   const { data, renderMode, submitted, disabled } = input;
+  const delivery = input.delivery ?? OPEN_DELIVERY_POLICY;
   return (
+    delivery.hints &&
+    delivery.ai.hints &&
     renderMode === 'practice' &&
     !submitted &&
     !disabled &&
@@ -61,8 +68,19 @@ export function explanationOffered(input: {
   renderMode: RenderMode;
   submitted: boolean;
   outcome: ItemOutcome | undefined;
+  /**
+   * The paper's policy. An explanation needs AI explanations on, and more: it
+   * explains a grade, so it needs the grade shown (`feedback`), and it all but
+   * always says what the right answer was, so it needs `solutions` too. On a
+   * paper that hides the answer, "Explain my answer" would hand it over.
+   */
+  delivery?: ResolvedDeliveryPolicy;
 }): boolean {
   const { data, renderMode, submitted, outcome } = input;
+  const delivery = input.delivery ?? OPEN_DELIVERY_POLICY;
+  if (!delivery.feedback || !delivery.solutions || !delivery.ai.explanations) {
+    return false;
+  }
   const graded =
     (renderMode === 'practice' && submitted) ||
     (renderMode === 'review' && outcome?.status === 'scored');

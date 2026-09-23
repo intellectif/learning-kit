@@ -1,6 +1,11 @@
 'use client';
 
-import type { InteractionEvent, ItemOutcome, LearnerResponse } from '@intellectif/lk-core';
+import type {
+  InteractionEvent,
+  ItemOutcome,
+  LearnerResponse,
+  ResolvedDeliveryPolicy,
+} from '@intellectif/lk-core';
 import { useEffect, useRef } from 'react';
 import type { LearnerAi } from '../../ai/LkAiProvider.js';
 import { useAiExplanation, useAiHints } from '../../ai/useAiHelp.js';
@@ -18,6 +23,8 @@ interface Situation {
   locale: string | undefined;
   onInteraction: ((event: InteractionEvent) => void) | undefined;
   strings: LkStrings;
+  /** The policy the component resolved, the paper's included. */
+  delivery: ResolvedDeliveryPolicy;
 }
 
 /** What the hooks take, from what a component holds: the optional half, without `undefined` values. */
@@ -29,13 +36,15 @@ function situation(input: Situation): {
   ai?: LearnerAi;
   locale?: string;
   onInteraction?: (event: InteractionEvent) => void;
+  delivery: ResolvedDeliveryPolicy;
 } {
-  const { data, response, submitted, renderMode, ai, locale, onInteraction } = input;
+  const { data, response, submitted, renderMode, ai, locale, onInteraction, delivery } = input;
   return {
     data,
     response,
     submitted,
     renderMode,
+    delivery,
     ...(ai !== undefined ? { ai } : {}),
     ...(locale !== undefined ? { locale } : {}),
     ...(onInteraction !== undefined ? { onInteraction } : {}),

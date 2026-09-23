@@ -22,6 +22,7 @@ import type { LkStrings } from '../../i18n/strings.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor, randomSessionId } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation, AiHints } from '../shared/AiHelp.js';
+import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import type { ActivityProps } from '../types.js';
 
@@ -117,9 +118,11 @@ export function MultipleChoice({
   shuffleSeed,
   strings,
   ai: aiProp,
+  delivery,
 }: MultipleChoiceProps) {
   const s = useLkStrings(strings);
   const ai = useLearnerAi(aiProp);
+  const policy = useDeliveryPolicy(delivery);
 
   // Dev-only boundary validation (Req 2.3). Throwing during render lets
   // ActivityErrorBoundary catch it. Memoised so it only re-runs on data change.
@@ -235,6 +238,14 @@ export function MultipleChoice({
    * graded. Exam never reveals anything — not before, not after submit.
    */
   const reveal = isReview || (renderMode === 'practice' && submitted);
+  /**
+   * What the delivery policy lets that reveal show. `marks`: right and wrong at
+   * all, and the author's feedback. `solutions`: the right answer where the
+   * learner did not choose it — without it, only the options the learner chose
+   * are marked, so a missed correct option is not given away.
+   */
+  const marks = reveal && policy.feedback;
+  const solutions = marks && policy.solutions;
 
   const fireInteraction = (
     type: 'option-selected' | 'option-deselected' | 'submitted',
@@ -349,10 +360,14 @@ export function MultipleChoice({
     const checked = selected.includes(option.id);
     // `data-correct` means "this option is part of the correct answer".
     let correctness: string | undefined;
+    // An option the learner did not choose is marked only where solutions
+    // show: marking the right one they missed would hand them the answer.
+    const markable = marks && (solutions || checked);
     if (isReview) {
       const detail = reviewDetails?.get(option.id);
-      correctness = detail === undefined ? undefined : String(isAnswerOption(detail, checked));
-    } else if (reveal) {
+      correctness =
+        !markable || detail === undefined ? undefined : String(isAnswerOption(detail, checked));
+    } else if (markable) {
       correctness = String(option.isCorrect);
     }
     const media = option.media;
@@ -379,7 +394,7 @@ export function MultipleChoice({
         />
         <span>{option.text}</span>
         {picture}
-        {reveal && option.feedback ? (
+        {markable && option.feedback ? (
           <span className="lk-mc-option-feedback" role="note">
             {option.feedback}
           </span>
@@ -463,6 +478,7 @@ export function MultipleChoice({
             locale={locale}
             onInteraction={onInteraction}
             strings={s}
+            delivery={policy}
           />
           {/* review is read-only: there is nothing left to submit. */}
           {isReview ? null : (
@@ -473,7 +489,16 @@ export function MultipleChoice({
         </fieldset>
       </form>
       <FeedbackRegion id={`${data.id}-feedback`}>
-        {isReview ? reviewAnnouncement(outcome, s) : summary}
+        {isReview
+          ? // A grade read back is feedback; "not graded yet" is not.
+            policy.feedback || !outcomeShowsMarks(outcome)
+            ? reviewAnnouncement(outcome, s)
+            : null
+          : // Without feedback a submit says only that it was received, as
+            // an exam's does — the score still reaches `onComplete`.
+            policy.feedback || summary === ''
+            ? summary
+            : s.answerSubmitted}
       </FeedbackRegion>
       <AiExplanation
         ai={ai}
@@ -485,6 +510,7 @@ export function MultipleChoice({
         locale={locale}
         onInteraction={onInteraction}
         strings={s}
+        delivery={policy}
       />
     </div>
   );

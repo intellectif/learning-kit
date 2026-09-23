@@ -96,6 +96,11 @@ const REQUIRED_EXPORTS = [
   'assertRedacted',
   'redactItemGroup',
   'assertRedactedItemGroup',
+  // delivery policies
+  'resolveDeliveryPolicy',
+  'validateDeliveryPolicy',
+  'combineDeliveryPolicies',
+  'OPEN_DELIVERY_POLICY',
   // attempts
   'planAttempt',
   'verifyAttemptPlan',
@@ -195,6 +200,40 @@ if (typeof core.createDraft === 'function' && typeof core.validateDraft === 'fun
   }
 }
 
+// The delivery policy's reading, proven against the built artifact for the
+// reason redaction is: its one job is to keep something from a learner, and it
+// does that only if a setting nobody can read restricts rather than allows. A
+// plan made without a policy must also stay the plan it was, fingerprint and
+// all, or every stored attempt would stop matching its own answers.
+if (typeof core.resolveDeliveryPolicy === 'function' && typeof core.planAttempt === 'function') {
+  const unreadable = core.resolveDeliveryPolicy({ hints: 'false', ai: { explanations: 0 } });
+  if (unreadable.hints !== false || unreadable.ai.explanations !== false) {
+    failures.push(
+      'resolveDeliveryPolicy() read an unreadable restriction as permission (fail-open)',
+    );
+  }
+  const empty = core.resolveDeliveryPolicy({});
+  if (
+    ![empty.feedback, empty.solutions, empty.hints, empty.ai.hints, empty.ai.explanations].every(
+      Boolean,
+    )
+  ) {
+    failures.push(
+      'resolveDeliveryPolicy({}) restricted something: an empty policy must be no policy',
+    );
+  }
+  const without = core.planAttempt([activity]);
+  if (Object.hasOwn(without, 'delivery')) {
+    failures.push('planAttempt() recorded a delivery policy nobody gave it');
+  }
+  const sat = core.planAttempt([activity], { delivery: { hints: false } });
+  if (sat.delivery?.hints !== false || sat.planHash === without.planHash) {
+    failures.push(
+      'planAttempt() did not record the delivery policy in the plan and its fingerprint',
+    );
+  }
+}
+
 // The AI test kit is a subpath of its own, and a subpath is exactly what the
 // barrel check above cannot see: it is built from its own entry, so a rename
 // or a dropped re-export reaches a consumer's CI rather than ours. It also has
@@ -280,6 +319,7 @@ if (failures.length > 0) {
 
 console.log(
   `verify-dist OK: ${REQUIRED_EXPORTS.length} documented exports resolve from dist; redaction is fail-closed; ` +
-    'new drafts are incomplete; the AI check kit runs from its own subpath; ' +
+    'new drafts are incomplete; an unreadable delivery setting restricts; ' +
+    'the AI check kit runs from its own subpath; ' +
     `${corpus.vectors.length} grade vectors replay identically against CJS and ESM.`,
 );

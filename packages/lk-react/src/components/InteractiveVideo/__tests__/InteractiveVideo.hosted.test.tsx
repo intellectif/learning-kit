@@ -1056,6 +1056,55 @@ describe('InteractiveVideo: AI ports', () => {
   });
 });
 
+describe('InteractiveVideo: delivery policy', () => {
+  it('counts answers on the end card and shows no score where the policy shows no feedback', async () => {
+    const user = userEvent.setup();
+    const { renderQuestion } = hosting();
+    await start(
+      <InteractiveVideo
+        group={group()}
+        renderQuestion={renderQuestion}
+        delivery={{ feedback: false }}
+      />,
+    );
+    await openFirstQuiz();
+    await user.click(within(quizPanel()).getByRole('button', { name: 'Guardar toma' }));
+    await user.click(within(quizPanel()).getByRole('button', { name: 'Calificar' }));
+    await user.click(screen.getByRole('button', { name: 'Next question' }));
+    await user.click(within(quizPanel()).getByRole('radio', { name: 'q1 correcta' }));
+    await user.click(within(quizPanel()).getByRole('button', { name: 'Submit' }));
+    // The SDK's own question, under the video's policy: no mark on the choice.
+    expect(within(quizPanel()).queryByText(/Score/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Continue video/ }));
+    await endVideo();
+
+    expect(screen.getByText('You answered 2 of 3 questions')).toBeInTheDocument();
+    expect(screen.queryByText(/90%/)).toBeNull();
+  });
+
+  it('hands a question the host draws the video policy, spelled out', async () => {
+    const seen: InteractiveVideoQuestion[] = [];
+    await start(
+      <InteractiveVideo
+        group={group()}
+        delivery={{ hints: false }}
+        renderQuestion={(question) => {
+          seen.push(question);
+          return question.activity.type === 'read-aloud' ? null : undefined;
+        }}
+      />,
+    );
+    await openFirstQuiz();
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.at(-1)?.delivery).toEqual({
+      feedback: true,
+      solutions: true,
+      hints: false,
+      ai: { hints: true, explanations: true },
+    });
+  });
+});
+
 describe('InteractiveVideo renderQuestion: types', () => {
   it('takes undefined as the SDK’s own and null as nothing, and exports the question type from the root', () => {
     const sdkOwn: NonNullable<InteractiveVideoProps['renderQuestion']> = () => undefined;

@@ -412,6 +412,7 @@ never stops the video.
 | `outcome` | Its stored outcome from `outcomes`: review, or a grade that arrived later. Read live |
 | `portalContainer` | Where to portal popovers; see [Popovers and fullscreen](#popovers-and-fullscreen) |
 | `ai` | The AI ports in force — the video's `ai` prop, else an `LkAiProvider` above it — for a question that offers its own explanations or hints ([AI help](./ai.md)). Absent in `exam` |
+| `delivery` | The video's [delivery policy](./delivery.md), every setting spelled out. Where `feedback` or `solutions` is `false`, show no mark and no answer: the SDK cannot keep a policy in pixels it does not draw |
 
 And the calls through which the video learns what the learner did — the same calls the SDK's own
 components make:
