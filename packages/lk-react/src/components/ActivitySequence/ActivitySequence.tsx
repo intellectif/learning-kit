@@ -8,11 +8,14 @@ import {
   type InteractionEvent,
   type InteractionKind,
   type ItemOutcome,
+  type ItemScoringPolicy,
   isItemGroup,
   type LearnerResponse,
   type RecordingRef,
   type ResolvedDeliveryPolicy,
+  type ResolvedItemScoringPolicy,
   resolveDeliveryPolicy,
+  resolveItemScoringPolicy,
   resolvePlaybackPolicy,
   type SequenceEntry,
   type SequenceSlot,
@@ -40,6 +43,7 @@ import {
   type SequenceSlotChannel,
   SequenceSlotContext,
   type TakeState,
+  type TriesState,
   takeOf,
 } from '../shared/sequence-slot.js';
 import type {
@@ -395,6 +399,24 @@ export interface ActivitySequenceProps {
    */
   delivery?: DeliveryPolicy | null;
   /**
+   * How every question in the paper is scored when a learner can try again or
+   * ask for hints: how many tries each gives, which one counts, and what tries
+   * and hints cost. Applies in `practice`, where the questions grade; absent,
+   * each question is one try and costs nothing, as before.
+   *
+   * It holds in every question: the paper's policy wins over one a question
+   * was handed. The set is not reported while the question on screen offers
+   * another try, nor while any question is being tried again — the next try
+   * may change its grade — and once the set is reported, every question's
+   * tries close. A later try replaces a question's
+   * outcome until then, so `onActivityComplete` can fire more than once for a
+   * slot: keep the last. Record the same policy with
+   * `planAttempt(entries, { scoring })`. See `ItemScoringPolicy` in lk-core.
+   *
+   * A policy `validateItemScoringPolicy` refuses throws at render.
+   */
+  scoring?: ItemScoringPolicy | null;
+  /**
    * `entries` shuffles the top-level entries; a group moves as one block, and
    * the order INSIDE a group follows the group's own `shuffle` setting.
    * Default `none`: authored order.
@@ -647,6 +669,7 @@ export function ActivitySequence({
   strings,
   ai,
   delivery,
+  scoring,
 }: ActivitySequenceProps): React.JSX.Element {
   const sessionIdRef = useRef<string | null>(null);
   const s = useLkStrings(strings);
@@ -779,9 +802,30 @@ export function ActivitySequence({
   // The paper's policy, read by every slot's channel the same way.
   const deliveryRef = useRef<ResolvedDeliveryPolicy>(resolveDeliveryPolicy(delivery));
   deliveryRef.current = resolveDeliveryPolicy(delivery);
+  // The paper's scoring policy, when it was given one — resolved here, so a
+  // policy nobody could apply fails the paper at render rather than grading by
+  // a guess — and read by every slot's channel the same way.
+  const scoringKey = JSON.stringify(scoring ?? null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the policy's content is the trigger, not its identity
+  const scoringInForce = useMemo<ResolvedItemScoringPolicy | undefined>(
+    () =>
+      scoring === undefined || scoring === null ? undefined : resolveItemScoringPolicy(scoring),
+    [scoringKey],
+  );
+  const scoringRef = useRef(scoringInForce);
+  scoringRef.current = scoringInForce;
+  // Whether the set has reported, as the questions see it: their tries close
+  // then. State as well as the ref, so the questions re-render to see it.
+  const [, setReported] = useState(false);
+  // Where each position's question is with its tries, when it is anywhere:
+  // offering the learner another, or in the middle of one.
+  const triesRef = useRef<Map<number, Exclude<TriesState, 'none'>>>(new Map());
+  // The latest try each position has recorded, by the number stamped on it.
+  const triedRef = useRef<Map<number, number>>(new Map());
   // What a channel calls, as of the latest render — assigned below `updateTake`.
   const latestRef = useRef<{
     updateTake: (generation: number, at: number, take: number, state: TakeState) => void;
+    updateTries: (generation: number, at: number, state: TriesState) => void;
     reportIfFinished: () => void;
     submitSlot: (generation: number, at: SlotIdentity, response: LearnerResponse) => void;
     completeSlot: (generation: number, at: SlotIdentity, result: ActivityResult) => void;
@@ -873,6 +917,9 @@ export function ActivitySequence({
     hostPendingRef.current = new Set();
     portalRefsRef.current = new Map();
     reportedRef.current = false;
+    triesRef.current = new Map();
+    triedRef.current = new Map();
+    setReported(false);
   }
   const setGeneration = setGenerationRef.current;
 
@@ -979,6 +1026,14 @@ export function ActivitySequence({
     if (hostPendingRef.current.size > 0) {
       return;
     }
+    // A question being tried again is unanswered again, wherever the learner
+    // is. One offering another try holds the set only while it is on screen:
+    // leaving it is declining the try, and reporting closes its tries.
+    for (const [at, state] of triesRef.current) {
+      if (state === 'retrying' || at === indexRef.current) {
+        return;
+      }
+    }
     const items: SequenceItemOutcome[] = [];
     for (const [at, outcome] of held.entries()) {
       const take = takesRef.current.get(at);
@@ -1000,6 +1055,7 @@ export function ActivitySequence({
       }
     }
     reportedRef.current = true;
+    setReported(true);
     onFinished?.(items);
 
     // `onComplete` predates deferred grading and promises ActivityResult[].
@@ -1058,7 +1114,12 @@ export function ActivitySequence({
    * last reported for that slot. The whole-set callbacks stay once per set
    * whatever is replaced — see `reportedRef`.
    */
-  const record = (outcome: SequenceItemOutcome, generation: number, take?: number): void => {
+  const record = (
+    outcome: SequenceItemOutcome,
+    generation: number,
+    take?: number,
+    tried?: number,
+  ): void => {
     const held = outcomesRef.current;
     if (held === null || generation !== setGenerationRef.current) {
       return;
@@ -1066,7 +1127,21 @@ export function ActivitySequence({
     const at = outcome.index;
     const holding = held[at];
     let accepted = outcome;
-    if (take === undefined) {
+    if (tried !== undefined) {
+      // A try at a graded question: see `completeSlot`. A later try replaces the
+      // grade an earlier one recorded, until the set is reported — after that a
+      // question offers no try, and a grade handed on stays handed on.
+      // A slot with nothing in it — never answered, or cleared by its host —
+      // takes its grade as any slot does.
+      const latest = triedRef.current.get(at);
+      if (holding?.kind === 'restored') {
+        return;
+      }
+      if (holding != null && (reportedRef.current || latest === undefined || tried <= latest)) {
+        return;
+      }
+      triedRef.current.set(at, tried);
+    } else if (take === undefined) {
       if (holding != null) {
         return;
       }
@@ -1170,8 +1245,23 @@ export function ActivitySequence({
   /** A slot produced a grade: the body of the `onComplete` every question is handed. */
   const completeSlot = (generation: number, at: SlotIdentity, result: ActivityResult): void => {
     const takesAnswers = renderMode === 'practice' && at.type === 'read-aloud';
+    const outcome: SequenceItemOutcome = {
+      kind: 'scored',
+      index: at.index,
+      slotId: at.slotId,
+      activityId: at.activityId,
+      result,
+    };
+    // A grade the SDK's own question stamped is one try at it: a later try may
+    // replace it. A consumer's renderer stamps nothing, and its first grade
+    // stands, as it always has.
+    const tried = takesAnswers ? undefined : takeOf(result);
+    if (tried !== undefined && renderMode === 'practice') {
+      record(outcome, generation, undefined, tried);
+      return;
+    }
     record(
-      { kind: 'scored', index: at.index, slotId: at.slotId, activityId: at.activityId, result },
+      outcome,
       generation,
       // The take the grade is for: stamped by `<ReadAloud>`, and for a
       // consumer's renderer, which cannot stamp one, the slot's latest.
@@ -1255,10 +1345,30 @@ export function ActivitySequence({
     takesRef.current.set(at, latest?.take === take ? { ...latest, state } : { take, state });
     reportIfFinished();
   };
+  /**
+   * What a slot's channel reports: where its question is with its tries. One
+   * that stops offering or making a try may leave the set with nothing to wait
+   * for.
+   */
+  const updateTries = (generation: number, at: number, state: TriesState): void => {
+    if (!aliveRef.current || generation !== setGenerationRef.current) {
+      return;
+    }
+    const was = triesRef.current.get(at);
+    if (state === 'none') {
+      triesRef.current.delete(at);
+    } else {
+      triesRef.current.set(at, state);
+    }
+    if (was !== undefined && was !== state) {
+      reportIfFinished();
+    }
+  };
   // Channels and slot calls keep one identity for a whole set, so they call
   // through this ref and always reach the latest render's props.
   latestRef.current = {
     updateTake,
+    updateTries,
     reportIfFinished,
     submitSlot,
     completeSlot,
@@ -1346,6 +1456,15 @@ export function ActivitySequence({
         },
         get delivery() {
           return deliveryRef.current;
+        },
+        get scoring() {
+          return scoringRef.current;
+        },
+        get triesClosed() {
+          return reportedRef.current;
+        },
+        triesState: (state) => {
+          latestRef.current?.updateTries(generation, at, state);
         },
         takeState: (take, state) => {
           latestRef.current?.updateTake(generation, at, take, state);
@@ -1506,6 +1625,9 @@ export function ActivitySequence({
     // As given: each question combines it with the paper's through its
     // channel, so what it is handed and what holds cannot disagree.
     ...(delivery !== undefined && delivery !== null ? { delivery } : {}),
+    // As given, for a `renderers` override to score by. The SDK's own questions
+    // read the paper's from their channel, which wins over it.
+    ...(scoring !== undefined && scoring !== null ? { scoring } : {}),
     ...(theme ? { theme } : {}),
     ...(locale ? { locale } : {}),
     ...(disabled ? { disabled } : {}),

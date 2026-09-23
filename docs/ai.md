@@ -27,8 +27,10 @@ It describes `@intellectif/lk-core` 0.17.0 and `@intellectif/lk-react` 17.0.0.
 | Dictation | — (it has its own word-by-word hints) | "Explain my answer" |
 
 - **Hints** are listed as "Hint 1", "Hint 2"…, up to your limit (3 by default, at most 10). They stay
-  listed after submit, so the learner can see what they were given, but no more can be asked for. A
-  different question starts with none.
+  listed after submit, so the learner can see what they were given, but no more can be asked for —
+  until a "Try again" reopens the answer, when the same list carries on toward the same limit. A
+  different question starts with none. Under a [scoring policy](./scoring.md) that charges for hints,
+  an AI hint costs what any hint costs, and the answer's `hintsRevealed` counts it.
 - **An explanation** appears under the graded answer, with its heading. When it arrives, focus moves
   to it from the button that asked.
 - **Everything a model wrote is marked:** "Written by AI. It can make mistakes."
@@ -48,7 +50,7 @@ import { LkAiProvider } from '@intellectif/lk-react/ai/LkAiProvider';
     explain: (request, { signal }) => post('/api/ai/explain', request, signal),
     hint: (request, { signal }) => post('/api/ai/hint', request, signal),
     maxHints: 3,
-    learnerLocale: learner.nativeLanguage, // explanations in the learner's own language
+    learnerLocale: learner.helpLanguage, // see "The language help is written in", below
   }}
 >
   <ActivitySequence activities={lesson} />
@@ -61,8 +63,8 @@ import { LkAiProvider } from '@intellectif/lk-react/ai/LkAiProvider';
   except in `exam`, where no question is given them, and can offer the same help through the hooks in
   [A question you draw yourself](#a-question-you-draw-yourself).
 - **Leave a port out to switch that help off.**
-- **`learnerLocale`** is the language to write in. It defaults to the component's `locale`. In a
-  language course that is often not the item's language: English items, explained in Spanish.
+- **`learnerLocale`** is the language a model writes in. See
+  [The language help is written in](#the-language-help-is-written-in).
 - **A port is called only when the learner presses a button**, never on render. It gets an
   `AbortSignal` that fires when the answer it was about goes away: the learner submits, the question
   changes, or the component unmounts. A late answer is dropped whether or not you honour the signal.
@@ -93,6 +95,36 @@ app.post('/api/ai/explain', async (req, res) => {
 **The request is built in the browser.** In practice the browser already holds the answer key, so it
 reveals nothing. A server that does not want to trust it can rebuild the request from its own copy of
 the item and the submitted answer, with `aiExplanationRequest` and `aiHintRequest` from lk-core.
+
+### The language help is written in
+
+The SDK writes nothing itself: it passes `learnerLocale` in every request, and your prompt decides
+what a model does with it. Two languages are usually in play, and the request carries both:
+
+- **`learnerLocale`**, the language to write in. Left out, it is the component's `locale` — the
+  interface language, which the buttons, the SDK's own "Written by AI. It can make mistakes." and
+  the rest of your page are in.
+- **`facts.locale`**, the language the item is written in, when its author gave one. In a language
+  course it is the language being learned — English items, explained in Spanish.
+
+**Default to the interface language.** It is the language the learner chose to read your platform
+in, and help in any other sits oddly under a button in that one. A learner's native language is a
+fact about them, not a choice of what to read: a Spanish speaker who set their interface to English
+may want exactly that. Where your learners ask for help in their own language — beginners often do —
+make it a setting they choose ("Explain in: English / Español"), stored with them, and pass what they
+chose.
+
+Pass a language tag (`es`, `pt-BR`), and turn it into a name in your prompt with the platform's own
+list rather than a table of your own, which will miss languages your learners speak:
+
+```ts
+const language = new Intl.DisplayNames(['en'], { type: 'language' }).of(request.learnerLocale ?? 'en');
+// 'es' → 'Spanish', 'pt-BR' → 'Brazilian Portuguese', 'uk' → 'Ukrainian'
+```
+
+The answer-leak check compares a hint with the answers as written. A hint that translates the
+answer into the learner's language passes it, so say in your prompt that a translation of the answer
+is the answer.
 
 ## A question you draw yourself
 

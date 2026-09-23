@@ -4,8 +4,9 @@ The same question can be a practice exercise with every hint and a final exam wi
 changes between them is not the content but how it is delivered — and that is the school's decision,
 per course, per paper, per class, not the author's.
 
-A **delivery policy** is that decision, as data. It describes `@intellectif/lk-core` 0.20.0 and
-`@intellectif/lk-react` 20.0.0.
+A **delivery policy** is that decision, as data. It describes `@intellectif/lk-core` 0.21.0 and
+`@intellectif/lk-react` 21.0.0. What a paper's hints and tries cost — which moves grades — is its
+companion, the [scoring policy](./scoring.md).
 
 - [The one rule: a policy only takes away](#the-one-rule-a-policy-only-takes-away)
 - [The settings](#the-settings)
@@ -14,7 +15,7 @@ A **delivery policy** is that decision, as data. It describes `@intellectif/lk-c
 - [A question you draw yourself](#a-question-you-draw-yourself)
 - [Reading a policy from storage](#reading-a-policy-from-storage)
 - [What each activity does with it](#what-each-activity-does-with-it)
-- [What is not here yet](#what-is-not-here-yet)
+- [Tries, and what hints cost](#tries-and-what-hints-cost)
 
 ## The one rule: a policy only takes away
 
@@ -36,7 +37,7 @@ switches off what a mode would otherwise show:
 | Setting | `false` means | Typical use |
 |---|---|---|
 | `feedback` | No right and wrong marks, no score, no authored feedback. The learner sees "Answer submitted." The grade still reaches `onComplete` | Homework marked on the client and shown at the end; a review that shows what was answered and not how it was marked |
-| `solutions` | The right answer is never shown beside a wrong one: not the correct option of a multiple-choice question, not the answers `showCorrectAnswers` writes into blanks, not a dictation's transcript. What the learner answered is still marked right or wrong | A paper that will be sat again; practice before a retry |
+| `solutions` | The right answer is never shown beside a wrong one: not the correct option of a multiple-choice question, not the answers `showCorrectAnswers` writes into blanks, not a dictation's transcript, and not the words its marks would correct a wrong or missing word to. What the learner answered is still marked right or wrong | A paper that will be sat again; practice before a retry |
 | `hints` | No hints of any kind: the author's hints on a blank, a dictation's word hints, and AI hints | **An exam whose hints are not part of the test** — see below |
 | `ai.hints` | No AI hints | A course that allows the author's hints and not a model's |
 | `ai.explanations` | No "Explain my answer" | A course that has not approved AI explanations |
@@ -146,7 +147,7 @@ if (!checked.success) {
 | Multiple choice | Marks, option feedback, score | Marks only the options chosen; hides feedback written on the ones not chosen | — | Hints, explanations |
 | Fill in the blanks | Marks, blank feedback, score | `showCorrectAnswers` writes nothing in | The author's hint on each blank | Hints, explanations |
 | Gap select | Marks, gap feedback, score | Nothing to hide: it never shows the right choice | — | Hints, explanations |
-| Dictation | Word marks, score | "Show solution" | Word hints | Explanations |
+| Dictation | Word marks, score | "Show solution", and what a wrong or missing word should be: the marks say which words are wrong or missing, and not the right ones (21.0.0) | Word hints | Explanations |
 | Read-aloud | The grade, its marks and the grader's words | — | — | — |
 | Written response | A returned grade read back in `review` | — | — | — |
 | Interactive video | The score on the end card, which then counts answers | Its questions follow the video's policy | | |
@@ -154,12 +155,13 @@ if (!checked.success) {
 "Not graded yet" and "No grade available" still show without `feedback`: they say nothing about the
 answer.
 
-## What is not here yet
+## Tries, and what hints cost
 
-These change grades, so they come next, on their own, with grade vectors:
+These change grades, so they are not delivery settings: a delivery policy only takes away, and can
+be read charitably. They are the [scoring policy](./scoring.md) — `scoring` beside `delivery` on every
+activity and both pagers, recorded in the plan beside it.
 
-- **What hints cost.** A penalty per hint, computed by the SDK and never by a host.
-- **`ItemScoringPolicy`:** partial credit and negative marking, configured per paper.
-- **Retries** in practice, and which attempt's score counts.
-
-See the [roadmap](./roadmap.md#next--the-delivery-policy-then-ai).
+Two delivery settings still bear on tries. **No "Try again" without `feedback`**: offered where the
+learner cannot see the marks, it would say the answer was wrong. **And `solutions: false` is the
+state every question is in while it offers another try**: what was chosen is marked, and the right
+answer waits until the tries end.

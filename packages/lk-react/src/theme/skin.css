@@ -3427,3 +3427,58 @@
     }
   }
 }
+
+@layer lk-skin {
+  /* ── Tries, and what a hint costs ──────────────────────────────────────
+     "Try again" is the way forward, so it takes the submit button's weight;
+     "Show answer" ends the tries and takes the plain one beside it. */
+  .lk-tries {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lk-spacing-sm);
+    margin-top: var(--lk-spacing-md);
+  }
+
+  .lk-tries-again,
+  .lk-tries-close {
+    padding: var(--lk-spacing-sm) var(--lk-spacing-lg);
+    font: inherit;
+    border-radius: var(--lk-radius-base);
+    cursor: pointer;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-tries-again {
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-surface);
+    background: var(--lk-color-primary);
+    border: 1px solid var(--lk-color-primary);
+  }
+
+  .lk-tries-again:hover {
+    background: var(--lk-color-primary-hover);
+  }
+
+  .lk-tries-close {
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    border: 1px solid var(--lk-color-border);
+  }
+
+  .lk-tries-close:hover {
+    border-color: var(--lk-color-primary);
+  }
+
+  .lk-hint-cost {
+    margin: var(--lk-spacing-sm) 0 0;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lk-tries-again,
+    .lk-tries-close {
+      transition: none;
+    }
+  }
+}

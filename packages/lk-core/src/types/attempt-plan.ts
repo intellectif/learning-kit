@@ -12,6 +12,7 @@
  */
 
 import type { ResolvedDeliveryPolicy } from './delivery.js';
+import type { ResolvedItemScoringPolicy } from './item-scoring.js';
 
 /** One planned position: an item, its identity, its worth, and its fingerprint. */
 export interface AttemptPlanSlot {
@@ -104,6 +105,13 @@ export interface AttemptPlan {
    * Absent when `planAttempt` was given none. Part of `planHash` when present.
    */
   delivery?: ResolvedDeliveryPolicy;
+  /**
+   * The scoring policy the attempt was sat under, every setting spelled out:
+   * the tries each question gave, which counted, and what tries and hints
+   * cost. Absent when `planAttempt` was given none. Part of `planHash` when
+   * present.
+   */
+  scoring?: ResolvedItemScoringPolicy;
   slots: AttemptPlanSlot[];
   /** Sum of every slot's `points`, frozen. The denominator of the paper. */
   totalPoints: number;
@@ -145,4 +153,10 @@ export interface AttemptPlanDrift {
    * policy has exactly the shape it had before policies existed.
    */
   deliveryChanged?: true;
+  /**
+   * The scoring policy differs: one plan records a policy the other does not,
+   * or a setting differs. The same answers are worth something else under
+   * another policy, so it breaks `matches`. Present only when it is `true`.
+   */
+  scoringChanged?: true;
 }

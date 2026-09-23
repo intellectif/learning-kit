@@ -8,7 +8,7 @@ import type {
 } from '@intellectif/lk-core';
 import { useEffect, useRef } from 'react';
 import type { LearnerAi } from '../../ai/LkAiProvider.js';
-import { useAiExplanation, useAiHints } from '../../ai/useAiHelp.js';
+import { type AiHintsHelp, useAiExplanation, useAiHints } from '../../ai/useAiHelp.js';
 import type { LkStrings } from '../../i18n/strings.js';
 import type { RenderableActivity, RenderMode } from '../types.js';
 
@@ -129,18 +129,36 @@ export function AiExplanation({
 }
 
 /**
+ * The AI hints of one of the SDK's own questions: {@link useAiHints}, called
+ * by the component itself so it can count the hints its learner was shown.
+ */
+export function useComponentAiHints({
+  disabled,
+  ...rest
+}: Situation & { disabled: boolean }): AiHintsHelp {
+  return useAiHints({ ...situation(rest), disabled });
+}
+
+/**
  * "Get a hint": the SDK's own surface over {@link useAiHints} — a button, the
  * hints given so far as a numbered list, and who wrote them.
  *
  * The hints stay listed after submit, so the learner can see what they were
- * given, but no more can be asked for. Another question starts with none.
+ * given, but no more can be asked for — until a "Try again" reopens the
+ * answer, when the same list carries on. Another question starts with none.
  */
-export function AiHints({ disabled, ...rest }: Situation & { disabled: boolean }) {
-  const s = rest.strings;
-  const help = useAiHints({ ...situation(rest), disabled });
+export function AiHints({
+  help,
+  ai,
+  strings: s,
+}: {
+  help: AiHintsHelp;
+  ai: LearnerAi | undefined;
+  strings: LkStrings;
+}) {
   const used = help.used;
 
-  if (rest.ai?.hint === undefined || (!help.offered && used === 0)) {
+  if (ai?.hint === undefined || (!help.offered && used === 0)) {
     return null;
   }
 

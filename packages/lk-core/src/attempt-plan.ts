@@ -3,6 +3,7 @@ import { resolveDeliveryPolicy, validateDeliveryPolicy } from './delivery.js';
 import { flattenSequence } from './item-group.js';
 import { resolvePlaybackPolicy, slotMediaKey, stimulusMediaKey } from './media-budget.js';
 import type { ScoredItem } from './scoring/compose.js';
+import { resolveItemScoringPolicy, validateItemScoringPolicy } from './scoring/item-scoring.js';
 import type { ActivityData, ActivityMedia, ItemOutcome } from './types/activity.js';
 import type {
   AttemptPlan,
@@ -12,6 +13,7 @@ import type {
 } from './types/attempt-plan.js';
 import type { DeliveryPolicy, ResolvedDeliveryPolicy } from './types/delivery.js';
 import type { SequenceEntry, SequenceSlot } from './types/item-group.js';
+import type { ItemScoringPolicy, ResolvedItemScoringPolicy } from './types/item-scoring.js';
 
 export type {
   AttemptPlan,
@@ -56,6 +58,19 @@ export interface PlanAttemptOptions<TItem> {
    *         record an appeal reads.
    */
   delivery?: DeliveryPolicy | null;
+  /**
+   * The scoring policy this attempt is sat under — how many tries each
+   * question gives, which one counts, and what tries and hints cost. Frozen
+   * into the plan with every setting spelled out, like `delivery`, and for a
+   * stronger reason: every setting in it moves a grade, so a re-grade must
+   * apply the rules the learner sat under, not today's.
+   *
+   * Recorded only when given: a plan made without one is byte-identical to a
+   * plan made before scoring policies existed, `planHash` included.
+   *
+   * @throws Error when the policy does not pass `validateItemScoringPolicy`.
+   */
+  scoring?: ItemScoringPolicy | null;
 }
 
 /**
@@ -201,6 +216,7 @@ export function planAttempt<TItem extends { id: string; type: string }>(
 ): AttemptPlan {
   const { seed, shuffleEntries, points } = options;
   const delivery = frozenDelivery(options.delivery);
+  const scoring = frozenScoring(options.scoring);
   const slots = flattenSequence(entries, {
     ...(shuffleEntries !== undefined ? { shuffleEntries } : {}),
     ...(seed !== undefined ? { seed } : {}),
@@ -221,8 +237,21 @@ export function planAttempt<TItem extends { id: string; type: string }>(
     // A policy joins it when there is one: the same paper sat with hints and
     // without is two different attempts. Without one, the fingerprint is the
     // one every plan before policies had.
-    planHash: contentHash(delivery === undefined ? planned : { slots: planned, delivery }),
+    // So does a scoring policy: the same answers are worth something else when
+    // a hint costs a tenth of the marks. Each joins only when it is there, so
+    // a plan with neither — or with a delivery policy alone — keeps the
+    // fingerprint it always had.
+    planHash: contentHash(
+      delivery === undefined && scoring === undefined
+        ? planned
+        : {
+            slots: planned,
+            ...(delivery !== undefined ? { delivery } : {}),
+            ...(scoring !== undefined ? { scoring } : {}),
+          },
+    ),
     ...(delivery !== undefined ? { delivery } : {}),
+    ...(scoring !== undefined ? { scoring } : {}),
     slots: planned,
     totalPoints,
   };
@@ -269,6 +298,7 @@ export function verifyAttemptPlan(plan: AttemptPlan, current: AttemptPlan): Atte
   // setting does.
   const deliveryChanged =
     contentHash(plan.delivery ?? null) !== contentHash(current.delivery ?? null);
+  const scoringChanged = contentHash(plan.scoring ?? null) !== contentHash(current.scoring ?? null);
   for (const slot of plan.slots) {
     const now = after.get(slot.slotId);
     if (now === undefined) {
@@ -304,7 +334,8 @@ export function verifyAttemptPlan(plan: AttemptPlan, current: AttemptPlan): Atte
       changedCueSlotIds.length === 0 &&
       changedPointsSlotIds.length === 0 &&
       reorderedSlotIds.length === 0 &&
-      !deliveryChanged,
+      !deliveryChanged &&
+      !scoringChanged,
     missingSlotIds,
     addedSlotIds,
     changedSlotIds,
@@ -316,6 +347,7 @@ export function verifyAttemptPlan(plan: AttemptPlan, current: AttemptPlan): Atte
     // score: a drift report between two plans without a policy — every one
     // written before policies existed — keeps exactly the shape it had.
     ...(deliveryChanged ? { deliveryChanged: true as const } : {}),
+    ...(scoringChanged ? { scoringChanged: true as const } : {}),
   };
 }
 
@@ -336,6 +368,22 @@ function frozenDelivery(policy: unknown): ResolvedDeliveryPolicy | undefined {
     );
   }
   return resolveDeliveryPolicy(checked.data);
+}
+
+/** The scoring policy a plan records, as {@link frozenDelivery} records a delivery policy. */
+function frozenScoring(policy: unknown): ResolvedItemScoringPolicy | undefined {
+  if (policy === undefined || policy === null) {
+    return undefined;
+  }
+  const checked = validateItemScoringPolicy(policy);
+  if (!checked.success) {
+    const first = checked.issues[0];
+    throw new Error(
+      `planAttempt: the scoring policy is not one to record — ${first?.message ?? 'invalid'}` +
+        (checked.issues.length > 1 ? ` (and ${checked.issues.length - 1} more)` : ''),
+    );
+  }
+  return resolveItemScoringPolicy(checked.data);
 }
 
 /** How {@link scoredItemsFromPlan} fills a slot that has no recorded outcome. */

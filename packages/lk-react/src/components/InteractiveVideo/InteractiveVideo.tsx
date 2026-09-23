@@ -10,13 +10,16 @@ import {
   type InteractionKind,
   type ItemGroup,
   type ItemOutcome,
+  type ItemScoringPolicy,
   type LearnerResponse,
   type MediaProgress,
   type MediaTimeline,
   type MediaTrack,
   type ResolvedDeliveryPolicy,
+  type ResolvedItemScoringPolicy,
   readMediaProgress,
   resolveDeliveryPolicy,
+  resolveItemScoringPolicy,
   type SequenceSlot,
   type SpeechAssessment,
   type ThemeTokens,
@@ -175,6 +178,13 @@ export interface InteractiveVideoQuestion {
    */
   delivery: ResolvedDeliveryPolicy;
   /**
+   * The video's scoring policy, every setting spelled out: how many tries a
+   * question gives, which counts, and what tries and hints cost. The SDK's own
+   * questions apply it; a question you draw scores by it with lk-core's
+   * `scoreTries`, or not at all.
+   */
+  scoring: ResolvedItemScoringPolicy;
+  /**
    * The learner committed an answer: marks the question answered and forwards
    * to `onSubmit(response, slot)`. Latest wins: call it again for a new take or
    * a corrected answer.
@@ -325,6 +335,15 @@ export interface InteractiveVideoProps {
    * only takes away. See `DeliveryPolicy` in lk-core.
    */
   delivery?: DeliveryPolicy | null;
+  /**
+   * How the video's questions are scored when a learner can try again or ask
+   * for hints — for every question in it. A later try replaces a question's
+   * grade, as any answer given again does, until the learner finishes: then
+   * every question's tries close. See `ItemScoringPolicy` in lk-core.
+   *
+   * A policy `validateItemScoringPolicy` refuses throws at render.
+   */
+  scoring?: ItemScoringPolicy | null;
   theme?: Partial<ThemeTokens>;
   sanitizeHtml?: HtmlSanitizer;
 }
@@ -471,6 +490,15 @@ function Player(props: InteractiveVideoProps) {
   // The video's policy, spelled out: its own end card reads it, every
   // question's channel publishes it, and a host's question is handed it.
   const delivery = resolveDeliveryPolicy(props.delivery);
+  // And its scoring policy: resolved here, so one nobody could apply fails the
+  // player at render rather than grading by a guess.
+  const scoringKey = JSON.stringify(props.scoring ?? null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the policy's content is the trigger, not its identity
+  const scoring = useMemo<ResolvedItemScoringPolicy>(
+    () => resolveItemScoringPolicy(props.scoring),
+    [scoringKey],
+  );
+  const scoringGiven = props.scoring !== undefined && props.scoring !== null;
 
   // The group this mount was made for. The key above changes whenever the
   // content does, so reading the first one keeps every question's `data`
@@ -687,6 +715,9 @@ function Player(props: InteractiveVideoProps) {
   // back first, where a click pauses it.
   const lastPointer = useRef('mouse');
   const finishedOnce = useRef(false);
+  // Finishing closes every question's tries; state as well as the ref, so the
+  // questions re-render to see it.
+  const [, setFinishedState] = useState(false);
 
   // ── Quizzes ──────────────────────────────────────────────────────────
   const [openQuiz, setOpenQuiz] = useState<{ cueId: string; step: number } | null>(null);
@@ -1391,6 +1422,7 @@ function Player(props: InteractiveVideoProps) {
       return;
     }
     finishedOnce.current = true;
+    setFinishedState(true);
     onFinished?.(summary());
   }, [onFinished, summary]);
   const answerPending = pending.size > 0;
@@ -1457,8 +1489,22 @@ function Player(props: InteractiveVideoProps) {
 
   // The host's callbacks as of the latest render: the calls below keep one
   // identity for the life of the player, so they read these through a ref.
-  const reportTo = useRef({ onSubmit, onActivityComplete, onInteraction, renderMode, delivery });
-  reportTo.current = { onSubmit, onActivityComplete, onInteraction, renderMode, delivery };
+  const reportTo = useRef({
+    onSubmit,
+    onActivityComplete,
+    onInteraction,
+    renderMode,
+    delivery,
+    scoring: scoringGiven ? scoring : undefined,
+  });
+  reportTo.current = {
+    onSubmit,
+    onActivityComplete,
+    onInteraction,
+    renderMode,
+    delivery,
+    scoring: scoringGiven ? scoring : undefined,
+  };
 
   /**
    * The calls a question reports what the learner did through — the SDK's own
@@ -1571,6 +1617,15 @@ function Player(props: InteractiveVideoProps) {
         get delivery() {
           return reportTo.current.delivery;
         },
+        get scoring() {
+          return reportTo.current.scoring;
+        },
+        get triesClosed() {
+          return finishedOnce.current;
+        },
+        // The video waits for no try: its Finish is on the end card, where no
+        // question is, and finishing closes every question's tries.
+        triesState: () => {},
         takeState: (take, state) => reportTake(slotId, take, state),
       };
       channels.current.set(slotId, channel);
@@ -1612,6 +1667,7 @@ function Player(props: InteractiveVideoProps) {
       portalContainer,
       ...(aiInForce !== undefined && renderMode !== 'exam' ? { ai: aiInForce } : {}),
       delivery,
+      scoring,
       ...callsFor(place),
     };
   };
@@ -1638,6 +1694,7 @@ function Player(props: InteractiveVideoProps) {
       ...(props.delivery !== undefined && props.delivery !== null
         ? { delivery: props.delivery }
         : {}),
+      ...(scoringGiven ? { scoring: props.scoring } : {}),
       ...(locale !== undefined ? { locale } : {}),
     };
     switch (activity.type) {

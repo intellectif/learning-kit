@@ -786,22 +786,35 @@ on purpose. A school whose hints are help rather than content switches them off 
 it explains a grade and all but always names the answer, so on a paper hiding either it would hand
 over what the paper withholds.
 
-1. **The delivery policy, the half that moves grades.** It needs grade vectors, so it ships on its own:
-   - **what hints cost** — a penalty per hint, computed by the SDK and never by a host, applied
-     to the item's score and never below zero;
-   - **`ItemScoringPolicy`** — partial credit and negative marking configured per paper rather
-     than per item, frozen into the plan beside the delivery policy. The earlier evidence that
-     negative marking would break a consumer's constraint that scores stay in [0, 1] still holds, so a
-     penalty floors at zero per item, and anything below it is a separate, explicit decision;
-   - **retries in practice** — "Try again" on a graded question, and which attempt's score
-     counts (first, last or best), a scoring decision rather than a display one.
+✅ **The half that moves grades shipped** in 0.21.0 / 21.0.0 (2026-09-23), as the **scoring
+policy**: `scoring` beside `delivery` on every activity and both pagers, recorded in the plan and its
+hash; see [docs/scoring.md](./scoring.md). It carries tries and what they and hints cost — and not,
+yet, the partial credit and negative marking this item also listed. Four decisions shaped it:
+- **A separate object, not more delivery settings.** A delivery setting only takes away, defaults to
+  `true`, combines by AND, and is read charitably; tries and costs switch something on, are numbers,
+  and move grades, so a policy that cannot be applied is refused rather than read. The paper's policy
+  wins over a question's, as the paper's mode does.
+- **The first try counts by default.** It is today's grade, so switching tries on moves none until a
+  school chooses `best` or `last`. The evidence: the one integrating application built its own "Try
+  again" for dictation and keeps the best whole-quiz attempt, because keeping the latest cost a
+  learner who passed and practised again their lesson completion.
+- **A cost is subtracted, as a fraction of the marks, never below zero**, and its floating-point
+  residue removed (`0.7 − 0.2` fails a 0.5 pass line otherwise). The count of hints rides on the
+  response, where dictation already carried it, so a server reaches the same number with
+  `evaluateTries`.
+- **While another try is on offer, the right answer waits**, and so does "Explain my answer". Building
+  it found that 0.20's `solutions: false` on a dictation still named every word its marks corrected;
+  fixed in the same release.
 
-   **An authored hint may be allowed in an exam by policy; AI help may not.** An authored hint is the
-   same for every learner and its penalty is computed, so a deployment can price it. Two learners
-   sitting one paper would not get the same AI help, so the rule that shipped in 0.17.0 — nothing
-   AI in `exam`, whatever is passed — stands rather than becoming a switch. Timers, lockdown and
-   proctoring stay consumer-side (§5).
-2. **The AI line, in this order.** Explanations, hints and the groundwork above have shipped; what
+**Not shipped, on evidence:** negative marking below zero and a per-paper partial-credit override —
+nothing has asked for either, and the one integrating application stores item scores in [0, 1] and
+authors partial credit per item. **Nor hint costs in `exam`.** The rule stands that an authored hint
+could be priced there — it is the same for every learner — while AI help never appears in an exam at
+all. But the one production exam runner offers blank hints free on purpose, and an exam response's
+count could not be restored exactly after a reload without recording which hints were shown. Each of
+these waits for a school that asks.
+
+1. **The AI line, in this order.** Explanations, hints and the groundwork above have shipped; what
    is left is ordered by what a learner or an author gets from it, and each is admitted only on the
    rules below.
    1. **Feedback on writing, in practice** — the largest of the remaining four for a language

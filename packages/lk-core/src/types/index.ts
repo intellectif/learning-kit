@@ -108,6 +108,15 @@ export type {
   TimelineCue,
 } from './item-group.js';
 export type {
+  ItemScoringCount,
+  ItemScoringPolicy,
+  ItemScoringPolicyIssue,
+  ItemTriesScore,
+  ItemTry,
+  ItemTryScore,
+  ResolvedItemScoringPolicy,
+} from './item-scoring.js';
+export type {
   GradeReadAloudOptions,
   ReadAloudWordAlignment,
   ReadAloudWordState,

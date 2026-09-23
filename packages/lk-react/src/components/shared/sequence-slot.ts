@@ -1,6 +1,6 @@
 'use client';
 
-import type { ResolvedDeliveryPolicy } from '@intellectif/lk-core';
+import type { ResolvedDeliveryPolicy, ResolvedItemScoringPolicy } from '@intellectif/lk-core';
 import { createContext } from 'react';
 import type { RenderMode } from '../types.js';
 
@@ -15,6 +15,20 @@ import type { RenderMode } from '../types.js';
  *   failure nobody can retry, or a take the learner walked away from.
  */
 export type TakeState = 'in-flight' | 'retryable' | 'settled';
+
+/**
+ * Where a question is with its tries, as a pager deciding whether its set is
+ * finished needs to know it.
+ *
+ * - `offered` — a graded answer short of full marks, with another try on offer.
+ *   The set waits for it while the learner is on that question: leaving it is
+ *   declining the try.
+ * - `retrying` — the learner pressed "Try again" and has not answered again.
+ *   The set waits for it wherever the learner is, as it waits for any question
+ *   not yet answered: the grade it holds is the one being replaced.
+ * - `none` — neither.
+ */
+export type TriesState = 'none' | 'offered' | 'retrying';
 
 /**
  * What a pager hands the one slot it renders, and only through
@@ -45,6 +59,20 @@ export interface SequenceSlotChannel {
    * paper's restrictions hold in it. See `useDeliveryPolicy`.
    */
   readonly delivery: ResolvedDeliveryPolicy;
+  /**
+   * The scoring policy of the PAPER around this question, read live, when the
+   * paper was given one: it holds for every question in it, however drawn.
+   * `undefined` when the paper has none, so a question's own applies.
+   */
+  readonly scoring: ResolvedItemScoringPolicy | undefined;
+  /**
+   * Whether the paper has closed every question's tries: it reported its set,
+   * or its learner finished. A "Try again" after that would change a grade the
+   * paper has already handed on.
+   */
+  readonly triesClosed: boolean;
+  /** Tells the paper where this question is with its tries: see {@link TriesState}. */
+  triesState(state: TriesState): void;
   /**
    * Reports the state of the take numbered `take`, a number from
    * {@link mintTake}. A take numbered below the slot's latest is a take the

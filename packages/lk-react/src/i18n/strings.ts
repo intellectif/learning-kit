@@ -58,6 +58,31 @@ export interface LkStrings {
   /** An outcome that carries no grade and never will. */
   noGradeAvailable: string;
 
+  // ── Tries and what they cost (a scoring policy, in practice) ───────────
+  /** The button that reopens a graded answer for another try. */
+  tryAgain: string;
+  /** Ends the tries on a question and shows the right answer. */
+  showAnswer: string;
+  /** Ends the tries on a question where the paper shows no right answers. */
+  keepAnswer: string;
+  /**
+   * After a graded try, how many more there are, and what each costs: a whole
+   * percentage of the question's marks, `0` when a try costs nothing.
+   */
+  triesLeft: (tries: number, costPercent: number) => string;
+  /**
+   * When an earlier try is the one that counts: which rule chose it, and what
+   * the try just made scored, as a whole percentage.
+   */
+  countedTry: (counts: 'first' | 'best', percent: number) => string;
+  /**
+   * When hints or tries cost this answer something: what it scored before
+   * that, as a whole percentage. The score sentence before it is what it counts.
+   */
+  scoreBeforeCosts: (percent: number) => string;
+  /** Beside the hints on a paper where they cost marks, before one is asked for. */
+  hintCost: (percent: number) => string;
+
   // ── Feedback disclosure ────────────────────────────────────────────────
   showFeedback: string;
   hideFeedback: string;
@@ -134,6 +159,14 @@ export interface LkStrings {
   dictationWordCorrect: (word: string) => string;
   dictationWordWrong: (word: string, expected: string) => string;
   dictationWordMissing: (expected: string) => string;
+  /**
+   * A wrong word, where the right answer may not show — the paper withholds
+   * solutions, or the learner is offered another try: it is wrong, and not
+   * what it should be.
+   */
+  dictationWordWrongUnnamed: (word: string) => string;
+  /** A missing word, where the right answer may not show: missing, and not named. */
+  dictationWordMissingUnnamed: string;
   dictationWordExtra: (word: string) => string;
   /** The legend rows; the character-level marks reuse the same four. */
   dictationLegendCorrect: string;
@@ -436,6 +469,18 @@ export const DEFAULT_STRINGS: LkStrings = {
   notGradedYet: 'Not graded yet.',
   noGradeAvailable: 'No grade available.',
 
+  tryAgain: 'Try again',
+  showAnswer: 'Show answer',
+  keepAnswer: 'Keep this answer',
+  triesLeft: (tries, costPercent) =>
+    `${tries} ${tries === 1 ? 'try' : 'tries'} left.${
+      costPercent > 0 ? ` Each costs ${costPercent}% of the marks.` : ''
+    }`,
+  countedTry: (counts, percent) =>
+    `Your ${counts === 'first' ? 'first' : 'best'} try counts. This one scored ${percent}%.`,
+  scoreBeforeCosts: (percent) => `Before hints and tries, this answer scored ${percent}%.`,
+  hintCost: (percent) => `Each hint costs ${percent}% of this question's marks.`,
+
   showFeedback: 'Show feedback',
   hideFeedback: 'Hide feedback',
 
@@ -474,6 +519,8 @@ export const DEFAULT_STRINGS: LkStrings = {
   dictationWordCorrect: (word) => `“${word}” is correct`,
   dictationWordWrong: (word, expected) => `“${word}” should be “${expected}”`,
   dictationWordMissing: (expected) => `“${expected}” is missing`,
+  dictationWordWrongUnnamed: (word) => `“${word}” is wrong`,
+  dictationWordMissingUnnamed: 'A word is missing',
   dictationWordExtra: (word) => `“${word}” is extra`,
   dictationLegendCorrect: 'Correct',
   dictationLegendWrong: 'Wrong',

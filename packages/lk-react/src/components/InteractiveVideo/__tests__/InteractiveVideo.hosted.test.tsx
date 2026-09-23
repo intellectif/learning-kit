@@ -15,6 +15,7 @@ import { type LearnerAi, LkAiProvider } from '../../../ai/LkAiProvider.js';
 import { useAiHints } from '../../../ai/useAiHelp.js';
 import type { InteractiveVideoQuestion as FromTheRoot } from '../../../index.js';
 import { type SpeechCaptureHarness, stubSpeechCapture } from '../../../test-support/speech.js';
+import { MultipleChoice } from '../../MultipleChoice/index.js';
 import { SequenceSlotContext } from '../../shared/sequence-slot.js';
 import {
   InteractiveVideo,
@@ -1141,3 +1142,103 @@ async function makeTake(user: UserEvent, capture: SpeechCaptureHarness): Promise
   });
   await user.click(within(quizPanel()).getByRole('button', { name: 'Stop recording' }));
 }
+
+describe('InteractiveVideo scoring', () => {
+  const quizzes = () =>
+    group({
+      items: [mc('q1', '¿Uno?'), mc('q2', '¿Dos?')],
+      timeline: {
+        cues: [
+          { id: 'first', at: 30, title: 'Primera pausa', itemIds: ['q1'] },
+          { id: 'second', at: 90, title: 'Segunda pausa', itemIds: ['q2'] },
+        ],
+      },
+    });
+
+  it('offers a question another try, and the later try’s grade is the one it keeps', async () => {
+    const user = userEvent.setup();
+    const onActivityComplete = vi.fn();
+    await start(
+      <InteractiveVideo
+        group={quizzes()}
+        scoring={{ retries: 1, retryPenalty: 0.5, counts: 'best' }}
+        onActivityComplete={onActivityComplete}
+      />,
+    );
+    await openFirstQuiz();
+    await user.click(within(quizPanel()).getByRole('radio', { name: /^q1 incorrecta/ }));
+    await user.click(within(quizPanel()).getByRole('button', { name: 'Submit' }));
+    await user.click(within(quizPanel()).getByRole('button', { name: 'Try again' }));
+    await user.click(within(quizPanel()).getByRole('radio', { name: /^q1 correcta/ }));
+    await user.click(within(quizPanel()).getByRole('button', { name: 'Submit' }));
+    expect(onActivityComplete).toHaveBeenCalledTimes(2);
+    expect(onActivityComplete.mock.calls[1]?.[0]).toMatchObject({ score: 0.5 });
+  });
+
+  it('hands a question the host draws the policy, spelled out', async () => {
+    const seen: InteractiveVideoQuestion[] = [];
+    await start(
+      <InteractiveVideo
+        group={quizzes()}
+        scoring={{ hintPenalty: 0.1 }}
+        renderQuestion={(question) => {
+          seen.push(question);
+          return undefined;
+        }}
+      />,
+    );
+    await openFirstQuiz();
+    expect(seen.at(-1)?.scoring).toEqual({
+      hintPenalty: 0.1,
+      retries: 0,
+      retryPenalty: 0,
+      counts: 'first',
+    });
+  });
+
+  it('holds the video’s policy in a question the host draws with a policy of its own', async () => {
+    const user = userEvent.setup();
+    await start(
+      <InteractiveVideo
+        group={quizzes()}
+        scoring={{ hintPenalty: 0.5 }}
+        renderQuestion={(question) => (
+          <MultipleChoice
+            data={question.activity as never}
+            renderMode={question.renderMode}
+            onSubmit={question.submit}
+            onComplete={question.complete}
+            scoring={{ retries: 3 }}
+          />
+        )}
+      />,
+    );
+    await openFirstQuiz();
+    await user.click(within(quizPanel()).getByRole('radio', { name: /^q1 incorrecta/ }));
+    await user.click(within(quizPanel()).getByRole('button', { name: 'Submit' }));
+    // The video gives one try; the question asked for four.
+    expect(within(quizPanel()).queryByRole('button', { name: 'Try again' })).toBeNull();
+  });
+
+  it('closes every question’s tries once the learner finishes', async () => {
+    const user = userEvent.setup();
+    await start(<InteractiveVideo group={quizzes()} scoring={{ retries: 1 }} />);
+    await openFirstQuiz();
+    await user.click(within(quizPanel()).getByRole('radio', { name: /^q1 incorrecta/ }));
+    await user.click(within(quizPanel()).getByRole('button', { name: 'Submit' }));
+    expect(within(quizPanel()).getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Continue video/ }));
+    await endVideo();
+    // Opened again before finishing, the question still offers its try: what
+    // closes it below is finishing, not reopening.
+    await user.click(screen.getAllByRole('button', { name: /Primera pausa/ })[0] as HTMLElement);
+    await waitFor(() => expect(quizPanel()).toBeVisible());
+    expect(within(quizPanel()).getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Continue video/ }));
+    await endVideo();
+    await user.click(finishButton());
+    await user.click(screen.getAllByRole('button', { name: /Primera pausa/ })[0] as HTMLElement);
+    await waitFor(() => expect(quizPanel()).toBeVisible());
+    expect(within(quizPanel()).queryByRole('button', { name: 'Try again' })).toBeNull();
+  });
+});

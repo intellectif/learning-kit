@@ -2,6 +2,7 @@
 
 import {
   ActivitySchemaError,
+  computePassThreshold,
   type ItemOutcome,
   type LearnerResponse,
   type MultipleChoiceData,
@@ -21,9 +22,18 @@ import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStrings } from '../../i18n/strings.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor, randomSessionId } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
-import { AiExplanation, AiHints } from '../shared/AiHelp.js';
+import { AiExplanation, AiHints, useComponentAiHints } from '../shared/AiHelp.js';
 import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
+import { mintTake, stampTake } from '../shared/sequence-slot.js';
+import {
+  HintCost,
+  hintsOf,
+  TryActions,
+  triesSummary,
+  useItemScoringPolicy,
+  useTries,
+} from '../shared/tries.js';
 import type { ActivityProps } from '../types.js';
 
 /**
@@ -119,10 +129,12 @@ export function MultipleChoice({
   strings,
   ai: aiProp,
   delivery,
+  scoring,
 }: MultipleChoiceProps) {
   const s = useLkStrings(strings);
   const ai = useLearnerAi(aiProp);
   const policy = useDeliveryPolicy(delivery);
+  const scoringPolicy = useItemScoringPolicy(scoring);
 
   // Dev-only boundary validation (Req 2.3). Throwing during render lets
   // ActivityErrorBoundary catch it. Memoised so it only re-runs on data change.
@@ -147,12 +159,30 @@ export function MultipleChoice({
   const { state, start, complete, getTimeSpent, reset } = useActivityState(
     defaultSubmitted === true ? 'completed' : 'idle',
   );
+  // Before anything that resets them: a new question starts with no tries.
+  const tries = useTries({
+    policy: scoringPolicy,
+    graded: renderMode === 'practice' && policy.feedback,
+    submitted: state === 'completed',
+    disabled: disabled === true,
+  });
+  const resetTries = tries.reset;
+  const closeQuestion = tries.close;
   // Uncontrolled state. `defaultValue` seeds the mount only (React convention);
   // to re-seed later, remount with a `key` or drive the component with `value`.
   const [internalSelection, setInternalSelection] = useState<string[]>(() =>
     selectionOf(defaultValue),
   );
   const [summary, setSummary] = useState<string | null>(null);
+  // The authored overall feedback on the last graded answer, said after the
+  // score and what the policy made of it.
+  const [overall, setOverall] = useState<string | null>(null);
+  // Hints the learner had been shown before this mount: a restored answer's
+  // count stands, and the hints shown here add to it.
+  const seedHintsRef = useRef(hintsOf(value ?? defaultValue));
+  const rootRef = useRef<HTMLDivElement>(null);
+  const feedbackRef = useRef<HTMLDivElement>(null);
+  const focusAfterRef = useRef<'answer' | 'feedback' | null>(null);
 
   // Reset on data-prop CHANGE (Req 3.7). The identity guard makes the mount
   // run a no-op, which it always was before `defaultValue` existed — without
@@ -185,8 +215,11 @@ export function MultipleChoice({
     lastDataRef.current = data;
     setInternalSelection(selectionOf(defaultValueRef.current));
     setSummary(null);
+    setOverall(null);
+    seedHintsRef.current = hintsOf(defaultValueRef.current);
+    resetTries();
     reset(defaultSubmittedRef.current === true ? 'completed' : 'idle');
-  }, [data, reset]);
+  }, [data, reset, resetTries]);
 
   const displayedOptions = useMemo<MultipleChoiceOption[]>(() => {
     if (!data.shuffle) {
@@ -207,6 +240,57 @@ export function MultipleChoice({
     }
     return new Map(outcome.details.map((detail) => [detail.itemId, detail]));
   }, [renderMode, outcome]);
+
+  // Hints are a hook, so they are read here, before the throws below.
+  const answered = state === 'completed';
+  const chosen = value !== undefined ? selectionOf(value) : internalSelection;
+  const aiHints = useComponentAiHints({
+    ai,
+    data,
+    renderMode,
+    submitted: answered,
+    disabled: disabled === true,
+    response: { type: 'multiple-choice', selectedOptionIds: chosen },
+    locale,
+    onInteraction,
+    strings: s,
+    delivery: policy,
+  });
+  // Every hint the learner has been shown on this question, counted from its
+  // start: what a scoring policy charges for. Hints exist only in practice.
+  const hintsRevealed = renderMode === 'practice' ? seedHintsRef.current + aiHints.used : 0;
+  const responseOf = (selectedOptionIds: string[]): MultipleChoiceLearnerResponse => ({
+    type: 'multiple-choice',
+    selectedOptionIds,
+    ...(hintsRevealed > 0 ? { hintsRevealed } : {}),
+  });
+  // A hint shown is part of the answer's record, so a host that restores an
+  // answer restores what it cost: say so as it happens, not at the next click.
+  const hintsSeenRef = useRef(aiHints.used);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new hint is the trigger, and the response it reports is this render's
+  useEffect(() => {
+    if (hintsSeenRef.current === aiHints.used) {
+      return;
+    }
+    hintsSeenRef.current = aiHints.used;
+    if (aiHints.used > 0) {
+      onChange?.(responseOf(chosen));
+    }
+  }, [aiHints.used]);
+  // After "Try again" the learner is back at their answer; after "Show answer"
+  // the buttons they pressed are gone, and the result is what is left.
+  useEffect(() => {
+    const target = focusAfterRef.current;
+    if (target === null) {
+      return;
+    }
+    focusAfterRef.current = null;
+    if (target === 'answer') {
+      rootRef.current?.querySelector<HTMLElement>('input:not(:disabled)')?.focus();
+    } else {
+      feedbackRef.current?.focus();
+    }
+  });
 
   // All hooks are called before these throws, so hook order stays stable.
   if (devError) {
@@ -245,7 +329,9 @@ export function MultipleChoice({
    * are marked, so a missed correct option is not given away.
    */
   const marks = reveal && policy.feedback;
-  const solutions = marks && policy.solutions;
+  // While the learner is offered another try, the right answer stays hidden:
+  // the next try is for finding it.
+  const solutions = marks && policy.solutions && !tries.open;
 
   const fireInteraction = (
     type: 'option-selected' | 'option-deselected' | 'submitted',
@@ -259,7 +345,7 @@ export function MultipleChoice({
     if (!isControlled) {
       setInternalSelection(selectedOptionIds);
     }
-    onChange?.({ type: 'multiple-choice', selectedOptionIds });
+    onChange?.(responseOf(selectedOptionIds));
   };
 
   const selectSingle = (optionId: string): void => {
@@ -289,10 +375,7 @@ export function MultipleChoice({
     if (inactive) {
       return;
     }
-    const response: MultipleChoiceLearnerResponse = {
-      type: 'multiple-choice',
-      selectedOptionIds: selected,
-    };
+    const response = responseOf(selected);
     // Always first, and before anything that can throw: an exam runner must be
     // able to persist the raw response no matter what happens after.
     onSubmit?.(response);
@@ -306,9 +389,32 @@ export function MultipleChoice({
       return;
     }
 
-    const scoringResult = score('multiple-choice', data as MultipleChoiceData, response);
+    const answer = score('multiple-choice', data as MultipleChoiceData, response);
     complete();
     const timeSpent = getTimeSpent();
+    // The question's score under the policy: this try's answer, less what its
+    // hints and the tries before it cost, or an earlier try's. With no policy
+    // it is exactly what the answer scored.
+    const counted = tries.record({
+      score: answer.score,
+      maxScore: answer.maxScore,
+      hintsRevealed,
+    });
+    const mine = counted.tries[counted.tries.length - 1];
+    const costed = mine === undefined ? answer.score : mine.scored;
+    // The statement records this try, at what it scored after its costs.
+    const scoringResult =
+      costed === answer.score
+        ? answer
+        : {
+            ...answer,
+            score: costed,
+            passed: computePassThreshold(data as MultipleChoiceData, costed),
+          };
+    const passed =
+      counted.score === scoringResult.score
+        ? scoringResult.passed
+        : computePassThreshold(data as MultipleChoiceData, counted.score);
     const xapiStatement = xAPIBuilder.buildAnsweredStatement({
       actor: ANONYMOUS_ACTOR,
       object: {
@@ -327,25 +433,43 @@ export function MultipleChoice({
       timeSpentMs: timeSpent,
       response: selected.join(','),
     });
-    onComplete?.({
-      score: scoringResult.score,
-      maxScore: scoringResult.maxScore,
-      passed: scoringResult.passed,
-      timeSpent,
-      xapiStatement,
-    });
-    // Core selects the authored overall feedback on `passed` (B3 fix).
-    const overall = scoringResult.feedback;
+    // Stamped, so a set this question sits in knows a later try replaces it.
+    onComplete?.(
+      stampTake(
+        {
+          score: counted.score,
+          maxScore: counted.maxScore,
+          passed,
+          timeSpent,
+          xapiStatement,
+        },
+        mintTake(),
+      ),
+    );
+    // Core selects the authored overall feedback on `passed` (B3 fix): it is
+    // the answer's, so it follows the answer's own grade.
+    setOverall(answer.feedback);
     setSummary(
-      `${s.answerSubmitted} ${s.scoreAnnouncement(
-        Math.round(scoringResult.score * 100),
-        scoringResult.passed,
-      )}${overall ? ` ${overall}` : ''}`,
+      `${s.answerSubmitted} ${s.scoreAnnouncement(Math.round(counted.score * 100), passed)}`,
     );
     fireInteraction('submitted', {
       selectedOptionIds: selected,
       score: scoringResult.score,
     });
+  };
+
+  /** "Try again": the answer stays, to be changed; the marks go. */
+  const retry = (): void => {
+    reset('idle');
+    setSummary(null);
+    setOverall(null);
+    focusAfterRef.current = 'answer';
+  };
+
+  /** "Show answer": no more tries; the question shows what a finished one shows. */
+  const closeTries = (): void => {
+    closeQuestion();
+    focusAfterRef.current = 'feedback';
   };
 
   const questionId = `${data.id}-question`;
@@ -430,8 +554,17 @@ export function MultipleChoice({
     );
   });
 
+  const extra =
+    !isReview && policy.feedback && submitted && tries.counted !== null
+      ? triesSummary(s, scoringPolicy, tries.counted, tries.open)
+      : '';
+  const announced =
+    summary === null
+      ? null
+      : `${summary}${extra ? ` ${extra}` : ''}${overall ? ` ${overall}` : ''}`;
+
   return (
-    <div className="lk-mc" lang={locale} style={theme as CSSProperties | undefined}>
+    <div className="lk-mc" lang={locale} style={theme as CSSProperties | undefined} ref={rootRef}>
       {data.media ? (
         <ActivityMedia
           media={data.media}
@@ -468,18 +601,10 @@ export function MultipleChoice({
           ) : (
             <div>{optionList}</div>
           )}
-          <AiHints
-            ai={ai}
-            data={data}
-            renderMode={renderMode}
-            submitted={submitted}
-            disabled={disabled === true}
-            response={{ type: 'multiple-choice', selectedOptionIds: selected }}
-            locale={locale}
-            onInteraction={onInteraction}
-            strings={s}
-            delivery={policy}
-          />
+          {aiHints.offered && renderMode === 'practice' ? (
+            <HintCost policy={scoringPolicy} strings={s} />
+          ) : null}
+          <AiHints help={aiHints} ai={ai} strings={s} />
           {/* review is read-only: there is nothing left to submit. */}
           {isReview ? null : (
             <button type="submit" disabled={inactive}>
@@ -488,7 +613,10 @@ export function MultipleChoice({
           )}
         </fieldset>
       </form>
-      <FeedbackRegion id={`${data.id}-feedback`}>
+      <FeedbackRegion
+        id={`${data.id}-feedback`}
+        {...(scoringPolicy.retries > 0 ? { ref: feedbackRef } : {})}
+      >
         {isReview
           ? // A grade read back is feedback; "not graded yet" is not.
             policy.feedback || !outcomeShowsMarks(outcome)
@@ -497,9 +625,16 @@ export function MultipleChoice({
           : // Without feedback a submit says only that it was received, as
             // an exam's does — the score still reaches `onComplete`.
             policy.feedback || summary === ''
-            ? summary
+            ? announced
             : s.answerSubmitted}
       </FeedbackRegion>
+      <TryActions
+        tries={tries}
+        solutions={policy.solutions}
+        strings={s}
+        onRetry={retry}
+        onClose={closeTries}
+      />
       <AiExplanation
         ai={ai}
         data={data}
@@ -510,7 +645,9 @@ export function MultipleChoice({
         locale={locale}
         onInteraction={onInteraction}
         strings={s}
-        delivery={policy}
+        // An explanation all but always names the answer: not while another
+        // try is on offer.
+        delivery={tries.open ? { ...policy, solutions: false } : policy}
       />
     </div>
   );

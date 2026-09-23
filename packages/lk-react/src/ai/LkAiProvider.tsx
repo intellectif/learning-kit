@@ -30,9 +30,11 @@ export interface LearnerAi {
   /** The most hints a learner can ask for on one question. Default 3, at most 10. */
   maxHints?: number;
   /**
-   * The language to write explanations and hints in — the learner's own,
-   * which in a language course need not be the item's. Defaults to the
-   * component's `locale`.
+   * The language to write explanations and hints in, as a tag (`es`,
+   * `pt-BR`). Defaults to the component's `locale`: the interface language,
+   * which the buttons around the help are in, and usually the right one. In a
+   * language course it need not be the item's — English items, explained in
+   * Spanish — and the item's own language reaches your port as `facts.locale`.
    */
   learnerLocale?: string;
 }

@@ -5,6 +5,7 @@ import {
   ActivitySchemaError,
   alignDictation,
   assertRedacted,
+  computePassThreshold,
   DICTATION_MAX_TEXT_LENGTH,
   type DictationAlignment,
   type DictationCharOp,
@@ -31,6 +32,14 @@ import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation } from '../shared/AiHelp.js';
 import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
+import { mintTake, stampTake } from '../shared/sequence-slot.js';
+import {
+  HintCost,
+  TryActions,
+  triesSummary,
+  useItemScoringPolicy,
+  useTries,
+} from '../shared/tries.js';
 import type { ActivityProps, Renderable } from '../types.js';
 
 // Nothing shuffles and nothing is seeded, so the shared contract is the whole
@@ -554,12 +563,14 @@ export function Dictation({
   disabled,
   ai: aiProp,
   delivery,
+  scoring,
 }: DictationProps) {
   const isExam = renderMode === 'exam';
   const isReview = renderMode === 'review';
   const s = useLkStrings(strings);
   const ai = useLearnerAi(aiProp);
   const policy = useDeliveryPolicy(delivery);
+  const scoringPolicy = useItemScoringPolicy(scoring);
 
   // Whether the payload carries the transcript at all — the KEY, not the
   // `redacted` marker. `redact(data, { reveal: 'after-submit' })` stamps
@@ -601,12 +612,23 @@ export function Dictation({
   const { state, start, complete, getTimeSpent, reset } = useActivityState(
     defaultSubmitted === true ? 'completed' : 'idle',
   );
+  // Before anything that resets them: a new question starts with no tries.
+  const tries = useTries({
+    policy: scoringPolicy,
+    graded: renderMode === 'practice' && policy.feedback,
+    submitted: state === 'completed',
+    disabled: disabled === true,
+  });
+  const resetTries = tries.reset;
   const isControlled = value !== undefined;
   const [internalText, setInternalText] = useState<string>(() => textOf(defaultValue));
   const [internalRevealed, setInternalRevealed] = useState<number>(() => hintsOf(defaultValue));
   const [result, setResult] = useState<ScoringResult | null>(null);
   const [summary, setSummary] = useState<Announcement | null>(null);
   const [solutionShown, setSolutionShown] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const feedbackRef = useRef<HTMLDivElement>(null);
+  const focusAfterRef = useRef<'answer' | 'feedback' | null>(null);
 
   const text = isControlled ? textOf(value) : internalText;
   const revealed = isControlled ? hintsOf(value) : internalRevealed;
@@ -634,8 +656,9 @@ export function Dictation({
     setResult(null);
     setSummary(null);
     setSolutionShown(false);
+    resetTries();
     reset(defaultSubmittedRef.current === true ? 'completed' : 'idle');
-  }, [data, reset]);
+  }, [data, reset, resetTries]);
 
   // `text-changed` is debounced so an autosaving host is not told about every
   // keystroke; only the length travels, never the text.
@@ -669,6 +692,19 @@ export function Dictation({
     [data, s.dictationSlowRecording],
   );
 
+  useEffect(() => {
+    const target = focusAfterRef.current;
+    if (target === null) {
+      return;
+    }
+    focusAfterRef.current = null;
+    if (target === 'answer') {
+      formRef.current?.querySelector<HTMLElement>('textarea')?.focus();
+    } else {
+      feedbackRef.current?.focus();
+    }
+  });
+
   // All hooks are called before these throws, so hook order stays stable.
   if (devError) {
     throw devError;
@@ -698,6 +734,11 @@ export function Dictation({
   // the author's feedback — and, only where solutions show too, the "Show
   // solution" panel, since the transcript is the whole answer.
   const marking = revealing && policy.feedback;
+  // Whether the right answer may show: not where the paper withholds it, and
+  // not while the learner is offered another try, which is for finding it.
+  // Without it the marks still say which words are right, wrong, missing or
+  // extra — but never what a wrong or missing word should have been.
+  const solutionsShown = policy.solutions && !tries.open;
 
   // The transcript, read only outside `exam`. `Renderable` says it is a
   // string; a plain redacted projection has none, so it is read defensively
@@ -790,7 +831,9 @@ export function Dictation({
   };
 
   const resetHints = (): void => {
-    if (inactive || hintsShown === 0) {
+    // Under a hint cost the words shown stay shown: hiding them would not
+    // unsee them, and the count they are charged by would say they were not.
+    if (inactive || hintsShown === 0 || scoringPolicy.hintPenalty > 0) {
       return;
     }
     // The reset button leaves the page once nothing is revealed; hand focus to
@@ -818,9 +861,25 @@ export function Dictation({
       return;
     }
 
-    const scoringResult = score('dictation', data as DictationData, response);
+    const answer = score('dictation', data as DictationData, response);
     complete();
     const timeSpent = getTimeSpent();
+    // The question's score under the policy — see MultipleChoice.
+    const counted = tries.record({
+      score: answer.score,
+      maxScore: answer.maxScore,
+      hintsRevealed: reportedHints,
+    });
+    const mine = counted.tries[counted.tries.length - 1];
+    const costed = mine === undefined ? answer.score : mine.scored;
+    const scoringResult =
+      costed === answer.score
+        ? answer
+        : { ...answer, score: costed, passed: computePassThreshold(data as DictationData, costed) };
+    const passed =
+      counted.score === scoringResult.score
+        ? scoringResult.passed
+        : computePassThreshold(data as DictationData, counted.score);
     const xapiStatement = xAPIBuilder.buildAnsweredStatement({
       actor: ANONYMOUS_ACTOR,
       object: {
@@ -832,29 +891,42 @@ export function Dictation({
       timeSpentMs: timeSpent,
       response: response.text,
     });
-    setResult(scoringResult);
-    onComplete?.({
-      score: scoringResult.score,
-      maxScore: scoringResult.maxScore,
-      passed: scoringResult.passed,
-      timeSpent,
-      xapiStatement,
-    });
-    const correctWords = scoringResult.details.filter(
+    setResult(answer);
+    onComplete?.(
+      stampTake(
+        { score: counted.score, maxScore: counted.maxScore, passed, timeSpent, xapiStatement },
+        mintTake(),
+      ),
+    );
+    const correctWords = answer.details.filter(
       (detail) => (detail.outcome ?? (detail.correct ? 'correct' : 'incorrect')) === 'correct',
     ).length;
+    setSolutionShown(false);
     setSummary({
       text: `${s.answerSubmitted} ${s.scoreAnnouncement(
-        Math.round(scoringResult.score * 100),
-        scoringResult.passed,
-      )} ${s.dictationWordsSummary(correctWords, scoringResult.details.length)}`,
-      feedback: scoringResult.feedback,
+        Math.round(counted.score * 100),
+        passed,
+      )} ${s.dictationWordsSummary(correctWords, answer.details.length)}`,
+      feedback: answer.feedback,
     });
     fireInteraction('submitted', {
       length: text.length,
       hintsRevealed: reportedHints,
       score: scoringResult.score,
     });
+  };
+
+  /** "Try again": the text stays, to be corrected; the marks go. Hints shown stay shown. */
+  const retry = (): void => {
+    reset('idle');
+    setSummary(null);
+    focusAfterRef.current = 'answer';
+  };
+
+  /** "Show answer": no more tries; the question shows what a finished one shows. */
+  const closeTries = (): void => {
+    tries.close();
+    focusAfterRef.current = 'feedback';
   };
 
   // A review may hold the key but not the learner's text — an outcome recorded
@@ -879,12 +951,14 @@ export function Dictation({
         : null,
     [marking, transcript, isReview, hasResponse, data, text],
   );
+  // The character diff draws the transcript's letters beside the learner's, so
+  // it is the right answer: only where that may show.
   const sentenceDiff = useMemo<DictationCharOp[] | null>(
     () =>
-      alignment !== null && alignment.attempt !== ''
+      alignment !== null && alignment.attempt !== '' && solutionsShown
         ? diffDictationChars(alignment.reference, alignment.attempt)
         : null,
-    [alignment],
+    [alignment, solutionsShown],
   );
 
   // Review with no transcript on the client, or no response to recompute from:
@@ -951,9 +1025,13 @@ export function Dictation({
       case 'correct':
         return s.dictationWordCorrect(word.attempt);
       case 'incorrect':
-        return s.dictationWordWrong(word.attempt, word.reference);
+        return solutionsShown
+          ? s.dictationWordWrong(word.attempt, word.reference)
+          : s.dictationWordWrongUnnamed(word.attempt);
       case 'missing':
-        return s.dictationWordMissing(word.reference);
+        return solutionsShown
+          ? s.dictationWordMissing(word.reference)
+          : s.dictationWordMissingUnnamed;
       default:
         return s.dictationWordExtra(word.attempt);
     }
@@ -964,8 +1042,14 @@ export function Dictation({
       ? undefined
       : data.acceptedTranscripts.filter((entry): entry is string => typeof entry === 'string');
 
+  const extra =
+    !isReview && policy.feedback && submitted && tries.counted !== null
+      ? triesSummary(s, scoringPolicy, tries.counted, tries.open)
+      : '';
+
   return (
     <form
+      ref={formRef}
       className="lk-dc"
       // A title with nothing to say would name the form with silence.
       aria-labelledby={VISIBLE_TEXT_RE.test(data.title) ? titleId : undefined}
@@ -1041,7 +1125,8 @@ export function Dictation({
           >
             {s.dictationRevealNextWord(hintsShown, hintTotal)}
           </button>
-          {hintsShown > 0 ? (
+          <HintCost policy={scoringPolicy} strings={s} />
+          {hintsShown > 0 && scoringPolicy.hintPenalty <= 0 ? (
             <button
               type="button"
               className="lk-dc-hint-reset"
@@ -1137,17 +1222,23 @@ export function Dictation({
                         // A wrong word drawn as its character marks: the marks
                         // carry the decoration, so the wrong characters stand
                         // out from the right ones by shape, not colour alone.
-                        {...(word.status === 'incorrect' && alignment !== null
+                        {...(word.status === 'incorrect' && alignment !== null && solutionsShown
                           ? { 'data-marks': 'characters' }
                           : {})}
                       >
-                        {word.status === 'incorrect' && alignment !== null ? (
+                        {word.status === 'incorrect' && alignment !== null && solutionsShown ? (
                           <CharOps
                             ops={diffDictationChars(word.reference, word.attempt)}
                             contentDir={contentDir}
                           />
                         ) : word.status === 'missing' ? (
-                          word.reference
+                          // Where the answer may not show, a gap the size of
+                          // nothing in particular: the word is missing, not named.
+                          solutionsShown ? (
+                            word.reference
+                          ) : (
+                            '…'
+                          )
                         ) : (
                           word.attempt
                         )}
@@ -1175,7 +1266,7 @@ export function Dictation({
             nothing is the one who most needs to read the sentence, and a
             single typed letter would reveal it anyway.
           */}
-          {transcript !== undefined && policy.solutions ? (
+          {transcript !== undefined && solutionsShown ? (
             <>
               <button
                 type="button"
@@ -1208,7 +1299,10 @@ export function Dictation({
         </div>
       ) : null}
 
-      <FeedbackRegion id={`${data.id}-feedback`}>
+      <FeedbackRegion
+        id={`${data.id}-feedback`}
+        {...(scoringPolicy.retries > 0 ? { ref: feedbackRef } : {})}
+      >
         <AnnouncementText
           announcement={
             isReview
@@ -1216,11 +1310,20 @@ export function Dictation({
                 ? reviewSummary
                 : null
               : policy.feedback || summary === null
-                ? summary
+                ? summary === null || extra === ''
+                  ? summary
+                  : { ...summary, text: `${summary.text} ${extra}` }
                 : { text: s.answerSubmitted, feedback: null }
           }
         />
       </FeedbackRegion>
+      <TryActions
+        tries={tries}
+        solutions={policy.solutions && transcript !== undefined}
+        strings={s}
+        onRetry={retry}
+        onClose={closeTries}
+      />
       <AiExplanation
         ai={ai}
         data={data}
@@ -1231,7 +1334,9 @@ export function Dictation({
         locale={locale}
         onInteraction={onInteraction}
         strings={s}
-        delivery={policy}
+        // An explanation all but always names the answer: not while another
+        // try is on offer.
+        delivery={tries.open ? { ...policy, solutions: false } : policy}
       />
     </form>
   );

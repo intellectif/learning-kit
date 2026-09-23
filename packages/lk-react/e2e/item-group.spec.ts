@@ -2,7 +2,11 @@ import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('textbox', { name: 'Fill in blank 1' })).toBeVisible();
+  await expect(
+    page
+      .getByRole('region', { name: 'Question set — with a reading group' })
+      .getByRole('textbox', { name: 'Fill in blank 1' }),
+  ).toBeVisible();
 });
 
 test('a group’s passage appears with its questions, persists between them, and hides elsewhere', async ({

@@ -99,6 +99,16 @@ a known hazard carry a `note` saying why they exist.
   as, across silence, a tone, two channels, two sample rates, a partial last
   window, an odd chunk's pad byte and WAVE_FORMAT_EXTENSIBLE, and which files
   are reported unread instead of guessed at.
+- **`scoreTries`**, and the `scoring` option of **`evaluate`** and
+  **`evaluateTries`**: what a hint and a try cost — subtracted as a fraction of
+  the marks, never below zero, with the floating-point residue under a pass line
+  removed — which try counts under `first`, `best` (the earliest of equal ones)
+  and `last`, that no try past the policy's allowance is believed, that a hint
+  count that cannot be read is none, and that no policy, or an empty one, changes
+  nothing. **`resolveItemScoringPolicy`** and **`validateItemScoringPolicy`**
+  for the policies refused rather than read — a cost that is not a number, a
+  retry cost the first try counting would never charge, too many retries — with
+  **`DEFAULT_ITEM_SCORING_POLICY`** and **`ITEM_SCORING_MAX_RETRIES`**.
 - **`scoredItemsFromPlan`**, which decides what a stored paper's denominator is
   when an outcome is missing, and **`composeAssessmentScore`** across weights,
   points, provisional, rejected and unscorable items, and section thresholds —

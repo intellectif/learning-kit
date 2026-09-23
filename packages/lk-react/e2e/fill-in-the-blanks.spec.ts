@@ -1,14 +1,18 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import { LRS_ENDPOINT } from './constants.js';
+
+/** The question set these blanks sit in: the page holds other blanks, with their own hints. */
+const set = (page: Page) =>
+  page.getByRole('region', { name: 'Question set — with a reading group' });
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('textbox', { name: 'Fill in blank 1' })).toBeVisible();
+  await expect(set(page).getByRole('textbox', { name: 'Fill in blank 1' })).toBeVisible();
 });
 
 test('fill blanks → submit fires onComplete and POSTs a valid xAPI statement', async ({ page }) => {
-  await page.getByRole('textbox', { name: 'Fill in blank 1' }).fill('evaporation');
-  await page.getByRole('textbox', { name: 'Fill in blank 2' }).fill('precipitation');
+  await set(page).getByRole('textbox', { name: 'Fill in blank 1' }).fill('evaporation');
+  await set(page).getByRole('textbox', { name: 'Fill in blank 2' }).fill('precipitation');
 
   const requestPromise = page.waitForRequest(
     (r) => r.url() === LRS_ENDPOINT && r.method() === 'POST',
@@ -31,14 +35,18 @@ test('fill blanks → submit fires onComplete and POSTs a valid xAPI statement',
 });
 
 test('hint button reveals the hint text', async ({ page }) => {
-  await expect(page.getByText('Starts with the letter E')).toBeHidden();
-  await page.getByRole('button', { name: 'Show hint' }).click();
-  await expect(page.getByText('Starts with the letter E')).toBeVisible();
+  await expect(set(page).getByText('Starts with the letter E')).toBeHidden();
+  await set(page).getByRole('button', { name: 'Show hint' }).click();
+  await expect(set(page).getByText('Starts with the letter E')).toBeVisible();
 });
 
 test('keyboard-only: type answers and submit with Enter', async ({ page }) => {
-  await page.getByRole('textbox', { name: 'Fill in blank 1' }).pressSequentially('evaporation');
-  await page.getByRole('textbox', { name: 'Fill in blank 2' }).pressSequentially('precipitation');
+  await set(page)
+    .getByRole('textbox', { name: 'Fill in blank 1' })
+    .pressSequentially('evaporation');
+  await set(page)
+    .getByRole('textbox', { name: 'Fill in blank 2' })
+    .pressSequentially('precipitation');
 
   const requestPromise = page.waitForRequest(
     (r) => r.url() === LRS_ENDPOINT && r.method() === 'POST',
