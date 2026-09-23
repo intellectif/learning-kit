@@ -20,6 +20,7 @@ import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation, AiHints } from '../shared/AiHelp.js';
+import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import type { ActivityProps } from '../types.js';
 
@@ -115,6 +116,7 @@ export function FillInTheBlanks({
   disabled,
   showCorrectAnswers,
   ai: aiProp,
+  delivery,
 }: FillInTheBlanksProps) {
   const isExam = renderMode === 'exam';
   const isReview = renderMode === 'review';
@@ -123,6 +125,7 @@ export function FillInTheBlanks({
   // ActivityErrorBoundary catches it. Re-runs only when data changes.
   const s = useLkStrings(strings);
   const ai = useLearnerAi(aiProp);
+  const policy = useDeliveryPolicy(delivery);
 
   const devError = useMemo(() => {
     if (!isDevelopment()) {
@@ -274,6 +277,11 @@ export function FillInTheBlanks({
    * grade must not have its key revealed just because it is being read back.
    */
   const revealing = isReview ? outcome?.status === 'scored' : !isExam && submitted;
+  // What the delivery policy lets that reveal show: right and wrong at all,
+  // with the author's feedback, and the correct answers `showCorrectAnswers`
+  // would write into a wrong blank.
+  const marking = revealing && policy.feedback;
+  const showingAnswers = marking && policy.solutions && showCorrectAnswers === true;
 
   const fireInteraction = (
     type: 'blank-filled' | 'hint-requested' | 'submitted',
@@ -460,8 +468,11 @@ export function FillInTheBlanks({
             const blankFeedback = isExam ? undefined : blank.feedback;
             const correctness = correctByBlank.get(seg.id);
             const hintId = `${data.id}-hint-${seg.id}`;
+            // The author's hint, where the delivery policy offers hints. On in
+            // every mode by default — including `exam`, where it is public.
+            const hint = policy.hints ? blank.hint : undefined;
             const correctAnswer = acceptedAnswers?.[0];
-            if (revealing && showCorrectAnswers && correctness === false && correctAnswer) {
+            if (showingAnswers && correctness === false && correctAnswer) {
               return (
                 <span key={seg.id} className="lk-fib-answer" data-correct="false">
                   {correctAnswer}
@@ -473,12 +484,12 @@ export function FillInTheBlanks({
                 <input
                   type="text"
                   aria-label={s.blankLabel(seg.ordinal)}
-                  aria-describedby={blank.hint ? hintId : undefined}
+                  aria-describedby={hint ? hintId : undefined}
                   value={answers[seg.id] ?? ''}
                   disabled={inactive}
                   aria-disabled={inactive || undefined}
                   data-correct={
-                    revealing && correctness !== undefined ? String(correctness) : undefined
+                    marking && correctness !== undefined ? String(correctness) : undefined
                   }
                   onChange={(e) => handleChange(seg.id, e.target.value)}
                 />
@@ -487,7 +498,7 @@ export function FillInTheBlanks({
                   policy classifies `blanks.hint` as `public`, so it survives
                   redact() and is not part of the answer key.
                 */}
-                {blank.hint ? (
+                {hint ? (
                   <>
                     {/*
                       Default affordance is an icon; the accessible NAME stays
@@ -526,11 +537,11 @@ export function FillInTheBlanks({
                       without the tooltip *semantics*. (Refines Task 15.3.)
                     */}
                     <span id={hintId} aria-live="polite">
-                      {revealed.has(seg.id) ? blank.hint : ''}
+                      {revealed.has(seg.id) ? hint : ''}
                     </span>
                   </>
                 ) : null}
-                {revealing && !feedbackHidden && blankFeedback ? (
+                {marking && !feedbackHidden && blankFeedback ? (
                   <span
                     className="lk-fib-blank-feedback"
                     role="note"
@@ -553,6 +564,7 @@ export function FillInTheBlanks({
           locale={locale}
           onInteraction={onInteraction}
           strings={s}
+          delivery={policy}
         />
         {/* Review is read-only: there is nothing to submit. */}
         {isReview ? null : (
@@ -561,7 +573,7 @@ export function FillInTheBlanks({
           </button>
         )}
       </fieldset>
-      {revealing && data.blanks.some((b) => b.feedback) ? (
+      {marking && data.blanks.some((b) => b.feedback) ? (
         <button
           type="button"
           className="lk-fib-feedback-toggle"
@@ -572,7 +584,13 @@ export function FillInTheBlanks({
         </button>
       ) : null}
       <FeedbackRegion id={`${data.id}-feedback`}>
-        {isReview ? reviewSummary : summary}
+        {isReview
+          ? policy.feedback || !outcomeShowsMarks(outcome)
+            ? reviewSummary
+            : null
+          : policy.feedback || summary === null
+            ? summary
+            : s.answerSubmitted}
       </FeedbackRegion>
       <AiExplanation
         ai={ai}
@@ -584,6 +602,7 @@ export function FillInTheBlanks({
         locale={locale}
         onInteraction={onInteraction}
         strings={s}
+        delivery={policy}
       />
     </form>
   );

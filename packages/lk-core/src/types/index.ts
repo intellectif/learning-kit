@@ -82,6 +82,11 @@ export type {
   DraftValidationResult,
 } from './authoring.js';
 export type {
+  DeliveryPolicy,
+  DeliveryPolicyIssue,
+  ResolvedDeliveryPolicy,
+} from './delivery.js';
+export type {
   CriterionScore,
   GradeRecord,
   Grader,

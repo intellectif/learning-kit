@@ -1,5 +1,6 @@
 'use client';
 
+import type { ResolvedDeliveryPolicy } from '@intellectif/lk-core';
 import { createContext } from 'react';
 import type { RenderMode } from '../types.js';
 
@@ -38,6 +39,12 @@ export interface SequenceSlotChannel {
    * caller passes or forgets to pass.
    */
   readonly renderMode: RenderMode;
+  /**
+   * The delivery policy of the PAPER around this question, read live, for the
+   * same reason as the mode: whatever a host's own question was handed, the
+   * paper's restrictions hold in it. See `useDeliveryPolicy`.
+   */
+  readonly delivery: ResolvedDeliveryPolicy;
   /**
    * Reports the state of the take numbered `take`, a number from
    * {@link mintTake}. A take numbered below the slot's latest is a take the

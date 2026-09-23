@@ -759,26 +759,47 @@ later.
   than one blank.
 - **And the placeholder went.** `packages/lk-ai` had sat empty since the first week (§3.7).
 
-1. **The delivery policy.** `renderMode` (`practice | exam | review`) is three fixed presets. Educators
-   need the settings underneath, so that one activity serves a practice lesson and a final exam
-   without being authored twice:
-   - when correctness and feedback show;
-   - whether solutions show;
-   - whether a learner may retry (today only a read-aloud upload has "Try again");
-   - whether hints are on, and what they cost, which is the one part of it that decides a grade and
-     therefore belongs with `ItemScoringPolicy` (partial credit, negative marking) rather than beside
-     it: a penalty is computed by the SDK and pinned by the grade vectors, and the policy only chooses
-     which one applies.
+✅ **The delivery policy, grade-neutral half, shipped** in 0.20.0 / 20.0.0 (2026-09-23): `delivery`
+on every activity and both pagers, `resolveDeliveryPolicy` / `validateDeliveryPolicy` /
+`combineDeliveryPolicies`, and `planAttempt(…, { delivery })` recording it in the plan and its hash;
+see [docs/delivery.md](./delivery.md). Three decisions shaped it, each against the sketch above it:
+- **A policy is a set of restrictions, not three presets to pick from.** Every setting —
+  `feedback`, `solutions`, `hints`, `ai.hints`, `ai.explanations` — defaults to `true`, so the
+  "presets that reproduce today exactly" are simply the empty policy under each `renderMode`, and the
+  proof is that every test that existed before passes with none. Nothing can be switched on: the
+  author's switch, the policy and the host's ports can each only take away.
+- **`solutions` could not be a switch that turns answers on.** Today multiple choice marks the right
+  option, gap select never shows one, and fill-in-the-blanks shows answers only with
+  `showCorrectAnswers`. A setting that forced them on would have changed three components at once;
+  as a restriction it hides what each would show and nothing else.
+- **The paper decides, as it decides the mode.** A pager publishes its policy on each slot's channel,
+  and every question — the SDK's or a host's — combines it with its own, whichever is
+  stricter. The AI hooks read it themselves, so a host's question that ignores what it was handed
+  still offers no AI help the paper forbids.
 
-   The three modes become named presets that reproduce today's behaviour exactly, so nothing changes
-   for a host that passes no policy. The policy an attempt ran under is frozen into `planAttempt`
-   beside order, identity and points, so a grade records the conditions it was earned under. Timers,
-   lockdown and proctoring stay consumer-side (§5).
+**Found while building it:** the author's fill-in-the-blanks hints have always been on in `exam` —
+by design, as public content — and until now no school could switch them off. The default stays, and
+on evidence rather than inertia: an authored hint is part of the item and the same for every learner,
+and the one production exam runner this SDK has evidence from offers blank hints in its final tests
+on purpose. A school whose hints are help rather than content switches them off per paper. "Explain my answer" now also needs `feedback` and `solutions`:
+it explains a grade and all but always names the answer, so on a paper hiding either it would hand
+over what the paper withholds.
+
+1. **The delivery policy, the half that moves grades.** It needs grade vectors, so it ships on its own:
+   - **what hints cost** — a penalty per hint, computed by the SDK and never by a host, applied
+     to the item's score and never below zero;
+   - **`ItemScoringPolicy`** — partial credit and negative marking configured per paper rather
+     than per item, frozen into the plan beside the delivery policy. The earlier evidence that
+     negative marking would break a consumer's constraint that scores stay in [0, 1] still holds, so a
+     penalty floors at zero per item, and anything below it is a separate, explicit decision;
+   - **retries in practice** — "Try again" on a graded question, and which attempt's score
+     counts (first, last or best), a scoring decision rather than a display one.
 
    **An authored hint may be allowed in an exam by policy; AI help may not.** An authored hint is the
    same for every learner and its penalty is computed, so a deployment can price it. Two learners
-   sitting one paper would not get the same AI help, so the rule that shipped in 0.17.0 — nothing AI
-   in `exam`, whatever is passed — stands rather than becoming a switch.
+   sitting one paper would not get the same AI help, so the rule that shipped in 0.17.0 — nothing
+   AI in `exam`, whatever is passed — stands rather than becoming a switch. Timers, lockdown and
+   proctoring stay consumer-side (§5).
 2. **The AI line, in this order.** Explanations, hints and the groundwork above have shipped; what
    is left is ordered by what a learner or an author gets from it, and each is admitted only on the
    rules below.

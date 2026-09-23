@@ -1,4 +1,5 @@
 import { contentHash } from './content-hash.js';
+import { resolveDeliveryPolicy, validateDeliveryPolicy } from './delivery.js';
 import { flattenSequence } from './item-group.js';
 import { resolvePlaybackPolicy, slotMediaKey, stimulusMediaKey } from './media-budget.js';
 import type { ScoredItem } from './scoring/compose.js';
@@ -9,6 +10,7 @@ import type {
   AttemptPlanSlot,
   MediaBudgetRef,
 } from './types/attempt-plan.js';
+import type { DeliveryPolicy, ResolvedDeliveryPolicy } from './types/delivery.js';
 import type { SequenceEntry, SequenceSlot } from './types/item-group.js';
 
 export type {
@@ -40,6 +42,20 @@ export interface PlanAttemptOptions<TItem> {
    *         number — a slot worth `NaN` points would poison the whole total.
    */
   points?: (slot: SequenceSlot<TItem>) => number;
+  /**
+   * The delivery policy this attempt is sat under — whether hints were
+   * offered, whether AI help was, whether feedback and solutions showed.
+   * Frozen into the plan with every setting spelled out, so the record of the
+   * conditions a grade was earned under does not depend on today's defaults.
+   *
+   * Recorded only when given: a plan made without one is byte-identical to a
+   * plan made before policies existed, `planHash` included.
+   *
+   * @throws Error when the policy does not pass `validateDeliveryPolicy` —
+   *         a misspelled restriction is no restriction, and a plan is the
+   *         record an appeal reads.
+   */
+  delivery?: DeliveryPolicy | null;
 }
 
 /**
@@ -184,6 +200,7 @@ export function planAttempt<TItem extends { id: string; type: string }>(
   options: PlanAttemptOptions<TItem> = {},
 ): AttemptPlan {
   const { seed, shuffleEntries, points } = options;
+  const delivery = frozenDelivery(options.delivery);
   const slots = flattenSequence(entries, {
     ...(shuffleEntries !== undefined ? { shuffleEntries } : {}),
     ...(seed !== undefined ? { seed } : {}),
@@ -201,7 +218,11 @@ export function planAttempt<TItem extends { id: string; type: string }>(
     // The plan's own fingerprint covers the slots verbatim — identity, order,
     // points and content hashes — so one stored value answers "is this still
     // the paper that was sat?" and the per-slot hashes then say what moved.
-    planHash: contentHash(planned),
+    // A policy joins it when there is one: the same paper sat with hints and
+    // without is two different attempts. Without one, the fingerprint is the
+    // one every plan before policies had.
+    planHash: contentHash(delivery === undefined ? planned : { slots: planned, delivery }),
+    ...(delivery !== undefined ? { delivery } : {}),
     slots: planned,
     totalPoints,
   };
@@ -243,6 +264,11 @@ export function verifyAttemptPlan(plan: AttemptPlan, current: AttemptPlan): Atte
   const changedCueSlotIds: string[] = [];
   const changedPointsSlotIds: string[] = [];
   const reorderedSlotIds: string[] = [];
+  // Not a slot's: the conditions of the whole attempt. Compared as spelled out,
+  // so a policy recorded before and one recorded now differ only where a
+  // setting does.
+  const deliveryChanged =
+    contentHash(plan.delivery ?? null) !== contentHash(current.delivery ?? null);
   for (const slot of plan.slots) {
     const now = after.get(slot.slotId);
     if (now === undefined) {
@@ -277,7 +303,8 @@ export function verifyAttemptPlan(plan: AttemptPlan, current: AttemptPlan): Atte
       changedStimulusSlotIds.length === 0 &&
       changedCueSlotIds.length === 0 &&
       changedPointsSlotIds.length === 0 &&
-      reorderedSlotIds.length === 0,
+      reorderedSlotIds.length === 0 &&
+      !deliveryChanged,
     missingSlotIds,
     addedSlotIds,
     changedSlotIds,
@@ -285,7 +312,30 @@ export function verifyAttemptPlan(plan: AttemptPlan, current: AttemptPlan): Atte
     changedCueSlotIds,
     changedPointsSlotIds,
     reorderedSlotIds,
+    // Present only when it is true, as `rejectedSlotIds` is on a composed
+    // score: a drift report between two plans without a policy — every one
+    // written before policies existed — keeps exactly the shape it had.
+    ...(deliveryChanged ? { deliveryChanged: true as const } : {}),
   };
+}
+
+/**
+ * The policy a plan records: checked, then spelled out. `undefined` when there
+ * is none, so the plan carries no field at all rather than an empty one.
+ */
+function frozenDelivery(policy: unknown): ResolvedDeliveryPolicy | undefined {
+  if (policy === undefined || policy === null) {
+    return undefined;
+  }
+  const checked = validateDeliveryPolicy(policy);
+  if (!checked.success) {
+    const first = checked.issues[0];
+    throw new Error(
+      `planAttempt: the delivery policy is not one to record — ${first?.message ?? 'invalid'}` +
+        (checked.issues.length > 1 ? ` (and ${checked.issues.length - 1} more)` : ''),
+    );
+  }
+  return resolveDeliveryPolicy(checked.data);
 }
 
 /** How {@link scoredItemsFromPlan} fills a slot that has no recorded outcome. */

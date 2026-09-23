@@ -4,6 +4,7 @@ import {
   ActivitySchemaError,
   type CriterionScore,
   countWords,
+  type DeliveryPolicy,
   evaluate,
   type GradeRecord,
   type InlineCorrection,
@@ -22,6 +23,7 @@ import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStrings, LkStringsOverride } from '../../i18n/strings.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
+import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import type {
   HtmlSanitizer,
@@ -125,6 +127,12 @@ export interface WrittenResponseProps {
   theme?: Partial<ThemeTokens>;
   locale?: string;
   disabled?: boolean;
+  /**
+   * The delivery policy. An essay is graded later, so only `feedback` reaches
+   * it: `false` reads a returned grade back as nothing in `review`. See
+   * `DeliveryPolicy` in lk-core.
+   */
+  delivery?: DeliveryPolicy | null;
 }
 
 /**
@@ -293,10 +301,15 @@ export function WrittenResponse({
   theme,
   locale,
   disabled,
+  delivery,
 }: WrittenResponseProps) {
   // Dev-only boundary validation (Req 2.3), same convention as MC/FIB. The
   // content schema is loose, so a `redact()` projection validates too.
   const s = useLkStrings(strings);
+  // An essay is graded later, so `feedback` is the one setting that reaches
+  // it: whether a returned grade — the score, each criterion, the corrections
+  // — is read back in review.
+  const policy = useDeliveryPolicy(delivery);
 
   const devError = useMemo(() => {
     if (!isDevelopment()) {
@@ -536,7 +549,13 @@ export function WrittenResponse({
         </button>
       )}
       <FeedbackRegion id={`${data.id}-feedback`}>
-        {isReview ? outcome ? <OutcomeSummary outcome={outcome} s={s} /> : null : summary}
+        {isReview ? (
+          outcome && (policy.feedback || !outcomeShowsMarks(outcome)) ? (
+            <OutcomeSummary outcome={outcome} s={s} />
+          ) : null
+        ) : (
+          summary
+        )}
       </FeedbackRegion>
     </form>
   );

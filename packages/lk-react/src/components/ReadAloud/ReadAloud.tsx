@@ -39,6 +39,7 @@ import { PronunciationFeedback } from '../PronunciationFeedback/index.js';
 import { markSentence, VISUALLY_HIDDEN } from '../PronunciationFeedback/PronunciationFeedback.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { joinCaptureGroup } from '../shared/capture-registry.js';
+import { useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import { usePlaybackRefusal } from '../shared/playback-refusal.js';
 import {
@@ -501,8 +502,13 @@ export function ReadAloud({
   breakThreshold,
   monotoneThreshold,
   workletUrl,
+  delivery,
 }: ReadAloudProps) {
   const isExam = renderMode === 'exam';
+  // A read-aloud's grade comes back from the host's assessor, but showing it is
+  // still feedback: without it the learner hears that the take was handed in,
+  // and the grade still reaches `onComplete`. It has no solution and no hints.
+  const policy = useDeliveryPolicy(delivery);
   const isReview = renderMode === 'review';
   const s = useLkStrings(strings);
   // The pager slot this component sits in, if any: the capture group its pane
@@ -1094,16 +1100,20 @@ export function ReadAloud({
   // stored details otherwise. With neither, the score is shown and no marks are.
   const storedMarks = useMemo(
     () =>
-      isReview && keptEvidence === null && storedGrade?.details !== undefined
+      policy.feedback && isReview && keptEvidence === null && storedGrade?.details !== undefined
         ? marksFromDetails(storedGrade.details)
         : null,
-    [isReview, keptEvidence, storedGrade],
+    [policy.feedback, isReview, keptEvidence, storedGrade],
   );
-  const feedbackAssessment = isReview
-    ? keptEvidence
-    : phase.kind === 'graded'
-      ? phase.assessment
-      : null;
+  // No panel at all without feedback: the marks, the score and the grader's
+  // words are all in it.
+  const feedbackAssessment = !policy.feedback
+    ? null
+    : isReview
+      ? keptEvidence
+      : phase.kind === 'graded'
+        ? phase.assessment
+        : null;
   const feedbackGrade = isReview ? storedGrade : phase.kind === 'graded' ? phase.grade : null;
   // A take the page refused to play is handed to no per-word button: each of
   // them would do nothing when pressed, and the note in the player's place
@@ -1176,12 +1186,17 @@ export function ReadAloud({
         // A judgement with no grade that can be read says so, in the same
         // sentence a review uses — never nothing, which reads as a grade
         // still on its way.
-        return grade === null
-          ? { text: `${s.answerSubmitted} ${s.couldNotBeGraded}`, feedback: null }
-          : {
-              text: `${s.answerSubmitted} ${s.scoreAnnouncement(percentOfGrade(grade), grade.passed)}`,
-              feedback: grade.feedback,
-            };
+        if (grade === null) {
+          return { text: `${s.answerSubmitted} ${s.couldNotBeGraded}`, feedback: null };
+        }
+        // Graded, and said to be handed in only: the policy shows no grades.
+        if (!policy.feedback) {
+          return { text: s.answerSubmitted, feedback: null };
+        }
+        return {
+          text: `${s.answerSubmitted} ${s.scoreAnnouncement(percentOfGrade(grade), grade.passed)}`,
+          feedback: grade.feedback,
+        };
       }
       case 'unscorable':
         return { text: unscorableMessage(phase.code, s), feedback: null };
@@ -1195,7 +1210,7 @@ export function ReadAloud({
         // would be the loudest thing on the screen.
         return null;
     }
-  }, [isReview, isExam, phase, submitted, s, recorder.status, take, maxSeconds]);
+  }, [isReview, isExam, phase, submitted, s, recorder.status, take, maxSeconds, policy.feedback]);
 
   const alertText =
     recorder.error !== null
@@ -1481,7 +1496,9 @@ export function ReadAloud({
 
       <FeedbackRegion id={`${data.id}-feedback`}>
         {isReview ? (
-          outcomeReading !== undefined ? (
+          // A grade read back is feedback; "not graded yet" and a grade that
+          // could not be read are not.
+          outcomeReading !== undefined && (policy.feedback || outcomeReading.kind !== 'graded') ? (
             <OutcomeSummary reading={outcomeReading} s={s} scoreShown={gradeShownInPanel} />
           ) : null
         ) : gradeShownInPanel ? (

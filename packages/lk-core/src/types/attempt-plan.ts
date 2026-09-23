@@ -11,6 +11,8 @@
  * This is the thing you persist next to the responses.
  */
 
+import type { ResolvedDeliveryPolicy } from './delivery.js';
+
 /** One planned position: an item, its identity, its worth, and its fingerprint. */
 export interface AttemptPlanSlot {
   /**
@@ -96,6 +98,12 @@ export interface AttemptPlan {
    * later; the per-slot hashes then say WHICH item moved.
    */
   planHash: string;
+  /**
+   * The delivery policy the attempt was sat under, every setting spelled out:
+   * whether feedback, solutions and hints showed, and which AI help was on.
+   * Absent when `planAttempt` was given none. Part of `planHash` when present.
+   */
+  delivery?: ResolvedDeliveryPolicy;
   slots: AttemptPlanSlot[];
   /** Sum of every slot's `points`, frozen. The denominator of the paper. */
   totalPoints: number;
@@ -127,4 +135,14 @@ export interface AttemptPlanDrift {
   changedPointsSlotIds: string[];
   /** Slots presented at a different position now than they were then. */
   reorderedSlotIds: string[];
+  /**
+   * The delivery policy differs: one plan records a policy the other does not,
+   * or a setting differs. Not a change to any question, but a change to the
+   * conditions it was asked under — hints on in one, off in the other — so it
+   * breaks `matches` like any other difference.
+   *
+   * Present only when it is `true`, so a report between two plans without a
+   * policy has exactly the shape it had before policies existed.
+   */
+  deliveryChanged?: true;
 }

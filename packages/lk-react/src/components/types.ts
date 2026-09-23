@@ -1,6 +1,7 @@
 import type {
   ActivityData,
   ActivityResult,
+  DeliveryPolicy,
   InteractionEvent,
   ItemGroup,
   ItemOutcome,
@@ -154,6 +155,14 @@ export interface ActivityProps<TData extends ActivityData = ActivityData> {
    * switched a feature off (`data.ai`) never shows it. See {@link LearnerAi}.
    */
   ai?: LearnerAi;
+  /**
+   * What the school running this paper lets a learner see: feedback,
+   * solutions, hints, and AI help. Every setting only takes something away
+   * from what the mode shows, and an absent policy takes nothing away. Inside
+   * `<ActivitySequence>` or `<InteractiveVideo>`, the paper's own policy holds
+   * as well, whichever is stricter. See `DeliveryPolicy` in lk-core.
+   */
+  delivery?: DeliveryPolicy | null;
   /** Per-instance token overrides, applied as inline CSS vars on the root. */
   theme?: Partial<ThemeTokens>;
   /**

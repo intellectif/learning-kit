@@ -4,6 +4,7 @@ import {
   type ActivityResult,
   ActivitySchemaError,
   assertRedactedItemGroup,
+  type DeliveryPolicy,
   flattenSequence,
   type InteractionEvent,
   type InteractionKind,
@@ -13,7 +14,9 @@ import {
   type MediaProgress,
   type MediaTimeline,
   type MediaTrack,
+  type ResolvedDeliveryPolicy,
   readMediaProgress,
+  resolveDeliveryPolicy,
   type SequenceSlot,
   type SpeechAssessment,
   type ThemeTokens,
@@ -166,6 +169,12 @@ export interface InteractiveVideoQuestion {
    */
   ai?: LearnerAi;
   /**
+   * The video's delivery policy, every setting spelled out: what this question
+   * may show. The SDK cannot keep a policy in pixels it does not draw — where
+   * `feedback` or `solutions` is `false`, show no mark and no answer.
+   */
+  delivery: ResolvedDeliveryPolicy;
+  /**
    * The learner committed an answer: marks the question answered and forwards
    * to `onSubmit(response, slot)`. Latest wins: call it again for a new take or
    * a corrected answer.
@@ -309,6 +318,13 @@ export interface InteractiveVideoProps {
    * video. Nothing AI appears in `exam`. See {@link LearnerAi}.
    */
   ai?: LearnerAi;
+  /**
+   * What a learner may see around the video's questions — feedback,
+   * solutions, hints, AI help — for every question in it, and on the end card:
+   * with `feedback: false` it counts answers and shows no score. Each setting
+   * only takes away. See `DeliveryPolicy` in lk-core.
+   */
+  delivery?: DeliveryPolicy | null;
   theme?: Partial<ThemeTokens>;
   sanitizeHtml?: HtmlSanitizer;
 }
@@ -452,6 +468,9 @@ function Player(props: InteractiveVideoProps) {
   } = props;
   const strings = useLkStrings(props.strings);
   const aiInForce = useLearnerAi(props.ai);
+  // The video's policy, spelled out: its own end card reads it, every
+  // question's channel publishes it, and a host's question is handed it.
+  const delivery = resolveDeliveryPolicy(props.delivery);
 
   // The group this mount was made for. The key above changes whenever the
   // content does, so reading the first one keeps every question's `data`
@@ -1438,8 +1457,8 @@ function Player(props: InteractiveVideoProps) {
 
   // The host's callbacks as of the latest render: the calls below keep one
   // identity for the life of the player, so they read these through a ref.
-  const reportTo = useRef({ onSubmit, onActivityComplete, onInteraction, renderMode });
-  reportTo.current = { onSubmit, onActivityComplete, onInteraction, renderMode };
+  const reportTo = useRef({ onSubmit, onActivityComplete, onInteraction, renderMode, delivery });
+  reportTo.current = { onSubmit, onActivityComplete, onInteraction, renderMode, delivery };
 
   /**
    * The calls a question reports what the learner did through — the SDK's own
@@ -1549,6 +1568,9 @@ function Player(props: InteractiveVideoProps) {
         get renderMode() {
           return reportTo.current.renderMode;
         },
+        get delivery() {
+          return reportTo.current.delivery;
+        },
         takeState: (take, state) => reportTake(slotId, take, state),
       };
       channels.current.set(slotId, channel);
@@ -1589,6 +1611,7 @@ function Player(props: InteractiveVideoProps) {
       ...(outcome !== undefined ? { outcome } : {}),
       portalContainer,
       ...(aiInForce !== undefined && renderMode !== 'exam' ? { ai: aiInForce } : {}),
+      delivery,
       ...callsFor(place),
     };
   };
@@ -1612,6 +1635,9 @@ function Player(props: InteractiveVideoProps) {
       ...(sanitizeHtml !== undefined ? { sanitizeHtml } : {}),
       ...(props.strings !== undefined ? { strings: props.strings } : {}),
       ...(props.ai !== undefined ? { ai: props.ai } : {}),
+      ...(props.delivery !== undefined && props.delivery !== null
+        ? { delivery: props.delivery }
+        : {}),
       ...(locale !== undefined ? { locale } : {}),
     };
     switch (activity.type) {
@@ -2215,7 +2241,9 @@ function Player(props: InteractiveVideoProps) {
             quizzes={quizzes}
             answered={answeredCount}
             total={totalQuestions}
-            percent={percent}
+            // No score where the policy shows no grades: the card still
+            // counts what was answered, as it does in an exam.
+            percent={delivery.feedback ? percent : null}
             strings={strings}
             onOpenQuiz={(id) => {
               const cue = cues.find((candidate) => candidate.id === id);

@@ -6,6 +6,8 @@ import {
   aiHintRequest,
   checkAiExplanation,
   checkAiHint,
+  combineDeliveryPolicies,
+  type DeliveryPolicy,
   type InteractionEvent,
   type ItemOutcome,
   type LearnerResponse,
@@ -54,6 +56,12 @@ export interface AiHelpSituation {
   locale?: string;
   /** Where `ai-hint-shown` and `ai-explanation-shown` go. */
   onInteraction?: (event: InteractionEvent) => void;
+  /**
+   * The delivery policy your question was handed. The paper around the
+   * question holds as well — a set that switched AI hints off keeps them off
+   * here, whatever is passed — so leaving it out never turns anything on.
+   */
+  delivery?: DeliveryPolicy | null;
 }
 
 export interface AiExplanationInput extends AiHelpSituation {
@@ -182,7 +190,9 @@ type ExplanationState =
  */
 export function useAiExplanation(input: AiExplanationInput): AiExplanationHelp {
   const { data, response, submitted, outcome } = input;
-  const renderMode = modeInForce(input.renderMode, useContext(SequenceSlotContext)?.renderMode);
+  const around = useContext(SequenceSlotContext);
+  const renderMode = modeInForce(input.renderMode, around?.renderMode);
+  const delivery = combineDeliveryPolicies(input.delivery, around?.delivery);
   const ai = useLearnerAi(input.ai);
   const resetKey = explanationKey(renderMode, submitted, response, outcome);
   const [state, setState] = useState<ExplanationState>({ key: resetKey, status: 'idle' });
@@ -191,7 +201,8 @@ export function useAiExplanation(input: AiExplanationInput): AiExplanationHelp {
   const current: ExplanationState =
     state.key === resetKey ? state : { key: resetKey, status: 'idle' };
   const offered =
-    ai?.explain !== undefined && explanationOffered({ data, renderMode, submitted, outcome });
+    ai?.explain !== undefined &&
+    explanationOffered({ data, renderMode, submitted, outcome, delivery });
 
   // What `ask` reads, as of this render, so `ask` itself can keep one identity
   // for the life of the question. The state goes in too: an event handler runs
@@ -305,7 +316,9 @@ interface HintState {
  */
 export function useAiHints(input: AiHintsInput): AiHintsHelp {
   const { data, submitted } = input;
-  const renderMode = modeInForce(input.renderMode, useContext(SequenceSlotContext)?.renderMode);
+  const around = useContext(SequenceSlotContext);
+  const renderMode = modeInForce(input.renderMode, around?.renderMode);
+  const delivery = combineDeliveryPolicies(input.delivery, around?.delivery);
   const disabled = input.disabled === true;
   const ai = useLearnerAi(input.ai);
   const resetKey = data.id;
@@ -314,7 +327,8 @@ export function useAiHints(input: AiHintsInput): AiHintsHelp {
   const controller = useRef<AbortController | null>(null);
   const current: HintState =
     state.key === resetKey ? state : { key: resetKey, hints: [], status: 'idle' };
-  const offered = ai?.hint !== undefined && hintOffered({ data, renderMode, submitted, disabled });
+  const offered =
+    ai?.hint !== undefined && hintOffered({ data, renderMode, submitted, disabled, delivery });
   const limit = hintLimit(ai);
 
   const latest = useRef({ input, renderMode, ai, offered, limit, current });

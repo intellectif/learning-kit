@@ -7,7 +7,12 @@ import type {
   ReadAloudData,
   SpeechAssessment,
 } from '@intellectif/lk-core';
-import { outcomeFromGrade, redact, validateXAPIStatement } from '@intellectif/lk-core';
+import {
+  OPEN_DELIVERY_POLICY,
+  outcomeFromGrade,
+  redact,
+  validateXAPIStatement,
+} from '@intellectif/lk-core';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { type ComponentProps, useState } from 'react';
@@ -718,6 +723,50 @@ describe('<ReadAloud> review', () => {
     expect(screen.getByText('Score 82%. Passed.')).toBeInTheDocument();
   });
 
+  it('reads a stored grade back as nothing when the policy shows no feedback', () => {
+    render(
+      <ReadAloud
+        data={data}
+        renderMode="review"
+        value={submittedResponse}
+        outcome={outcomeFromGrade(grade)}
+        assessment={assessment}
+        delivery={{ feedback: false }}
+      />,
+    );
+    // Neither the panel with its marks nor the score it would announce.
+    expect(screen.queryByText(/Score 82%/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('list', { name: 'Your reading, word by word' }),
+    ).not.toBeInTheDocument();
+    expect(document.querySelector('.lk-pf-grade')).toBeNull();
+  });
+
+  it('says a graded take was handed in, and nothing more, when the policy shows no feedback', async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
+    render(
+      <ReadAloud
+        data={data}
+        recordingBinding={{
+          ...storeOnly(),
+          assess: async () => ({ status: 'graded', assessment, grade }),
+        }}
+        onComplete={onComplete}
+        delivery={{ feedback: false }}
+      />,
+    );
+    await makeTake(user);
+    await user.click(submit());
+    await flush();
+    expect(screen.queryByText(/Score 82%/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Clear and steady.')).not.toBeInTheDocument();
+    expect(document.querySelector('.lk-pf-grade')).toBeNull();
+    expect(screen.getByText('Answer submitted.')).toBeInTheDocument();
+    // The grade is still the host's: it arrives, whole.
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ score: 0.82, passed: true }));
+  });
+
   it('shows the deferred and unscorable states with the deferred vocabulary', () => {
     const deferred: ItemOutcome = {
       status: 'deferred',
@@ -839,7 +888,12 @@ describe('<ReadAloud> events and lifecycle', () => {
     // pane provides — never as a prop.
     render(
       <SequenceSlotContext.Provider
-        value={{ captureGroup: 'slot-1', renderMode: 'practice', takeState: () => {} }}
+        value={{
+          captureGroup: 'slot-1',
+          renderMode: 'practice',
+          delivery: OPEN_DELIVERY_POLICY,
+          takeState: () => {},
+        }}
       >
         <ReadAloud data={data} recordingBinding={storeOnly()} />
       </SequenceSlotContext.Provider>,

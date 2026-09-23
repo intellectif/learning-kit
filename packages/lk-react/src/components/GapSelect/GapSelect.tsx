@@ -24,6 +24,7 @@ import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor, randomSessionId } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation, AiHints } from '../shared/AiHelp.js';
+import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import type { ActivityProps } from '../types.js';
 
@@ -125,11 +126,13 @@ export function GapSelect({
   disabled,
   shuffleSeed,
   ai: aiProp,
+  delivery,
 }: GapSelectProps) {
   const isExam = renderMode === 'exam';
   const isReview = renderMode === 'review';
   const s = useLkStrings(strings);
   const ai = useLearnerAi(aiProp);
+  const policy = useDeliveryPolicy(delivery);
 
   const devError = useMemo(() => {
     if (!isDevelopment()) {
@@ -238,6 +241,10 @@ export function GapSelect({
    * caller supplies a SCORED outcome.
    */
   const revealing = isReview ? outcome?.status === 'scored' : !isExam && submitted;
+  // What the delivery policy lets that reveal show: right and wrong, and the
+  // author's feedback. A gap select never writes in the right choice, so
+  // `solutions` has nothing here to hide.
+  const marking = revealing && policy.feedback;
 
   const fireInteraction = (
     type: 'gap-selected' | 'submitted',
@@ -394,7 +401,7 @@ export function GapSelect({
                   disabled={inactive}
                   aria-disabled={inactive || undefined}
                   data-correct={
-                    revealing && correctness !== undefined ? String(correctness) : undefined
+                    marking && correctness !== undefined ? String(correctness) : undefined
                   }
                   onChange={(e) => handleSelect(seg.id, e.target.value)}
                 >
@@ -412,7 +419,7 @@ export function GapSelect({
                     </option>
                   ))}
                 </select>
-                {revealing && !feedbackHidden && gapFeedback ? (
+                {marking && !feedbackHidden && gapFeedback ? (
                   <span
                     className="lk-gs-gap-feedback"
                     role="note"
@@ -435,6 +442,7 @@ export function GapSelect({
           locale={locale}
           onInteraction={onInteraction}
           strings={s}
+          delivery={policy}
         />
         {isReview ? null : (
           <button type="submit" disabled={inactive}>
@@ -442,7 +450,7 @@ export function GapSelect({
           </button>
         )}
       </fieldset>
-      {revealing && anyFeedback ? (
+      {marking && anyFeedback ? (
         <button
           type="button"
           className="lk-gs-feedback-toggle"
@@ -453,7 +461,13 @@ export function GapSelect({
         </button>
       ) : null}
       <FeedbackRegion id={`${data.id}-feedback`}>
-        {isReview ? reviewSummary : summary}
+        {isReview
+          ? policy.feedback || !outcomeShowsMarks(outcome)
+            ? reviewSummary
+            : null
+          : policy.feedback || summary === null
+            ? summary
+            : s.answerSubmitted}
       </FeedbackRegion>
       <AiExplanation
         ai={ai}
@@ -465,6 +479,7 @@ export function GapSelect({
         locale={locale}
         onInteraction={onInteraction}
         strings={s}
+        delivery={policy}
       />
     </form>
   );
