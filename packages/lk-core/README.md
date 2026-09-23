@@ -115,6 +115,7 @@ result.passed;   // boolean, or null while provisional. Never record a provision
 | `@intellectif/lk-core/schemas` | Zod schemas + `validateActivity` + JSON Schema export |
 | `@intellectif/lk-core/scoring` | `score`, `evaluate`, `composeAssessmentScore`, rounding, text matching |
 | `@intellectif/lk-core/xapi` | `xAPIBuilder`, `XAPIVerb`, `validateXAPIStatement` |
+| `@intellectif/lk-core/ai-check` | `runAiCheck`, `aiCheckCases`, `formatAiCheckReport` — test your AI prompts in CI |
 
 The barrel re-exports everything, and it is the **only** entry point for attempt
 plans, attempt state, item groups, redaction, the type registry, authoring drafts

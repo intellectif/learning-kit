@@ -195,6 +195,52 @@ if (typeof core.createDraft === 'function' && typeof core.validateDraft === 'fun
   }
 }
 
+// The AI test kit is a subpath of its own, and a subpath is exactly what the
+// barrel check above cannot see: it is built from its own entry, so a rename
+// or a dropped re-export reaches a consumer's CI rather than ours. It also has
+// to WORK from the build — a kit that cannot run its own cases is worth
+// nothing — so it is exercised here against a port that answers well and a
+// port that gives the answer away.
+const aiCheck = await import(pathToFileURL(join(PKG_ROOT, 'dist', 'ai-check.js')).href);
+for (const name of ['aiCheckCases', 'runAiCheck', 'formatAiCheckReport']) {
+  if (typeof aiCheck[name] !== 'function') {
+    failures.push(`dist/ai-check.js does not export ${name}()`);
+  }
+}
+if (typeof aiCheck.runAiCheck === 'function') {
+  const cases = aiCheck.aiCheckCases();
+  if (cases.length === 0) {
+    failures.push('dist/ai-check.js ships no cases, so a prompt run would pass vacuously');
+  }
+  const good = await aiCheck.runAiCheck({
+    explain: (request) => ({
+      verdict: request.grade.category,
+      text: 'A sentence with no answer in it.',
+    }),
+    hint: () => ({ text: 'Think about the verb again.' }),
+  });
+  if (good.shown !== cases.length || good.refused !== 0 || good.errors !== 0) {
+    failures.push(
+      `dist/ai-check.js refused a well-behaved port: ${good.shown}/${good.total} shown, ` +
+        `${good.refused} refused, ${good.errors} failed`,
+    );
+  }
+  // Against the cases whose answer this hint actually gives away — the ones
+  // about the city — every call must be refused.
+  const cityHints = cases.filter((one) => one.id.startsWith('mc-hint'));
+  const leaking = await aiCheck.runAiCheck(
+    { hint: () => ({ text: 'The answer is Madrid.' }) },
+    { cases: cityHints },
+  );
+  const caught = leaking.byRefusal['reveals-answer'];
+  if (cityHints.length === 0 || caught !== leaking.total || leaking.shown !== 0) {
+    failures.push(
+      'dist/ai-check.js did not refuse a hint that gives the answer away: ' +
+        `${leaking.shown} shown, ${caught} of ${leaking.total} caught`,
+    );
+  }
+}
+
 // The grade-stability corpus, replayed against BOTH builds a consumer can
 // install. The standing rule is that nothing which can change a historical
 // grade ships outside a major. The unit suite asserts scoring numbers too,
@@ -203,6 +249,7 @@ if (typeof core.createDraft === 'function' && typeof core.validateDraft === 'fun
 // against the BUILT package. CJS and ESM are both replayed because a
 // divergence between them would grade one way under `require` and another
 // under `import`.
+
 const corpus = JSON.parse(readFileSync(join(PKG_ROOT, 'vectors', 'scoring.json'), 'utf8'));
 const { replay } = await import(pathToFileURL(join(PKG_ROOT, 'vectors', 'replay.mjs')).href);
 const esm = await import(pathToFileURL(join(PKG_ROOT, 'dist', 'index.js')).href);
@@ -233,6 +280,6 @@ if (failures.length > 0) {
 
 console.log(
   `verify-dist OK: ${REQUIRED_EXPORTS.length} documented exports resolve from dist; redaction is fail-closed; ` +
-    'new drafts are incomplete; ' +
+    'new drafts are incomplete; the AI check kit runs from its own subpath; ' +
     `${corpus.vectors.length} grade vectors replay identically against CJS and ESM.`,
 );

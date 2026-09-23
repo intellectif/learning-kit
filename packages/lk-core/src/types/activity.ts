@@ -1054,8 +1054,18 @@ export type InteractionKind =
    * is never shown and never reported here.
    */
   | 'ai-hint-shown'
-  /** An AI explanation of the graded answer was shown (`provenance` when sent). */
+  /** An AI explanation of the graded answer was shown (`provenance`, `usage` when sent). */
   | 'ai-explanation-shown'
+  /**
+   * An AI answer was refused, and the learner was told help was not available
+   * (`feature`, `reason` — an {@link AiRefusal} — and `hintNumber` for a hint).
+   *
+   * **The text itself is never carried**: a hint refused for revealing the
+   * answer contains the answer, and this event is logged. It is how a host
+   * watches its own model in production, where the development console warning
+   * it accompanies is silent.
+   */
+  | 'ai-help-refused'
   // `string & {}` preserves literal autocompletion while keeping the union open
   // for registered custom types.
   | (string & {});

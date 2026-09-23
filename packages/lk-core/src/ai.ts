@@ -26,6 +26,7 @@ import type {
   AiVerdict,
   AiWordFact,
 } from './types/ai.js';
+import type { GraderUsage } from './types/grading.js';
 
 /**
  * The activity types the SDK builds facts for, and which of them take hints.
@@ -418,6 +419,25 @@ function provenanceOf(raw: unknown): AiProvenance | undefined {
 }
 
 /**
+ * What the call cost, as a port reported it. Read on the same terms as the
+ * provenance: a number that is not finite and zero or more says nothing about
+ * a cost, so it is dropped rather than carried into a host's totals.
+ */
+function usageOf(raw: unknown): GraderUsage | undefined {
+  if (typeof raw !== 'object' || raw === null) {
+    return undefined;
+  }
+  const kept: GraderUsage = {};
+  for (const key of ['promptTokens', 'completionTokens', 'costUsd'] as const) {
+    const value = (raw as Record<string, unknown>)[key];
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+      kept[key] = value;
+    }
+  }
+  return Object.keys(kept).length > 0 ? kept : undefined;
+}
+
+/**
  * Plain text as the learner will read it: line endings unified, control
  * characters other than line breaks and tabs removed, runs of blank lines
  * collapsed, the ends trimmed.
@@ -459,12 +479,14 @@ export function readAiTextResult(
     return { ok: false, refusal: 'too-long' };
   }
   const provenance = provenanceOf(record.provenance);
+  const usage = usageOf(record.usage);
   return {
     ok: true,
     result: {
       text,
       ...(record.verdict !== undefined ? { verdict: record.verdict as AiVerdict } : {}),
       ...(provenance !== undefined ? { provenance } : {}),
+      ...(usage !== undefined ? { usage } : {}),
     },
   };
 }

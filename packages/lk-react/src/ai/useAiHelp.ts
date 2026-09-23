@@ -129,6 +129,21 @@ function modeInForce(asked: RenderMode | undefined, around: RenderMode | undefin
   return asked ?? around ?? 'practice';
 }
 
+/**
+ * What the record of help a learner was shown carries beside the fact of it:
+ * who wrote it, and what the call cost — both only where the port sent them.
+ *
+ * The text is deliberately absent. A host that wants to keep what a learner
+ * read has it in its own port; an interaction is a record of what happened, and
+ * is kept for every learner and every question.
+ */
+function shownPayload(result: AiTextResult): Record<string, unknown> {
+  return {
+    ...(result.provenance !== undefined ? { provenance: result.provenance } : {}),
+    ...(result.usage !== undefined ? { usage: result.usage } : {}),
+  };
+}
+
 type ExplanationState =
   | { key: string; status: 'idle' | 'loading' | 'unavailable' }
   | { key: string; status: 'shown'; result: AiTextResult };
@@ -228,6 +243,12 @@ export function useAiExplanation(input: AiExplanationInput): AiExplanationHelp {
         if (!checked.ok) {
           warnRefused('explanation', now.input.data.id, checked.refusal);
           setState({ key, status: 'unavailable' });
+          latest.current.input.onInteraction?.({
+            type: 'ai-help-refused',
+            activityId: now.input.data.id,
+            timestamp: Date.now(),
+            payload: { feature: 'explanation', reason: checked.refusal },
+          });
           return;
         }
         setState({ key, status: 'shown', result: checked.result });
@@ -235,10 +256,7 @@ export function useAiExplanation(input: AiExplanationInput): AiExplanationHelp {
           type: 'ai-explanation-shown',
           activityId: now.input.data.id,
           timestamp: Date.now(),
-          payload:
-            checked.result.provenance !== undefined
-              ? { provenance: checked.result.provenance }
-              : {},
+          payload: shownPayload(checked.result),
         });
       },
       () => {
@@ -363,6 +381,16 @@ export function useAiHints(input: AiHintsInput): AiHintsHelp {
         if (!checked.ok) {
           warnRefused('hint', now.input.data.id, checked.refusal);
           setState((shown) => ({ ...shown, status: 'unavailable' }));
+          latest.current.input.onInteraction?.({
+            type: 'ai-help-refused',
+            activityId: now.input.data.id,
+            timestamp: Date.now(),
+            payload: {
+              feature: 'hint',
+              reason: checked.refusal,
+              hintNumber: request.hintNumber,
+            },
+          });
           return;
         }
         setState((shown) => ({
@@ -374,12 +402,7 @@ export function useAiHints(input: AiHintsInput): AiHintsHelp {
           type: 'ai-hint-shown',
           activityId: now.input.data.id,
           timestamp: Date.now(),
-          payload: {
-            hintNumber: request.hintNumber,
-            ...(checked.result.provenance !== undefined
-              ? { provenance: checked.result.provenance }
-              : {}),
-          },
+          payload: { hintNumber: request.hintNumber, ...shownPayload(checked.result) },
         });
       },
       () => {

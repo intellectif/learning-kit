@@ -595,6 +595,34 @@ describe('reading what a port returned', () => {
     });
   });
 
+  it('keeps what the call cost, and only numbers that can be a cost', () => {
+    expect(
+      readAiTextResult({
+        text: 'Hi',
+        usage: { promptTokens: 1200, completionTokens: 0, costUsd: 0.0021 },
+      }),
+    ).toEqual({
+      ok: true,
+      result: { text: 'Hi', usage: { promptTokens: 1200, completionTokens: 0, costUsd: 0.0021 } },
+    });
+    // A negative count, a count that is not a number, and a cost of NaN say
+    // nothing about what was spent — and would poison a host's totals.
+    expect(
+      readAiTextResult({
+        text: 'Hi',
+        usage: { promptTokens: -1, completionTokens: '40', costUsd: Number.NaN, extra: 3 },
+      }),
+    ).toEqual({ ok: true, result: { text: 'Hi' } });
+    expect(readAiTextResult({ text: 'Hi', usage: { costUsd: Number.POSITIVE_INFINITY } })).toEqual({
+      ok: true,
+      result: { text: 'Hi' },
+    });
+    expect(readAiTextResult({ text: 'Hi', usage: 'lots' })).toEqual({
+      ok: true,
+      result: { text: 'Hi' },
+    });
+  });
+
   it('refuses an explanation of a verdict other than the SDK’s', () => {
     const request = aiExplanationRequest({
       data: mc,
