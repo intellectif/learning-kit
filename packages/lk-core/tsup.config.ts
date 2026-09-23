@@ -6,6 +6,7 @@ export default defineConfig({
     scoring: 'src/scoring/index.ts',
     xapi: 'src/xapi/index.ts',
     schemas: 'src/schemas/index.ts',
+    'ai-check': 'src/ai-check/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,

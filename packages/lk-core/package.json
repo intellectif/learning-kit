@@ -69,6 +69,16 @@
         "types": "./dist/schemas.d.cts",
         "default": "./dist/schemas.cjs"
       }
+    },
+    "./ai-check": {
+      "import": {
+        "types": "./dist/ai-check.d.ts",
+        "default": "./dist/ai-check.js"
+      },
+      "require": {
+        "types": "./dist/ai-check.d.cts",
+        "default": "./dist/ai-check.cjs"
+      }
     }
   },
   "main": "./dist/index.cjs",

@@ -99,9 +99,15 @@ package with no purpose is a liability, not an option held open.
    compares rounded values with an epsilon on both sides.
 6. **`AttemptPolicy` enforcement, delivery, timers, persistence, identity:** stay consumer-side (agreeing with
    the audit against over-building).
-7. **AI posture:** `lk-ai` ships **ports only** — no model client, no API key, no provider dependency in any
-   `lk-*` package. The SDK defines the interface; the application supplies the adapter, keeps its own prompts,
-   and chooses its own model. This keeps the SDK provider-neutral and keeps model cost/policy where it belongs.
+7. **AI posture:** **ports only** — no model client, no API key, no provider dependency in any `lk-*`
+   package. The SDK defines the interface; the application supplies the adapter, keeps its own prompts, and
+   chooses its own model. This keeps the SDK provider-neutral and keeps model cost/policy where it belongs.
+   **Amended 2026-09-22 on where they live:** a separate `@intellectif/lk-ai` package was planned for
+   them and is not being built. The checks are the point of the ports, and every check is a reading of the
+   SDK's own scorer — `hintRevealsAnswer` is the fill-in-the-blanks matcher, a verdict is `evaluate`'s — so
+   they belong beside the scorers in `lk-core`, with their React surface in `lk-react`. A third package
+   would have added a third version in the peer cascade for no separation anyone could state. The empty
+   placeholder was deleted in the 0.19.0 line, as `lk-server` was before it.
 
 ---
 
@@ -295,11 +301,14 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   them usable (`defaultIndex`, `onIndexChange`, `responses`, `outcomes`). A snapshot is bound to its plan by
   `planHash`, so answers can never be restored onto a paper the learner never sat, and the position and
   per-slot answers — the one part of an attempt a consumer could not previously recover — round-trip.
-- lk-react: **controlled components** (`value`/`defaultValue`/`onChange` + `renderMode: 'practice' | 'exam' |
-  'review'` — named to avoid the `MultipleChoiceData.mode` collision), redacted-data rendering (deletes the
-  consumer's exam renderer + redactor), headless `useActivity` layer, `LkIntlProvider` (`en`/`es`/`pt`/`ar`) +
-  RTL, CSS-based dark mode + no-flash SSR, full reduced-motion pass. `ActivitySequence` written-response
-  dispatch (requires the widened results type).
+- **What is left of the original v0.4 lk-react line.** Controlled components and `renderMode` shipped in
+  2.1.0, redacted rendering with them, the written-response dispatch in the sequence in the v0.4 line, and
+  `LkIntlProvider` + RTL in 7.1.0 — English only, for the reason recorded above. **Still open, and worth
+  keeping as one item:** a headless layer (`useActivity`), CSS-based dark mode with no flash on server
+  rendering, and a full reduced-motion pass. The headless layer is the one with a second reason to exist:
+  the web-component path in v1.0 rests on it, and hosts are already drawing their own questions — the AI
+  rules reached them as hooks in 18.1.0 (`useAiHints`, `useAiExplanation`), which is the same idea one
+  feature at a time.
 - ✅ **Authoring slice (R8)** — `validateDraft()` with `incomplete` vs `invalid`, per-type `authoring`
   descriptors (`createDraft`, `checkDraft`), and `<ActivityPreview>` as the preview harness. The failure it
   fixes was confirmed in an integrating editor rather than taken from the roadmap line: its Save button and
@@ -351,10 +360,13 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
   an unrecognised stimulus kind returned early and left the stimulus's own media to the schema, and a
   cleared rich-text body — an empty string, not an absent field — tripped the schema's rule and not ours,
   while a `text` stimulus carrying rich text and no plain text reported the same path twice.
-- `@intellectif/lk-ai` (ports only): superseded by [Next — the delivery policy, then
-  AI](#next--the-delivery-policy-then-ai), which orders the work and states the rules it follows.
-  `analyzeItem` (facility, discrimination, distractor efficiency) is statistics rather than AI, and is
-  proposed for `lk-core`.
+- ~~`@intellectif/lk-ai` (ports only)~~ — **the package is not being built** (§3.7). The ports shipped in
+  `lk-core` and `lk-react`; see [Next](#next--the-delivery-policy-then-ai) for what follows them.
+- **`analyzeItem` (facility, discrimination, distractor efficiency) — promoted to a milestone of its own**
+  in `lk-core`, no longer a line inside the AI item. It is statistics, not AI: it reads stored responses
+  and says which questions are too easy, which do not separate a strong learner from a weak one, and which
+  distractors nobody picks. It pairs with the item critic below — a critic guesses at a question, these
+  numbers measure it — and it needs no model, no key and no port.
 - Registry v2: descriptor gains `versions`/`migrations` (`migrateActivity`, lazy on read), `semanticChecks`
   (named, for the repair loop), `plan()` seeded presentation.
 - ✅ **Grade-stability vectors, and the non-functionals that had gone stale** — the consumer parity
@@ -726,6 +738,27 @@ there is one implementation and a host’s question refuses what the SDK’s ref
 the guard rather than the button: it does nothing where the rules say no, so a page that draws its
 own button reaches no model in an `exam`.
 
+✅ **AI groundwork shipped** in 0.19.0 / 19.0.0 (2026-09-22): what a call cost, what was refused,
+and a way to test a prompt. The AI line was about to grow — feedback on writing, pronunciation
+coaching, assisted grading — and three things were missing under it, each cheap now and awkward
+later.
+- **What a call cost rides on the result.** `AiTextResult.usage` is the `GraderUsage` a returned
+  grade already carries, so one shape covers help for a learner and marking by a grader, and
+  `ai-hint-shown` / `ai-explanation-shown` carry it to `onInteraction` beside the provenance. Tokens,
+  cost, quotas and rate limits stay the host's: it holds the key, the model, the billing and the
+  learner's identity, and the SDK has none of them. What the SDK owes it is the record.
+- **A refusal is reportable.** `ai-help-refused` carries the feature and the reason — never the
+  text, which for `reveals-answer` is the answer. A development build warns in the console; a
+  production one said nothing at all, so nobody could watch a model's leak rate where it matters.
+- **A prompt can be tested.** `@intellectif/lk-core/ai-check` makes the calls a learner's questions
+  would make, on items whose answers the SDK knows, and runs the same checks it runs before a learner
+  sees anything: `aiCheckCases`, `runAiCheck`, `formatAiCheckReport`. A host runs it in its own CI,
+  with its own key, when it changes a prompt or a model. It is a separate entry point because it is
+  for a test run, not a learner's browser. Cases include the ones a model slips on: an answer a hint
+  can hardly avoid naming, an answer of one short word, an accented answer, and a passage with more
+  than one blank.
+- **And the placeholder went.** `packages/lk-ai` had sat empty since the first week (§3.7).
+
 1. **The delivery policy.** `renderMode` (`practice | exam | review`) is three fixed presets. Educators
    need the settings underneath, so that one activity serves a practice lesson and a final exam
    without being authored twice:
@@ -746,14 +779,34 @@ own button reaches no model in an `exam`.
    same for every learner and its penalty is computed, so a deployment can price it. Two learners
    sitting one paper would not get the same AI help, so the rule that shipped in 0.17.0 — nothing AI
    in `exam`, whatever is passed — stands rather than becoming a switch.
-2. **`@intellectif/lk-ai`, ports only.** In this order:
-   1. help for learners in formative use: explain an answer, graduated hints, feedback on open
-      responses, feedback in the learner's language;
-   2. assistants for authors: drafts generated from a passage, a transcript or a video's captions; an
-      item critic; suggested distractors and accepted answers. Each is a draft a person approves;
-   3. assisted grading of open responses, admitted to summative use only through a calibration against
-      human marks;
-   4. `speaking-response`, built on that grading.
+2. **The AI line, in this order.** Explanations, hints and the groundwork above have shipped; what
+   is left is ordered by what a learner or an author gets from it, and each is admitted only on the
+   rules below.
+   1. **Feedback on writing, in practice** — the largest of the remaining four for a language
+      school, and the one with a check only this SDK can run: a correction must quote text that is
+      actually in the learner's answer, at the place it claims (`InlineCorrection` already carries
+      the quote and its offsets), so an invented error is refused as a leaking hint is. A draft, its
+      feedback and a revision are one loop, and the indicative score is `gradeFromRubric`'s, marked
+      provisional.
+   2. **Pronunciation coaching on a read-aloud** — the model explains the engine's marks and
+      never re-scores them (`docs/speech-assessment.md` already says so, and the published
+      comparisons behind it), with the matching check: a word it calls mispronounced must be one the
+      engine marked.
+   3. **Assistants for authors** — drafts generated from a passage, a transcript or a video's
+      captions (for an interactive video, placed at caption times); a repair loop driven by the SDK's
+      own `validateDraft` issues; an item critic reporting in the same shape those checks do, so an
+      editor shows one list. Needs registry v2's named `semanticChecks`. Each output is a draft a
+      person approves. `analyzeItem` belongs beside it.
+   4. **Assisted grading of open responses**, admitted to summative use only through a calibration
+      against human marks — agreement, per criterion, with no default threshold — and a
+      deterministic rule for which grades go to a person.
+   5. **`speaking-response`**, built on that grading.
+
+   **Not on this list, deliberately:** a chat tutor with memory (the checks hold for a bounded
+   answer, not a conversation, and it is the host's product rather than an activity's); streamed
+   text, which would put a leak on the screen before the check that catches it; and generated
+   questions served straight to a learner, where a wrong key teaches the mistake — only from a
+   pool a person approved, which is why it waits on the authoring assistants.
 
    The rules every AI feature follows, beside the standing decisions:
    - **The model judges and explains; the SDK computes every number.** `gradeFromRubric` already
@@ -787,6 +840,13 @@ own button reaches no model in an `exam`.
   migration); codemods; published conformance suite; stated deprecation windows (schema majors readable ≥ 24
   months); zod → peer or internalized; web-component/`lk-embed` evaluation on top of the headless layer
   (the "replace H5P in non-React LMSes" path — categorical gap, honestly deferred until headless exists).
+- **It also ends the version cascade, which is a reason to bring it forward.** `lk-react` peers on
+  `@intellectif/lk-core@^0.x`, and a caret on a `0.` version matches only that minor — so every `lk-core`
+  minor puts the range out of date and releases a `lk-react` **major**. That is why `lk-react` is at 18
+  while most of those majors broke nothing, and a major that breaks nothing teaches consumers to stop
+  reading them. `^1.x` matches every later minor, so from `lk-core@1.0.0` a minor is a minor. The
+  grade-stability rule is unaffected: what makes a release a major there is a changed grade, not a version
+  range.
 
 ---
 

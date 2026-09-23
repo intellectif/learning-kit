@@ -8,6 +8,8 @@
  * the SDK reached; it never reaches one.
  */
 
+import type { GraderUsage } from './grading.js';
+
 /**
  * What an author allows AI to do for one item. Absent, or a feature left out,
  * leaves the choice to the deployment. `false` switches a feature off for this
@@ -213,6 +215,17 @@ export interface AiTextResult {
   /** For an explanation: the verdict the model explained. */
   verdict?: AiVerdict;
   provenance?: AiProvenance;
+  /**
+   * What the call cost, as the provider reported it to your port: the same
+   * {@link GraderUsage} a returned grade carries, so one shape covers help for
+   * a learner and marking by a grader.
+   *
+   * The SDK never estimates it and never adds it up. It carries what a port
+   * sends through to `onInteraction`, beside the provenance, so the record of
+   * what a learner was shown and the record of what it cost are the same
+   * record. Numbers that are not finite and zero or more are dropped.
+   */
+  usage?: GraderUsage;
 }
 
 /** Why a result was not shown. */

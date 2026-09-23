@@ -14,6 +14,7 @@ It describes `@intellectif/lk-core` 0.17.0 and `@intellectif/lk-react` 17.0.0.
 - [What your model is given](#what-your-model-is-given)
 - [What the SDK refuses to show](#what-the-sdk-refuses-to-show)
 - [Records, cost and privacy](#records-cost-and-privacy)
+- [Testing your prompt](#testing-your-prompt)
 - [What is not here yet](#what-is-not-here-yet)
 
 ## What a learner sees
@@ -215,19 +216,75 @@ prompt should forbid giving the answer, and this check catches the model that do
 
 ## Records, cost and privacy
 
-- **Two interactions** reach `onInteraction`:
+- **Three interactions** reach `onInteraction`:
   - `ai-hint-shown`, with `hintNumber`;
-  - `ai-explanation-shown`.
+  - `ai-explanation-shown`;
+  - `ai-help-refused`, with `feature` (`hint` or `explanation`), `reason` (a refusal from the table
+    above) and, for a hint, `hintNumber`.
 
-  Each carries the port's `provenance` when it sent one (`model`, `promptHash`, `generatedAt`), and
-  each is emitted only for help the learner actually saw. Keep them beside the attempt: they are how a
-  teacher, or an appeal, knows the learner had help.
+  The two "shown" events carry the port's `provenance` when it sent one (`model`, `promptHash`,
+  `generatedAt`) and its `usage` when it sent that, and each is emitted only for help the learner
+  actually saw. Keep them beside the attempt: they are how a teacher, or an appeal, knows the learner
+  had help.
+
+  **A refusal never carries the text.** A hint refused for revealing the answer contains the answer,
+  and this event is logged. The reason is what a host needs.
+- **What a call cost** rides back on the result, if your port puts it there:
+
+  ```ts
+  return { text, verdict, provenance: { model: MODEL_ID }, usage: await priceOf(response) };
+  // usage: { promptTokens?, completionTokens?, costUsd? } — the same shape a GradeRecord carries
+  ```
+
+  The SDK never estimates it, never adds it up, and drops a number that cannot be a cost. It carries
+  what you send to `onInteraction`, so what a learner was shown and what it cost are one record.
+- **Tokens, quotas and rate limits are yours**, and belong on your server: it holds the key, the
+  model, the billing and the identity of the learner, and the SDK has none of those. Your port is the
+  one place every call passes through, which makes it the place to count them.
 - **Hints do not change a score in this release.** A penalty for hints belongs to the delivery policy,
   the next milestone on the [roadmap](./roadmap.md).
-- **Cost:** a call happens only when a learner presses a button. It can be cached by
-  `facts` + `grade`, or by `facts` + `hintNumber`: the same answer asks the same question.
+- **Cost:** a call happens only when a learner presses a button. Two calls asking the same thing have
+  the same request, so `contentHash(request)` from lk-core is a cache key: canonical, key-order
+  independent, and the same on your server as in the browser.
 - **Privacy:** a request carries the learner's answer and nothing that identifies them. It leaves the
   browser only through your port, under your agreements with your provider.
+
+## Testing your prompt
+
+Your prompt is the part of this the SDK cannot see, and the part most likely to change. It ships a
+kit that makes the calls a learner's questions would make — on items whose answers it knows — and
+runs the same checks it runs before a learner sees anything:
+
+```ts
+// prompts.test.ts, in your CI, with your key
+import { formatAiCheckReport, runAiCheck } from '@intellectif/lk-core/ai-check';
+
+const report = await runAiCheck({
+  explain: (request) => callMyModel(EXPLAIN_PROMPT, request),
+  hint: (request) => callMyModel(HINT_PROMPT, request),
+});
+console.log(formatAiCheckReport(report));
+// ai-check: 14/16 shown, 2 refused, 0 failed — slowest 1840 ms
+//   reveals-answer: 2
+//   ✗ fib-hint-1 [hint] Both blanks empty: reveals-answer
+//       The first blank is "is" — as in "My name is Rossi".
+expect(report.refused).toBe(0);
+```
+
+- **The cases are ordinary calls**, built by `aiExplanationRequest` and `aiHintRequest`: every type
+  the SDK explains, answered right, wrong and partly right; every type it hints for, before an answer
+  and after a wrong one. They include what a model slips on — an answer a hint can hardly avoid
+  naming (`Madrid`), an answer of one short word (`is`), an accented answer (`cañón`), and a passage
+  with more than one blank.
+- **`aiCheckCases()`** hands them over, so you can filter to one type — or pass `cases` of your own,
+  built on your own items with the same two functions. That is how you test a prompt against the
+  content your learners actually see.
+- **A refusal is a failure, not a warning:** it is help a learner asked for and did not get.
+  `reveals-answer` is the one to treat most seriously — that prompt gives answers away.
+- **It runs one call at a time** by default, because a run in CI meets a rate limit long before it
+  runs out of patience; `concurrency` raises it.
+- A port you leave out has its cases skipped rather than failed, and a port that throws is an
+  `error` in the report — one bad call never hides the rest.
 
 ## What is not here yet
 

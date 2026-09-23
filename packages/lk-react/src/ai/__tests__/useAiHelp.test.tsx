@@ -213,6 +213,84 @@ describe('useAiHints / useAiExplanation', () => {
     );
   });
 
+  it('records what the call cost, beside who wrote it', async () => {
+    const user = userEvent.setup();
+    const onInteraction = vi.fn();
+    const ai = ports({
+      explain: vi.fn(async () => ({
+        verdict: 'incorrect' as const,
+        text: 'Because "she" is one person.',
+        provenance: { model: 'fake-1', promptHash: 'p9' },
+        usage: { promptTokens: 820, completionTokens: 61, costUsd: 0.0013 },
+      })),
+      hint: vi.fn(async () => ({
+        text: 'How many people is "she"?',
+        usage: { promptTokens: 300, completionTokens: 12 },
+      })),
+    });
+    const { rerender } = render(<HostQuestion data={mc} ai={ai} onInteraction={onInteraction} />);
+
+    await getHint(user);
+    await screen.findByText('How many people is "she"?');
+    expect(onInteraction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'ai-hint-shown',
+        payload: { hintNumber: 1, usage: { promptTokens: 300, completionTokens: 12 } },
+      }),
+    );
+
+    rerender(<HostQuestion data={mc} ai={ai} onInteraction={onInteraction} submitted />);
+    await getExplanation(user);
+    await screen.findByText('Because "she" is one person.');
+    expect(onInteraction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'ai-explanation-shown',
+        payload: {
+          provenance: { model: 'fake-1', promptHash: 'p9' },
+          usage: { promptTokens: 820, completionTokens: 61, costUsd: 0.0013 },
+        },
+      }),
+    );
+  });
+
+  it('reports a refusal, with its reason and never its text', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onInteraction = vi.fn();
+    const ai = ports({
+      hint: vi.fn(async () => ({ text: 'It is "She is tired now".' })),
+      explain: vi.fn(async () => ({ verdict: 'correct' as const, text: 'Nicely done.' })),
+    });
+    const { rerender } = render(<HostQuestion data={mc} ai={ai} onInteraction={onInteraction} />);
+
+    // A hint that gives the answer away: the host learns that its model did it,
+    // in production, where the development console warning is silent.
+    await getHint(user);
+    await screen.findByText('No hint is available right now.');
+    expect(onInteraction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'ai-help-refused',
+        activityId: 'mc1',
+        payload: { feature: 'hint', reason: 'reveals-answer', hintNumber: 1 },
+      }),
+    );
+
+    rerender(<HostQuestion data={mc} ai={ai} onInteraction={onInteraction} submitted />);
+    await getExplanation(user);
+    await screen.findByText('No explanation is available.');
+    expect(onInteraction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'ai-help-refused',
+        payload: { feature: 'explanation', reason: 'contradicts-grade' },
+      }),
+    );
+
+    // The refused text is the answer. It is never in the record.
+    const said = JSON.stringify(onInteraction.mock.calls);
+    expect(said).not.toContain('She is tired now');
+    expect(said).not.toContain('Nicely done');
+  });
+
   it('reaches no model in an exam, however the host asks', async () => {
     const user = userEvent.setup();
     const ai = ports();

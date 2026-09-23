@@ -186,7 +186,7 @@ interface AiHintRequest: interface AiHintRequest { feature: 'hint'; facts: AiIte
 interface AiMultipleChoiceFacts: interface AiMultipleChoiceFacts extends AiFactsBase { activityType: 'multiple-choice'; question: string; mode: 'multi' | 'single'; options: AiOptionFact[]; }
 interface AiOptionFact: interface AiOptionFact { id: string; text: string; chosen: boolean; correct: boolean | null; feedback?: string; }
 interface AiProvenance: interface AiProvenance { model?: string; promptHash?: string; generatedAt?: string; }
-interface AiTextResult: interface AiTextResult { text: string; verdict?: AiVerdict; provenance?: AiProvenance; }
+interface AiTextResult: interface AiTextResult { text: string; verdict?: AiVerdict; provenance?: AiProvenance; usage?: GraderUsage; }
 interface AiWordFact: interface AiWordFact { expected: string; typed: string; status: 'correct' | 'extra' | 'incorrect' | 'missing'; }
 interface AnsweredStatementParams: interface AnsweredStatementParams { actor: XAPIActor; object: XAPIObjectParams; scoringResult: ScoringResult; timeSpentMs: number; response?: string; context?: XAPIContext; resultExtensions?: Record<string, unknown>; }
 interface AssessmentScore: interface AssessmentScore { sections: SectionScore[]; score: number; passed: boolean | null; passFailureReason: PassFailureReason; status: 'final' | 'provisional'; pendingSlotIds: string[]; rejectedSlotIds?: string[]; unscorableSlotIds: string[]; }
@@ -314,7 +314,7 @@ type DraftSeverity: type DraftSeverity = 'incomplete' | 'invalid';
 type DraftValidationResult: type DraftValidationResult<T> = DraftComplete<T> | DraftNotComplete;
 type GraderKind: type GraderKind = 'ai' | 'auto' | 'human';
 type GradingState: type GradingState = 'failed' | 'graded' | 'queued' | 'running' | 'skipped';
-type InteractionKind: type InteractionKind = 'ai-explanation-shown' | 'ai-hint-shown' | 'assessment-failed' | 'assessment-requested' | 'blank-filled' | 'hint-requested' | 'media-play-consumed' | 'media-play-errored' | 'media-play-refunded' | 'media-play-refused' | 'option-deselected' | 'option-selected' | 'recording-discarded' | 'recording-started' | 'recording-stopped' | 'recording-upload-failed' | 'recording-uploaded' | 'submitted' | 'text-changed' | 'video-captions-changed' | 'video-ended' | 'video-fullscreen-changed' | 'video-paused' | 'video-pip-changed' | 'video-played' | 'video-quiz-closed' | 'video-quiz-opened' | 'video-quiz-question-shown' | 'video-quiz-skipped' | 'video-rate-changed' | 'video-seeked' | (string & {});
+type InteractionKind: type InteractionKind = 'ai-explanation-shown' | 'ai-help-refused' | 'ai-hint-shown' | 'assessment-failed' | 'assessment-requested' | 'blank-filled' | 'hint-requested' | 'media-play-consumed' | 'media-play-errored' | 'media-play-refunded' | 'media-play-refused' | 'option-deselected' | 'option-selected' | 'recording-discarded' | 'recording-started' | 'recording-stopped' | 'recording-upload-failed' | 'recording-uploaded' | 'submitted' | 'text-changed' | 'video-captions-changed' | 'video-ended' | 'video-fullscreen-changed' | 'video-paused' | 'video-pip-changed' | 'video-played' | 'video-quiz-closed' | 'video-quiz-opened' | 'video-quiz-question-shown' | 'video-quiz-skipped' | 'video-rate-changed' | 'video-seeked' | (string & {});
 type InteractiveVideoItemType: type InteractiveVideoItemType = (typeof INTERACTIVE_VIDEO_ITEM_TYPES)[number];
 type ItemOutcome: type ItemOutcome = { code?: string; maxScore: number; reason: string; status: 'unscorable'; } | { details: ScoringDetail[]; feedback: null | string; maxScore: number; passed: boolean; score: number; status: 'scored'; } | { feedback: null | string; grade: GradeRecord; maxScore: number; passed: boolean; score: number; status: 'graded'; } | { maxScore: number; partial?: DeferredScoringPartial; reason: DeferredReason; rejectedGrade?: GradeRecord; status: 'deferred'; };
 type LearnerResponse: type LearnerResponse = LearnerResponseMap[keyof LearnerResponseMap];
@@ -353,6 +353,19 @@ type ValidationResult: type ValidationResult<T> = { data: T; success: true; } | 
 type WavInspection: type WavInspection = { bitsPerSample: 16; channels: number; durationMs: number; peakDbfs: number; sampleRate: number; valid: true; voicedMs: number; } | { reason: 'not_wav' | 'truncated' | 'unsupported_encoding'; valid: false; };
 type XAPIInteractionType: type XAPIInteractionType = 'choice' | 'fill-in' | 'long-fill-in' | 'matching' | 'other' | 'performance' | 'sequencing' | 'true-false';
 type XAPIVerbKey: type XAPIVerbKey = keyof typeof XAPIVerb;
+```
+
+## @intellectif/lk-core/ai-check
+
+```ts
+function aiCheckCases: declare function aiCheckCases(): AiCheckCase[];
+function formatAiCheckReport: declare function formatAiCheckReport(report: AiCheckReport): string;
+function runAiCheck: declare function runAiCheck(ports: AiCheckPorts, options?: AiCheckOptions): Promise<AiCheckReport>;
+interface AiCheckCase: interface AiCheckCase { id: string; feature: 'explanation' | 'hint'; about: string; request: AiExplanationRequest | AiHintRequest; }
+interface AiCheckOptions: interface AiCheckOptions { cases?: readonly AiCheckCase[]; concurrency?: number; }
+interface AiCheckPorts: interface AiCheckPorts { explain?(request: AiExplanationRequest): Promise<unknown> | unknown; hint?(request: AiHintRequest): Promise<unknown> | unknown; }
+interface AiCheckReport: interface AiCheckReport { total: number; shown: number; refused: number; errors: number; skipped: number; byRefusal: Record<AiRefusal, number>; results: AiCheckResult[]; }
+interface AiCheckResult: interface AiCheckResult { case: AiCheckCase; ok: boolean; refusal?: AiRefusal; error?: string; result?: AiTextResult; ms: number; }
 ```
 
 ## @intellectif/lk-core/schemas

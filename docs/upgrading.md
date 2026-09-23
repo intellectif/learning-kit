@@ -29,6 +29,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.16.0 | 16.0.0 | Two caption languages at once in `<InteractiveVideo>`, `defaultPreferences` and `onPreferencesChange`, `resolveCaptionTracks`. **One tightened rule**: a caption or subtitle track on a dictation's recording, or on a stimulus a dictation plays, is now refused as `captionsUrl` always was. **And one DOM change**: captions sit in a `.lk-iv-captions` container |
 | 0.16.0 | 16.1.0 | `renderQuestion` on `<InteractiveVideo>`: a host draws a video's questions itself, and the video still keeps count. **No `lk-core` change** — a `lk-react` minor on the same peer range as 16.0.0. **One behaviour change**: Finish waits for a read-aloud take still being stored |
 | 0.17.0 | 17.0.0 | AI help for learners: explanations and hints through ports you supply, `LkAiProvider`, the author's `ai` switch, and the AI contract in lk-core (`buildAiFacts`, `aiExplanationRequest`, `aiHintRequest`, `checkAiExplanation`, `checkAiHint`, `hintRevealsAnswer`). **One tightened rule**: a field named `ai` must now be `{ hints?, explanations? }` |
+| 0.19.0 | 19.0.0 | AI groundwork: `AiTextResult.usage` (what a call cost, carried to `ai-hint-shown` / `ai-explanation-shown`), the new `ai-help-refused` interaction, and `@intellectif/lk-core/ai-check` — a kit that runs your AI prompts against the SDK's own checks in CI. The empty `@intellectif/lk-ai` placeholder is deleted. **Additive** — the major is the peer bump, plus one new interaction kind |
 | 0.18.0 | 18.1.0 | Host-renderer parity in `<ActivitySequence>`: a `renderers` override is handed a `question` (`active`, `setPending`, `portalContainer`, `clear`, `emit`, `slot`), and every call it is given keeps one identity. New hooks `useAiHints` / `useAiExplanation` for AI help in a question you draw. **No `lk-core` change** — a `lk-react` minor on the same peer range as 18.0.0 |
 | 0.18.0 | 18.0.0 | The grade return trip checks its numbers: `outcomeFromGrade` refuses a record that cannot be a grade (`deferred` / `grade_rejected`, the record kept on `rejectedGrade`), `composeAssessmentScore` holds such a slot `provisional` and names it in `rejectedSlotIds`, `gradeFromRubric` refuses a negative weight or an overflowing weight sum, and `aiExplanationRequest` explains no such grade. **Moves recorded grades, for invalid numbers only** — see [0.17 → 0.18](#017--018-lk-core--17x--18x-lk-react). **No React API change** — 18.0.0 is the peer bump |
 
@@ -54,6 +55,46 @@ you record stay exactly what they were.
 - On **0.15.x**? See [0.15 → 0.16](#015--016-lk-core--15x--16x-lk-react) — one tightened dictation rule to check your content against, and one caption DOM change; 16.1.0 adds one Finish change.
 - On **0.17.x**? See [0.17 → 0.18](#017--018-lk-core--17x--18x-lk-react) — a returned grade that cannot be one no longer composes to a final result; look for stored grades it now reports.
 - On **18.0.x**? See [18.0 → 18.1](#180--181-lk-react) — additive, with one possible type error.
+- On **18.1.x**? See [0.18 → 0.19](#018--019-lk-core--18x--19x-lk-react) — additive: what an AI call cost, a refusal you can watch, and a kit for your prompts.
+
+---
+
+## 0.18 → 0.19 (`lk-core`) / 18.x → 19.x (`lk-react`)
+
+### What a call cost, and what was refused *(0.19.0 / 19.0.0)*
+
+Nothing here changes what a learner sees. It changes what you can know about it.
+
+- **Put `usage` on what your port returns** and it reaches `onInteraction` beside the provenance:
+
+  ```ts
+  return { text, verdict, provenance: { model: MODEL_ID }, usage: { promptTokens, completionTokens, costUsd } };
+  ```
+
+  It is the same shape a `GradeRecord` carries. The SDK drops a number that is not finite and zero or
+  more rather than let it into your totals.
+- **`ai-help-refused` is a new interaction kind.** It fires where a learner is told help is not
+  available, carrying `feature`, `reason` and — for a hint — `hintNumber`, and **never the text**: a
+  hint refused for revealing the answer contains the answer. If you persist every interaction, expect
+  this kind; if you `switch` over `InteractionKind` without a default, add it.
+
+### Test your prompts *(0.19.0)*
+
+```ts
+import { formatAiCheckReport, runAiCheck } from '@intellectif/lk-core/ai-check';
+
+const report = await runAiCheck({ explain, hint });   // your ports, your key, your CI
+expect(report.refused).toBe(0);
+```
+
+It makes the calls a learner's questions would make, on items whose answers the SDK knows, and runs
+the same checks it runs before a learner sees anything. See
+[the AI guide](./ai.md#testing-your-prompt).
+
+### `@intellectif/lk-ai` is gone *(0.19.0)*
+
+It was never published and never held code. If a workspace build of yours references it, drop the
+reference; nothing imports it.
 
 ---
 
