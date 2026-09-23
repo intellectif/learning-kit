@@ -125,12 +125,38 @@ and content hashing — those have no subpath of their own.
 All exports ship as ESM + CJS with `.d.ts` types. Tree-shakeable; `sideEffects: false`. Node >= 20. In browsers, the SDK's own code needs `Object.hasOwn` — Chrome and Edge 93, Firefox 92, Safari 15.4 — because output targets ES2022 and nothing is polyfilled.
 Zod is the single runtime dependency: the package depends on `zod@^3.25` and imports the **Zod 4 API** from its `zod/v4` subpath, so it coexists with an app still on Zod 3.
 
+## Releases & upgrading
+
+- **What is supported, and since when** — [Features](https://github.com/intellectif/learning-kit/blob/main/docs/features.md): every activity and capability, the `lk-core` / `lk-react` versions it arrived in, and its guide.
+- **What changed** — [GitHub Releases](https://github.com/intellectif/learning-kit/releases), one per package version, and the same notes in each package's `CHANGELOG.md` (it ships in the npm package, so it is in your `node_modules` too). Notes written since release notes gained a template — every release after lk-core 0.20.0 / lk-react 20.0.0 — start with a one-line summary and **Action required**: `none`, or what to do. Earlier notes lead with the detail; the version map in the upgrading guide says what each one asks of you.
+- **How to upgrade** — [Upgrading](https://github.com/intellectif/learning-kit/blob/main/docs/upgrading.md): which `lk-core` goes with which `lk-react`, and a section per release saying what, if anything, you need to change. A `lk-react` major is often only the `lk-core` peer bump; the map says so.
+- **Hearing about a release** — on GitHub, **Watch → Custom → Releases**, or subscribe to [the releases feed](https://github.com/intellectif/learning-kit/releases.atom). Better still, let your dependency bot bring each release to you as a pull request, with its notes — and keep the two packages together in one, since they move together:
+
+  ```yaml
+  # .github/dependabot.yml — one entry per directory with a package.json
+  version: 2
+  updates:
+    - package-ecosystem: npm
+      directory: /
+      schedule: { interval: weekly }
+      groups:
+        learning-kit:
+          patterns: ["@intellectif/lk-*"]
+  ```
+
+  With Renovate: `"packageRules": [{ "matchPackageNames": ["@intellectif/lk-core", "@intellectif/lk-react"], "groupName": "learning-kit" }]`.
+
+  `lk-core` is still `0.x`, and a caret range on a `0.x` version matches only that minor: `^0.18.0` never installs `0.19.0`. A bot is how you find out there is one.
+
 ## Documentation
 
-- [Upgrading](https://github.com/intellectif/learning-kit/blob/main/docs/upgrading.md) — start here on any upgrade from 0.3.x, 0.4.x or 0.5.x.
+- [Features](https://github.com/intellectif/learning-kit/blob/main/docs/features.md) — everything supported, and the versions each arrived in.
+- [Upgrading](https://github.com/intellectif/learning-kit/blob/main/docs/upgrading.md) — which `lk-core` goes with which `lk-react`, and what each release asks of you.
 - [Changelog](https://github.com/intellectif/learning-kit/blob/main/packages/lk-core/CHANGELOG.md) — every release, with the reasoning.
 - [Grade-stability vectors](https://github.com/intellectif/learning-kit/blob/main/packages/lk-core/vectors/README.md) — the package's grading frozen as data; replay it against the build you install.
 - [Authoring & content storage](https://github.com/intellectif/learning-kit/blob/main/docs/authoring.md) — data model, validation, fetch → validate → render flow, and building an editor (the draft issue codes).
+- [Delivery policies](https://github.com/intellectif/learning-kit/blob/main/docs/delivery.md) — `DeliveryPolicy`, and recording it with an attempt.
+- [AI help for learners](https://github.com/intellectif/learning-kit/blob/main/docs/ai.md) — the AI contract, the checks, and the `ai-check` kit for your prompts.
 - [Project README](https://github.com/intellectif/learning-kit#readme) — the full picture, including the React renderers.
 - [Contributing](https://github.com/intellectif/learning-kit/blob/main/CONTRIBUTING.md) — adding a new activity type.
 

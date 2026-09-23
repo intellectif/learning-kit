@@ -131,6 +131,11 @@ A type that lives outside this repository needs none of the above: `defineActivi
    ```bash
    pnpm changeset
    ```
+   It asks for the packages and the bumps, and writes `.changeset/<name>.md` with whatever summary you
+   typed. That file is the public release note, so edit it to
+   [the template](./docs/releasing.md#writing-the-release-note) — a bold one-line headline, then
+   `**Action required:**` (`none`, or what to do), then the detail with full links — and run
+   `pnpm docs-check`, which CI runs too and which fails a note that does not follow it.
 5. Open the PR. CI runs the build/test/lint matrix (Node 22 & 24), coverage, bundle-size limits, packaging checks including lk-core's grade-stability corpus, and Playwright e2e. The PR must pass all checks and keep coverage thresholds.
 6. On merge to `main`, the Changesets release workflow versions and publishes affected packages.
 
