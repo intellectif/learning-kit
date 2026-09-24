@@ -1,6 +1,6 @@
 {
   "name": "@intellectif/lk-core",
-  "version": "0.22.0",
+  "version": "1.0.0",
   "description": "Framework-free assessment core: activity validation, pure scoring, rubric & deferred grading, weighted assessment composition, exam attempt plans, and xAPI 1.0.3. Custom activity types take any Standard Schema.",
   "keywords": [
     "assessment",
