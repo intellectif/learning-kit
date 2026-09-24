@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AiExplanationRequest, AiHintRequest, AiTextResult } from '../../types/ai.js';
+import type {
+  AiExplanationRequest,
+  AiHintRequest,
+  AiTextResult,
+  AiWritingFeedbackRequest,
+} from '../../types/ai.js';
 import { type AiCheckCase, aiCheckCases, formatAiCheckReport, runAiCheck } from '../index.js';
 
 /**
@@ -55,6 +60,26 @@ describe('aiCheckCases', () => {
     expect((find('mc-hint-2').request as AiHintRequest).previousHints).toHaveLength(1);
   });
 
+  it('drafts an essay with mistakes, without, revised, and with feedback asked for in another language', () => {
+    const writing = cases.filter((one) => one.feature === 'writing-feedback');
+    expect(writing.map((one) => one.id)).toEqual([
+      'writing-mistakes',
+      'writing-clean',
+      'writing-revised',
+      'writing-feedback-in-spanish',
+    ]);
+    const revised = find('writing-revised').request as AiWritingFeedbackRequest;
+    expect(revised.draftNumber).toBe(2);
+    expect(revised.facts.rubric?.map((criterion) => criterion.name)).toEqual([
+      'Grammar',
+      'Vocabulary',
+      'Task',
+    ]);
+    expect(
+      (find('writing-feedback-in-spanish').request as AiWritingFeedbackRequest).learnerLocale,
+    ).toBe('es');
+  });
+
   it('hands out a fresh list, so one caller cannot change another’s', () => {
     const mine = aiCheckCases();
     mine.length = 0;
@@ -74,8 +99,21 @@ describe('runAiCheck', () => {
     const hint = vi.fn(async (request: AiHintRequest) => ({
       text: `Think about it again (${request.hintNumber}).`,
     }));
+    // Quotes the draft's own first word, as a prompt that quotes carefully does.
+    const writingFeedback = vi.fn(async (request: AiWritingFeedbackRequest) => {
+      const first = request.facts.text.split(' ')[0] as string;
+      return {
+        text: 'A clear start.',
+        corrections: [{ original: first, corrected: first.toUpperCase() }],
+        criteria: [
+          { name: 'Grammar', score: 3, maxScore: 4 },
+          { name: 'Vocabulary', score: 1 },
+          { name: 'Task', score: 1 },
+        ],
+      };
+    });
 
-    const report = await runAiCheck({ explain, hint });
+    const report = await runAiCheck({ explain, hint, writingFeedback });
 
     expect(report.total).toBe(cases.length);
     expect(report.shown).toBe(cases.length);
@@ -84,6 +122,10 @@ describe('runAiCheck', () => {
     expect(report.skipped).toBe(0);
     expect(explain).toHaveBeenCalledTimes(cases.filter((c) => c.feature === 'explanation').length);
     expect(hint).toHaveBeenCalledTimes(cases.filter((c) => c.feature === 'hint').length);
+    const written = report.results.find((one) => one.case.id === 'writing-mistakes');
+    expect(written?.feedback?.corrections[0]?.range).toEqual({ start: 0, end: 4 });
+    // (0.75 × 2 + 1 + 1) / 4
+    expect(written?.feedback?.indicativeScore).toBe(0.875);
     // What the call cost rides back on the result, so a run can be priced.
     const explained = report.results.find((one) => one.case.feature === 'explanation');
     expect(explained?.result?.usage).toEqual({
@@ -109,6 +151,19 @@ describe('runAiCheck', () => {
     expect(printed).toContain('reveals-answer');
     // The refused text is printed: this is a test run, not a learner's screen.
     expect(printed).toContain('The answer is Madrid');
+  });
+
+  it('names the prompt that corrects words the learner never wrote', async () => {
+    const report = await runAiCheck({
+      writingFeedback: async () => ({
+        text: 'Mind your verbs.',
+        corrections: [{ original: 'I goed', corrected: 'I went' }],
+      }),
+    });
+    const writing = cases.filter((one) => one.feature === 'writing-feedback');
+    expect(report.total).toBe(writing.length);
+    expect(report.byRefusal['misquotes-answer']).toBe(writing.length);
+    expect(formatAiCheckReport(report)).toContain('misquotes-answer');
   });
 
   it('counts each refusal by its own reason', async () => {

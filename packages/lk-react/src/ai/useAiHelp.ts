@@ -2,10 +2,13 @@
 
 import {
   type AiTextResult,
+  type AiWritingFeedback,
   aiExplanationRequest,
   aiHintRequest,
+  aiWritingFeedbackRequest,
   checkAiExplanation,
   checkAiHint,
+  checkAiWritingFeedback,
   combineDeliveryPolicies,
   type DeliveryPolicy,
   type InteractionEvent,
@@ -24,6 +27,8 @@ import {
   hintOffered,
   localeOf,
   warnRefused,
+  writingFeedbackLimit,
+  writingFeedbackOffered,
 } from './rules.js';
 
 /**
@@ -433,6 +438,212 @@ export function useAiHints(input: AiHintsInput): AiHintsHelp {
     hints: current.hints,
     limit,
     used: current.hints.length,
+    ask,
+  };
+}
+
+export interface AiWritingFeedbackInput extends AiHelpSituation {
+  /** A disabled question takes no feedback, as it takes no answer. */
+  disabled?: boolean;
+}
+
+export interface AiWritingFeedbackHelp {
+  /**
+   * Whether the learner may ask for feedback here at all: a port is present,
+   * the mode is `practice`, the answer is not in, the question is a written
+   * response that is not disabled or redacted, its author left explanations on,
+   * and the paper shows feedback and solutions and allows AI explanations. It
+   * stays true once `used` reaches `limit`.
+   */
+  offered: boolean;
+  status: 'idle' | 'loading' | 'unavailable';
+  /** Every piece of feedback shown for this question, oldest first. */
+  feedback: readonly AiWritingFeedback[];
+  /** The latest, or `null` before any. Its `text` is text, never HTML. */
+  latest: AiWritingFeedback | null;
+  /**
+   * Whether `latest` is about the draft as it stands. Once the learner revises,
+   * its corrections point at words that may no longer be there: say so.
+   */
+  current: boolean;
+  /** The host's `maxWritingFeedback`, as a whole number from 1 to 10 (3 by default). */
+  limit: number;
+  /** How many times feedback has been shown. A refused reply is not counted. */
+  used: number;
+  /**
+   * Asks for feedback on the draft as it stands. Does nothing at the limit,
+   * while a call is on its way, on an empty draft, or where `offered` is false.
+   * One identity for the life of the question.
+   */
+  ask: () => void;
+}
+
+interface WritingFeedbackState {
+  key: string;
+  shown: { feedback: AiWritingFeedback; about: string }[];
+  status: 'idle' | 'loading' | 'unavailable';
+}
+
+/** The text of a written response; another type's response is no draft at all. */
+const draftOf = (response: LearnerResponse): string =>
+  response.type === 'written-response' ? response.text : '';
+
+/**
+ * "Get feedback on my draft", without the SDK's own button and panel: the
+ * rules, the call, the checks and the record, for a written response you draw
+ * yourself.
+ *
+ * It is what `<WrittenResponse>` uses, so a host's own essay box gets feedback
+ * on the same terms: only in `practice` before submit, up to the host's limit,
+ * and never feedback that corrects words the learner did not write — which is
+ * refused rather than shown, and not counted.
+ *
+ * ```tsx
+ * const { offered, status, latest, current, used, limit, ask } = useAiWritingFeedback({
+ *   data, response, submitted, renderMode, ai: question.ai,
+ * });
+ * ```
+ *
+ * **Say who wrote it**, as the SDK's own panel does: "Written by AI. It can make
+ * mistakes." And show `indicativeScore` as what it is — an indication, not a
+ * grade.
+ */
+export function useAiWritingFeedback(input: AiWritingFeedbackInput): AiWritingFeedbackHelp {
+  const { data, submitted, response } = input;
+  const around = useContext(SequenceSlotContext);
+  const renderMode = modeInForce(input.renderMode, around?.renderMode);
+  const delivery = combineDeliveryPolicies(input.delivery, around?.delivery);
+  const disabled = input.disabled === true;
+  const ai = useLearnerAi(input.ai);
+  const resetKey = data.id;
+  const [state, setState] = useState<WritingFeedbackState>({
+    key: resetKey,
+    shown: [],
+    status: 'idle',
+  });
+  const run = useRef(0);
+  const controller = useRef<AbortController | null>(null);
+  const current: WritingFeedbackState =
+    state.key === resetKey ? state : { key: resetKey, shown: [], status: 'idle' };
+  const offered =
+    ai?.writingFeedback !== undefined &&
+    writingFeedbackOffered({ data, renderMode, submitted, disabled, delivery });
+  const limit = writingFeedbackLimit(ai);
+
+  const latest = useRef({ input, ai, offered, limit, current });
+  latest.current = { input, ai, offered, limit, current };
+
+  // Another question, or the caller going away: abandon the call in flight.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the key is the trigger — its cleanup runs when the question changes
+  useEffect(() => {
+    return () => {
+      run.current += 1;
+      controller.current?.abort();
+      controller.current = null;
+    };
+  }, [resetKey]);
+
+  // Submitted, or disabled, while feedback was on its way: it would arrive for
+  // a draft that can no longer be revised.
+  useEffect(() => {
+    if (!offered) {
+      run.current += 1;
+      controller.current?.abort();
+      controller.current = null;
+      setState((previous) =>
+        previous.status === 'loading' ? { ...previous, status: 'idle' } : previous,
+      );
+    }
+  }, [offered]);
+
+  const ask = useCallback((): void => {
+    const now = latest.current;
+    const port = now.ai?.writingFeedback;
+    const held = now.current;
+    if (
+      port === undefined ||
+      !now.offered ||
+      held.status === 'loading' ||
+      held.shown.length >= now.limit
+    ) {
+      return;
+    }
+    const key = held.key;
+    const about = draftOf(now.input.response);
+    const request = aiWritingFeedbackRequest({
+      data: now.input.data,
+      response: now.input.response,
+      previousFeedback: held.shown.map((one) => one.feedback.text),
+      ...localeOf(now.ai, now.input.locale),
+    });
+    if (request === null) {
+      // An empty draft: nothing to give feedback on, and nothing went wrong.
+      return;
+    }
+    run.current += 1;
+    const mine = run.current;
+    controller.current?.abort();
+    const abort = new AbortController();
+    controller.current = abort;
+    setState({ ...held, status: 'loading' });
+    callPort(() => port(request, { signal: abort.signal })).then(
+      (raw) => {
+        if (run.current !== mine) {
+          return;
+        }
+        const checked = checkAiWritingFeedback(raw, request);
+        if (!checked.ok) {
+          warnRefused('writing feedback', now.input.data.id, checked.refusal);
+          setState((was) => ({ ...was, status: 'unavailable' }));
+          latest.current.input.onInteraction?.({
+            type: 'ai-help-refused',
+            activityId: now.input.data.id,
+            timestamp: Date.now(),
+            payload: {
+              feature: 'writing-feedback',
+              reason: checked.refusal,
+              draftNumber: request.draftNumber,
+            },
+          });
+          return;
+        }
+        const { feedback } = checked;
+        setState((was) => ({
+          ...was,
+          shown: was.key === key ? [...was.shown, { feedback, about }] : was.shown,
+          status: 'idle',
+        }));
+        latest.current.input.onInteraction?.({
+          type: 'ai-writing-feedback-shown',
+          activityId: now.input.data.id,
+          timestamp: Date.now(),
+          payload: {
+            draftNumber: request.draftNumber,
+            corrections: feedback.corrections.length,
+            ...(feedback.indicativeScore !== null
+              ? { indicativeScore: feedback.indicativeScore }
+              : {}),
+            ...shownPayload(feedback),
+          },
+        });
+      },
+      () => {
+        if (run.current === mine) {
+          setState((was) => ({ ...was, status: 'unavailable' }));
+        }
+      },
+    );
+  }, []);
+
+  const last = current.shown[current.shown.length - 1];
+  return {
+    offered,
+    status: current.status,
+    feedback: current.shown.map((one) => one.feedback),
+    latest: last?.feedback ?? null,
+    current: last !== undefined && last.about === draftOf(response),
+    limit,
+    used: current.shown.length,
     ask,
   };
 }

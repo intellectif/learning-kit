@@ -53,6 +53,7 @@ export type {
   ActivityAiPermissions,
   AiActivityInput,
   AiBlankFact,
+  AiCriterionJudgement,
   AiDictationFacts,
   AiExplanationRequest,
   AiFeature,
@@ -66,10 +67,16 @@ export type {
   AiOptionFact,
   AiProvenance,
   AiRefusal,
+  AiRubricCriterionFact,
   AiSupportedActivityType,
   AiTextResult,
   AiVerdict,
   AiWordFact,
+  AiWritingCorrection,
+  AiWritingFacts,
+  AiWritingFeedback,
+  AiWritingFeedbackRequest,
+  AiWritingFeedbackResult,
 } from './ai.js';
 export type { AttemptPlan, AttemptPlanDrift, AttemptPlanSlot } from './attempt-plan.js';
 export type { AttemptState, ResponseDiffEntry } from './attempt-state.js';

@@ -8,7 +8,7 @@
  * the SDK reached; it never reaches one.
  */
 
-import type { GraderUsage } from './grading.js';
+import type { CriterionScore, GraderUsage, InlineCorrection } from './grading.js';
 
 /**
  * What an author allows AI to do for one item. Absent, or a feature left out,
@@ -20,7 +20,11 @@ import type { GraderUsage } from './grading.js';
  * one-word vocabulary item, say.
  */
 export interface ActivityAiPermissions {
-  /** An explanation of the learner's graded answer. */
+  /**
+   * An explanation of the learner's graded answer — and, on a written
+   * response, feedback on a draft: both are a model's words about the
+   * learner's own answer.
+   */
   explanations?: boolean;
   /** Hints before the learner submits. */
   hints?: boolean;
@@ -41,8 +45,8 @@ export interface AiActivityInput {
   readonly ai?: unknown;
 }
 
-/** The two kinds of help a learner can be given. */
-export type AiFeature = 'explanation' | 'hint';
+/** The kinds of help a learner can be given. */
+export type AiFeature = 'explanation' | 'hint' | 'writing-feedback';
 
 /** The activity types the SDK builds facts for. */
 export type AiSupportedActivityType =
@@ -228,5 +232,124 @@ export interface AiTextResult {
   usage?: GraderUsage;
 }
 
-/** Why a result was not shown. */
-export type AiRefusal = 'malformed' | 'empty' | 'too-long' | 'contradicts-grade' | 'reveals-answer';
+/**
+ * Why a result was not shown. `misquotes-answer` is writing feedback that
+ * corrects words the learner did not write: a correction whose quote is not in
+ * the draft, or not where it claims to be.
+ */
+export type AiRefusal =
+  | 'malformed'
+  | 'empty'
+  | 'too-long'
+  | 'contradicts-grade'
+  | 'reveals-answer'
+  | 'misquotes-answer';
+
+// ── Feedback on writing ─────────────────────────────────────────────────
+
+/** One criterion of a written response's rubric, as the author wrote it. */
+export interface AiRubricCriterionFact {
+  name: string;
+  description?: string;
+  weight: number;
+}
+
+/**
+ * What a model is told about a draft of a written response: the task as the
+ * learner saw it, the draft verbatim, and the rubric it will be graded on.
+ */
+export interface AiWritingFacts {
+  activityType: 'written-response';
+  activityId: string;
+  title: string;
+  /** The language the item is written in, when the author gave one. */
+  locale?: string;
+  prompt: string;
+  /** The draft, exactly as the learner wrote it. Every correction quotes it. */
+  text: string;
+  /** Recomputed with `countWords`, as the grader will count it. */
+  wordCount: number;
+  minWords: number;
+  maxWords: number;
+  withinWordBounds: boolean;
+  /** The rubric the answer will be graded on; `null` when the item has none. */
+  rubric: AiRubricCriterionFact[] | null;
+  /** The target language and level, when the author gave one (e.g. `"en-A2"`). */
+  languageTarget?: string;
+}
+
+/**
+ * Asks for feedback on a draft of a written response, before the learner
+ * submits it. Practice only.
+ */
+export interface AiWritingFeedbackRequest {
+  feature: 'writing-feedback';
+  facts: AiWritingFacts;
+  /** 1-based: which draft this is. */
+  draftNumber: number;
+  /** The text of the feedback already shown on earlier drafts, oldest first. */
+  previousFeedback: string[];
+  /** The language to write in: the learner's interface language, when known. */
+  learnerLocale?: string;
+}
+
+/**
+ * One correction a model proposes. `original` must be words the learner
+ * wrote; the SDK finds them in the draft itself, so a model need not count
+ * characters — leave `range` out unless you are sure of it, because a range
+ * that does not hold the quote is refused.
+ */
+export interface AiWritingCorrection {
+  original: string;
+  corrected: string;
+  explanation?: string;
+  /** An error-type tag, e.g. `"tense"`, `"article"`. */
+  category?: string;
+  range?: { start: number; end: number };
+}
+
+/**
+ * A model's judgement of one rubric criterion. The SDK attaches the author's
+ * weight; a weight sent here is ignored.
+ */
+export type AiCriterionJudgement = Omit<CriterionScore, 'weight'> & { weight?: number };
+
+/**
+ * What a host's `writingFeedback` port returns: the overall feedback as plain
+ * text, and optionally corrections and a judgement per rubric criterion.
+ */
+export interface AiWritingFeedbackResult {
+  /** The overall feedback, addressed to the learner. Plain text, never HTML. */
+  text: string;
+  corrections?: AiWritingCorrection[];
+  criteria?: AiCriterionJudgement[];
+  provenance?: AiProvenance;
+  usage?: GraderUsage;
+}
+
+/**
+ * Feedback on a draft, as the SDK accepted it: what a learner is shown.
+ */
+export interface AiWritingFeedback {
+  text: string;
+  /**
+   * Every correction, anchored in the draft: `range` is where the SDK found
+   * the quote, and `original` is the draft's own text at that range.
+   */
+  corrections: InlineCorrection[];
+  /** The model's judgements, with the rubric's weights. */
+  criteria: CriterionScore[];
+  /**
+   * The rubric's weighted total of the judgements, from 0 to 1, computed by
+   * the SDK as `gradeFromRubric` computes a grade — when every criterion of
+   * the rubric was judged; `null` otherwise, and on an item with no rubric.
+   *
+   * **An indication, never a grade:** it is a model's reading of a draft the
+   * learner has not submitted, and nothing in the SDK scores an answer with
+   * it. `ai-writing-feedback-shown` reports it, so a record can say what the
+   * learner was shown.
+   */
+  indicativeScore: number | null;
+  provenance?: AiProvenance;
+  usage?: GraderUsage;
+}

@@ -22,12 +22,51 @@ import type { LearnerAi } from './LkAiProvider.js';
 const DEFAULT_MAX_HINTS = 3;
 const MAX_HINTS_CEILING = 10;
 
-/** `maxHints` as a whole number from 1 to 10; anything else is the default. */
-export function hintLimit(ai: LearnerAi | undefined): number {
-  const asked = ai?.maxHints;
+/** A host's limit as a whole number from 1 to 10; anything else is the default, 3. */
+function limitOf(asked: unknown): number {
   return typeof asked === 'number' && Number.isInteger(asked) && asked >= 1
     ? Math.min(asked, MAX_HINTS_CEILING)
     : DEFAULT_MAX_HINTS;
+}
+
+/** `maxHints` as a whole number from 1 to 10; anything else is the default. */
+export function hintLimit(ai: LearnerAi | undefined): number {
+  return limitOf(ai?.maxHints);
+}
+
+/** `maxWritingFeedback` as a whole number from 1 to 10; anything else is the default. */
+export function writingFeedbackLimit(ai: LearnerAi | undefined): number {
+  return limitOf(ai?.maxWritingFeedback);
+}
+
+/**
+ * Whether the learner may ask for feedback on a draft: `practice`, before
+ * submit, on a written response that is not disabled or redacted, whose author
+ * left explanations on. The paper's policy must show feedback and solutions —
+ * a correction is the right form beside a wrong one — and allow AI
+ * explanations, which writing feedback is: a model's words about the
+ * learner's own answer.
+ */
+export function writingFeedbackOffered(input: {
+  data: RenderableActivity;
+  renderMode: RenderMode;
+  submitted: boolean;
+  disabled: boolean;
+  delivery?: ResolvedDeliveryPolicy;
+}): boolean {
+  const { data, renderMode, submitted, disabled } = input;
+  const delivery = input.delivery ?? OPEN_DELIVERY_POLICY;
+  return (
+    delivery.feedback &&
+    delivery.solutions &&
+    delivery.ai.explanations &&
+    renderMode === 'practice' &&
+    !submitted &&
+    !disabled &&
+    data.redacted !== true &&
+    aiSupports(data.type, 'writing-feedback') &&
+    aiAllowedByContent(data, 'writing-feedback')
+  );
 }
 
 /**
@@ -98,7 +137,7 @@ export function callPort<T>(call: () => Promise<T>): Promise<T> {
 
 /** Tells a developer why a port's answer was not shown. Silent in production. */
 export function warnRefused(
-  feature: 'explanation' | 'hint',
+  feature: 'explanation' | 'hint' | 'writing feedback',
   activityId: string,
   reason: AiRefusal,
 ): void {

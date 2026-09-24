@@ -18,6 +18,7 @@
  * const report = await runAiCheck({
  *   explain: (request) => callMyModel(EXPLAIN_PROMPT, request),
  *   hint: (request) => callMyModel(HINT_PROMPT, request),
+ *   writingFeedback: (request) => callMyModel(FEEDBACK_PROMPT, request),
  * });
  * console.log(formatAiCheckReport(report));
  * if (report.refused > 0 || report.errors > 0) {
@@ -27,10 +28,20 @@
  *
  * A refusal is a real failure, not a warning: it is an answer a learner would
  * have asked for and not received. `reveals-answer` on a hint case is the one
- * to take most seriously — that prompt gives answers away.
+ * to take most seriously — that prompt gives answers away — and
+ * `misquotes-answer` on a writing case the next: that prompt corrects words the
+ * learner never wrote.
  */
 import { checkAiExplanation, checkAiHint } from '../ai.js';
-import type { AiExplanationRequest, AiHintRequest, AiRefusal, AiTextResult } from '../types/ai.js';
+import { checkAiWritingFeedback } from '../ai-writing.js';
+import type {
+  AiExplanationRequest,
+  AiHintRequest,
+  AiRefusal,
+  AiTextResult,
+  AiWritingFeedback,
+  AiWritingFeedbackRequest,
+} from '../types/ai.js';
 import { type AiCheckCase, aiCheckCases } from './cases.js';
 
 export { type AiCheckCase, aiCheckCases } from './cases.js';
@@ -45,6 +56,7 @@ export { type AiCheckCase, aiCheckCases } from './cases.js';
 export interface AiCheckPorts {
   explain?(request: AiExplanationRequest): Promise<unknown> | unknown;
   hint?(request: AiHintRequest): Promise<unknown> | unknown;
+  writingFeedback?(request: AiWritingFeedbackRequest): Promise<unknown> | unknown;
 }
 
 /** What happened on one case. */
@@ -62,6 +74,8 @@ export interface AiCheckResult {
    * nothing the SDK could read.
    */
   result?: AiTextResult;
+  /** For a writing case a learner would have been shown: the feedback, as the SDK accepted it. */
+  feedback?: AiWritingFeedback;
   /** How long the call took, in milliseconds. */
   ms: number;
 }
@@ -104,7 +118,23 @@ const REFUSALS: AiRefusal[] = [
   'too-long',
   'contradicts-grade',
   'reveals-answer',
+  'misquotes-answer',
 ];
+
+/** The port a case is for. */
+function portFor(
+  ports: AiCheckPorts,
+  one: AiCheckCase,
+): ((request: never) => Promise<unknown> | unknown) | undefined {
+  switch (one.request.feature) {
+    case 'explanation':
+      return ports.explain as never;
+    case 'hint':
+      return ports.hint as never;
+    default:
+      return ports.writingFeedback as never;
+  }
+}
 
 /** Milliseconds, from whichever clock this runtime has. */
 const now = (): number => Date.now();
@@ -112,8 +142,7 @@ const now = (): number => Date.now();
 /** Runs one case: calls the port, times it, and checks what came back. */
 async function runCase(ports: AiCheckPorts, one: AiCheckCase): Promise<AiCheckResult> {
   const started = now();
-  const explaining = one.request.feature === 'explanation';
-  const port = explaining ? ports.explain : ports.hint;
+  const port = portFor(ports, one);
   if (port === undefined) {
     throw new Error(`ai-check: no port for "${one.id}"`);
   }
@@ -129,18 +158,42 @@ async function runCase(ports: AiCheckPorts, one: AiCheckCase): Promise<AiCheckRe
     };
   }
   const ms = now() - started;
-  const checked = explaining
-    ? checkAiExplanation(raw, one.request as AiExplanationRequest)
-    : checkAiHint(raw, one.request as AiHintRequest);
+  if (one.request.feature === 'writing-feedback') {
+    const checked = checkAiWritingFeedback(raw, one.request);
+    if (checked.ok) {
+      const { text, provenance, usage } = checked.feedback;
+      return {
+        case: one,
+        ok: true,
+        result: {
+          text,
+          ...(provenance !== undefined ? { provenance } : {}),
+          ...(usage !== undefined ? { usage } : {}),
+        },
+        feedback: checked.feedback,
+        ms,
+      };
+    }
+    return refused(one, raw, checked.refusal, ms);
+  }
+  const checked =
+    one.request.feature === 'explanation'
+      ? checkAiExplanation(raw, one.request)
+      : checkAiHint(raw, one.request);
   if (checked.ok) {
     return { case: one, ok: true, result: checked.result, ms };
   }
+  return refused(one, raw, checked.refusal, ms);
+}
+
+/** A case whose answer was refused, with the text that came back when there was one to read. */
+function refused(one: AiCheckCase, raw: unknown, refusal: AiRefusal, ms: number): AiCheckResult {
   const text =
     typeof (raw as { text?: unknown })?.text === 'string' ? (raw as AiTextResult) : undefined;
   return {
     case: one,
     ok: false,
-    refusal: checked.refusal,
+    refusal,
     ...(text !== undefined ? { result: text } : {}),
     ms,
   };
@@ -159,9 +212,7 @@ export async function runAiCheck(
   const all = options.cases ?? aiCheckCases();
   const asked = Math.trunc(options.concurrency ?? 1);
   const lanes = Number.isFinite(asked) && asked >= 1 ? Math.min(asked, 16) : 1;
-  const runnable = all.filter((one) =>
-    one.request.feature === 'explanation' ? ports.explain !== undefined : ports.hint !== undefined,
-  );
+  const runnable = all.filter((one) => portFor(ports, one) !== undefined);
   const results: AiCheckResult[] = new Array(runnable.length);
   let next = 0;
   const lane = async (): Promise<void> => {

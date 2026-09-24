@@ -1,3 +1,4 @@
+import { cleanText } from './ai-text.js';
 import { PLACEHOLDER_RE } from './schemas/fill-in-the-blanks.js';
 import { alignDictation } from './scoring/dictation/align.js';
 import { isGradeInRange } from './scoring/grade-numbers.js';
@@ -49,11 +50,14 @@ export const AI_HINT_TYPES: readonly AiSupportedActivityType[] = [
 export const AI_TEXT_MAX_LENGTH = 2000;
 
 /**
- * Whether the SDK supports `feature` for this activity type. A type it builds
- * no facts for — a written response, a read-aloud, a consumer's own — has
- * neither.
+ * Whether the SDK supports `feature` for this activity type: explanations and
+ * hints for the types it builds facts for, and writing feedback for a written
+ * response. A read-aloud, or a consumer's own type, has none.
  */
 export function aiSupports(activityType: string, feature: AiFeature): boolean {
+  if (feature === 'writing-feedback') {
+    return activityType === 'written-response';
+  }
   const types = feature === 'hint' ? AI_HINT_TYPES : AI_EXPLANATION_TYPES;
   return (types as readonly string[]).includes(activityType);
 }
@@ -61,6 +65,10 @@ export function aiSupports(activityType: string, feature: AiFeature): boolean {
 /**
  * Whether the item's author allows `feature`. Only an explicit `false`
  * switches it off: an author can refuse a feature, never force one on.
+ *
+ * Writing feedback reads `explanations`: both are a model's words about the
+ * learner's own answer, and an author who switched one off has switched off
+ * the other.
  */
 export function aiAllowedByContent(data: AiActivityInput, feature: AiFeature): boolean {
   const permissions = (data as { ai?: unknown }).ai;
@@ -435,22 +443,6 @@ function usageOf(raw: unknown): GraderUsage | undefined {
     }
   }
   return Object.keys(kept).length > 0 ? kept : undefined;
-}
-
-/**
- * Plain text as the learner will read it: line endings unified, control
- * characters other than line breaks and tabs removed, runs of blank lines
- * collapsed, the ends trimmed.
- */
-function cleanText(text: string): string {
-  return (
-    text
-      .replace(/\r\n?/g, '\n')
-      // biome-ignore lint/suspicious/noControlCharactersInRegex: removing them is the point
-      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u2028\u2029]/g, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim()
-  );
 }
 
 /**

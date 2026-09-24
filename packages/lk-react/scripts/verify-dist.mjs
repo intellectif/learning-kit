@@ -88,7 +88,7 @@ const REQUIRED_EXPORTS = {
     'useTheme',
   ],
   'dist/ai/LkAiProvider.js': ['LkAiProvider', 'useLearnerAi'],
-  'dist/ai/useAiHelp.js': ['useAiExplanation', 'useAiHints'],
+  'dist/ai/useAiHelp.js': ['useAiExplanation', 'useAiHints', 'useAiWritingFeedback'],
   'dist/i18n/LkIntlProvider.js': [
     'DEFAULT_STRINGS',
     'LkIntlProvider',
@@ -102,6 +102,7 @@ const REQUIRED_EXPORTS = {
     'LkAiProvider',
     'useAiExplanation',
     'useAiHints',
+    'useAiWritingFeedback',
     'ActivitySequence',
     'CAPTURE_PROCESSOR_SOURCE',
     'DEFAULT_STRINGS',

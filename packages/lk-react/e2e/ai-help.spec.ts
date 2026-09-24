@@ -49,3 +49,39 @@ test('exam: no AI help before submit or after it, though the page connects a mod
   await expect(section.getByRole('button', { name: 'Explain my answer' })).toHaveCount(0);
   await expect(section.locator('.lk-ai')).toHaveCount(0);
 });
+
+test('practice: feedback on a draft, out of date after a revision, then a reply refused for correcting words no longer there', async ({
+  page,
+}) => {
+  const section = page.getByLabel('Feedback on writing', { exact: true });
+  const draft = section.getByRole('textbox');
+  const ask = section.getByRole('button', { name: 'Get feedback on my draft' });
+  await draft.fill('Last weekend I go to the market and buyed bread.');
+  await ask.click();
+
+  const panel = section.getByRole('region', { name: 'Feedback on your draft' });
+  await expect(panel).toContainText('A good start. Watch your past tenses.');
+  await expect(panel).toBeFocused();
+  const corrections = panel.getByRole('list', { name: 'Suggested corrections' });
+  await expect(corrections.getByRole('listitem')).toHaveCount(2);
+  await expect(corrections).toContainText('bought');
+  await expect(corrections).toContainText('went to');
+  // Grammar 0.5 at weight 2, Task 1 at weight 1: the SDK's arithmetic, not the model's.
+  await expect(panel).toContainText('Indicative score: 67%. Not a grade.');
+  await expect(panel).toContainText('Written by AI. It can make mistakes.');
+  await expect(
+    page.getByText(/Writing feedback ai-writing-feedback-shown \{"draftNumber":1,"corrections":2,/),
+  ).toBeVisible();
+
+  await draft.fill('Last weekend I went to the market and bought bread.');
+  await expect(panel).toContainText('You have changed your text since this feedback.');
+
+  // The stand-in still corrects "buyed", which the draft no longer contains.
+  await ask.click();
+  await expect(section.getByText('No feedback is available right now.')).toBeVisible();
+  await expect(section.getByRole('region', { name: 'Feedback on your draft' })).toHaveCount(1);
+  await expect(panel).toContainText('You have changed your text since this feedback.');
+  await expect(
+    page.getByText(/Writing feedback ai-help-refused .*"reason":"misquotes-answer"/),
+  ).toBeVisible();
+});

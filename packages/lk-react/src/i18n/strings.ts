@@ -438,6 +438,25 @@ export interface LkStrings {
   aiNoMoreHints: string;
   /** Beneath every AI text: who wrote it. */
   aiNotice: string;
+  /** The button that asks for feedback on a draft of a written response. */
+  aiWritingFeedback: string;
+  /** The same button while the feedback is being written. */
+  aiWritingFeedbackLoading: string;
+  /** The heading over feedback on a draft, and its accessible name. */
+  aiWritingFeedbackHeading: string;
+  /** When no feedback can be shown: the port failed, or its feedback was refused. */
+  aiWritingFeedbackUnavailable: string;
+  /** In place of the feedback button once the learner has used every request. */
+  aiNoMoreWritingFeedback: string;
+  /** Above feedback the learner has revised the draft since: its corrections may be out of date. */
+  aiWritingFeedbackOutdated: string;
+  /** The accessible name of the list of corrections the feedback suggests. */
+  aiCorrections: string;
+  /**
+   * The rubric's weighted total of a model's judgements of a draft, as a whole
+   * percentage — said to be an indication and not a grade, which it is not.
+   */
+  aiIndicativeScore: (percent: number) => string;
 
   // ── Audio transport ────────────────────────────────────────────────────
   /**
@@ -742,6 +761,14 @@ export const DEFAULT_STRINGS: LkStrings = {
   aiHintUnavailable: 'No hint is available right now.',
   aiNoMoreHints: 'No more hints for this question.',
   aiNotice: 'Written by AI. It can make mistakes.',
+  aiWritingFeedback: 'Get feedback on my draft',
+  aiWritingFeedbackLoading: 'Reading your draft…',
+  aiWritingFeedbackHeading: 'Feedback on your draft',
+  aiWritingFeedbackUnavailable: 'No feedback is available right now.',
+  aiNoMoreWritingFeedback: 'No more feedback for this answer.',
+  aiWritingFeedbackOutdated: 'You have changed your text since this feedback.',
+  aiCorrections: 'Suggested corrections',
+  aiIndicativeScore: (percent) => `Indicative score: ${percent}%. Not a grade.`,
 
   media: {
     play: 'Play',

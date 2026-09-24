@@ -14,12 +14,14 @@ import { FillInTheBlanks } from '@intellectif/lk-react/components/FillInTheBlank
 import { GapSelect } from '@intellectif/lk-react/components/GapSelect';
 import { MultipleChoice } from '@intellectif/lk-react/components/MultipleChoice';
 import { ReadAloud, type RecordingBinding } from '@intellectif/lk-react/components/ReadAloud';
+import { WrittenResponse } from '@intellectif/lk-react/components/WrittenResponse';
 import { useXAPI } from '@intellectif/lk-react/hooks/useXAPI';
 import { ThemeProvider } from '@intellectif/lk-react/theme/ThemeProvider';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { LRS_ENDPOINT } from './config';
 import {
   demoSpeechAssessment,
+  sampleAiEssay,
   sampleAiExam,
   sampleAiPractice,
   sampleDictation,
@@ -74,6 +76,16 @@ const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
  * model's structured output would, so the SDK can check it against the grade.
  */
 let demoHintCalls = 0;
+
+/**
+ * The past-tense mistakes the stand-in knows how to correct, each quoted as a
+ * learner would type it.
+ */
+const DEMO_MISTAKES = [
+  { original: 'buyed', corrected: 'bought', explanation: '"Buy" is irregular: bought.' },
+  { original: 'go to', corrected: 'went to', explanation: 'Last weekend is in the past.' },
+] as const;
+
 const demoAi: LearnerAi = {
   hint: async (request) => {
     await pause(300);
@@ -105,10 +117,39 @@ const demoAi: LearnerAi = {
       provenance: { model: 'demo-stand-in' },
     };
   },
+  /**
+   * Feedback on a draft. It corrects the mistakes it finds, quoting the
+   * learner's words. On a later draft it keeps correcting "buyed" after the
+   * learner has fixed it, as a careless model does, and the SDK refuses the
+   * whole reply: it corrects words the draft no longer contains.
+   */
+  writingFeedback: async (request) => {
+    await pause(300);
+    const text = request.facts.text;
+    const found = DEMO_MISTAKES.filter((mistake) => text.includes(mistake.original));
+    const stale = request.draftNumber > 1 && !text.includes('buyed') ? [DEMO_MISTAKES[0]] : [];
+    return {
+      text:
+        found.length === 0
+          ? 'Clear, and in the past tense throughout.'
+          : 'A good start. Watch your past tenses.',
+      corrections: [...found, ...stale],
+      criteria: [
+        {
+          name: 'Grammar',
+          score: found.length === 0 ? 1 : 0.5,
+          comment: `${found.length} past-tense mistake${found.length === 1 ? '' : 's'}.`,
+        },
+        { name: 'Task', score: 1 },
+      ],
+      provenance: { model: 'demo-stand-in' },
+    };
+  },
   maxHints: 3,
 };
 
 const AI_EVENTS: readonly string[] = ['ai-hint-shown', 'ai-explanation-shown'];
+const WRITING_EVENTS: readonly string[] = ['ai-writing-feedback-shown', 'ai-help-refused'];
 
 export function App(): React.JSX.Element {
   const [log, setLog] = useState<{ id: string; text: string }[]>([]);
@@ -275,7 +316,8 @@ export function App(): React.JSX.Element {
             The same question twice, answered by a stand-in model in this page. In practice a
             learner can ask for hints and, once graded, an explanation — and the second hint, which
             gives the answer away on purpose, is refused. In an exam no question gives AI help,
-            whatever the page connects.
+            whatever the page connects. Below them, feedback on a draft: each correction quotes the
+            learner's words, and a reply that corrects words no longer in the draft is refused.
           </p>
           <LkAiProvider ai={demoAi}>
             <section aria-labelledby="ai-practice-heading">
@@ -288,6 +330,13 @@ export function App(): React.JSX.Element {
             <section aria-labelledby="ai-exam-heading">
               <h3 id="ai-exam-heading">AI help in an exam</h3>
               <MultipleChoice data={sampleAiExam} renderMode="exam" />
+            </section>
+            <section aria-labelledby="ai-writing-heading">
+              <h3 id="ai-writing-heading">Feedback on writing</h3>
+              <WrittenResponse
+                data={sampleAiEssay}
+                onInteraction={logInteraction('Writing feedback', WRITING_EVENTS)}
+              />
             </section>
           </LkAiProvider>
         </section>

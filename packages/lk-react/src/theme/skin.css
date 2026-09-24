@@ -3421,6 +3421,29 @@
     font-weight: 600;
   }
 
+  /* Feedback on a draft holds lists as well as text: it takes the width of
+     the answer it is about — the live region around it included, which would
+     otherwise shrink to its content — and the panel spaces its parts, rather
+     than each part's own margins. */
+  .lk-wr-ai > [aria-live] {
+    align-self: stretch;
+  }
+
+  .lk-wr-ai .lk-ai-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-sm);
+  }
+
+  .lk-wr-ai .lk-ai-panel > * {
+    margin: 0;
+  }
+
+  .lk-wr-indicative {
+    font-size: var(--lk-font-size-sm);
+    font-weight: 600;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .lk-ai-button {
       transition: none;
