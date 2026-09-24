@@ -150,13 +150,13 @@ describe('Scoring engine properties', () => {
             type: 'fill-in-the-blanks' as const,
             answers: { b: input },
           };
-          const original = score('fill-in-the-blanks', base, resp).details[0]?.correct;
+          const original = score('fill-in-the-blanks', base, resp).details[0]?.outcome;
           const shuffled: FillInTheBlanksData = {
             ...base,
             blanks: [{ id: 'b', acceptedAnswers: [...accepted].reverse() }],
           };
-          const reversed = score('fill-in-the-blanks', shuffled, resp).details[0]?.correct;
-          return original === true && reversed === true && original === reversed;
+          const reversed = score('fill-in-the-blanks', shuffled, resp).details[0]?.outcome;
+          return original === 'correct' && reversed === 'correct';
         },
       ),
       { numRuns: 100 },

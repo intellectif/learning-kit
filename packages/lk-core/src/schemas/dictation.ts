@@ -13,6 +13,7 @@ import {
   revealsCandidate,
   WORKING_LENGTH,
 } from '../scoring/dictation/normalize.js';
+import { checkEvenAfterIssues, parsedFields } from './after-issues.js';
 import { AiPermissionsSchema } from './ai.js';
 import { FeedbackSchema } from './feedback.js';
 import { MediaSchema, MediaUrlSchema } from './media.js';
@@ -106,21 +107,6 @@ function isEmpty(measured: MeasuredTranscript): boolean {
 }
 
 /**
- * A check zod runs even when another field was refused. An ordinary check is
- * skipped once any issue has been reported, so an author fixing a recording's
- * address would only then learn that the title gives the answer away. The
- * check itself decides which of its guards the refused fields leave nothing to
- * read.
- */
-function checkEvenAfterIssues<T>(
-  check: (payload: z.core.ParsePayload<T>) => void,
-): z.core.$ZodCheck<T> {
-  const guard: z.core.$ZodCheck<T> = new z.core.$ZodCheck({ check: 'custom', when: () => true });
-  guard._zod.check = check;
-  return guard;
-}
-
-/**
  * Zod schema validating the full Dictation data contract.
  *
  * Twelve semantic guards, none expressible in JSON Schema, each an authoring
@@ -156,10 +142,10 @@ function checkEvenAfterIssues<T>(
  * Every guard that reads a transcript shares one normalisation of it per
  * parse. Guards 11 and 12 report at the field that is wrong, since either of
  * two or three fields can be. The guards run even when an unrelated field was
- * refused, but a guard that reads a field zod refused waits until that field
- * parses: zod leaves a refused optional field — the rules, the accepted
- * transcripts, a recording — out of the value the guards read, and a refused
- * transcript or title is not text.
+ * refused, and read only the fields that parsed (see `parsedFields`): a refused
+ * optional field — the rules, the accepted transcripts, a recording — reads as
+ * absent, and a guard that needs the transcript or the title waits until it
+ * parses.
  */
 const DictationDataShape = z.looseObject({
   schemaVersion: z.literal('1.0'),
@@ -189,13 +175,10 @@ export const DictationDataSchema = DictationDataShape.check(
     if (ctx.issues.some((issue) => (issue.path?.length ?? 0) === 0)) {
       return;
     }
-    const data = ctx.value;
-    // Zod leaves an optional key out of the parsed value when anything inside it
-    // was refused, so a guard reading that key would read it as absent — rules
-    // that rescue a transcript, a recording a slow one accompanies — and keeps a
-    // refused required key as it was given, which need not be text. A guard
-    // that depends on such a key waits until it parses.
-    const refused = new Set(ctx.issues.map((issue) => String(issue.path?.[0])));
+    // A refused key reads as absent — rules that rescue a transcript, a recording
+    // a slow one accompanies — and a guard that depends on a refused required
+    // key, which need not be text, waits until it parses.
+    const { data, refused } = parsedFields(ctx);
     const report = (path: readonly (string | number)[], input: unknown, message: string) => {
       ctx.issues.push({ code: 'custom', input, message, path: [...path] });
     };

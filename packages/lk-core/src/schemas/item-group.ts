@@ -12,6 +12,8 @@ import type { ActivityData, ValidationError, ValidationResult } from '../types/a
 import type { ItemGroup, StimulusKind } from '../types/item-group.js';
 import { GROUP_CAPTIONS_REVEAL_DICTATION, groupCaptionsField } from './dictation.js';
 import { MediaSchema, RedactedMediaSchema } from './media.js';
+import { readSchema } from './read-schema.js';
+import { maxUnits } from './text-length.js';
 
 /**
  * An authored slot key.
@@ -95,10 +97,10 @@ export const StimulusSchema = z
     },
   );
 
-const TimelineTitleSchema = z
-  .string()
-  .max(TIMELINE_MAX_TITLE_LENGTH)
-  .refine((title) => title.trim().length > 0, { error: 'A title must not be empty.' });
+const TimelineTitleSchema = maxUnits(z.string(), TIMELINE_MAX_TITLE_LENGTH).refine(
+  (title) => title.trim().length > 0,
+  { error: 'A title must not be empty.' },
+);
 
 /** Seconds from the start of the video. zod rejects NaN and ±Infinity itself. */
 const TimelineTimeSchema = z.number().min(0, { error: 'A time is 0 seconds or more.' });
@@ -109,7 +111,7 @@ const TimelineTimeSchema = z.number().min(0, { error: 'A time is 0 seconds or mo
  * was required.
  */
 export const TimelineCueSchema = z.strictObject({
-  id: z.string().min(1).max(64),
+  id: maxUnits(z.string().min(1), 64),
   at: TimelineTimeSchema,
   itemIds: z.array(z.string().min(1)).min(1).max(TIMELINE_MAX_ITEMS),
   title: TimelineTitleSchema.optional(),
@@ -361,9 +363,6 @@ export const ItemGroupSchema = z
     }
   });
 
-/** The learner-safe shape of a stimulus, derived from the strict schema below. */
-export type RedactedStimulus = z.infer<typeof RedactedStimulusSchema>;
-
 /** Strict learner-safe stimulus: everything but the author-only `transcript`. */
 export const RedactedStimulusSchema = z.strictObject({
   id: z.string().min(1),
@@ -413,7 +412,7 @@ export const RedactedItemGroupSchema = z
   });
 
 function toValidationErrors(
-  issues: readonly { path: PropertyKey[]; message: string; code: string }[],
+  issues: readonly { path: readonly PropertyKey[]; message: string; code: string }[],
   prefix: string[],
 ): ValidationError[] {
   return issues.map((issue) => ({
@@ -451,9 +450,9 @@ export function validateItemGroup(data: unknown): ValidationResult<ItemGroup> {
       });
       return;
     }
-    const parsed = descriptor.schema.safeParse(item);
+    const parsed = readSchema(descriptor.schema, item, `Activity type "${descriptor.type}"`);
     if (!parsed.success) {
-      errors.push(...toValidationErrors(parsed.error.issues, ['items', String(index)]));
+      errors.push(...toValidationErrors(parsed.issues, ['items', String(index)]));
       return;
     }
     items.push(parsed.data as ActivityData);

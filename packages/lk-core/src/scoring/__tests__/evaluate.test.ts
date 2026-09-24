@@ -197,7 +197,7 @@ describe('score() — dispatch errors', () => {
 });
 
 describe('score() — multiple-choice ScoringDetail fields', () => {
-  it('writes all four outcomes, weight 1, and the deprecated correct field in one scenario', () => {
+  it('writes all four outcomes and weight 1, and no `correct` (removed in 1.0), in one scenario', () => {
     const data = mc({
       mode: 'multi',
       scoringStrategy: 'partial',
@@ -218,7 +218,6 @@ describe('score() — multiple-choice ScoringDetail fields', () => {
     expect(result.details).toEqual([
       {
         itemId: 'a',
-        correct: true,
         outcome: 'correct',
         learnerResponse: ['selected'],
         correctResponse: ['selected'],
@@ -226,7 +225,6 @@ describe('score() — multiple-choice ScoringDetail fields', () => {
       },
       {
         itemId: 'b',
-        correct: false,
         outcome: 'incorrect',
         learnerResponse: ['selected'],
         correctResponse: ['not-selected'],
@@ -234,7 +232,6 @@ describe('score() — multiple-choice ScoringDetail fields', () => {
       },
       {
         itemId: 'c',
-        correct: false,
         outcome: 'incorrect-omission',
         learnerResponse: ['not-selected'],
         correctResponse: ['selected'],
@@ -242,7 +239,6 @@ describe('score() — multiple-choice ScoringDetail fields', () => {
       },
       {
         itemId: 'd',
-        correct: true,
         outcome: 'correct-omission',
         learnerResponse: ['not-selected'],
         correctResponse: ['not-selected'],
@@ -269,7 +265,6 @@ describe('score() — fill-in-the-blanks ScoringDetail fields', () => {
     expect(result.details).toEqual([
       {
         itemId: 'a',
-        correct: true,
         outcome: 'correct',
         learnerResponse: ['p'],
         correctResponse: ['p', 'P.'],
@@ -277,7 +272,6 @@ describe('score() — fill-in-the-blanks ScoringDetail fields', () => {
       },
       {
         itemId: 'b',
-        correct: false,
         outcome: 'incorrect',
         learnerResponse: ['WRONG'],
         correctResponse: ['q'],

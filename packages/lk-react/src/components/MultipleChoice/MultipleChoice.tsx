@@ -20,7 +20,13 @@ import { useLearnerAi } from '../../ai/LkAiProvider.js';
 import { useActivityState } from '../../hooks/useActivityState.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStrings } from '../../i18n/strings.js';
-import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor, randomSessionId } from '../_internal.js';
+import {
+  ANONYMOUS_ACTOR,
+  isDevelopment,
+  legacyCorrect,
+  objectIdFor,
+  randomSessionId,
+} from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation, AiHints, useComponentAiHints } from '../shared/AiHelp.js';
 import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
@@ -48,10 +54,10 @@ function selectionOf(response: LearnerResponse | undefined): string[] {
 /**
  * Whether an option is part of the correct answer, derived from the SERVER's
  * outcome — review mode never holds an answer key of its own.
- * {@link ScoringDetail.outcome} states this unambiguously. For 0.2-era details
- * that carry only the deprecated `correct` flag (which means "the learner
- * ACTED correctly on this option", not "this option is the answer") the fact
- * is still recoverable, because we know whether the learner selected it:
+ * {@link ScoringDetail.outcome} states this unambiguously. A detail stored
+ * before lk-core 0.3 carries only a `correct` flag, which means "the learner
+ * ACTED correctly on this option", not "this option is the answer"; the fact is
+ * still recoverable, because we know whether the learner selected it:
  * `isCorrect = wasSelected ? correct : !correct`.
  */
 function isAnswerOption(detail: ScoringDetail, wasSelected: boolean): boolean {
@@ -63,7 +69,7 @@ function isAnswerOption(detail: ScoringDetail, wasSelected: boolean): boolean {
     case 'correct-omission':
       return false;
     default:
-      return wasSelected ? detail.correct : !detail.correct;
+      return wasSelected ? legacyCorrect(detail) === true : legacyCorrect(detail) !== true;
   }
 }
 

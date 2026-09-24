@@ -15,6 +15,7 @@ export * from './registry/index.js';
 export * from './schemas/index.js';
 export * from './scoring/index.js';
 export * from './shuffle.js';
+export type { StandardSchemaV1 } from './standard-schema.js';
 export * from './timeline.js';
 export * from './timeline-limits.js';
 export * from './types/index.js';

@@ -3,6 +3,7 @@ import { MEDIA_FIELD_POLICY } from './registry/builtins.js';
 import { getActivityTypeDescriptor } from './registry/index.js';
 import type { FieldPolicy, Sensitivity } from './registry/registry.js';
 import { RedactedItemGroupSchema } from './schemas/item-group.js';
+import { readSchema } from './schemas/read-schema.js';
 import type { ItemGroup } from './types/item-group.js';
 
 /**
@@ -176,11 +177,15 @@ export function redact<T extends { type: string }>(
   const result = { ...projected, redacted: true as const } as RedactedActivityData;
 
   if (reveal === 'none' && descriptor.redactedSchema !== undefined) {
-    const parsed = descriptor.redactedSchema.safeParse(result);
+    const parsed = readSchema(
+      descriptor.redactedSchema,
+      result,
+      `Activity type "${descriptor.type}"`,
+    );
     if (!parsed.success) {
       throw new ActivitySchemaError(
         descriptor.type,
-        parsed.error.issues.map((issue) => ({
+        parsed.issues.map((issue) => ({
           path: issue.path.map(String),
           message: issue.message,
           code: issue.code,
@@ -232,11 +237,15 @@ export function assertRedacted(data: unknown): asserts data is RedactedActivityD
       },
     ]);
   }
-  const parsed = descriptor.redactedSchema.safeParse(candidate);
+  const parsed = readSchema(
+    descriptor.redactedSchema,
+    candidate,
+    `Activity type "${descriptor.type}"`,
+  );
   if (!parsed.success) {
     throw new ActivitySchemaError(
       descriptor.type,
-      parsed.error.issues.map((issue) => ({
+      parsed.issues.map((issue) => ({
         path: issue.path.map(String),
         message: issue.message,
         code: issue.code,

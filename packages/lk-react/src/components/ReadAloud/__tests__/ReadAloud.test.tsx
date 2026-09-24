@@ -114,7 +114,6 @@ const grade: GradeRecord = {
   details: [
     {
       itemId: 'w1',
-      correct: true,
       outcome: 'correct',
       learnerResponse: 'the',
       correctResponse: 'the',
@@ -123,7 +122,6 @@ const grade: GradeRecord = {
     },
     {
       itemId: 'w2',
-      correct: false,
       outcome: 'incorrect',
       learnerResponse: 'lonely',
       correctResponse: 'lovely',
@@ -132,7 +130,6 @@ const grade: GradeRecord = {
     },
     {
       itemId: 'w3',
-      correct: false,
       outcome: 'incorrect-omission',
       learnerResponse: '',
       correctResponse: 'today',
@@ -703,7 +700,7 @@ describe('<ReadAloud> review', () => {
       details: [
         {
           itemId: 'overall',
-          correct: true,
+          outcome: 'correct',
           learnerResponse: 'x',
           correctResponse: 'x',
         },

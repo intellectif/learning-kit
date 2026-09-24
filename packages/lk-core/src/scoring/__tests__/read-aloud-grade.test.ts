@@ -463,7 +463,6 @@ describe('gradeReadAloud()', () => {
       expect(result.details).toHaveLength(6);
       expect(result.details?.[1]).toEqual({
         itemId: 'w2',
-        correct: false,
         outcome: 'incorrect-omission',
         learnerResponse: '',
         correctResponse: 'cat',
@@ -924,7 +923,6 @@ describe('gradeReadAloud()', () => {
 
         expect(result.details?.[1]).toEqual({
           itemId: 'w2',
-          correct: false,
           outcome: 'incorrect',
           learnerResponse: 'cat',
           correctResponse: 'cat',
@@ -964,7 +962,6 @@ describe('gradeReadAloud()', () => {
         expect(Object.hasOwn(first, 'score')).toBe(false);
         expect(result.details?.[0]).toEqual({
           itemId: 'w1',
-          correct: true,
           outcome: 'correct',
           learnerResponse: 'the',
           correctResponse: 'the',
@@ -985,7 +982,7 @@ describe('gradeReadAloud()', () => {
         );
 
         expect(readBadly.score).toBe(readWell.score);
-        expect(readBadly.details?.every((detail) => detail.correct === false)).toBe(true);
+        expect(readBadly.details?.every((detail) => detail.outcome === 'incorrect')).toBe(true);
       });
     });
 

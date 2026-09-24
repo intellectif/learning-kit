@@ -25,6 +25,7 @@ What changed in each release, and what to do about it: the [upgrading guide](./u
 | **Interactive video** — questions at moments of a video (formative only) | 0.15.0 / 15.0.0 | [Interactive video](./interactive-video.md) |
 | Two caption languages at once | 0.16.0 / 16.0.0 | [Interactive video](./interactive-video.md) |
 | **Your own activity types**, registered once and rendered by the pager | 0.4.0 / 3.0.0 | [Authoring](./authoring.md) |
+| …with a schema from any library that implements Standard Schema — zod 4, valibot, ArkType | 1.0.0 / — | [Authoring](./authoring.md#custom-activity-types-end-to-end) |
 
 ## Papers, exams and review
 
@@ -79,3 +80,4 @@ What changed in each release, and what to do about it: the [upgrading guide](./u
 | Theming tokens and an optional skin | 0.2.0 / 1.0.0 | [Styling](./styling.md) |
 | ESM and CommonJS, with types for both | 0.4.0 / 3.0.0 | [README](../README.md) |
 | Node 22 or later | 0.11.0 / 11.0.0 | [Upgrading](./upgrading.md) |
+| **A written stability promise**: an lk-core minor releases no lk-react, and no validation library in the public API | 1.0.0 / 23.0.0 | [Stability](./stability.md) |

@@ -819,8 +819,7 @@ export interface ReadAloudLearnerResponse {
 }
 
 /**
- * Fine-grained outcome of the learner's action on a single item, replacing the
- * ambiguous {@link ScoringDetail.correct}:
+ * Fine-grained outcome of the learner's action on a single item:
  * - `correct` — the learner selected/entered the right answer.
  * - `incorrect` — the learner selected/entered a wrong answer.
  * - `correct-omission` — the learner correctly left a non-answer unselected (multiple-choice only).
@@ -834,20 +833,17 @@ export interface ScoringDetail {
   /** ID of the option, blank, gap or dictation word (`w1`…`wN`) this detail refers to. */
   itemId: string;
   /**
-   * @deprecated Ambiguous: for multiple-choice this means "the learner acted
-   * correctly on this option" (`wasSelected === option.isCorrect`), NOT "this
-   * option is the answer" — an unselected wrong option reads `correct: true`.
-   * Read {@link ScoringDetail.outcome} instead; `correct` remains written for
-   * backward compatibility and will be removed in v1.0.
+   * The outcome of the learner's action on this item. On a multiple-choice
+   * option it says both whether the option was chosen and whether it is part
+   * of the answer.
+   *
+   * Until 1.0 a detail also carried `correct`, which on a multiple-choice
+   * option meant "the learner acted correctly on it" — an unselected wrong
+   * option read `correct: true` — and a detail stored before 0.3 carries only
+   * that. The SDK's components still read such a stored detail; a type written
+   * against 1.0 does not describe it.
    */
-  correct: boolean;
-  /**
-   * Unambiguous outcome of the learner's action on this item. Optional in the
-   * type so 0.2-era consumer-constructed literals keep compiling, but ALWAYS
-   * written by every built-in scorer (by the first two since 0.3.0); becomes
-   * required in v1.0 when the deprecated `correct` is removed.
-   */
-  outcome?: ScoringOutcome;
+  outcome: ScoringOutcome;
   /** The learner's actual response for this item. */
   learnerResponse: string | string[];
   /** The expected correct response(s) for this item. */

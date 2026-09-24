@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { z } from 'zod/v4';
 import { resolvePlaybackPolicy } from '../../media-budget.js';
 import type { ValidationResult } from '../../types/activity.js';
-import { MediaSchema, validateActivity, validateItemGroup } from '../index.js';
+import { validateActivity, validateItemGroup } from '../index.js';
+import { MediaSchema } from '../media.js';
 
 const audio = { type: 'audio' as const, url: 'https://cdn.example.com/part2.mp3' };
 

@@ -1,8 +1,10 @@
 # Upgrading
 
-`lk-react` declares `lk-core` as a **peer** dependency, so every `lk-core` minor
-forces a `lk-react` **major**. Some of those majors change no React API at all —
-check the map before you plan a migration. (A `lk-core` *patch* does not force a
+`lk-react` declares `lk-core` as a **peer** dependency, so until 1.0 every
+`lk-core` minor forced a `lk-react` **major**. Some of those majors change no
+React API at all — check the map before you plan a migration. **From `lk-core`
+1.0.0 / `lk-react` 23.0.0 that stops:** a `lk-core` minor or patch releases no
+`lk-react`, and you upgrade `lk-core` on its own. See [Stability](./stability.md). (A `lk-core` *patch* does not force a
 major, which is why 2.1.0 is a minor against `lk-core@0.3.1`. Install the pair
 from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 
@@ -35,6 +37,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.20.0 | 20.0.0 | Delivery policies: `delivery` on every activity and both pagers switches off feedback, solutions, hints or AI help per paper; `resolveDeliveryPolicy`, `validateDeliveryPolicy`, `combineDeliveryPolicies`; `planAttempt(…, { delivery })` records it in the plan and its hash, and `verifyAttemptPlan` reports `deliveryChanged`. **No grade changes, and an absent policy changes nothing** — the major is the peer bump, plus a required `delivery` on `InteractiveVideoQuestion` |
 | 0.21.0 | 21.0.0 | Scoring policies: `scoring` on every activity and both pagers — "Try again" in `practice` (`retries`), which try `counts`, and what tries and hints cost (`retryPenalty`, `hintPenalty`); `scoreTries`, `evaluateTries` and `evaluate(…, { scoring })`; `resolveItemScoringPolicy` / `validateItemScoringPolicy`; `planAttempt(…, { scoring })` and `scoringChanged`; `hintsRevealed` on multiple-choice, fill-in-the-blanks and gap-select responses. **No grade changes without a policy.** One fix to 0.20's `solutions: false` on a dictation, and one possible type error — see [0.20 → 0.21](#020--021-lk-core--20x--21x-lk-react) |
 | 0.22.0 | 22.0.0 | Feedback on writing: a `writingFeedback` port gives `<WrittenResponse>` "Get feedback on my draft" in `practice`; `useAiWritingFeedback` for a written response you draw; `aiWritingFeedbackRequest` and `checkAiWritingFeedback` in lk-core, which refuses a correction of words the draft does not contain (`misquotes-answer`) and computes the rubric's indicative score itself; four writing cases in `ai-check`. **Additive, and nothing changes without the port** — the major is the peer bump, plus eight strings and the type errors in [0.21 → 0.22](#021--022-lk-core--21x--22x-lk-react) |
+| 1.0.0 | 23.0.0 | **1.0: what stays stable, written down** — see [Stability](./stability.md). A `lk-core` minor no longer releases a `lk-react` major. `ScoringDetail.correct` is removed and `outcome` required; zod is private — no export is a zod schema, `validateMedia` / `validateOptionMedia` replace the two a media picker used, and the `Redacted*` types are written out; a type you register takes a [Standard Schema](https://standardschema.dev), which a zod 4 schema already is. **No grade changes** — see [0.22 → 1.0](#022--10-lk-core--22x--23x-lk-react) |
 
 Every behavioural change here is opt-in, per the
 [grade-stability rule](./roadmap.md#5-standing-decisions) — with **two
@@ -62,6 +65,74 @@ you record stay exactly what they were.
 - On **19.0.x**? See [0.19 → 0.20](#019--020-lk-core--19x--20x-lk-react) — nothing changes until you pass a policy; one possible type error.
 - On **20.0.x**? See [0.20 → 0.21](#020--021-lk-core--20x--21x-lk-react) — no grade moves until you pass a scoring policy; a dictation under `solutions: false` stops naming the words it corrects; one possible type error.
 - On **21.0.x**? See [0.21 → 0.22](#021--022-lk-core--21x--22x-lk-react) — additive: feedback on a draft appears only once you pass a `writingFeedback` port; the type errors it can cause.
+- On **22.0.x**? See [0.22 → 1.0](#022--10-lk-core--22x--23x-lk-react) — no grade changes; what can stop a build, and the one read of stored data to check.
+
+---
+
+## 0.22 → 1.0 (`lk-core`) / 22.x → 23.x (`lk-react`)
+
+1.0 is the stability release: [Stability](./stability.md) sets out what every 1.x keeps. **No grade
+changes**: the grade-stability corpus replays unchanged but for the removed `correct` flag below.
+
+### From now on *(1.0.0 / 23.0.0)*
+
+A `lk-core` minor or patch releases no `lk-react`: `lk-react` 23 peers on `lk-core@^1.0.0`. When a
+`lk-react` release needs a newer `lk-core`, its notes say which.
+
+### What can stop a build *(1.0.0 / 23.0.0)*
+
+- **`ScoringDetail.correct` is gone, and `outcome` is required.** `correct` was deprecated in 0.3: on a
+  multiple-choice option it meant "the learner acted rightly on it", so an unchosen wrong option read
+  `true`. Read `outcome` (`correct`, `incorrect`, `correct-omission`, `incorrect-omission`). The SDK no
+  longer writes `correct`; a detail you stored before 0.3 carries only `correct`, so where you read
+  stored details, read it off the stored value:
+
+  ```ts
+  const right = detail.outcome === undefined
+    ? (detail as { correct?: boolean }).correct === true
+    : detail.outcome === 'correct';
+  ```
+
+  The SDK's own components still read such a detail. A test that builds a detail with `correct` needs it
+  removed.
+- **No zod schema is exported.** zod is private to `lk-core`: a zod major is no longer a `lk-core` major,
+  and your app can use any zod, or none. What replaces the schemas:
+
+  | Before | 1.0 |
+  |---|---|
+  | `MediaSchema.safeParse(value)` | `validateMedia(value)` |
+  | `MultipleChoiceOptionMediaSchema.safeParse(value)` | `validateOptionMedia(value)` |
+  | `XDataSchema.safeParse(item)` | `validateActivity(type, item)`, or `validateDraft` in an editor |
+  | `ItemGroupSchema.safeParse(group)` | `validateItemGroup(group)` |
+
+  The validators return `{ success: true, data }` or `{ success: false, errors }`, each error with a
+  `path`, a `code` and a `message` — `errors` where zod had `error.issues`. lk-core pins zod to one
+  exact version, so if your app uses another, your bundle carries two copies. The `*JsonSchema` constants
+  stay, typed `Record<string, unknown>` instead of zod's JSON Schema type. If you used a schema this
+  table does not replace, open an issue saying what for.
+- **A type you register takes Standard Schemas.** `ActivityTypeDescriptor.schema` and `redactedSchema`
+  are `StandardSchemaV1` rather than `z.ZodType`. A zod 4 schema is one as written, so drop an
+  `as unknown as z.ZodType<…>` cast. `registerActivityType` now throws on a value that is not a
+  Standard Schema, and `jsonSchemaFor(yourType)` needs the descriptor's new `jsonSchema` unless the
+  schema produces JSON Schema itself, as zod 4.6 does. See
+  [Custom activity types end to end](./authoring.md#custom-activity-types-end-to-end).
+- **The `Redacted*` types are written out** instead of inferred from zod schemas. They describe the same
+  shapes, pinned to the schemas by a compile-time test; a type error here means your code reached zod's
+  types through them.
+
+### What can change behaviour *(1.0.0)*
+
+- **Built on zod 4.6**, where 0.x used the zod 4 preview inside zod 3.25. Every built-in validation —
+  items, drafts, item groups, speech assessments, redaction and xAPI statements — was run against
+  0.21.0 on the same 28,000 inputs, and each accepts and refuses exactly what it did. Two changes in
+  zod 4.6 would have altered that, and the SDK now decides both itself: string limits count UTF-16
+  units, as they always have, where zod 4.6 counts code points; and a check never reads a field that
+  failed validation, which zod 4.6 would have handed it. What is left is in two error lists, each one
+  error shorter: a speech assessment with a string where a list of phonemes or syllables belongs, and
+  an xAPI statement whose actor's `mbox` is not a `mailto:` address, are refused with one error, not
+  two.
+- **A registered type whose schema comes from another library than zod** reports, in a draft, every
+  `null` at the path of a failure as `null_not_allowed`.
 
 ---
 

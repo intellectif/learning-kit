@@ -4,6 +4,7 @@ import {
   type LearnerResponse,
   type MultipleChoiceData,
   redact,
+  type ScoringDetail,
 } from '@intellectif/lk-core';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -328,17 +329,18 @@ describe('MultipleChoice review mode', () => {
     expect(screen.getByText(/Score 0%\. Not passed\./)).toBeInTheDocument();
   });
 
-  it('marks correctness from a 0.2-era detail that carries only the deprecated flag', () => {
+  it('marks correctness from a detail stored before 0.3, which carries only `correct`', () => {
     const legacy: ItemOutcome = {
       status: 'scored',
       score: 0,
       maxScore: 1,
       passed: false,
       feedback: null,
+      // The shape 1.0's type no longer describes, as a stored row still has it.
       details: [
         { itemId: 'a', correct: false, learnerResponse: ['selected'], correctResponse: [] },
         { itemId: 'b', correct: false, learnerResponse: ['not-selected'], correctResponse: [] },
-      ],
+      ] as unknown as ScoringDetail[],
     };
     render(
       <MultipleChoice data={single()} renderMode="review" value={response('a')} outcome={legacy} />,

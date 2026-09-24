@@ -110,6 +110,20 @@ function numberedPassage(passage: string): string {
   });
 }
 
+/**
+ * The `correct` flag a detail stored before 0.3 carries instead of an
+ * `outcome`. On a blank, a gap or a word it meant the part was right; on a
+ * multiple-choice option, that the learner acted rightly on it.
+ */
+const legacyCorrect = (detail: ScoringDetail): boolean =>
+  (detail as { correct?: unknown }).correct === true;
+
+/** Whether a blank, a gap or a word was right, read from a server's detail. */
+function detailRight(detail: ScoringDetail): boolean {
+  const outcome: unknown = detail.outcome;
+  return outcome === undefined ? legacyCorrect(detail) : outcome === 'correct';
+}
+
 /** Whether an option is part of the answer, read from a server's detail (as the renderer reads it). */
 function isAnswerOption(detail: ScoringDetail, chosen: boolean): boolean {
   switch (detail.outcome) {
@@ -120,7 +134,7 @@ function isAnswerOption(detail: ScoringDetail, chosen: boolean): boolean {
     case 'correct-omission':
       return false;
     default:
-      return chosen ? detail.correct : !detail.correct;
+      return chosen ? legacyCorrect(detail) : !legacyCorrect(detail);
   }
 }
 
@@ -218,7 +232,7 @@ export function buildAiFacts(
             position: index + 1,
             typed: typeof answers[id] === 'string' ? (answers[id] as string) : '',
             accepted,
-            correct: detail === undefined ? null : detail.correct,
+            correct: detail === undefined ? null : detailRight(detail),
             ...(typeof blank?.hint === 'string' ? { hint: blank.hint } : {}),
             ...(typeof blank?.feedback === 'string' ? { feedback: blank.feedback } : {}),
           };
@@ -254,7 +268,7 @@ export function buildAiFacts(
             choices: choices.map((choice) => choice.text),
             chosen: textOf(selections[id]),
             answer: textOf(answerId),
-            correct: detail === undefined ? null : detail.correct,
+            correct: detail === undefined ? null : detailRight(detail),
             ...(typeof gap?.feedback === 'string' ? { feedback: gap.feedback } : {}),
           };
         }),
@@ -276,7 +290,7 @@ export function buildAiFacts(
           const expected = firstString(detail.correctResponse) ?? '';
           const attempt = firstString(detail.learnerResponse) ?? '';
           let status: 'correct' | 'incorrect' | 'missing' | 'extra' = 'incorrect';
-          if (detail.correct) {
+          if (detailRight(detail)) {
             status = 'correct';
           } else if (attempt === '') {
             status = 'missing';

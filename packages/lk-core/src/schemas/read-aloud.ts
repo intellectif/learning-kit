@@ -7,6 +7,7 @@ import {
   READ_ALOUD_MAX_TAKES,
 } from '../scoring/speech/limits.js';
 import { CANONICAL_LOCALE_RE } from '../scoring/speech/locale.js';
+import { checkEvenAfterIssues, parsedFields } from './after-issues.js';
 import { AiPermissionsSchema } from './ai.js';
 import { FeedbackSchema } from './feedback.js';
 import { MediaSchema, MediaUrlSchema } from './media.js';
@@ -63,22 +64,6 @@ const ReadAloudDimensionWeightSchema = z.looseObject({
 const ReadAloudScoringSchema = z.looseObject({
   dimensions: z.array(ReadAloudDimensionWeightSchema).min(1).max(READ_ALOUD_MAX_DIMENSIONS),
 });
-
-/**
- * A check zod runs even when another field was refused. Copied from
- * `schemas/dictation.ts`, where the reasoning is written out: an ordinary check
- * is skipped once any issue has been reported, so an author fixing a recording's
- * address would only then learn that the same address is the slow recording's.
- * The check itself decides which of its guards the refused fields leave nothing
- * to read.
- */
-function checkEvenAfterIssues<T>(
-  check: (payload: z.core.ParsePayload<T>) => void,
-): z.core.$ZodCheck<T> {
-  const guard: z.core.$ZodCheck<T> = new z.core.$ZodCheck({ check: 'custom', when: () => true });
-  guard._zod.check = check;
-  return guard;
-}
 
 const ReadAloudDataShape = z.looseObject({
   schemaVersion: z.literal('1.0'),
@@ -149,8 +134,7 @@ export const ReadAloudDataSchema = ReadAloudDataShape.check(
     if (ctx.issues.some((issue) => (issue.path?.length ?? 0) === 0)) {
       return;
     }
-    const data = ctx.value;
-    const refused = new Set(ctx.issues.map((issue) => String(issue.path?.[0])));
+    const { data, refused } = parsedFields(ctx);
     const report = (path: readonly (string | number)[], input: unknown, message: string) => {
       ctx.issues.push({ code: 'custom', input, message, path: [...path] });
     };

@@ -34,9 +34,39 @@ test('lk-core still grades exactly as it did', () => {
 });
 ```
 
+## The validation corpus
+
+`validation.json` does for validation what `scoring.json` does for grades. It
+records, for over three thousand inputs, whether each validator —
+`validateActivity`, `validateDraft`, `validateItemGroup`,
+`validateItemGroupDraft`, `validateSpeechAssessment`, `validateMedia`,
+`validateOptionMedia`, `validateXAPIStatement` — accepts, and the `path` and
+`code` of every error it reports: what 1.x promises not to change outside a
+major. Messages and the order of errors are not promised, so they are not
+recorded. The inputs are rebuilt from the seeds in the file by
+`validation.mjs`, which is why every field can be tried with a string of four
+thousand emoji at little cost.
+
+lk-core pins its validation library to one exact version and replays this
+corpus before it ships a new one. If you override that pin — to take a
+security fix before lk-core does, say — replay it against your install, with
+`NODE_ENV` other than `production` (where `validateXAPIStatement` only warns):
+
+```js
+const { replayValidation } = await import(pathToFileURL(join(root, 'vectors/validation.mjs')).href);
+const validation = JSON.parse(readFileSync(join(root, 'vectors/validation.json'), 'utf8'));
+
+test('lk-core still validates exactly as it did', () => {
+  const changed = replayValidation(core, validation).filter((result) => !result.ok);
+  expect(changed).toEqual([]);
+});
+```
+
+`root` and `core` are resolved as in the grade example above.
+
 These files are deliberately **not** package exports. An export would be new
-public API — a lk-core minor, which forces a lk-react major — for what is test
-data. They are reached by resolving `package.json`, which lk-core does export.
+public API for what is test data. They are reached by resolving `package.json`,
+which lk-core does export.
 
 ## If a vector fails
 

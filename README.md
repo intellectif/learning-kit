@@ -122,6 +122,7 @@ Full detail: **[docs/authoring.md](./docs/authoring.md)** · **[docs/styling.md]
 - **[Interactive video](./docs/interactive-video.md)** — the timeline model, what can be embedded, the player's props, captions, resume and required quizzes.
 - **[Delivery policies](./docs/delivery.md)** — what a school lets a learner see: feedback, solutions, hints and AI help, per paper, recorded with the attempt.
 - **[Scoring policies](./docs/scoring.md)** — tries and what hints cost, per paper: "Try again", which try counts, and the arithmetic, on the page and on a server.
+- **[Stability](./docs/stability.md)** — what every 1.x keeps: grades, the public API, content, and how a release of one package moves the other.
 - **[AI help for learners](./docs/ai.md)** — connecting your model, where help appears, what it is given, and what the SDK refuses to show.
 - **[Speech assessment](./docs/speech-assessment.md)** — the read-aloud item, the evidence an assessor must produce, how a grade is computed, and how a take reaches your storage.
 - **[Grade-stability vectors](./packages/lk-core/vectors/README.md)** — lk-core's grading frozen as data: replayed in CI against every build, and runnable in your own test suite.

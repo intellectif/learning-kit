@@ -2,12 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { ActivitySchemaError } from '../../errors.js';
 import { assertRedacted, redact } from '../../redact.js';
 import { dictationType } from '../../registry/index.js';
-import {
-  dictationJsonSchema,
-  jsonSchemaFor,
-  RedactedDictationDataSchema,
-  validateActivity,
-} from '../../schemas/index.js';
+import { dictationJsonSchema, jsonSchemaFor, validateActivity } from '../../schemas/index.js';
+import { RedactedDictationDataSchema } from '../../schemas/redacted.js';
 import type { DictationData, DictationLearnerResponse } from '../../types/activity.js';
 import {
   alignDictation,

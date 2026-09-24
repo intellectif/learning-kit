@@ -1,62 +1,16 @@
 import { UnknownActivityTypeError } from '../errors.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
-import type { ActivityDataMap, ActivityType, ValidationResult } from '../types/activity.js';
+import type {
+  ActivityDataMap,
+  ActivityMedia,
+  ActivityType,
+  MultipleChoiceOptionMedia,
+  ValidationResult,
+} from '../types/activity.js';
+import { MediaSchema } from './media.js';
+import { MultipleChoiceOptionMediaSchema } from './multiple-choice.js';
+import { readSchema, type SchemaReading } from './read-schema.js';
 
-export { AiPermissionsSchema } from './ai.js';
-export {
-  DictationDataSchema,
-  DictationEquivalenceSchema,
-  DictationSlowMediaSchema,
-  DictationToleranceSchema,
-} from './dictation.js';
-export { FeedbackSchema } from './feedback.js';
-export {
-  BlankConfigSchema,
-  FillInTheBlanksDataSchema,
-  TextMatchPolicySchema,
-} from './fill-in-the-blanks.js';
-export {
-  GapSelectBankSchema,
-  GapSelectChoiceSchema,
-  GapSelectDataSchema,
-  GapSelectGapSchema,
-} from './gap-select.js';
-export type { RedactedStimulus } from './item-group.js';
-export {
-  ItemGroupSchema,
-  MediaTimelineSchema,
-  RedactedItemGroupSchema,
-  RedactedStimulusSchema,
-  StimulusSchema,
-  TimelineChapterSchema,
-  TimelineCueSchema,
-  validateItemGroup,
-} from './item-group.js';
-export {
-  dictationJsonSchema,
-  fillInTheBlanksJsonSchema,
-  gapSelectJsonSchema,
-  itemGroupJsonSchema,
-  jsonSchemaFor,
-  multipleChoiceJsonSchema,
-  readAloudJsonSchema,
-  stimulusJsonSchema,
-  writtenResponseJsonSchema,
-} from './json-schema.js';
-export {
-  MediaPlaybackSchema,
-  MediaSchema,
-  MediaTrackSchema,
-  MediaUrlSchema,
-  NativeControlHintSchema,
-  RedactedMediaSchema,
-} from './media.js';
-export {
-  MultipleChoiceDataSchema,
-  MultipleChoiceOptionMediaSchema,
-  MultipleChoiceOptionSchema,
-} from './multiple-choice.js';
-export { ReadAloudDataSchema, ReadAloudSlowMediaSchema } from './read-aloud.js';
 export type {
   RedactedActivity,
   RedactedBlankConfig,
@@ -71,28 +25,60 @@ export type {
   RedactedMultipleChoiceOption,
   RedactedMultipleChoiceOptionMedia,
   RedactedReadAloudData,
+  RedactedStimulus,
   RedactedWrittenResponseData,
-} from './redacted.js';
+} from '../types/redacted.js';
+export { validateItemGroup } from './item-group.js';
 export {
-  RedactedBlankConfigSchema,
-  RedactedDictationDataSchema,
-  RedactedDictationSlowMediaSchema,
-  RedactedFillInTheBlanksDataSchema,
-  RedactedGapSelectBankSchema,
-  RedactedGapSelectChoiceSchema,
-  RedactedGapSelectDataSchema,
-  RedactedGapSelectGapSchema,
-  RedactedMultipleChoiceDataSchema,
-  RedactedMultipleChoiceOptionMediaSchema,
-  RedactedMultipleChoiceOptionSchema,
-  RedactedReadAloudDataSchema,
-  RedactedWrittenResponseDataSchema,
-} from './redacted.js';
-export {
-  WrittenResponseDataSchema,
-  WrittenResponseRubricCriterionSchema,
-  WrittenResponseRubricSchema,
-} from './written-response.js';
+  dictationJsonSchema,
+  fillInTheBlanksJsonSchema,
+  gapSelectJsonSchema,
+  itemGroupJsonSchema,
+  jsonSchemaFor,
+  multipleChoiceJsonSchema,
+  readAloudJsonSchema,
+  stimulusJsonSchema,
+  writtenResponseJsonSchema,
+} from './json-schema.js';
+
+/**
+ * Checks a piece of activity media — an item's `media`, a stimulus's, a
+ * dictation's `slowMedia` — on its own, the way `validateActivity` checks it
+ * inside an item: its kind, an address in the allowed schemes, a playback
+ * policy only on audio, captions and tracks only where they can play. For an
+ * editor's media picker, which holds the media before the item is whole.
+ *
+ * @returns `{ success: true, data }`, or `{ success: false, errors }` with the
+ *   same codes, paths and messages `validateActivity` reports.
+ */
+export function validateMedia(value: unknown): ValidationResult<ActivityMedia> {
+  return asValidation(readSchema(MediaSchema as never, value, 'Media'));
+}
+
+/**
+ * Checks a multiple-choice option's `media` on its own: a picture or a
+ * recording, at an address in the allowed schemes, with no playback policy.
+ *
+ * @returns `{ success: true, data }`, or `{ success: false, errors }` with the
+ *   same codes, paths and messages `validateActivity` reports.
+ */
+export function validateOptionMedia(value: unknown): ValidationResult<MultipleChoiceOptionMedia> {
+  return asValidation(readSchema(MultipleChoiceOptionMediaSchema as never, value, 'Option media'));
+}
+
+function asValidation<T>(reading: SchemaReading<unknown>): ValidationResult<T> {
+  if (reading.success) {
+    return { success: true, data: reading.data as T };
+  }
+  return {
+    success: false,
+    errors: reading.issues.map((issue) => ({
+      path: issue.path.map(String),
+      message: issue.message,
+      code: issue.code,
+    })),
+  };
+}
 
 /**
  * Validates raw activity data against the schema registered for the given
@@ -115,18 +101,5 @@ export function validateActivity<T extends ActivityType>(
     throw new UnknownActivityTypeError(String(type));
   }
 
-  const result = descriptor.schema.safeParse(data);
-
-  if (result.success) {
-    return { success: true, data: result.data as ActivityDataMap[T] };
-  }
-
-  return {
-    success: false,
-    errors: result.error.issues.map((issue) => ({
-      path: issue.path.map(String),
-      message: issue.message,
-      code: issue.code,
-    })),
-  };
+  return asValidation(readSchema(descriptor.schema, data, `Activity type "${descriptor.type}"`));
 }

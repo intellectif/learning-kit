@@ -57,7 +57,6 @@ export function scoreGapSelect(
     perGapCorrect.push(correct);
     details.push({
       itemId: gap.id,
-      correct,
       outcome: correct ? 'correct' : answered ? 'incorrect' : 'incorrect-omission',
       learnerResponse: [selected],
       correctResponse: [gap.correctChoiceId],

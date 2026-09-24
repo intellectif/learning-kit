@@ -129,9 +129,16 @@ workflow runs on bot-authored PRs. Click **Approve and run**.
 **4. Review that PR — this is your last chance to check the version numbers.**
 Open its diff and confirm the bumps in `packages/*/package.json` are what you intend.
 
-> ⚠️ **`lk-react` bumps to a MAJOR whenever `lk-core` bumps**, because it declares
-> `"@intellectif/lk-core": "workspace:^"` in `peerDependencies`. A `minor` changeset for
-> lk-react can still emit a major. Decide *before* merging — npm versions are immutable.
+> ⚠️ **How a release of `lk-core` moves `lk-react`.** lk-react declares
+> `"@intellectif/lk-core": "workspace:^"` in `peerDependencies`, published as `^<version>`.
+> `.changeset/config.json` sets `onlyUpdatePeerDependentsWhenOutOfRange`, so lk-react is
+> released as a **major** exactly when lk-core leaves that range. On `0.x` every lk-core minor
+> does (`^0.22.0` does not match 0.23.0); from 1.0 only a major does, and a 1.x minor or patch
+> releases no lk-react at all. Without the option, Changesets majors lk-react on every lk-core
+> minor, in range or not. `pnpm docs-check` runs `scripts/check-release-plan.mjs`, which proves
+> the rule with the real CLI and fails if a Changesets upgrade changes it — the option sits
+> under Changesets' "experimental, will change in patch" key, which is why `@changesets/cli` is
+> pinned exactly. Decide *before* merging — npm versions are immutable.
 
 **5. Merge the “chore: version packages” PR.** Release runs again, finds no changesets,
 and publishes both packages to npm with provenance.
@@ -295,6 +302,28 @@ A moved grade therefore fails the Release job before `changeset publish`. That r
 passes, though. CI splits those tasks into steps and runs `api-check` and `size` on Node 22 only. So the required
 status checks on the feature PR and the version PR are still where a problem should first show, and a task that
 reads another task's output without declaring it in `turbo.json` can pass them and fail only in Release.
+
+## The validation corpus, and updating zod
+
+`packages/lk-core/vectors/validation.json` freezes what every validator accepts and refuses, and the
+`path` and `code` of each error, for over three thousand inputs built from its seeds by
+`vectors/validation.mjs`. `src/__tests__/validation-vectors.test.mjs` replays it against source in
+`pnpm test`, and `scripts/verify-dist.mjs` against the built package, CJS and ESM.
+
+lk-core depends on **one exact version of zod**, deliberately. zod has changed what lk-core accepts
+without a line of lk-core changing — the zod 4 preview in zod 3.25 counted string lengths in UTF-16
+units and dropped a refused field from what later checks see, and zod 4.6 does neither — and a caret
+range would hand a consumer such a change with no lk-core release at all. To update it:
+
+1. Change the pin in `packages/lk-core/package.json`, `pnpm install`, `pnpm build`.
+2. `pnpm test` in lk-core: the validation corpus and the grade corpus must both replay unchanged. Build a
+   differential too, the published lk-core against the new build on inputs the corpus does not hold;
+   the corpus is a floor, not a proof.
+3. A difference is either a behaviour to restore in lk-core — as `maxUnits` and `parsedFields` restore
+   the two above — or, if it is wanted, `node scripts/generate-validation-vectors.mjs
+   --accept-validation-change` and a **major**, with the change named in the changeset.
+
+To add cases, add seeds or rules in `vectors/validation.mjs`; new ids need no flag.
 
 ## Notes & troubleshooting
 

@@ -3,12 +3,11 @@ import { UnknownActivityTypeError } from '../../errors.js';
 import type { ActivityType } from '../../types/activity.js';
 import {
   jsonSchemaFor,
-  MediaSchema,
-  MediaUrlSchema,
   multipleChoiceJsonSchema,
   validateActivity,
   writtenResponseJsonSchema,
 } from '../index.js';
+import { MediaSchema, MediaUrlSchema } from '../media.js';
 
 /** Builds a valid multiple-choice payload; spread overrides on top. */
 function mcData(overrides: Record<string, unknown> = {}): Record<string, unknown> {

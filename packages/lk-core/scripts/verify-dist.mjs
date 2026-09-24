@@ -13,7 +13,7 @@
  * key away from a learner, and it is worth proving against the artifact a
  * consumer actually installs.
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -69,28 +69,16 @@ const REQUIRED_EXPORTS = [
   'TIMELINE_MAX_ITEMS',
   'TIMELINE_MAX_CHAPTERS',
   'TIMELINE_MAX_TITLE_LENGTH',
-  'MediaTimelineSchema',
-  'TimelineCueSchema',
-  'TimelineChapterSchema',
-  'MediaTrackSchema',
   'jsonSchemaFor',
+  'validateMedia',
+  'validateOptionMedia',
   'defineActivityType',
   'registerActivityType',
   'dictationType',
   'gapSelectType',
   'readAloudType',
-  'DictationDataSchema',
-  'DictationSlowMediaSchema',
-  'RedactedDictationDataSchema',
   'dictationJsonSchema',
-  'ReadAloudDataSchema',
-  'ReadAloudSlowMediaSchema',
-  'RedactedReadAloudDataSchema',
   'readAloudJsonSchema',
-  'MediaSchema',
-  'MediaPlaybackSchema',
-  'NativeControlHintSchema',
-  'RedactedMediaSchema',
   // redaction
   'redact',
   'assertRedacted',
@@ -146,6 +134,37 @@ try {
 for (const name of REQUIRED_EXPORTS) {
   if (core[name] === undefined) {
     failures.push(`dist/index.cjs does not export ${name}`);
+  }
+}
+
+// No validation library is part of the public API (1.0): no entry point hands
+// out one of its schema objects, and no published type names one. Checked on
+// the build, because a re-export or an inferred type is exactly what slips
+// through a source review — the zod objects were public until 1.0 for that
+// reason. A registered type's schema is a Standard Schema; see
+// `src/standard-schema.ts`.
+const ENTRIES = ['index', 'schemas', 'scoring', 'xapi', 'ai-check'];
+for (const entry of ENTRIES) {
+  const module = await import(pathToFileURL(join(PKG_ROOT, 'dist', `${entry}.js`)).href);
+  for (const [name, value] of Object.entries(module)) {
+    if (value !== null && typeof value === 'object' && '_zod' in value) {
+      failures.push(`dist/${entry}.js exports ${name}, a zod schema`);
+    }
+  }
+}
+for (const file of readdirSync(join(PKG_ROOT, 'dist'))) {
+  if (!/\.d\.c?ts$/.test(file)) {
+    continue;
+  }
+  // An import of zod, or a type from it. A comment that mentions zod is not a
+  // dependency.
+  const declarations = readFileSync(join(PKG_ROOT, 'dist', file), 'utf8');
+  if (
+    /(?:from|import)\s*['"]zod(?:\/[^'"]*)?['"]|\bz\.(?:Zod|core|infer|input|output)\b/.test(
+      declarations,
+    )
+  ) {
+    failures.push(`dist/${file} names zod: a published type depends on the validation library`);
   }
 }
 
@@ -403,6 +422,35 @@ for (const [label, build] of [
   }
 }
 
+// The validation corpus, against the built package for the same reason: what
+// each validator accepts and refuses, and the path and code of each error, is
+// what 1.x promises not to change outside a major. The validation library is
+// pinned, so the build this replays is the one a consumer installs.
+const validationCorpus = JSON.parse(
+  readFileSync(join(PKG_ROOT, 'vectors', 'validation.json'), 'utf8'),
+);
+const { replayValidation } = await import(
+  pathToFileURL(join(PKG_ROOT, 'vectors', 'validation.mjs')).href
+);
+const validationCount = Object.keys(validationCorpus.expect ?? {}).length;
+if (validationCount === 0) {
+  failures.push('vectors/validation.json holds no expectations, so the gate would pass vacuously');
+}
+for (const [label, build] of [
+  ['dist/index.cjs', core],
+  ['dist/index.js', esm],
+]) {
+  const changed = replayValidation(build, validationCorpus).filter((result) => !result.ok);
+  for (const result of changed.slice(0, 20)) {
+    failures.push(
+      `${label}: validation ${result.id} changed | expected ${JSON.stringify(result.expected)} | actual ${JSON.stringify(result.actual)}`,
+    );
+  }
+  if (changed.length > 20) {
+    failures.push(`${label}: …and ${changed.length - 20} more validation changes`);
+  }
+}
+
 if (failures.length > 0) {
   console.error('verify-dist FAILED:\n');
   for (const failure of failures) {
@@ -415,5 +463,6 @@ console.log(
   `verify-dist OK: ${REQUIRED_EXPORTS.length} documented exports resolve from dist; redaction is fail-closed; ` +
     'new drafts are incomplete; an unreadable delivery setting restricts; an unreadable scoring setting is refused; a writing correction must quote the draft; ' +
     'the AI check kit runs from its own subpath; ' +
-    `${corpus.vectors.length} grade vectors replay identically against CJS and ESM.`,
+    'no entry point exports a zod schema and no published type names zod; ' +
+    `${corpus.vectors.length} grade vectors and ${validationCount} validation expectations replay identically against CJS and ESM.`,
 );

@@ -24,7 +24,7 @@ import {
   RedactedMultipleChoiceDataSchema,
   RedactedReadAloudDataSchema,
   RedactedWrittenResponseDataSchema,
-} from '../index.js';
+} from '../redacted.js';
 
 const mc: MultipleChoiceData = {
   schemaVersion: '1.0',

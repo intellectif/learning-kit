@@ -1,13 +1,13 @@
 import {
   createDraft,
   defineActivityType,
-  FeedbackSchema,
   type GradeRecord,
   type LearnerResponse,
   type MultipleChoiceData,
   outcomeFromGrade,
   type ReadAloudData,
   registerActivityType,
+  type StandardSchemaV1,
   UnknownActivityTypeError,
   type WrittenResponseData,
 } from '@intellectif/lk-core';
@@ -22,6 +22,18 @@ import { stubMediaElement } from '../../../test-support/media.js';
 import { type SpeechCaptureHarness, stubSpeechCapture } from '../../../test-support/speech.js';
 import type { ActivityProps } from '../../types.js';
 import { ActivityPreview } from '../index.js';
+
+/**
+ * Accepts anything: a Standard Schema with no library behind it. What the
+ * tests that register it are about is the dispatch.
+ */
+const anything: StandardSchemaV1<unknown, { type: string }> = {
+  '~standard': {
+    version: 1,
+    vendor: 'test',
+    validate: (value) => ({ value: value as { type: string } }),
+  },
+};
 
 const counter = () => {
   let next = 0;
@@ -157,7 +169,7 @@ describe('<ActivityPreview>', () => {
     registerActivityType(
       defineActivityType<{ type: string }, { type: string }>({
         type: 'preview-throwing-scorer',
-        schema: FeedbackSchema as never,
+        schema: anything,
         scoring: {
           kind: 'sync',
           score: () => {
@@ -373,8 +385,7 @@ describe('<ActivityPreview>', () => {
     registerActivityType(
       defineActivityType<{ type: string }, unknown>({
         type: 'preview-probe',
-        // Any loose object schema will do: what is under test is the dispatch.
-        schema: FeedbackSchema as never,
+        schema: anything,
         scoring: { kind: 'deferred', reason: 'requires_async_grading' },
       }),
     );

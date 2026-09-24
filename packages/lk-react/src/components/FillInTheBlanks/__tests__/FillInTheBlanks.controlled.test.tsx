@@ -3,6 +3,7 @@ import type {
   FillInTheBlanksData,
   ItemOutcome,
   LearnerResponse,
+  ScoringDetail,
 } from '@intellectif/lk-core';
 import { redact } from '@intellectif/lk-core';
 import { render, screen } from '@testing-library/react';
@@ -51,7 +52,6 @@ const scoredOutcome = (over: Partial<Extract<ItemOutcome, { status: 'scored' }>>
     details: [
       {
         itemId: 'a',
-        correct: true,
         outcome: 'correct',
         learnerResponse: ['Paris'],
         correctResponse: ['Paris'],
@@ -59,7 +59,6 @@ const scoredOutcome = (over: Partial<Extract<ItemOutcome, { status: 'scored' }>>
       },
       {
         itemId: 'b',
-        correct: false,
         outcome: 'incorrect',
         learnerResponse: ['nope'],
         correctResponse: ['Madrid'],
@@ -377,7 +376,7 @@ describe('FillInTheBlanks — review mode', () => {
     expect(screen.getByText(/Score 50%\. Not passed\. Nearly there\./)).toBeInTheDocument();
   });
 
-  it('accepts a 0.2-era outcome that only carries the deprecated `correct` flag', () => {
+  it('marks from a grade stored before 0.3, whose details carry only `correct`', () => {
     const { container } = render(
       <FillInTheBlanks
         data={fib()}
@@ -389,10 +388,11 @@ describe('FillInTheBlanks — review mode', () => {
           maxScore: 1,
           passed: false,
           feedback: null,
+          // The shape 1.0's type no longer describes, as a stored row still has it.
           details: [
             { itemId: 'a', correct: true, learnerResponse: ['Paris'], correctResponse: ['Paris'] },
             { itemId: 'b', correct: false, learnerResponse: ['nope'], correctResponse: ['Madrid'] },
-          ],
+          ] as unknown as ScoringDetail[],
         }}
       />,
     );
