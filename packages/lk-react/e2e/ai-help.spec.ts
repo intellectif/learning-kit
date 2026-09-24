@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
 /**
  * AI help in a real browser, through the example app's stand-in model: what a
@@ -8,6 +8,23 @@ import { expect, type Page, test } from '@playwright/test';
  */
 const practice = (page: Page) => page.getByLabel('AI help in practice', { exact: true });
 const exam = (page: Page) => page.getByLabel('AI help in an exam', { exact: true });
+
+/**
+ * AI help takes the width of the answer it is about: a panel or a list of
+ * hints is as wide as its `.lk-ai` block. That block lines its button up at
+ * the start, and a live region lined up the same way shrinks to what it holds:
+ * a short explanation sat in a box only as wide as its text, and the hints
+ * widened each time a longer one arrived. jsdom has no layout, so only a
+ * measurement shows it.
+ */
+async function expectFullWidth(inner: Locator): Promise<void> {
+  const { width, blockWidth } = await inner.evaluate((element) => ({
+    width: element.getBoundingClientRect().width,
+    blockWidth: element.closest('.lk-ai')?.getBoundingClientRect().width,
+  }));
+  expect(blockWidth).toBeGreaterThan(0);
+  expect(width).toBeCloseTo(blockWidth ?? 0, 0);
+}
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -21,6 +38,7 @@ test('practice: a hint, a refused hint that gave the answer away, then an explan
   await section.getByRole('button', { name: 'Get a hint' }).click();
   await expect(section.getByText('Is "she" one person, or several?')).toBeVisible();
   await expect(section.getByText('Written by AI. It can make mistakes.')).toBeVisible();
+  await expectFullWidth(section.getByRole('list', { name: 'Hints' }));
 
   await section.getByRole('button', { name: 'Get a hint' }).click();
   await expect(section.getByText('No hint is available right now.')).toBeVisible();
@@ -34,6 +52,7 @@ test('practice: a hint, a refused hint that gave the answer away, then an explan
   const panel = section.getByRole('region', { name: 'Explanation' });
   await expect(panel).toContainText('not "are"');
   await expect(panel).toBeFocused();
+  await expectFullWidth(panel);
   await expect(page.getByText(/AI help ai-explanation-shown/)).toBeVisible();
 });
 
@@ -62,6 +81,7 @@ test('practice: feedback on a draft, out of date after a revision, then a reply 
   const panel = section.getByRole('region', { name: 'Feedback on your draft' });
   await expect(panel).toContainText('A good start. Watch your past tenses.');
   await expect(panel).toBeFocused();
+  await expectFullWidth(panel);
   const corrections = panel.getByRole('list', { name: 'Suggested corrections' });
   await expect(corrections.getByRole('listitem')).toHaveCount(2);
   await expect(corrections).toContainText('bought');

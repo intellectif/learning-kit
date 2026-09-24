@@ -3352,6 +3352,13 @@
     margin-top: var(--lk-spacing-md);
   }
 
+  /* What the live region holds takes the width of the answer it is about.
+     Lined up at the start like the button, the region would shrink to its
+     content, and the panel or the hints inside it with it. */
+  .lk-ai > [aria-live] {
+    align-self: stretch;
+  }
+
   .lk-ai-button {
     padding: var(--lk-spacing-xs) var(--lk-spacing-md);
     font: inherit;
@@ -3421,14 +3428,8 @@
     font-weight: 600;
   }
 
-  /* Feedback on a draft holds lists as well as text: it takes the width of
-     the answer it is about — the live region around it included, which would
-     otherwise shrink to its content — and the panel spaces its parts, rather
-     than each part's own margins. */
-  .lk-wr-ai > [aria-live] {
-    align-self: stretch;
-  }
-
+  /* Feedback on a draft holds lists as well as text: the panel spaces its
+     parts, rather than each part's own margins. */
   .lk-wr-ai .lk-ai-panel {
     display: flex;
     flex-direction: column;
