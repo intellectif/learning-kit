@@ -358,14 +358,12 @@ describe('review', () => {
     details: [
       {
         itemId: 'a',
-        correct: score === 1,
         outcome: score === 1 ? 'correct' : 'incorrect-omission',
         learnerResponse: [],
         correctResponse: [],
       },
       {
         itemId: 'b',
-        correct: score === 1,
         outcome: score === 1 ? 'correct-omission' : 'incorrect',
         learnerResponse: [],
         correctResponse: [],

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MediaSchema, validateActivity } from '../index.js';
+import { validateActivity } from '../index.js';
+import { MediaSchema } from '../media.js';
 
 describe('MediaSchema', () => {
   it('accepts image with non-empty alt, audio, and video', () => {

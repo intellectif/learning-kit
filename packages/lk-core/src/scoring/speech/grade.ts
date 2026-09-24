@@ -235,7 +235,6 @@ export function gradeReadAloud(
       // there is no assessment to read, and no grader to credit.
       details: referenceWordsOf(item).map(({ itemId, word }) => ({
         itemId,
-        correct: false,
         outcome: 'incorrect-omission' as const,
         learnerResponse: '',
         correctResponse: word,
@@ -376,7 +375,6 @@ export function gradeReadAloud(
     }
     details.push({
       itemId: entry.itemId,
-      correct: entry.state === 'correct',
       outcome:
         entry.state === 'correct'
           ? 'correct'

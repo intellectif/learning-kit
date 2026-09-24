@@ -7,13 +7,16 @@ import { GapSelectDataSchema } from './gap-select.js';
 import { ItemGroupSchema, StimulusSchema } from './item-group.js';
 import { MultipleChoiceDataSchema } from './multiple-choice.js';
 import { ReadAloudDataSchema } from './read-aloud.js';
+import { isOwnSchema, standardJsonSchemaOf } from './read-schema.js';
 import { WrittenResponseDataSchema } from './written-response.js';
 
 /**
  * JSON Schema (Draft 7) for a `Stimulus`. Structural contract only — the
  * kind/media/body consistency guards are Zod-only.
  */
-export const stimulusJsonSchema = z.toJSONSchema(StimulusSchema, { target: 'draft-7' });
+export const stimulusJsonSchema: Record<string, unknown> = z.toJSONSchema(StimulusSchema, {
+  target: 'draft-7',
+});
 
 /**
  * JSON Schema (Draft 7) for an `ItemGroup` CONTAINER. Items appear as objects
@@ -22,7 +25,9 @@ export const stimulusJsonSchema = z.toJSONSchema(StimulusSchema, { target: 'draf
  * rather than a single nested schema — that keeps the per-type schema the
  * registry's, not a copy.
  */
-export const itemGroupJsonSchema = z.toJSONSchema(ItemGroupSchema, { target: 'draft-7' });
+export const itemGroupJsonSchema: Record<string, unknown> = z.toJSONSchema(ItemGroupSchema, {
+  target: 'draft-7',
+});
 
 /**
  * JSON Schema (Draft 7) representation of the Multiple Choice activity data
@@ -41,7 +46,7 @@ export const itemGroupJsonSchema = z.toJSONSchema(ItemGroupSchema, { target: 'dr
  * answer key that names a choice the gap offers — are Zod-only, as they are
  * for the other types.
  */
-export const gapSelectJsonSchema = z.toJSONSchema(GapSelectDataSchema, {
+export const gapSelectJsonSchema: Record<string, unknown> = z.toJSONSchema(GapSelectDataSchema, {
   target: 'draft-7',
 });
 
@@ -55,7 +60,7 @@ export const gapSelectJsonSchema = z.toJSONSchema(GapSelectDataSchema, {
  * slow-recording rules, no captions, no transcript in the title — are
  * Zod-only, as they are for the other types.
  */
-export const dictationJsonSchema = z.toJSONSchema(DictationDataSchema, {
+export const dictationJsonSchema: Record<string, unknown> = z.toJSONSchema(DictationDataSchema, {
   target: 'draft-7',
 });
 
@@ -68,30 +73,39 @@ export const dictationJsonSchema = z.toJSONSchema(DictationDataSchema, {
  * model-recording rules, unique dimensions, a weight above 0, and the take
  * bounds — are Zod-only, as they are for the other types.
  */
-export const readAloudJsonSchema = z.toJSONSchema(ReadAloudDataSchema, {
+export const readAloudJsonSchema: Record<string, unknown> = z.toJSONSchema(ReadAloudDataSchema, {
   target: 'draft-7',
 });
 
-export const multipleChoiceJsonSchema = z.toJSONSchema(MultipleChoiceDataSchema, {
-  target: 'draft-7',
-});
+export const multipleChoiceJsonSchema: Record<string, unknown> = z.toJSONSchema(
+  MultipleChoiceDataSchema,
+  {
+    target: 'draft-7',
+  },
+);
 
 /**
  * JSON Schema (Draft 7) representation of the Fill-in-the-Blanks activity data
  * contract, generated natively by Zod 4. Structural contract only (semantic
  * `.refine()` guards are Zod-only and not representable in JSON Schema).
  */
-export const fillInTheBlanksJsonSchema = z.toJSONSchema(FillInTheBlanksDataSchema, {
-  target: 'draft-7',
-});
+export const fillInTheBlanksJsonSchema: Record<string, unknown> = z.toJSONSchema(
+  FillInTheBlanksDataSchema,
+  {
+    target: 'draft-7',
+  },
+);
 
 /**
  * JSON Schema (Draft 7) representation of the Written Response activity data
  * contract. Structural contract only.
  */
-export const writtenResponseJsonSchema = z.toJSONSchema(WrittenResponseDataSchema, {
-  target: 'draft-7',
-});
+export const writtenResponseJsonSchema: Record<string, unknown> = z.toJSONSchema(
+  WrittenResponseDataSchema,
+  {
+    target: 'draft-7',
+  },
+);
 
 /**
  * Derives the JSON Schema (Draft 7) for any REGISTERED activity type — the
@@ -99,15 +113,34 @@ export const writtenResponseJsonSchema = z.toJSONSchema(WrittenResponseDataSchem
  * and the building block for AI generation pipelines (R6.1): pass the result
  * as a structured-output schema so a model can only emit valid items.
  *
+ * For a type you registered, it is the descriptor's `jsonSchema` when you gave
+ * one, or else what the schema produces through the Standard JSON Schema
+ * converter (`'~standard'.jsonSchema`) — a zod 4.6 schema has one. A fresh copy
+ * every call.
+ *
  * @throws UnknownActivityTypeError when `type` has no registered descriptor.
+ * @throws Error when a registered type has neither a `jsonSchema` nor a schema
+ *   that can produce one.
  */
 export function jsonSchemaFor(type: string): Record<string, unknown> {
   const descriptor = getActivityTypeDescriptor(type);
   if (descriptor === undefined) {
     throw new UnknownActivityTypeError(type);
   }
-  return z.toJSONSchema(descriptor.schema as never, { target: 'draft-7' }) as Record<
-    string,
-    unknown
-  >;
+  if (isOwnSchema(descriptor.schema)) {
+    return z.toJSONSchema(descriptor.schema as never, { target: 'draft-7' }) as Record<
+      string,
+      unknown
+    >;
+  }
+  if (descriptor.jsonSchema !== undefined) {
+    return structuredClone(descriptor.jsonSchema) as Record<string, unknown>;
+  }
+  const generated = standardJsonSchemaOf(descriptor.schema);
+  if (generated === undefined) {
+    throw new Error(
+      `Activity type "${descriptor.type}" has no JSON Schema: its schema implements no Standard JSON Schema converter ('~standard'.jsonSchema). Give its descriptor a \`jsonSchema\`.`,
+    );
+  }
+  return generated;
 }

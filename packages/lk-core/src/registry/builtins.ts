@@ -1,4 +1,3 @@
-import type { z } from 'zod/v4';
 import { dictationAuthoring } from '../authoring/dictation.js';
 import { fillInTheBlanksAuthoring } from '../authoring/fill-in-the-blanks.js';
 import { gapSelectAuthoring } from '../authoring/gap-select.js';
@@ -11,6 +10,7 @@ import { FillInTheBlanksDataSchema } from '../schemas/fill-in-the-blanks.js';
 import { GapSelectDataSchema } from '../schemas/gap-select.js';
 import { MultipleChoiceDataSchema } from '../schemas/multiple-choice.js';
 import { ReadAloudDataSchema } from '../schemas/read-aloud.js';
+import { ownSchemas } from '../schemas/read-schema.js';
 import {
   RedactedDictationDataSchema,
   RedactedFillInTheBlanksDataSchema,
@@ -29,6 +29,7 @@ import {
   normalizeDictationText,
   truncateCodePoints,
 } from '../scoring/dictation/normalize.js';
+import type { StandardSchemaV1 } from '../standard-schema.js';
 import type {
   DictationData,
   DictationLearnerResponse,
@@ -301,7 +302,7 @@ export const multipleChoiceType = defineActivityType<
   type: 'multiple-choice',
   // zod4 optional outputs are `T | undefined`; the hand-written wire types use
   // exact optionals. Structurally identical at runtime — cast is type-level only.
-  schema: MultipleChoiceDataSchema as unknown as z.ZodType<MultipleChoiceData>,
+  schema: MultipleChoiceDataSchema as unknown as StandardSchemaV1<unknown, MultipleChoiceData>,
   scoring: { kind: 'sync', score: scoreMultipleChoice },
   isAnswered: (response) => (response?.selectedOptionIds.length ?? 0) > 0,
   fieldPolicy: MULTIPLE_CHOICE_FIELD_POLICY,
@@ -326,7 +327,7 @@ export const fillInTheBlanksType = defineActivityType<
   FillInTheBlanksLearnerResponse
 >({
   type: 'fill-in-the-blanks',
-  schema: FillInTheBlanksDataSchema as unknown as z.ZodType<FillInTheBlanksData>,
+  schema: FillInTheBlanksDataSchema as unknown as StandardSchemaV1<unknown, FillInTheBlanksData>,
   scoring: { kind: 'sync', score: scoreFillInTheBlanks },
   isAnswered: (response) =>
     Object.values(response?.answers ?? {}).some((answer) => answer.trim().length > 0),
@@ -358,7 +359,7 @@ export const writtenResponseType = defineActivityType<
   WrittenResponseLearnerResponse
 >({
   type: 'written-response',
-  schema: WrittenResponseDataSchema as unknown as z.ZodType<WrittenResponseData>,
+  schema: WrittenResponseDataSchema as unknown as StandardSchemaV1<unknown, WrittenResponseData>,
   scoring: {
     kind: 'deferred',
     reason: 'requires_async_grading',
@@ -386,7 +387,7 @@ export const writtenResponseType = defineActivityType<
 /** Built-in Gap Select descriptor. */
 export const gapSelectType = defineActivityType<GapSelectData, GapSelectLearnerResponse>({
   type: 'gap-select',
-  schema: GapSelectDataSchema as unknown as z.ZodType<GapSelectData>,
+  schema: GapSelectDataSchema as unknown as StandardSchemaV1<unknown, GapSelectData>,
   scoring: { kind: 'sync', score: scoreGapSelect },
   isAnswered: (response) =>
     Object.values(response?.selections ?? {}).some((choiceId) => choiceId !== ''),
@@ -416,7 +417,7 @@ export const gapSelectType = defineActivityType<GapSelectData, GapSelectLearnerR
  */
 export const dictationType = defineActivityType<DictationData, DictationLearnerResponse>({
   type: 'dictation',
-  schema: DictationDataSchema as unknown as z.ZodType<DictationData>,
+  schema: DictationDataSchema as unknown as StandardSchemaV1<unknown, DictationData>,
   scoring: { kind: 'sync', score: scoreDictation },
   // Whitespace-only or punctuation-only text is no answer. Without the
   // tolerance, which this signature cannot see: the one gap is an attempt made
@@ -499,7 +500,7 @@ function hasRecording(response: ReadAloudLearnerResponse | undefined): boolean {
  */
 export const readAloudType = defineActivityType<ReadAloudData, ReadAloudLearnerResponse>({
   type: 'read-aloud',
-  schema: ReadAloudDataSchema as unknown as z.ZodType<ReadAloudData>,
+  schema: ReadAloudDataSchema as unknown as StandardSchemaV1<unknown, ReadAloudData>,
   scoring: {
     kind: 'deferred',
     reason: 'requires_async_grading',
@@ -520,6 +521,22 @@ export const readAloudType = defineActivityType<ReadAloudData, ReadAloudLearnerR
   interactions: ['recording-started', 'recording-stopped', 'recording-uploaded', 'submitted'],
   authoring: readAloudAuthoring,
 });
+
+// The SDK's own schemas are read with zod, which reports what each failing
+// check was given; see `readSchema`.
+for (const descriptor of [
+  multipleChoiceType,
+  fillInTheBlanksType,
+  writtenResponseType,
+  gapSelectType,
+  dictationType,
+  readAloudType,
+]) {
+  ownSchemas(
+    descriptor.schema,
+    ...(descriptor.redactedSchema !== undefined ? [descriptor.redactedSchema] : []),
+  );
+}
 
 registerActivityType(multipleChoiceType);
 registerActivityType(fillInTheBlanksType);

@@ -716,7 +716,6 @@ describe('ActivitySequence review', () => {
     details: [
       {
         itemId: 'a',
-        correct: score === 1,
         outcome: 'correct',
         learnerResponse: 'Yes',
         correctResponse: 'Yes',

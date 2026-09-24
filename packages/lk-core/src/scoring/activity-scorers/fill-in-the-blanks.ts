@@ -43,7 +43,6 @@ export function scoreFillInTheBlanks(
     perBlankCorrect.push(matched);
     details.push({
       itemId: blank.id,
-      correct: matched,
       outcome: matched ? 'correct' : 'incorrect',
       learnerResponse: [input],
       correctResponse: [...blank.acceptedAnswers],

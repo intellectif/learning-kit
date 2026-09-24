@@ -18,7 +18,7 @@ import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { useLearnerAi } from '../../ai/LkAiProvider.js';
 import { useActivityState } from '../../hooks/useActivityState.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
-import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
+import { ANONYMOUS_ACTOR, detailIsRight, isDevelopment, objectIdFor } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation, AiHints, useComponentAiHints } from '../shared/AiHelp.js';
 import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
@@ -90,18 +90,14 @@ function answersOf(response: LearnerResponse | undefined): Record<string, string
 }
 
 /**
- * Per-item correctness keyed by blank id. Prefers the unambiguous `outcome`
- * field (always written by the built-in scorers since lk-core 0.3.0) and
- * falls back to the deprecated `correct` boolean so a 0.2-era
- * consumer-constructed `ItemOutcome` still marks correctly in `review`.
+ * Per-item correctness keyed by blank id, from each detail's `outcome` — or,
+ * on a grade stored before lk-core 0.3, its `correct` flag, so it still marks
+ * in `review`.
  */
 function correctnessByItem(details: readonly ScoringDetail[]): Map<string, boolean> {
   const map = new Map<string, boolean>();
   for (const detail of details) {
-    map.set(
-      detail.itemId,
-      detail.outcome !== undefined ? detail.outcome === 'correct' : detail.correct,
-    );
+    map.set(detail.itemId, detailIsRight(detail));
   }
   return map;
 }

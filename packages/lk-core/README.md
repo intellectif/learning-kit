@@ -1,6 +1,6 @@
 # @intellectif/lk-core
 
-Framework-free TypeScript core of [learning-kit](https://github.com/intellectif/learning-kit): Zod-based **activity schemas**, a pure **scoring engine**, **rubric and deferred grading**, **weighted assessment composition**, reproducible **exam attempt plans**, fail-closed **redaction**, and an **xAPI 1.0.3 statement builder + validator**. Zero React, zero DOM — usable in Node, browsers, edge, workers, or as the data layer behind `@intellectif/lk-react`.
+Framework-free TypeScript core of [learning-kit](https://github.com/intellectif/learning-kit): **activity schemas and validation**, a pure **scoring engine**, **rubric and deferred grading**, **weighted assessment composition**, reproducible **exam attempt plans**, fail-closed **redaction**, and an **xAPI 1.0.3 statement builder + validator**. Zero React, zero DOM — usable in Node, browsers, edge, workers, or as the data layer behind `@intellectif/lk-react`.
 
 It is built for **summative** assessment as much as practice: nothing here grades on the client, "not marked yet" is a first-class outcome that is never conflated with a zero, and every behavioural change that could move a historical grade is opt-in. A frozen corpus of grading vectors ships in the package, fails CI if any of them moves, and can be replayed against the build you install.
 
@@ -41,7 +41,7 @@ npm install @intellectif/lk-core
 - **xAPI builder** — `xAPIBuilder.buildAnsweredStatement(...)` / `buildSubmittedStatement(...)` / `buildCompletedStatement(...)` (plus `buildStatement(...)` for any verb) emit well-formed xAPI 1.0.3 statements with a v4 statement id and an ISO-8601 timestamp. Ids use `crypto.randomUUID()` where available and fall back to `crypto.getRandomValues()`, so statements stay well-formed on the non-secure origins `randomUUID` is gated behind.
 - **xAPI verbs for async grading** — `XAPIVerb.SUBMITTED` is emitted for work whose grade does not exist yet (`answered` would assert a score nobody computed), and `XAPIVerb.SCORED` is there for the grade that arrives later, often from a different actor. `XAPI_VERB_DISPLAY` supplies the `en-US` labels.
 - **`xapiDefinitionFor(data)`** — the xAPI interop descriptor (activity-type IRI, `cmi.interaction` type, `correctResponsesPattern`) for any registered type, so a consumer-registered activity gets correct interop with no component changes. Returns `{}` for an unregistered type, so it is always safe to spread.
-- **xAPI validator** — `validateXAPIStatement(statement)` (Zod-backed; throws on an invalid statement in development, warns in production).
+- **xAPI validator** — `validateXAPIStatement(statement)` (throws on an invalid statement in development, warns in production).
 - **Errors** — `ActivitySchemaError`, `UnknownActivityTypeError`, `DeferredScoringError` and `RedactedScoringError`, all with structured payloads.
 - **Types** — `ActivityData`, `ActivityResult`, `ScoringResult`, `XAPIStatement`, `ThemeTokens`, … all exported with JSDoc.
 
@@ -115,7 +115,7 @@ result.passed;   // boolean, or null while provisional. Never record a provision
 | Import | Contents |
 |---|---|
 | `@intellectif/lk-core` | Everything (barrel) |
-| `@intellectif/lk-core/schemas` | Zod schemas + `validateActivity` + JSON Schema export |
+| `@intellectif/lk-core/schemas` | `validateActivity`, `validateItemGroup`, `validateMedia`, `validateOptionMedia`, `jsonSchemaFor` and the JSON Schemas, and the redacted types |
 | `@intellectif/lk-core/scoring` | `score`, `evaluate`, `composeAssessmentScore`, rounding, text matching |
 | `@intellectif/lk-core/xapi` | `xAPIBuilder`, `XAPIVerb`, `validateXAPIStatement` |
 | `@intellectif/lk-core/ai-check` | `runAiCheck`, `aiCheckCases`, `formatAiCheckReport` — test your AI prompts in CI |
@@ -124,8 +124,8 @@ The barrel re-exports everything, and it is the **only** entry point for attempt
 plans, attempt state, item groups, redaction, the type registry, authoring drafts
 and content hashing — those have no subpath of their own.
 
-All exports ship as ESM + CJS with `.d.ts` types. Tree-shakeable; `sideEffects: false`. Node >= 20. In browsers, the SDK's own code needs `Object.hasOwn` — Chrome and Edge 93, Firefox 92, Safari 15.4 — because output targets ES2022 and nothing is polyfilled.
-Zod is the single runtime dependency: the package depends on `zod@^3.25` and imports the **Zod 4 API** from its `zod/v4` subpath, so it coexists with an app still on Zod 3.
+All exports ship as ESM + CJS with `.d.ts` types. Tree-shakeable; `sideEffects: false`. Node 22 or later. In browsers, the SDK's own code needs `Object.hasOwn` — Chrome and Edge 93, Firefox 92, Safari 15.4 — because output targets ES2022 and nothing is polyfilled.
+Zod is the single runtime dependency, pinned to one exact version and private: no export is a zod schema and no published type names zod, so your app can use any version of zod, or none. The pin keeps validation to what the SDK tested — a new zod ships in a lk-core release, once the validation corpus replays unchanged — at the cost of a second copy of zod in a bundle whose own zod is another version. A type you register brings its own schema, from any library that implements [Standard Schema](https://standardschema.dev). What 1.x keeps stable is set out in [Stability](https://github.com/intellectif/learning-kit/blob/main/docs/stability.md).
 
 ## Releases & upgrading
 

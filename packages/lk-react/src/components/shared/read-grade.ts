@@ -187,16 +187,20 @@ function readDetail(value: unknown): ScoringDetail | null {
     return null;
   }
   const { itemId, correct, outcome, learnerResponse, correctResponse, weight, score } = value;
-  if (
-    typeof itemId !== 'string' ||
-    typeof correct !== 'boolean' ||
-    !isResponse(learnerResponse) ||
-    !isResponse(correctResponse)
-  ) {
+  if (typeof itemId !== 'string' || !isResponse(learnerResponse) || !isResponse(correctResponse)) {
     return null;
   }
   const checkedOutcome = OUTCOMES.find((known) => known === outcome);
   if (!isAbsent(outcome) && checkedOutcome === undefined) {
+    return null;
+  }
+  // `correct` is what a detail stored before lk-core 0.3 carries in place of an
+  // `outcome`, and what one written from 0.3 until 1.0 carries beside it. Where
+  // present it must be a flag; with no outcome it is the mark, so it must be there.
+  if (!isAbsent(correct) && typeof correct !== 'boolean') {
+    return null;
+  }
+  if (checkedOutcome === undefined && typeof correct !== 'boolean') {
     return null;
   }
   if (!isAbsent(weight) && !isFiniteNumber(weight)) {
@@ -207,15 +211,17 @@ function readDetail(value: unknown): ScoringDetail | null {
   if (checkedScore === null) {
     return null;
   }
+  // A stored detail with no outcome keeps its `correct` flag, which the
+  // components read in its place (see `legacyCorrect`); one with an outcome
+  // needs nothing else.
   return {
     itemId,
-    correct,
     learnerResponse,
     correctResponse,
-    ...(checkedOutcome !== undefined ? { outcome: checkedOutcome } : {}),
+    ...(checkedOutcome !== undefined ? { outcome: checkedOutcome } : { correct }),
     ...(!isAbsent(weight) ? { weight } : {}),
     ...(checkedScore !== undefined ? { score: checkedScore } : {}),
-  };
+  } as ScoringDetail;
 }
 
 function readDetails(value: unknown): ScoringDetail[] | undefined {

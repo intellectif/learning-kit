@@ -180,26 +180,44 @@ describe('buildAiFacts: what a model is told', () => {
     const details: ScoringDetail[] = [
       {
         itemId: 'a',
-        correct: false,
         outcome: 'incorrect-omission',
         learnerResponse: [],
         correctResponse: [],
       },
       {
         itemId: 'b',
-        correct: false,
         outcome: 'incorrect',
         learnerResponse: [],
         correctResponse: [],
       },
-      // A 0.2-era detail: only the deprecated flag, read with the selection.
-      { itemId: 'c', correct: true, learnerResponse: [], correctResponse: [] },
+      // Stored before 0.3: `correct` and no `outcome`. On an option it meant
+      // "acted rightly on it", so an unchosen option that reads true is not
+      // part of the answer.
+      {
+        itemId: 'c',
+        correct: true,
+        learnerResponse: [],
+        correctResponse: [],
+      } as unknown as ScoringDetail,
     ];
     const response = { type: 'multiple-choice' as const, selectedOptionIds: ['b'] };
     const facts = buildAiFacts(projection, response, details);
     expect(
       facts?.activityType === 'multiple-choice' && facts.options.map((o) => o.correct),
     ).toEqual([true, false, false]);
+    // Stored before 0.3 throughout: the flag is read with the selection, so an
+    // unchosen option the learner was wrong to leave is part of the answer.
+    const stored = [
+      { itemId: 'a', correct: false, learnerResponse: [], correctResponse: [] },
+      { itemId: 'b', correct: false, learnerResponse: [], correctResponse: [] },
+      { itemId: 'c', correct: true, learnerResponse: [], correctResponse: [] },
+    ] as unknown as ScoringDetail[];
+    const read = buildAiFacts(projection, response, stored);
+    expect(read?.activityType === 'multiple-choice' && read.options.map((o) => o.correct)).toEqual([
+      true,
+      false,
+      false,
+    ]);
     const bare = buildAiFacts(projection, response, null);
     expect(bare?.activityType === 'multiple-choice' && bare.options.map((o) => o.correct)).toEqual([
       null,
@@ -211,8 +229,8 @@ describe('buildAiFacts: what a model is told', () => {
   it('numbers blanks in passage order, whatever order the author listed them in', () => {
     const response = { type: 'fill-in-the-blanks' as const, answers: { a: 'tokio', b: 'is' } };
     const details: ScoringDetail[] = [
-      { itemId: 'a', correct: false, learnerResponse: ['tokio'], correctResponse: ['Tokyo'] },
-      { itemId: 'b', correct: true, learnerResponse: ['is'], correctResponse: ['is'] },
+      { itemId: 'a', outcome: 'incorrect', learnerResponse: ['tokio'], correctResponse: ['Tokyo'] },
+      { itemId: 'b', outcome: 'correct', learnerResponse: ['is'], correctResponse: ['is'] },
     ];
     expect(buildAiFacts(fib, response, details)).toEqual({
       activityId: 'fib-1',
@@ -237,7 +255,7 @@ describe('buildAiFacts: what a model is told', () => {
     const projection = redact(fib);
     const response = { type: 'fill-in-the-blanks' as const, answers: {} };
     const details: ScoringDetail[] = [
-      { itemId: 'b', correct: false, learnerResponse: [''], correctResponse: ['is'] },
+      { itemId: 'b', outcome: 'incorrect', learnerResponse: [''], correctResponse: ['is'] },
     ];
     const facts = buildAiFacts(projection, response, details);
     expect(
@@ -306,7 +324,7 @@ describe('buildAiFacts: what a model is told', () => {
   it('turns a redacted gap’s answer id from the server into its word', () => {
     const projection = redact(gaps);
     const details: ScoringDetail[] = [
-      { itemId: 'y', correct: false, learnerResponse: ['are'], correctResponse: ['is'] },
+      { itemId: 'y', outcome: 'incorrect', learnerResponse: ['are'], correctResponse: ['is'] },
     ];
     const facts = buildAiFacts(
       projection,
@@ -341,10 +359,16 @@ describe('buildAiFacts: what a model is told', () => {
   it('keeps a redacted dictation’s transcript out, and words only from the server’s details', () => {
     const projection = redact(dictation);
     const details: ScoringDetail[] = [
-      { itemId: 'w1', correct: true, learnerResponse: 'the', correctResponse: 'the' },
-      { itemId: 'w2', correct: false, learnerResponse: '', correctResponse: 'cat' },
-      { itemId: 'w3', correct: false, learnerResponse: 'dog', correctResponse: '' },
-      { itemId: 'w4', correct: false, learnerResponse: 'mat', correctResponse: 'sat' },
+      // Stored before 0.3: `correct` and no `outcome`, read as it was meant.
+      {
+        itemId: 'w1',
+        correct: true,
+        learnerResponse: 'the',
+        correctResponse: 'the',
+      } as unknown as ScoringDetail,
+      { itemId: 'w2', outcome: 'incorrect-omission', learnerResponse: '', correctResponse: 'cat' },
+      { itemId: 'w3', outcome: 'incorrect', learnerResponse: 'dog', correctResponse: '' },
+      { itemId: 'w4', outcome: 'incorrect', learnerResponse: 'mat', correctResponse: 'sat' },
     ];
     const facts = buildAiFacts(projection, { type: 'dictation', text: 'the dog mat' }, details);
     expect(facts).toMatchObject({ transcript: null, typed: 'the dog mat' });
@@ -486,7 +510,6 @@ describe('aiExplanationRequest', () => {
       details: [
         {
           itemId: 'a',
-          correct: true,
           outcome: 'correct',
           learnerResponse: [],
           correctResponse: [],

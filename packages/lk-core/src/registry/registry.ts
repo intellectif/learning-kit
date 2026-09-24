@@ -1,4 +1,5 @@
-import type { z } from 'zod/v4';
+import { isStandardSchema } from '../schemas/read-schema.js';
+import type { StandardSchemaV1 } from '../standard-schema.js';
 import type { DeferredScoringPartial, ScoringResult } from '../types/activity.js';
 import type { DraftContext, DraftIssue } from '../types/authoring.js';
 
@@ -95,8 +96,9 @@ export interface ActivityTypeAuthoring<TData> {
    * length included, so report a rule about a whole list at the list's own path.
    * A failure at the root of the draft is accounted for only by an issue at the
    * root. A `null` the schema refuses, where nothing here reports it, comes back
-   * as `null_not_allowed` — except inside a plain `z.union`, which reports a
-   * failure once, at the union's own path, under its own code.
+   * as `null_not_allowed`. A zod 4 schema tells a refused `null` from a rule of
+   * yours that merely points at one, which keeps its own code; a schema from
+   * another library cannot, so report such a rule here, at its path.
    *
    * A code documented in `docs/authoring.md` is reported with its documented
    * severity. For a code of your own, a severity other than `'incomplete'` is
@@ -111,12 +113,36 @@ export interface ActivityTypeAuthoring<TData> {
  * descriptor makes `validateActivity`, `validateDraft`, `score`, `evaluate`,
  * `redact`, and `jsonSchemaFor` work for the type — an activity type is a value,
  * not a hardcoded union member (R1).
+ *
+ * Its schemas are Standard Schemas ({@link StandardSchemaV1}), so they can be
+ * written with any library that implements the standard — a zod 4 schema is
+ * one as it stands:
+ *
+ * ```ts
+ * const pollType = defineActivityType<PollData, PollResponse>({
+ *   type: 'poll',
+ *   schema: z.looseObject({ type: z.literal('poll'), id: z.string(), … }),
+ *   scoring: { kind: 'sync', score: scorePoll },
+ * });
+ * registerActivityType(pollType);
+ * ```
  */
 export interface ActivityTypeDescriptor<TData extends { type: string }, TResponse> {
   /** The `type` discriminator string (kebab-case by convention). */
   readonly type: TData['type'];
-  /** Zod schema validating the activity's data contract. */
-  readonly schema: z.ZodType<TData>;
+  /**
+   * The activity's data contract, as a Standard Schema whose output is the
+   * data. Its validation must be synchronous: every entry point that reads it
+   * is.
+   */
+  readonly schema: StandardSchemaV1<unknown, TData>;
+  /**
+   * The contract as JSON Schema, for `jsonSchemaFor`. Leave it out when
+   * `schema` can produce one itself through the Standard JSON Schema converter
+   * (`'~standard'.jsonSchema`), as a zod 4.6 schema can; give it to override
+   * that, or for a library that cannot.
+   */
+  readonly jsonSchema?: Readonly<Record<string, unknown>>;
   /** How responses are graded. */
   readonly scoring: ActivityTypeScoring<TData, TResponse>;
   /** Whether a response counts as an answer (vs. blank/untouched). */
@@ -125,10 +151,11 @@ export interface ActivityTypeDescriptor<TData extends { type: string }, TRespons
   readonly fieldPolicy?: FieldPolicy;
   /**
    * Schema the output of `redact(data)` (with default `reveal: 'none'`) must
-   * satisfy. Strict by design: it proves the ABSENCE of answer-key fields,
-   * so `assertRedacted` can guarantee a payload is safe to send to a learner.
+   * satisfy, as a Standard Schema. Strict by design: it proves the ABSENCE of
+   * answer-key fields, so `assertRedacted` can guarantee a payload is safe to
+   * send to a learner.
    */
-  readonly redactedSchema?: z.ZodType<unknown>;
+  readonly redactedSchema?: StandardSchemaV1;
   /** Interop facts for xAPI (and later QTI) statement building. */
   readonly interop?: ActivityTypeInterop<TData>;
   /** The interaction-event kinds components for this type emit. */
@@ -143,7 +170,8 @@ export interface ActivityTypeDescriptor<TData extends { type: string }, TRespons
  */
 export interface RegisteredActivityTypeDescriptor {
   readonly type: string;
-  readonly schema: z.ZodType<unknown>;
+  readonly schema: StandardSchemaV1;
+  readonly jsonSchema?: Readonly<Record<string, unknown>>;
   readonly scoring:
     | {
         readonly kind: 'sync';
@@ -156,7 +184,7 @@ export interface RegisteredActivityTypeDescriptor {
       };
   readonly isAnswered?: (response: unknown) => boolean;
   readonly fieldPolicy?: FieldPolicy;
-  readonly redactedSchema?: z.ZodType<unknown>;
+  readonly redactedSchema?: StandardSchemaV1;
   readonly interop?: ActivityTypeInterop<unknown>;
   readonly interactions?: readonly string[];
   readonly authoring?: ActivityTypeAuthoring<unknown>;
@@ -200,6 +228,28 @@ export function registerActivityType<TData extends { type: string }, TResponse>(
     // and `flattenSequence` misread their own container.
     throw new Error(
       '"item-group" is reserved for the SDK\'s item-group container (see ItemGroup) and cannot be registered as an activity type.',
+    );
+  }
+  // Checked here, where the mistake is made, rather than at the first
+  // validation of the type.
+  if (!isStandardSchema(descriptor.schema)) {
+    throw new TypeError(
+      `Activity type "${descriptor.type}": \`schema\` must implement Standard Schema v1 (https://standardschema.dev), as a zod 4, valibot or ArkType schema does.`,
+    );
+  }
+  if (descriptor.redactedSchema !== undefined && !isStandardSchema(descriptor.redactedSchema)) {
+    throw new TypeError(
+      `Activity type "${descriptor.type}": \`redactedSchema\` must implement Standard Schema v1 (https://standardschema.dev), as a zod 4, valibot or ArkType schema does.`,
+    );
+  }
+  if (
+    descriptor.jsonSchema !== undefined &&
+    (descriptor.jsonSchema === null ||
+      typeof descriptor.jsonSchema !== 'object' ||
+      Array.isArray(descriptor.jsonSchema))
+  ) {
+    throw new TypeError(
+      `Activity type "${descriptor.type}": \`jsonSchema\` must be a JSON Schema object.`,
     );
   }
   const existing = registry.get(descriptor.type);

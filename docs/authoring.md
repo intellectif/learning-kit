@@ -1023,12 +1023,15 @@ image or an embed is `media_alt_required`. Any other `null` the schema refuses i
 `null_not_allowed`, whatever the field's own code would say, because
 `validateActivity` would reject the draft. Leave the field out instead. That holds
 for optional fields, for entries in lists — an `undefined` entry too, which JSON
-writes as `null` — and for every type you register, with two exceptions that keep
-the schema's own code: a rule of your type's own that points at a field holding a
-`null` the schema accepts, and a `null` inside a member of a plain `z.union`,
-which the schema library reports once, at the union's own path, without saying
+writes as `null` — and for every type you register with a zod 4 schema, with two
+exceptions that keep the schema's own code: a rule of your type's own that points
+at a field holding a `null` the schema accepts, and a `null` inside a member of a
+plain `z.union`, which zod reports once, at the union's own path, without saying
 which member was meant. A `null` inside a member of a `z.discriminatedUnion` is
-named.
+named. A schema from another library reports through Standard Schema, which does
+not say what each failing check was given: there every `null` at the path of a
+failure is `null_not_allowed`, so report a rule of your own that points at one
+from `checkDraft`, at its path.
 
 ### Item groups — a testlet's own draft contract
 
@@ -1551,6 +1554,25 @@ registerActivityType(defineActivityType<MatchingData, MatchingResponse>({
 Both halves are required, and they fail differently: skip `registerActivityType`
 and validation/scoring throw `UnknownActivityTypeError` at runtime; skip the
 augmentation and the code above does not compile.
+
+**The schemas are Standard Schemas** ([standardschema.dev](https://standardschema.dev)).
+`schema` and `redactedSchema` take a schema from any library that implements Standard
+Schema v1 — zod 4, valibot, ArkType — and lk-core depends on none of them. A zod 4
+schema is one as written: `schema: z.looseObject({ … })`, no adapter, no cast.
+
+- **Its validation must be synchronous.** `registerActivityType` refuses a value that
+  is not a Standard Schema, and a schema whose validation returns a Promise throws a
+  `TypeError` the first time it is read.
+- **A zod 4 schema is read with zod's own `safeParse`**, so its drafts are reported as
+  precisely as a built-in type's, and what its refinement throws reaches you as it was
+  thrown. A schema from another library is read through the standard: each failure at
+  its path, under the code its library gives, or `invalid`.
+- **`jsonSchemaFor(type)`** returns the descriptor's `jsonSchema` when you give one —
+  a JSON Schema object, a fresh copy each call — or else what the schema produces
+  through the Standard JSON Schema converter, as a zod 4.6 schema does. With neither,
+  it throws, naming `jsonSchema`.
+
+What stays stable across 1.x is set out in [Stability](./stability.md).
 
 A renderer receives the standard `ActivityProps`. Keys match `data.type`, and a
 key matching a built-in overrides it — so you can replace the bundled renderer

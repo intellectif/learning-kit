@@ -1,5 +1,6 @@
 import { UnknownActivityTypeError } from '../errors.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
+import { readSchema } from '../schemas/read-schema.js';
 import type { ActivityDataMap, ActivityType } from '../types/activity.js';
 import type { DraftContext, DraftIssue, DraftValidationResult } from '../types/authoring.js';
 import { withValidationScope } from '../validation-scope.js';
@@ -76,11 +77,15 @@ function validateDraftInScope<T extends ActivityType>(
 
   // `reportInput` records on each issue the value its check was given, which is
   // how a refused `null` is told apart from a rule that merely points at one.
-  const parsed = descriptor.schema.safeParse(draft, { reportInput: true });
+  // A registered type's schema, read through Standard Schema, reports the value
+  // at the issue's path instead.
+  const parsed = readSchema(descriptor.schema, draft, `Activity type "${descriptor.type}"`, {
+    reportInput: true,
+  });
   if (!parsed.success) {
     const covered = coveredPathsOf(reported);
     const reportedEmpty = new Set<string>();
-    for (const schemaIssue of parsed.error.issues) {
+    for (const schemaIssue of parsed.issues) {
       const path = schemaIssue.path.map(String);
       if (covered.has(pathKey(path))) {
         continue;

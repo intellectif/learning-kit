@@ -35,7 +35,6 @@ export function scoreDictation(
     }
     details.push({
       itemId: word.itemId as string,
-      correct: word.status === 'correct',
       outcome:
         word.status === 'correct'
           ? 'correct'

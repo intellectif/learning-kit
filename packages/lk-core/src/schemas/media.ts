@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { maxUnits } from './text-length.js';
 
 /**
  * Optional media attached to an activity, rendered above the question or
@@ -95,10 +96,9 @@ export const MediaTrackSchema = z.strictObject({
   srclang: z.string().regex(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/, {
     error: 'srclang must be a BCP 47 language tag, such as "en", "es" or "pt-BR".',
   }),
-  label: z
-    .string()
-    .max(60)
-    .refine((label) => label.trim().length > 0, { error: 'A track label must not be empty.' }),
+  label: maxUnits(z.string(), 60).refine((label) => label.trim().length > 0, {
+    error: 'A track label must not be empty.',
+  }),
   default: z.boolean().optional(),
 });
 

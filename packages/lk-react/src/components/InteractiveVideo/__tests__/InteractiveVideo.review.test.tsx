@@ -48,8 +48,18 @@ const scored = (passed: boolean): ItemOutcome => ({
   passed,
   feedback: passed ? 'Bien' : 'Mal',
   details: [
-    { itemId: 'a', correct: !passed, learnerResponse: ['not-selected'], correctResponse: [] },
-    { itemId: 'b', correct: passed, learnerResponse: ['selected'], correctResponse: ['selected'] },
+    {
+      itemId: 'a',
+      outcome: passed ? 'incorrect-omission' : 'correct-omission',
+      learnerResponse: ['not-selected'],
+      correctResponse: [],
+    },
+    {
+      itemId: 'b',
+      outcome: passed ? 'correct' : 'incorrect',
+      learnerResponse: ['selected'],
+      correctResponse: ['selected'],
+    },
   ],
 });
 

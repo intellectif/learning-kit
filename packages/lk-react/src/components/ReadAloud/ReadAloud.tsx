@@ -34,7 +34,7 @@ import { useSpeechRecorder } from '../../hooks/useSpeechRecorder.js';
 import { localeDirectionOf } from '../../i18n/direction.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStrings } from '../../i18n/strings.js';
-import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
+import { ANONYMOUS_ACTOR, detailIsRight, isDevelopment, objectIdFor } from '../_internal.js';
 import { PronunciationFeedback } from '../PronunciationFeedback/index.js';
 import { markSentence, VISUALLY_HIDDEN } from '../PronunciationFeedback/PronunciationFeedback.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
@@ -307,7 +307,7 @@ function marksFromDetails(details: readonly ScoringDetail[]): ReadAloudWordAlign
     const reference = Array.isArray(detail.correctResponse)
       ? detail.correctResponse.join(' ')
       : detail.correctResponse;
-    const correct = detail.outcome !== undefined ? detail.outcome === 'correct' : detail.correct;
+    const correct = detailIsRight(detail);
     const state: ReadAloudWordAlignment['state'] = correct
       ? 'correct'
       : detail.outcome === 'incorrect-omission'

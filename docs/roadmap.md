@@ -839,10 +839,10 @@ feedback on my draft" on a written response in `practice`, `useAiWritingFeedback
 corrections), feedback on any other type, and feedback asked for on every keystroke rather than
 by the learner.
 
-**Next: v1.0, scheduled by the maintainer on 2026-09-23 ahead of the rest of the AI line.** Every
-`lk-core` minor so far has released an `lk-react` major (see [v1.0](#v10--schema-20-and-the-stability-promise)),
-and each AI feature still to come is a minor that would release another. From 1.0 they ship as the
-minors they are.
+**Then v1.0, scheduled by the maintainer on 2026-09-23 ahead of the rest of the AI line** — ✅ shipped
+as lk-core 1.0.0 / lk-react 23.0.0; see [v1.0](#v10--the-stability-promise). Every `lk-core` minor
+until then released an `lk-react` major, and each AI feature still to come would have released another.
+From 1.0 they ship as the minors they are.
 
 1. **The AI line, in this order, after v1.0.** Explanations, hints, the groundwork above and
    feedback on writing have shipped; what is left is ordered by what a learner or an author gets from
@@ -894,23 +894,65 @@ minors they are.
    Still to settle in the milestone plan: calibration metrics shipped with no default threshold, as
    rounding ships no default `dp`.
 
-### v1.0 — "schema 2.0 and the stability promise"
+### v1.0 — "the stability promise"
 
-**Next**, scheduled on 2026-09-23 right after feedback on writing and ahead of the rest of the AI
-line. Its plan settles the scope below item by item, each against the grade-stability rule.
+✅ **Shipped as lk-core 1.0.0 / lk-react 23.0.0** (2026-09-23), scheduled by the maintainer right after
+feedback on writing. What every 1.x keeps is written down in [docs/stability.md](./stability.md). **No
+grade changes.** The plan took the list this section used to hold item by item; what shipped, and why:
 
-- `ItemOutcome` becomes the single scoring result (legacy `score()` overload removed, `ScoringDetail.correct`
-  removed, `.d.ts` cleanups); `schemaVersion: '2.0'` default write / `'1.0'` readable indefinitely (lazy
-  migration); codemods; published conformance suite; stated deprecation windows (schema majors readable ≥ 24
-  months); zod → peer or internalized; web-component/`lk-embed` evaluation on top of the headless layer
-  (the "replace H5P in non-React LMSes" path — categorical gap, honestly deferred until headless exists).
-- **It also ends the version cascade, which is a reason to bring it forward.** `lk-react` peers on
-  `@intellectif/lk-core@^0.x`, and a caret on a `0.` version matches only that minor — so every `lk-core`
-  minor puts the range out of date and releases a `lk-react` **major**. That is why `lk-react` is at 22
-  while most of those majors broke nothing, and a major that breaks nothing teaches consumers to stop
-  reading them. `^1.x` matches every later minor, so from `lk-core@1.0.0` a minor is a minor. The
-  grade-stability rule is unaffected: what makes a release a major there is a changed grade, not a version
-  range.
+- **The version cascade ends — and the reason given for it here was incomplete.** The caret argument
+  holds (`^0.x` matches one minor, `^1.x` every later one), but it is not what released a lk-react
+  major on every lk-core minor: Changesets did, bumping a peer dependent to major on any minor of its
+  peer, in range or not. 1.0 alone would have released lk-react 24.0.0 with lk-core 1.1.0. So 1.0
+  sets `onlyUpdatePeerDependentsWhenOutOfRange`, pins `@changesets/cli` (the option sits under an
+  "experimental, will change in patch" key, and Changesets 3 removed it and changed the rule again),
+  and runs `scripts/check-release-plan.mjs` in `docs-check`: the real CLI, in a scratch workspace,
+  must release no lk-react for a 1.x minor or patch and a lk-react major for a 0.x minor.
+- **`ScoringDetail.correct` is removed; `outcome` is required.** Deprecated since 0.3. Removing it
+  found a defect: lk-react's reader of a host's grade refused any detail without a boolean `correct`,
+  so the details a 1.0 server returned — a read-aloud's word marks among them — would have been
+  dropped. The corpus changed in 142 vectors and in nothing else: with `correct` deleted from the 497
+  details of the old corpus it is identical to the new one.
+- **Zod is private.** It was public three ways: 47 schema constants (on both the barrel and
+  `/schemas`), the registry's `schema: z.ZodType`, and 17 `Redacted*` types inferred with `z.infer`.
+  Asked a second time once the registry was found, the maintainer asked for the most robust choice
+  with the best experience for other developers, not the quickest. So a registered type's schemas are
+  [Standard Schema v1](https://standardschema.dev) — a zod 4 schema is one as written, and valibot or
+  ArkType work too — read one way by every entry point; zod schemas through zod's own `safeParse`,
+  keeping `reportInput` for drafts and letting a refinement's throw through (zod's Standard Schema
+  `validate` turns it into a rejected Promise that, unobserved, can end a Node process). JSON Schema
+  comes from the descriptor's `jsonSchema` or the schema's Standard JSON Schema converter. The
+  constants are gone, `validateMedia` / `validateOptionMedia` replace the two a media picker used, the
+  `Redacted*` types are written out and pinned to the schemas by compile-time equality tests, and
+  `verify-dist` fails on an exported zod schema or a published type that names zod.
+- **Zod 4.6, and what the upgrade would have changed silently.** 0.x used the zod 4 preview inside zod
+  3.25. zod 4.6 counts string limits in code points, where the preview counted UTF-16 units — four
+  thousand emoji a limit of 8000 refused, it accepts, and an accepted assessment is graded where a
+  refused one is not — and it keeps a refused field in the value later checks read, which crashed
+  `validateDraft` on a dictation and let a thousand pasted transcripts past the check meant to stop
+  them being measured. Both are now the SDK's own: `maxUnits` and `parsedFields`. Run against the
+  published 0.21.0 on 28,821 inputs across every built-in validation, each accepts and refuses what
+  it did; eight error lists lose one derivative error.
+- **Validation is frozen and zod pinned exactly** — both from an external audit of 1.0. The
+  stability page promises that errors keep their `path` and `code`, but those codes were zod's, on a
+  caret range: a zod 4.7 could have renamed one, or moved a verdict as 4.6 would have, in a consumer's
+  install with no lk-core release. So zod is pinned to 4.6.5, and `vectors/validation.json` freezes
+  what every validator accepts and refuses, and each error's path and code, for 3,245 inputs; it is
+  replayed against source and the built package, and it fails on the two 4.6 changes above if
+  either comes back. Updating zod is now a procedure in `docs/releasing.md`.
+
+**Not shipped, on evidence:**
+- **`schemaVersion: '2.0'`.** Nothing defined a content change for it, and a version with no change
+  marks every stored item old for nothing. The promise instead: `'1.0'` stays readable across 1.x.
+- **Removing `score()`.** It moves no grade, `evaluate()` already never throws, and the consumer's
+  final-test grader — its most grade-sensitive code — calls it. No codemod is needed without it.
+- **`seededShuffle` v2 by default.** A plan records the seed and not the shuffle version, so a new
+  default re-orders every paper rebuilt from a stored plan and every attempt resumed across the
+  upgrade. v1 stays; v2 stays opt-in.
+- **Rounding on by default in `computePassThreshold`.** There is no default to switch on: rounding
+  ships no default `dp`, a standing decision.
+- **Web components / `lk-embed`.** They rest on a headless layer that does not exist yet; after 1.0
+  that is a minor.
 
 ---
 

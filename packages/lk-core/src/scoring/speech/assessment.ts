@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { maxUnits } from '../../schemas/text-length.js';
 import type { ValidationError, ValidationResult } from '../../types/activity.js';
 import type { SpeechAssessment, SpeechWord } from '../../types/speech.js';
 import { SPEECH_ASSESSMENT_MAX_TEXT_LENGTH, SPEECH_ASSESSMENT_MAX_WORDS } from './limits.js';
@@ -18,12 +19,12 @@ const Confidence = z.number().min(0).max(1);
 const Milliseconds = z.number().min(0);
 
 const PhonemeCandidateSchema = z.strictObject({
-  symbol: z.string().min(1).max(16),
+  symbol: maxUnits(z.string().min(1), 16),
   score: Score,
 });
 
 const PhonemeSchema = z.strictObject({
-  symbol: z.string().min(1).max(16).optional(),
+  symbol: maxUnits(z.string().min(1), 16).optional(),
   accuracy: Score.optional(),
   startMs: Milliseconds.optional(),
   durationMs: Milliseconds.optional(),
@@ -31,18 +32,18 @@ const PhonemeSchema = z.strictObject({
 });
 
 const SyllableSchema = z.strictObject({
-  text: z.string().min(1).max(64),
-  grapheme: z.string().max(64).optional(),
+  text: maxUnits(z.string().min(1), 64),
+  grapheme: maxUnits(z.string(), 64).optional(),
   accuracy: Score.optional(),
   startMs: Milliseconds.optional(),
   durationMs: Milliseconds.optional(),
 });
 
 const WordSchema = z.strictObject({
-  text: z.string().min(1).max(200),
+  text: maxUnits(z.string().min(1), 200),
   accuracy: Score.optional(),
   error: z.enum(['none', 'mispronunciation', 'omission', 'insertion']),
-  vendorError: z.string().max(64).optional(),
+  vendorError: maxUnits(z.string(), 64).optional(),
   startMs: Milliseconds.optional(),
   durationMs: Milliseconds.optional(),
   syllables: z.array(SyllableSchema).max(50).optional(),
@@ -54,9 +55,9 @@ const WordSchema = z.strictObject({
 
 const AssessorSchema = z.strictObject({
   kind: z.enum(['auto', 'ai', 'human']),
-  id: z.string().max(256).optional(),
-  model: z.string().max(256).optional(),
-  promptHash: z.string().max(256).optional(),
+  id: maxUnits(z.string(), 256).optional(),
+  model: maxUnits(z.string(), 256).optional(),
+  promptHash: maxUnits(z.string(), 256).optional(),
 });
 
 const SpeechAssessmentSchema = z.strictObject({
@@ -64,8 +65,8 @@ const SpeechAssessmentSchema = z.strictObject({
   status: z.enum(['assessed', 'no_speech']),
   task: z.enum(['scripted', 'unscripted']),
   locale: z.string().regex(CANONICAL_LOCALE_RE),
-  referenceText: z.string().max(8000).optional(),
-  recordingKey: z.string().min(1).max(1024).optional(),
+  referenceText: maxUnits(z.string(), 8000).optional(),
+  recordingKey: maxUnits(z.string().min(1), 1024).optional(),
   assessor: AssessorSchema,
   scale: z.literal(100),
   scores: z.strictObject({
@@ -75,7 +76,7 @@ const SpeechAssessmentSchema = z.strictObject({
     prosody: Score.optional(),
     overall: Score.optional(),
   }),
-  recognizedText: z.string().max(8000).optional(),
+  recognizedText: maxUnits(z.string(), 8000).optional(),
   miscue: z.enum(['assessor', 'none']),
   phonemeAlphabet: z.enum(['ipa', 'sapi']).optional(),
   words: z.array(WordSchema).max(SPEECH_ASSESSMENT_MAX_WORDS),

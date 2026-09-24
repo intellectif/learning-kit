@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { FeedbackSchema, validateActivity } from '../index.js';
+import { FeedbackSchema } from '../feedback.js';
+import { validateActivity } from '../index.js';
 
 describe('FeedbackSchema', () => {
   it('accepts partial, full, and empty feedback objects', () => {

@@ -23,7 +23,6 @@ const grade: GradeRecord = {
   details: [
     {
       itemId: 'w1',
-      correct: true,
       outcome: 'correct',
       learnerResponse: 'the',
       correctResponse: 'the',
@@ -136,22 +135,26 @@ describe('readGrade', () => {
     expect(readGrade(with_({ details: [mark, second] }))?.details).toHaveLength(2);
     // An absent optional written as null is absent, not malformed.
     expect(
-      readGrade(with_({ details: [{ ...mark, outcome: null, weight: null, score: null }] }))
-        ?.details,
+      readGrade(with_({ details: [{ ...mark, weight: null, score: null }] }))?.details,
     ).toEqual([
-      {
-        itemId: 'w1',
-        correct: true,
-        learnerResponse: 'the',
-        correctResponse: 'the',
-      },
+      { itemId: 'w1', outcome: 'correct', learnerResponse: 'the', correctResponse: 'the' },
     ]);
+    // Written from 0.3 until 1.0: `correct` beside the outcome, which is all that is kept.
+    expect(readGrade(with_({ details: [{ ...mark, correct: true }] }))?.details).toEqual([mark]);
+    // Stored before 0.3: `correct` and no outcome. The flag is the mark, and stays.
+    expect(
+      readGrade(
+        with_({ details: [{ ...mark, outcome: null, correct: true, weight: null, score: null }] }),
+      )?.details,
+    ).toEqual([{ itemId: 'w1', correct: true, learnerResponse: 'the', correctResponse: 'the' }]);
     for (const broken of [
       null,
       { ...mark, correctResponse: {} },
       { ...mark, learnerResponse: null },
       { ...mark, learnerResponse: ['the', 3] },
       { ...mark, correct: 'yes' },
+      // Neither an outcome nor a flag: nothing says whether the word was right.
+      { ...mark, outcome: undefined },
       { ...mark, outcome: 'nearly' },
       { ...mark, score: '0.9' },
       { ...mark, score: Number.NaN },

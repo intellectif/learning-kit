@@ -62,7 +62,6 @@ export function scoreMultipleChoice(
         : 'correct-omission';
     return {
       itemId: option.id,
-      correct: wasSelected === option.isCorrect,
       outcome,
       learnerResponse: [wasSelected ? 'selected' : 'not-selected'],
       correctResponse: [option.isCorrect ? 'selected' : 'not-selected'],

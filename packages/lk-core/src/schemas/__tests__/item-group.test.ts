@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { z } from 'zod/v4';
-import {
-  ItemGroupSchema,
-  itemGroupJsonSchema,
-  StimulusSchema,
-  stimulusJsonSchema,
-  validateItemGroup,
-} from '../index.js';
+import { itemGroupJsonSchema, stimulusJsonSchema, validateItemGroup } from '../index.js';
+import { ItemGroupSchema, StimulusSchema } from '../item-group.js';
 
 const mc = {
   schemaVersion: '1.0',

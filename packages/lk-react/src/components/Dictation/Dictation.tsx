@@ -27,7 +27,7 @@ import { useLearnerAi } from '../../ai/LkAiProvider.js';
 import { useActivityState } from '../../hooks/useActivityState.js';
 import { characterDirectionOf, localeDirectionOf, textDirectionOf } from '../../i18n/direction.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
-import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
+import { ANONYMOUS_ACTOR, detailIsRight, isDevelopment, objectIdFor } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation } from '../shared/AiHelp.js';
 import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
@@ -284,7 +284,7 @@ function wordsFromDetails(details: readonly ScoringDetail[]): DictationWordAlign
     const reference = Array.isArray(detail.correctResponse)
       ? detail.correctResponse.join(' ')
       : detail.correctResponse;
-    const correct = detail.outcome !== undefined ? detail.outcome === 'correct' : detail.correct;
+    const correct = detailIsRight(detail);
     const missing = detail.outcome === 'incorrect-omission' || (!correct && attempt === '');
     return {
       itemId: detail.itemId,
@@ -898,9 +898,7 @@ export function Dictation({
         mintTake(),
       ),
     );
-    const correctWords = answer.details.filter(
-      (detail) => (detail.outcome ?? (detail.correct ? 'correct' : 'incorrect')) === 'correct',
-    ).length;
+    const correctWords = answer.details.filter(detailIsRight).length;
     setSolutionShown(false);
     setSummary({
       text: `${s.answerSubmitted} ${s.scoreAnnouncement(

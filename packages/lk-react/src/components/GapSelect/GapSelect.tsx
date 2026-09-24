@@ -22,7 +22,13 @@ import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { useLearnerAi } from '../../ai/LkAiProvider.js';
 import { useActivityState } from '../../hooks/useActivityState.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
-import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor, randomSessionId } from '../_internal.js';
+import {
+  ANONYMOUS_ACTOR,
+  detailIsRight,
+  isDevelopment,
+  objectIdFor,
+  randomSessionId,
+} from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation, AiHints, useComponentAiHints } from '../shared/AiHelp.js';
 import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
@@ -89,14 +95,11 @@ function selectionsOf(response: LearnerResponse | undefined): Record<string, str
     : NO_SELECTIONS;
 }
 
-/** Per-gap correctness keyed by gap id, preferring the unambiguous `outcome`. */
+/** Per-gap correctness keyed by gap id, from each detail's `outcome`. */
 function correctnessByItem(details: readonly ScoringDetail[]): Map<string, boolean> {
   const map = new Map<string, boolean>();
   for (const detail of details) {
-    map.set(
-      detail.itemId,
-      detail.outcome !== undefined ? detail.outcome === 'correct' : detail.correct,
-    );
+    map.set(detail.itemId, detailIsRight(detail));
   }
   return map;
 }

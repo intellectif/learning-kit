@@ -1,4 +1,4 @@
-import type { XAPIActor } from '@intellectif/lk-core';
+import type { ScoringDetail, XAPIActor } from '@intellectif/lk-core';
 
 /**
  * The one global this module reads by name. Declared here, not globally: this
@@ -63,4 +63,25 @@ export function randomSessionId(): string {
     return c.randomUUID();
   }
   return `s-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+}
+
+/**
+ * The `correct` flag of a detail stored before lk-core 0.3, which carries it in
+ * place of an `outcome`; `undefined` on any other detail. The type stopped
+ * describing it in 1.0, but a grade of record stored then still has it. On a
+ * blank, a gap or a word it meant the part was right; on a multiple-choice
+ * option, that the learner acted rightly on it.
+ */
+export function legacyCorrect(detail: ScoringDetail): boolean | undefined {
+  const { correct } = detail as { correct?: unknown };
+  return typeof correct === 'boolean' ? correct : undefined;
+}
+
+/**
+ * Whether a detail marks its blank, gap or word right: its `outcome`, or on a
+ * detail stored before lk-core 0.3, its `correct` flag.
+ */
+export function detailIsRight(detail: ScoringDetail): boolean {
+  const outcome: unknown = detail.outcome;
+  return outcome === undefined ? legacyCorrect(detail) === true : outcome === 'correct';
 }
