@@ -1,7 +1,7 @@
 # learning-kit — SDK Roadmap
 
 **Status:** living document — the roadmap of record for `@intellectif/lk-core` and `@intellectif/lk-react`.
-**Last updated:** 2026-09-22
+**Last updated:** 2026-09-23
 
 This plan is grounded in a defect audit of the published `lk-core@0.2.1` / `lk-react@1.0.1` packages and in
 production feedback from an integrating application: a CEFR-aligned EN/ES/PT language school running real
@@ -814,19 +814,45 @@ all. But the one production exam runner offers blank hints free on purpose, and 
 count could not be restored exactly after a reload without recording which hints were shown. Each of
 these waits for a school that asks.
 
-1. **The AI line, in this order.** Explanations, hints and the groundwork above have shipped; what
-   is left is ordered by what a learner or an author gets from it, and each is admitted only on the
-   rules below.
-   1. **Feedback on writing, in practice** — the largest of the remaining four for a language
-      school, and the one with a check only this SDK can run: a correction must quote text that is
-      actually in the learner's answer, at the place it claims (`InlineCorrection` already carries
-      the quote and its offsets), so an invented error is refused as a leaking hint is. A draft, its
-      feedback and a revision are one loop, and the indicative score is `gradeFromRubric`'s, marked
-      provisional.
+✅ **Feedback on writing shipped** in 0.22.0 / 22.0.0 (2026-09-23): a `writingFeedback` port, "Get
+feedback on my draft" on a written response in `practice`, `useAiWritingFeedback` for a host's own,
+`aiWritingFeedbackRequest` and `checkAiWritingFeedback` for a server, and four writing cases in
+`ai-check`; see [docs/ai.md](./ai.md#feedback-on-writing). Five decisions shaped it:
+- **The SDK finds the quote; the model does not count.** The plan above was to check the offsets a
+  model claims. Models count characters badly, and a check that refused every miscount would refuse
+  most good feedback. So the SDK looks for the quote in the draft itself — typographic quotes and
+  runs of whitespace folded, case kept — and anchors it there, and a range a model does claim must
+  hold the quote. A quote the draft does not contain refuses the reply as `misquotes-answer`.
+- **Whole or not at all**, as every AI text is. Dropping the one correction the SDK doubts and
+  showing the rest would show feedback no model wrote.
+- **No switch of its own.** It reads `ai.explanations`, the author's and the paper's, and needs
+  `feedback` and `solutions`, because a corrected sentence is a model answer. A new delivery key would
+  have changed the resolved policy every plan records, and with it every `planHash` made under a
+  delivery policy.
+- **The indicative score is the rubric's, computed by the SDK**, and only when every criterion was
+  judged. The weights are the author's; a model's is ignored. It is shown as "Not a grade.", and
+  nothing scores an answer with it.
+- **A revision is said.** Feedback is about one draft; once the text changes, it says so, because
+  its corrections may point at words that are gone.
+
+**Not shipped:** feedback after submit (the grader's `GradeRecord` carries its own feedback and
+corrections), feedback on any other type, and feedback asked for on every keystroke rather than
+by the learner.
+
+**Next: v1.0, scheduled by the maintainer on 2026-09-23 ahead of the rest of the AI line.** Every
+`lk-core` minor so far has released an `lk-react` major (see [v1.0](#v10--schema-20-and-the-stability-promise)),
+and each AI feature still to come is a minor that would release another. From 1.0 they ship as the
+minors they are.
+
+1. **The AI line, in this order, after v1.0.** Explanations, hints, the groundwork above and
+   feedback on writing have shipped; what is left is ordered by what a learner or an author gets from
+   it, and each is admitted only on the rules below.
+   1. ✅ **Feedback on writing, in practice** — shipped in 0.22.0 / 22.0.0, above.
    2. **Pronunciation coaching on a read-aloud** — the model explains the engine's marks and
       never re-scores them (`docs/speech-assessment.md` already says so, and the published
       comparisons behind it), with the matching check: a word it calls mispronounced must be one the
-      engine marked.
+      engine marked. It is the check writing feedback runs, on the engine's marks rather than the
+      draft.
    3. **Assistants for authors** — drafts generated from a passage, a transcript or a video's
       captions (for an interactive video, placed at caption times); a repair loop driven by the SDK's
       own `validateDraft` issues; an item critic reporting in the same shape those checks do, so an
@@ -870,6 +896,9 @@ these waits for a school that asks.
 
 ### v1.0 — "schema 2.0 and the stability promise"
 
+**Next**, scheduled on 2026-09-23 right after feedback on writing and ahead of the rest of the AI
+line. Its plan settles the scope below item by item, each against the grade-stability rule.
+
 - `ItemOutcome` becomes the single scoring result (legacy `score()` overload removed, `ScoringDetail.correct`
   removed, `.d.ts` cleanups); `schemaVersion: '2.0'` default write / `'1.0'` readable indefinitely (lazy
   migration); codemods; published conformance suite; stated deprecation windows (schema majors readable ≥ 24
@@ -877,7 +906,7 @@ these waits for a school that asks.
   (the "replace H5P in non-React LMSes" path — categorical gap, honestly deferred until headless exists).
 - **It also ends the version cascade, which is a reason to bring it forward.** `lk-react` peers on
   `@intellectif/lk-core@^0.x`, and a caret on a `0.` version matches only that minor — so every `lk-core`
-  minor puts the range out of date and releases a `lk-react` **major**. That is why `lk-react` is at 18
+  minor puts the range out of date and releases a `lk-react` **major**. That is why `lk-react` is at 22
   while most of those majors broke nothing, and a major that breaks nothing teaches consumers to stop
   reading them. `^1.x` matches every later minor, so from `lk-core@1.0.0` a minor is a minor. The
   grade-stability rule is unaffected: what makes a release a major there is a changed grade, not a version

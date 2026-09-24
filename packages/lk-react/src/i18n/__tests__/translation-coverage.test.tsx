@@ -2,6 +2,7 @@ import type {
   ActivityData,
   ActivityMedia as ActivityMediaData,
   AiTextResult,
+  AiWritingFeedbackRequest,
   DictationData,
   FillInTheBlanksData,
   GapSelectData,
@@ -386,6 +387,65 @@ describe('translation coverage', () => {
     sweep(<WrittenResponse data={wr} onSubmitted={vi.fn()} />);
     await user.type(screen.getByRole('textbox'), 'un texto corto');
     await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    keep(document.body);
+    cleanup();
+
+    // Feedback on a draft: asked for, shown with its corrections, its criteria
+    // and the indicative score; then a revision makes it out of date, and the
+    // last request leaves the note that there are no more.
+    const graded = {
+      ...wr,
+      id: 'q3b',
+      rubric: { criteria: [{ name: 'Gramática', weight: 1 }] },
+    } satisfies WrittenResponseData;
+    const feedbackOn = (request: AiWritingFeedbackRequest) => ({
+      text: 'Revisa los verbos.',
+      corrections: [{ original: request.facts.text.split(' ')[0] as string, corrected: 'Otro' }],
+      criteria: [{ name: 'Gramática', score: 0.5, comment: 'Casi.' }],
+    });
+    sweep(
+      <WrittenResponse
+        data={graded}
+        ai={{ writingFeedback: async (request) => feedbackOn(request), maxWritingFeedback: 2 }}
+        onSubmitted={vi.fn()}
+      />,
+    );
+    await user.type(screen.getByRole('textbox'), 'un texto corto');
+    await user.click(screen.getByRole('button', { name: sentinel('aiWritingFeedback') }));
+    await screen.findByText('Revisa los verbos.');
+    keep(document.body);
+    await user.type(screen.getByRole('textbox'), ' y más');
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('aiWritingFeedback') }));
+    await waitFor(() =>
+      expect(document.body.textContent).toContain(sentinel('aiNoMoreWritingFeedback')),
+    );
+    keep(document.body);
+    cleanup();
+
+    // A reply still being written, and one refused: correcting words nobody wrote.
+    let reply: (value: unknown) => void = () => {};
+    sweep(
+      <WrittenResponse
+        data={graded}
+        ai={{
+          writingFeedback: () =>
+            new Promise((resolve) => {
+              reply = resolve;
+            }) as never,
+        }}
+        onSubmitted={vi.fn()}
+      />,
+    );
+    await user.type(screen.getByRole('textbox'), 'un texto corto');
+    await user.click(screen.getByRole('button', { name: sentinel('aiWritingFeedback') }));
+    keep(document.body);
+    await act(async () => {
+      reply({ text: 'Mal.', corrections: [{ original: 'nunca escrito', corrected: 'x' }] });
+    });
+    await waitFor(() =>
+      expect(document.body.textContent).toContain(sentinel('aiWritingFeedbackUnavailable')),
+    );
     keep(document.body);
     cleanup();
 

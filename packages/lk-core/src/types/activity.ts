@@ -1093,6 +1093,12 @@ export type InteractionKind =
    * it accompanies is silent.
    */
   | 'ai-help-refused'
+  /**
+   * Feedback on a draft of a written response was shown (`draftNumber`, the
+   * number of `corrections`, the `indicativeScore` when there was one, and the
+   * port's `provenance` and `usage` when it sent them). Never the text.
+   */
+  | 'ai-writing-feedback-shown'
   // `string & {}` preserves literal autocompletion while keeping the union open
   // for registered custom types.
   | (string & {});

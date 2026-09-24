@@ -1,4 +1,5 @@
 export * from './ai.js';
+export * from './ai-writing.js';
 export * from './attempt-plan.js';
 export * from './attempt-state.js';
 export * from './authoring/index.js';

@@ -101,6 +101,11 @@ const REQUIRED_EXPORTS = [
   'validateDeliveryPolicy',
   'combineDeliveryPolicies',
   'OPEN_DELIVERY_POLICY',
+  // feedback on writing
+  'aiWritingFeedbackRequest',
+  'checkAiWritingFeedback',
+  'AI_WRITING_MAX_CORRECTIONS',
+  'AI_WRITING_MAX_FIELD_LENGTH',
   // item scoring policies: tries and hint costs
   'resolveItemScoringPolicy',
   'validateItemScoringPolicy',
@@ -285,6 +290,39 @@ for (const name of ['evaluate', 'evaluateTries', 'scoreTries', 'resolveItemScori
   }
 }
 
+// Writing feedback is the one AI check no other library can run: a correction
+// must quote words the learner wrote. From the build, a quote the draft holds
+// is anchored where it sits, and one it does not refuses the whole reply.
+if (typeof core.aiWritingFeedbackRequest === 'function') {
+  const essay = {
+    schemaVersion: '1.0',
+    type: 'written-response',
+    id: 'probe-essay',
+    title: 'Probe',
+    prompt: 'Write.',
+    minWords: 1,
+    maxWords: 50,
+  };
+  const request = core.aiWritingFeedbackRequest({
+    data: essay,
+    response: { type: 'written-response', text: 'Yesterday I goed home.', wordCount: 4 },
+  });
+  const anchored = core.checkAiWritingFeedback(
+    { text: 'Past tense.', corrections: [{ original: 'goed', corrected: 'went' }] },
+    request,
+  );
+  if (!anchored.ok || anchored.feedback.corrections[0]?.range?.start !== 12) {
+    failures.push('checkAiWritingFeedback() did not anchor a correction the draft holds');
+  }
+  const invented = core.checkAiWritingFeedback(
+    { text: 'Past tense.', corrections: [{ original: 'buyed', corrected: 'bought' }] },
+    request,
+  );
+  if (invented.ok || invented.refusal !== 'misquotes-answer') {
+    failures.push('checkAiWritingFeedback() showed a correction of words nobody wrote');
+  }
+}
+
 // The AI test kit is a subpath of its own, and a subpath is exactly what the
 // barrel check above cannot see: it is built from its own entry, so a rename
 // or a dropped re-export reaches a consumer's CI rather than ours. It also has
@@ -308,6 +346,11 @@ if (typeof aiCheck.runAiCheck === 'function') {
       text: 'A sentence with no answer in it.',
     }),
     hint: () => ({ text: 'Think about the verb again.' }),
+    // Quotes the draft's own first word, as a careful prompt does.
+    writingFeedback: (request) => {
+      const first = request.facts.text.split(' ')[0];
+      return { text: 'A clear start.', corrections: [{ original: first, corrected: `${first}!` }] };
+    },
   });
   if (good.shown !== cases.length || good.refused !== 0 || good.errors !== 0) {
     failures.push(
@@ -370,7 +413,7 @@ if (failures.length > 0) {
 
 console.log(
   `verify-dist OK: ${REQUIRED_EXPORTS.length} documented exports resolve from dist; redaction is fail-closed; ` +
-    'new drafts are incomplete; an unreadable delivery setting restricts; an unreadable scoring setting is refused; ' +
+    'new drafts are incomplete; an unreadable delivery setting restricts; an unreadable scoring setting is refused; a writing correction must quote the draft; ' +
     'the AI check kit runs from its own subpath; ' +
     `${corpus.vectors.length} grade vectors replay identically against CJS and ESM.`,
 );

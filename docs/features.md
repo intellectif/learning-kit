@@ -68,6 +68,7 @@ What changed in each release, and what to do about it: the [upgrading guide](./u
 | **Explanations and hints for learners** — checked before they are shown, never in an exam | 0.17.0 / 17.0.0 | [AI help](./ai.md) |
 | The same help in a question you draw yourself (`useAiHints`, `useAiExplanation`) | 0.18.0 / 18.1.0 | [AI help](./ai.md#a-question-you-draw-yourself) |
 | What a call cost, refusals you can watch, and a kit to test your prompts in CI | 0.19.0 / 19.0.0 | [AI help](./ai.md#testing-your-prompt) |
+| **Feedback on a draft of a written response** — corrections that must quote the learner, rubric comments, an indicative score that is not a grade | 0.22.0 / 22.0.0 | [AI help](./ai.md#feedback-on-writing) |
 
 ## Platform
 

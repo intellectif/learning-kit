@@ -7,6 +7,7 @@ import type {
   ReadAloudData,
   SequenceEntry,
   SpeechAssessment,
+  WrittenResponseData,
 } from '@intellectif/lk-core';
 
 // Inline SVG data URI so the demo needs no network/asset hosting.
@@ -41,6 +42,24 @@ const aiQuestion = (id: string): MultipleChoiceData => ({
 
 export const sampleAiPractice = aiQuestion('demo-ai-practice');
 export const sampleAiExam = aiQuestion('demo-ai-exam');
+
+/** A short piece of writing, with the rubric its feedback judges it on. */
+export const sampleAiEssay: WrittenResponseData = {
+  schemaVersion: '1.0',
+  type: 'written-response',
+  id: 'demo-ai-essay',
+  title: 'Your weekend',
+  prompt: 'Write two or three sentences about what you did last weekend.',
+  minWords: 5,
+  maxWords: 80,
+  languageTarget: 'en-A2',
+  rubric: {
+    criteria: [
+      { name: 'Grammar', description: 'Past tenses', weight: 2 },
+      { name: 'Task', description: 'Says what you did', weight: 1 },
+    ],
+  },
+};
 
 export const sampleMultipleChoice: MultipleChoiceData = {
   schemaVersion: '1.0',

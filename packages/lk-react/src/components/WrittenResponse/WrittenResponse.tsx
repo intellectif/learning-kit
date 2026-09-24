@@ -18,6 +18,8 @@ import {
   xAPIBuilder,
 } from '@intellectif/lk-core';
 import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { type LearnerAi, useLearnerAi } from '../../ai/LkAiProvider.js';
+import { type AiWritingFeedbackHelp, useAiWritingFeedback } from '../../ai/useAiHelp.js';
 import { useActivityState } from '../../hooks/useActivityState.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStrings, LkStringsOverride } from '../../i18n/strings.js';
@@ -128,11 +130,20 @@ export interface WrittenResponseProps {
   locale?: string;
   disabled?: boolean;
   /**
-   * The delivery policy. An essay is graded later, so only `feedback` reaches
-   * it: `false` reads a returned grade back as nothing in `review`. See
-   * `DeliveryPolicy` in lk-core.
+   * The delivery policy. An essay is graded later, so `feedback` reaches it —
+   * `false` reads a returned grade back as nothing in `review` — and so does
+   * AI feedback on a draft, which needs `feedback`, `solutions` and
+   * `ai.explanations`. See `DeliveryPolicy` in lk-core.
    */
   delivery?: DeliveryPolicy | null;
+  /**
+   * The host's AI ports, overriding `LkAiProvider`'s. With a `writingFeedback`
+   * port, a learner in `practice` can ask for feedback on a draft before
+   * submitting it — up to `maxWritingFeedback` times — and revise. Every
+   * correction in it quotes the learner's own words, or the SDK refuses it.
+   * Never in `exam` or `review`. See {@link LearnerAi}.
+   */
+  ai?: LearnerAi;
 }
 
 /**
@@ -190,51 +201,167 @@ function keyedCorrections(
  * per-item `details` (there are no options or blanks to mark), so the render
  * is the scaled score, the pass state, and the grader's feedback.
  */
+function CriteriaList({ criteria, s }: { criteria: readonly CriterionScore[]; s: LkStrings }) {
+  return (
+    <ul className="lk-wr-criteria">
+      {criteria.map((criterion) => (
+        <li
+          className="lk-wr-criterion"
+          key={criterion.name}
+          data-na={String(criterion.notApplicable === true)}
+        >
+          <span className="lk-wr-criterion-name">{criterion.name}</span>
+          {criterion.notApplicable === true ? (
+            <span className="lk-wr-criterion-score">{s.notApplicable}</span>
+          ) : (
+            <span className="lk-wr-criterion-score">
+              {criterion.band ??
+                (typeof criterion.score === 'number' ? criterionPercent(criterion) : '')}
+            </span>
+          )}
+          {criterion.comment ? (
+            <span className="lk-wr-criterion-comment">{criterion.comment}</span>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function CorrectionsList({
+  corrections,
+  label,
+}: {
+  corrections: readonly InlineCorrection[];
+  label?: string;
+}) {
+  return (
+    <ul className="lk-wr-corrections" {...(label !== undefined ? { 'aria-label': label } : {})}>
+      {keyedCorrections(corrections).map(({ key, correction }) => (
+        <li className="lk-wr-correction" key={key}>
+          <del className="lk-wr-correction-original">{correction.original}</del>{' '}
+          <ins className="lk-wr-correction-corrected">{correction.corrected}</ins>
+          {correction.explanation ? (
+            <span className="lk-wr-correction-explanation">{correction.explanation}</span>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function GradeBody({ grade, s }: { grade: GradeRecord; s: LkStrings }) {
   return (
     <>
       {grade.feedback ? <p className="lk-wr-grade-feedback">{grade.feedback}</p> : null}
       {grade.criteria && grade.criteria.length > 0 ? (
-        <ul className="lk-wr-criteria">
-          {grade.criteria.map((criterion) => (
-            <li
-              className="lk-wr-criterion"
-              key={criterion.name}
-              data-na={String(criterion.notApplicable === true)}
-            >
-              <span className="lk-wr-criterion-name">{criterion.name}</span>
-              {criterion.notApplicable === true ? (
-                <span className="lk-wr-criterion-score">{s.notApplicable}</span>
-              ) : (
-                <span className="lk-wr-criterion-score">
-                  {criterion.band ??
-                    (typeof criterion.score === 'number' ? criterionPercent(criterion) : '')}
-                </span>
-              )}
-              {criterion.comment ? (
-                <span className="lk-wr-criterion-comment">{criterion.comment}</span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+        <CriteriaList criteria={grade.criteria} s={s} />
       ) : null}
       {grade.corrections && grade.corrections.length > 0 ? (
-        <ul className="lk-wr-corrections">
-          {keyedCorrections(grade.corrections).map(({ key, correction }) => (
-            <li className="lk-wr-correction" key={key}>
-              <del className="lk-wr-correction-original">{correction.original}</del>{' '}
-              <ins className="lk-wr-correction-corrected">{correction.corrected}</ins>
-              {correction.explanation ? (
-                <span className="lk-wr-correction-explanation">{correction.explanation}</span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+        <CorrectionsList corrections={grade.corrections} />
       ) : null}
       {grade.requiresHumanReview === true ? (
         <p className="lk-wr-review-flag">{s.awaitingHumanReview}</p>
       ) : null}
     </>
+  );
+}
+
+/**
+ * "Get feedback on my draft", and the feedback: what a model said, the
+ * corrections it proposed — each quoting the learner's own words, or the SDK
+ * would have refused it — its comment on each criterion, and the rubric's
+ * total as an indication, never a grade. A revision since the feedback is
+ * said, because its corrections may point at words that are gone.
+ */
+function DraftFeedback({
+  help,
+  draft,
+  disabled,
+  s,
+}: {
+  help: AiWritingFeedbackHelp;
+  draft: string;
+  disabled: boolean;
+  s: LkStrings;
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const refocus = useRef(false);
+  const latest = help.latest;
+
+  // The feedback lands beside the button that asked; focus follows it there,
+  // so a screen reader reads it from its heading rather than all at once.
+  useEffect(() => {
+    if (latest !== null && refocus.current) {
+      refocus.current = false;
+      panelRef.current?.focus();
+    }
+  }, [latest]);
+  useEffect(() => {
+    if (help.status === 'unavailable') {
+      refocus.current = false;
+    }
+  }, [help.status]);
+
+  if (!help.offered && help.used === 0) {
+    return null;
+  }
+  const loading = help.status === 'loading';
+  const empty = draft.trim() === '';
+  const ask = (): void => {
+    refocus.current =
+      typeof document !== 'undefined' && document.activeElement === buttonRef.current;
+    help.ask();
+  };
+  return (
+    <div className="lk-ai lk-wr-ai" data-state={help.status}>
+      <div aria-live="polite">
+        {latest !== null ? (
+          <section
+            ref={panelRef}
+            className="lk-ai-panel"
+            tabIndex={-1}
+            aria-label={s.aiWritingFeedbackHeading}
+            data-current={String(help.current)}
+          >
+            <p className="lk-ai-heading">{s.aiWritingFeedbackHeading}</p>
+            {help.current ? null : <p className="lk-ai-note">{s.aiWritingFeedbackOutdated}</p>}
+            <p className="lk-ai-text">{latest.text}</p>
+            {latest.corrections.length > 0 ? (
+              <CorrectionsList corrections={latest.corrections} label={s.aiCorrections} />
+            ) : null}
+            {latest.criteria.length > 0 ? <CriteriaList criteria={latest.criteria} s={s} /> : null}
+            {latest.indicativeScore !== null ? (
+              <p className="lk-wr-indicative">
+                {s.aiIndicativeScore(Math.round(latest.indicativeScore * 100))}
+              </p>
+            ) : null}
+            <p className="lk-ai-notice">{s.aiNotice}</p>
+          </section>
+        ) : null}
+        {help.status === 'unavailable' ? (
+          <p className="lk-ai-unavailable">{s.aiWritingFeedbackUnavailable}</p>
+        ) : null}
+      </div>
+      {help.offered ? (
+        help.used < help.limit ? (
+          <button
+            ref={buttonRef}
+            type="button"
+            className="lk-ai-button"
+            aria-busy={loading || undefined}
+            // aria-disabled rather than disabled: focus stays on the button.
+            aria-disabled={loading || empty || disabled || undefined}
+            onClick={ask}
+          >
+            {loading ? s.aiWritingFeedbackLoading : s.aiWritingFeedback}
+          </button>
+        ) : (
+          <p className="lk-ai-note">{s.aiNoMoreWritingFeedback}</p>
+        )
+      ) : null}
+    </div>
   );
 }
 
@@ -302,6 +429,7 @@ export function WrittenResponse({
   locale,
   disabled,
   delivery,
+  ai: aiProp,
 }: WrittenResponseProps) {
   // Dev-only boundary validation (Req 2.3), same convention as MC/FIB. The
   // content schema is loose, so a `redact()` projection validates too.
@@ -310,6 +438,7 @@ export function WrittenResponse({
   // it: whether a returned grade — the score, each criterion, the corrections
   // — is read back in review.
   const policy = useDeliveryPolicy(delivery);
+  const ai = useLearnerAi(aiProp);
 
   const devError = useMemo(() => {
     if (!isDevelopment()) {
@@ -372,6 +501,20 @@ export function WrittenResponse({
     setSummary(null);
     reset(defaultSubmittedRef.current === true ? 'completed' : 'idle');
   }, [data, reset]);
+
+  // Feedback on a draft is a hook, so it is read here, before the throws below.
+  const draft = isControlled ? textOf(value) : innerText;
+  const writingFeedback = useAiWritingFeedback({
+    data,
+    response: { type: 'written-response', text: draft, wordCount: countWords(draft) },
+    submitted: state === 'completed',
+    renderMode,
+    delivery: policy,
+    disabled: disabled === true,
+    ...(ai !== undefined ? { ai } : {}),
+    ...(locale !== undefined ? { locale } : {}),
+    ...(onInteraction !== undefined ? { onInteraction } : {}),
+  });
 
   if (devError) {
     throw devError;
@@ -539,6 +682,9 @@ export function WrittenResponse({
       >
         {s.wordCount(wordCount)} ({boundsLabel})
       </div>
+      {ai?.writingFeedback !== undefined ? (
+        <DraftFeedback help={writingFeedback} draft={text} disabled={disabled === true} s={s} />
+      ) : null}
       {isReview ? null : (
         <button
           type="submit"

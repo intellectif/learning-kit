@@ -1,6 +1,12 @@
 'use client';
 
-import type { AiExplanationRequest, AiHintRequest, AiTextResult } from '@intellectif/lk-core';
+import type {
+  AiExplanationRequest,
+  AiHintRequest,
+  AiTextResult,
+  AiWritingFeedbackRequest,
+  AiWritingFeedbackResult,
+} from '@intellectif/lk-core';
 import { createContext, type ReactNode, useContext } from 'react';
 
 /**
@@ -29,6 +35,18 @@ export interface LearnerAi {
   hint?: (request: AiHintRequest, options: { signal: AbortSignal }) => Promise<AiTextResult>;
   /** The most hints a learner can ask for on one question. Default 3, at most 10. */
   maxHints?: number;
+  /**
+   * Gives feedback on a draft of a written response, before the learner
+   * submits it: the overall feedback as text, corrections that quote the
+   * draft, and a judgement per rubric criterion. See `checkAiWritingFeedback`
+   * in lk-core for what is refused.
+   */
+  writingFeedback?: (
+    request: AiWritingFeedbackRequest,
+    options: { signal: AbortSignal },
+  ) => Promise<AiWritingFeedbackResult>;
+  /** How many times a learner can ask for feedback on one written response. Default 3, at most 10. */
+  maxWritingFeedback?: number;
   /**
    * The language to write explanations and hints in, as a tag (`es`,
    * `pt-BR`). Defaults to the component's `locale`: the interface language,

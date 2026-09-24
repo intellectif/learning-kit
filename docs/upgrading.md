@@ -34,6 +34,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.19.0 | 19.0.0 | AI groundwork: `AiTextResult.usage` (what a call cost, carried to `ai-hint-shown` / `ai-explanation-shown`), the new `ai-help-refused` interaction, and `@intellectif/lk-core/ai-check` — a kit that runs your AI prompts against the SDK's own checks in CI. The empty `@intellectif/lk-ai` placeholder is deleted. **Additive** — the major is the peer bump, plus one new interaction kind |
 | 0.20.0 | 20.0.0 | Delivery policies: `delivery` on every activity and both pagers switches off feedback, solutions, hints or AI help per paper; `resolveDeliveryPolicy`, `validateDeliveryPolicy`, `combineDeliveryPolicies`; `planAttempt(…, { delivery })` records it in the plan and its hash, and `verifyAttemptPlan` reports `deliveryChanged`. **No grade changes, and an absent policy changes nothing** — the major is the peer bump, plus a required `delivery` on `InteractiveVideoQuestion` |
 | 0.21.0 | 21.0.0 | Scoring policies: `scoring` on every activity and both pagers — "Try again" in `practice` (`retries`), which try `counts`, and what tries and hints cost (`retryPenalty`, `hintPenalty`); `scoreTries`, `evaluateTries` and `evaluate(…, { scoring })`; `resolveItemScoringPolicy` / `validateItemScoringPolicy`; `planAttempt(…, { scoring })` and `scoringChanged`; `hintsRevealed` on multiple-choice, fill-in-the-blanks and gap-select responses. **No grade changes without a policy.** One fix to 0.20's `solutions: false` on a dictation, and one possible type error — see [0.20 → 0.21](#020--021-lk-core--20x--21x-lk-react) |
+| 0.22.0 | 22.0.0 | Feedback on writing: a `writingFeedback` port gives `<WrittenResponse>` "Get feedback on my draft" in `practice`; `useAiWritingFeedback` for a written response you draw; `aiWritingFeedbackRequest` and `checkAiWritingFeedback` in lk-core, which refuses a correction of words the draft does not contain (`misquotes-answer`) and computes the rubric's indicative score itself; four writing cases in `ai-check`. **Additive, and nothing changes without the port** — the major is the peer bump, plus eight strings and the type errors in [0.21 → 0.22](#021--022-lk-core--21x--22x-lk-react) |
 
 Every behavioural change here is opt-in, per the
 [grade-stability rule](./roadmap.md#5-standing-decisions) — with **two
@@ -60,6 +61,39 @@ you record stay exactly what they were.
 - On **18.1.x**? See [0.18 → 0.19](#018--019-lk-core--18x--19x-lk-react) — additive: what an AI call cost, a refusal you can watch, and a kit for your prompts.
 - On **19.0.x**? See [0.19 → 0.20](#019--020-lk-core--19x--20x-lk-react) — nothing changes until you pass a policy; one possible type error.
 - On **20.0.x**? See [0.20 → 0.21](#020--021-lk-core--20x--21x-lk-react) — no grade moves until you pass a scoring policy; a dictation under `solutions: false` stops naming the words it corrects; one possible type error.
+- On **21.0.x**? See [0.21 → 0.22](#021--022-lk-core--21x--22x-lk-react) — additive: feedback on a draft appears only once you pass a `writingFeedback` port; the type errors it can cause.
+
+---
+
+## 0.21 → 0.22 (`lk-core`) / 21.x → 22.x (`lk-react`)
+
+### Feedback on a draft *(0.22.0 / 22.0.0)*
+
+Pass a `writingFeedback` port — on `<LkAiProvider>`, or as `ai` on a component or a pager — and a
+written response in `practice` offers "Get feedback on my draft" before submit. The learner revises
+and asks again, up to `maxWritingFeedback` times (3 by default, at most 10). **Nothing changes until
+you pass the port**: no button, no request, and the same DOM. See
+[Feedback on writing](./ai.md#feedback-on-writing).
+
+It follows the switches an explanation follows: the author's and the paper's `ai: { explanations:
+false }` switch it off, and it needs the paper's `feedback` and `solutions`. Never in `exam` or
+`review`. If you give explanations but do not want writing feedback, leave the port out.
+
+**Run the check on your server too** — `checkAiWritingFeedback(result, request)` — before you log
+feedback as shown. It anchors each correction in the draft, refuses one that quotes words the draft
+does not contain, attaches the rubric's weights and computes the indicative score. Add a
+`writingFeedback` port to your `runAiCheck` call and its four writing cases run with the rest.
+
+### What can stop a build *(0.22.0 / 22.0.0)*
+
+- **`AiFeature` gains `'writing-feedback'`, and `AiRefusal` gains `'misquotes-answer'`.** An
+  exhaustive `switch` over either, or a `Record<AiRefusal, …>`, needs the new member. So does code
+  that reads `ai-help-refused`'s `feature` as `hint` or `explanation` only.
+- **`AiCheckCase.feature` can be `'writing-feedback'`, and `AiCheckCase.request` can be an
+  `AiWritingFeedbackRequest`**, which carries no `grade` and whose `facts` are a written response's.
+  Narrow on `feature` before reading `request.grade` or the facts of a scored type.
+- **`LkStrings` gains eight keys.** An override (`LkStringsOverride`) needs no change; a complete
+  `LkStrings` object of your own needs them — see [AI help](./i18n.md#ai-help).
 
 ---
 
