@@ -9,13 +9,14 @@
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { ITEM_FINDING_SEVERITY } from '../findings.ts';
 import { DRAFT_ISSUE_SEVERITY } from '../issues.ts';
 
 describe('docs/authoring.md draft issue tables', () => {
   it('document every built-in code with its severity, and no code that does not exist', () => {
     const doc = readFileSync(new URL('../../../../../docs/authoring.md', import.meta.url), 'utf8');
     const start = doc.indexOf('### What each type reports');
-    const end = doc.indexOf('### Your own activity types');
+    const end = doc.indexOf('### Reviewing an item: the critic');
     expect(start).toBeGreaterThan(-1);
     expect(end).toBeGreaterThan(start);
 
@@ -27,5 +28,23 @@ describe('docs/authoring.md draft issue tables', () => {
     // A code listed twice would be collapsed by fromEntries and hide a conflict.
     expect(rows.length).toBe(Object.keys(documented).length);
     expect(documented).toEqual({ ...DRAFT_ISSUE_SEVERITY });
+  });
+});
+
+describe('docs/authoring.md item critic table', () => {
+  it('documents every finding code with its severity, and no code that does not exist', () => {
+    const doc = readFileSync(new URL('../../../../../docs/authoring.md', import.meta.url), 'utf8');
+    const start = doc.indexOf('### Reviewing an item: the critic');
+    const end = doc.indexOf('### Your own activity types');
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+
+    const rows = [
+      ...doc.slice(start, end).matchAll(/^\| `([a-z_]+)` \| (warning|advice) \|/gm),
+    ].map(([, code, severity]) => [code, severity]);
+    const documented = Object.fromEntries(rows);
+
+    expect(rows.length).toBe(Object.keys(documented).length);
+    expect(documented).toEqual({ ...ITEM_FINDING_SEVERITY });
   });
 });

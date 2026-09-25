@@ -1,12 +1,14 @@
-# AI help for learners
+# AI help for learners and authors
 
 A learner can ask for **an explanation of a graded answer**, for **hints before submitting one**,
 for **feedback on a draft of a written response** before handing it in, and for **coaching on a
-reading aloud** once the speech engine has marked it. The model is yours: the SDK never calls one,
-never holds a key, and never writes a prompt. It builds the facts your model is given, from the item,
-the learner's answer and its own scorer, and checks what comes back before a learner sees it.
+reading aloud** once the speech engine has marked it. An author can ask a model to **review an item**
+and to **draft items from a passage, a transcript or a video's captions**. The model is yours: the
+SDK never calls one, never holds a key, and never writes a prompt. It builds the facts your model is
+given, from the item, the learner's answer and its own scorer, and checks what comes back before
+anyone sees it.
 
-It describes `@intellectif/lk-core` 1.1.0 and `@intellectif/lk-react` 23.1.0.
+It describes `@intellectif/lk-core` 1.2.0 and `@intellectif/lk-react` 23.1.0.
 
 - [What a learner sees](#what-a-learner-sees)
 - [Connecting your model](#connecting-your-model)
@@ -15,6 +17,8 @@ It describes `@intellectif/lk-core` 1.1.0 and `@intellectif/lk-react` 23.1.0.
 - [What your model is given](#what-your-model-is-given)
 - [Feedback on writing](#feedback-on-writing)
 - [Coaching on a reading](#coaching-on-a-reading)
+- [Reviewing an item with a model](#reviewing-an-item-with-a-model)
+- [Drafts from a source](#drafts-from-a-source)
 - [What the SDK refuses to show](#what-the-sdk-refuses-to-show)
 - [Records, cost and privacy](#records-cost-and-privacy)
 - [Testing your prompt](#testing-your-prompt)
@@ -411,6 +415,193 @@ app.post('/api/ai/coaching', async (req, res) => {
 });
 ```
 
+## Reviewing an item with a model
+
+For authors. The SDK's own [item critic](./authoring.md#reviewing-an-item-the-critic-12) finds what
+a rule can see — the right option much longer than the rest, an answer printed in the passage. A model
+can see what a rule cannot: a stem that reads two ways, a distractor that is defensibly right, a key
+that is wrong, language above the level the item is for. It works on every registered type, the SDK's
+own and yours, and on a draft as well as a finished item.
+
+```ts
+import { aiCritiqueRequest, checkAiCritique, critiqueDraft, validateDraft } from '@intellectif/lk-core';
+
+const request = aiCritiqueRequest({ type, draft, level: 'A2', authorLocale: 'es' });
+const out = await callMyModel(CRITIQUE_PROMPT, request); // your model, on your server
+const checked = checkAiCritique(out, request);
+const list = [
+  ...validateDraft(type, draft).issues,
+  ...critiqueDraft(type, draft),
+  ...(checked.ok ? checked.critique.findings : []), // shown as "Suggested by AI"
+];
+```
+
+**Your model is given** `request.facts`: the item as the author wrote it — the answer key included,
+since this is for an author, never a learner — `fields`, every text field a finding may point at with
+its path and text (settings, ids, addresses and `…Html` sidecars left out; a picture's `alt` is in),
+`findings`, what the SDK's own critic already found, so a model does not say it again, and `level`
+when you gave one. `authorLocale` is the language to write in.
+
+**It returns** findings:
+
+```ts
+{
+  findings: [
+    { path: ['options', 2, 'text'], kind: 'second-answer', message: 'A tomato is a fruit too.', quote: 'Tomato' },
+  ],
+  provenance: { model: MODEL_ID },
+}
+```
+
+- **A finding points at a field the item has.** Its `path` is one of `facts.fields`, exactly; a path
+  to a field the item does not have refuses the whole reply as `contradicts-item`.
+- **A quote is words that field holds** — typographic quotes and runs of spacing aside, case kept.
+  One it does not refuses the reply the same way.
+- **`kind`** is one of `ambiguous`, `second-answer`, `wrong-key`, `implausible-distractor`, `cue`,
+  `level`, `language`, `sensitivity` and `other`; the finding's `code` is `ai_` and the kind
+  (`ai_second_answer`).
+- **Every finding is `advice`.** It is a model's opinion; nothing in the SDK acts on it, and it
+  never makes an item invalid. Label it as a model's.
+- **Limits:** 20 findings; 500 characters for a message or a quote. Over them, `too-long`.
+
+## Drafts from a source
+
+For authors. A model drafts items from a passage, a script — an item group's `stimulus.transcript`,
+which exists for this — or a video's captions. The author chooses the types, in their own order,
+and may set how many; each draft comes back checked and critiqued, for the author to approve. Made
+into an interactive video, each question goes where its caption ends, or at the end of the video.
+
+```ts
+import { aiDraftsRequest, generateDrafts, interactiveVideoFromDrafts } from '@intellectif/lk-core';
+
+const request = aiDraftsRequest({
+  types: ['multiple-choice', 'dictation', 'read-aloud'], // the author's choice, in the author's order
+  source: { kind: 'captions', cues }, // or { kind: 'transcript', text: script } — no times
+  // count: 8,                       // left out: as many as the source is worth, up to 50
+  locale: 'en',
+  level: 'A2',
+  instructions: 'Test the key facts, not the small talk.', // the author's own words
+  settings: { 'read-aloud': { locale: 'en-US', recording: { maxSeconds: 30 }, scoring: { dimensions } } },
+});
+const run = await generateDrafts({
+  request,
+  port: (request) => callMyModel(DRAFTS_PROMPT, request),
+  newId: () => crypto.randomUUID(),
+});
+const video = interactiveVideoFromDrafts({
+  request,
+  drafts: run,
+  video: { type: 'video', url: videoUrl },
+  durationSeconds: 312, // where the end is: the SDK never reads the video
+  newId: () => crypto.randomUUID(),
+});
+await saveAsProposed(video.group, video.validation, video.findings);
+```
+
+**A draft is never approved by the SDK.** `validation.status` of `complete` means the draft is a valid
+item, not that anyone checked what it says: a model wrote it. Store it as proposed, show it with what
+`validateDraft` and the critic say, and let a person accept, edit or discard it.
+
+### What the author chooses
+
+- **`types`**, one or more of `multiple-choice`, `fill-in-the-blanks`, `gap-select`, `dictation`,
+  `read-aloud` and `written-response`, each once, **in the author's order**. The model is told to lean
+  on the first. The drafts come back in that order, and in a video the questions that share a moment —
+  or the end — are shown in it. An interactive video takes the first five; a written response is for a
+  quiz of its own.
+- **`count`**, how many drafts at most, 1 to 50. Left out, the model writes as many as the source is
+  worth, up to 50.
+- **`instructions`**, anything else the author wants, in their own words.
+- **`settings`**, per type, are yours rather than the author's: fields put on every draft of that type
+  that a model never writes — a read-aloud's `recording`, `scoring` and a region-tagged `locale`
+  (`en-US`), which the SDK has no default for; a question's `shuffle` or `scoringStrategy`. They never
+  override what the model wrote, nor a draft's `id`, `type` or `schemaVersion`.
+
+### What your model is given, and writes
+
+`request.facts` holds the source — a caption list numbered, with each caption's `start` and `end` in
+seconds, or the text — the types in order, `count` when there is one, and the `locale`, `level` and
+`instructions`. `request.shape` is the JSON Schema of the reply, for the model's structured output or
+its prompt: `{ drafts: [...] }`, each draft naming its `type` and filling that type's fields. It is one
+kind of object for every chosen type, not a choice between schemas, since that is what structured
+output supports least; and plain JSON Schema — types, required fields, enums and descriptions — not
+the storage schema `jsonSchemaFor` returns. No ids, HTML, media, switches or scoring settings: those
+are not a model's to write. `request.settings` are for `checkAiDrafts`, not the model.
+
+| Type | What a model writes |
+|---|---|
+| `multiple-choice` | `title`, `question`, `mode`, `options` of `{ text, isCorrect, feedback? }`, `feedback?` |
+| `fill-in-the-blanks` | `title`, a `passage` with `{{1}}`, `{{2}}`… in order, `blanks` of `{ acceptedAnswers, hint? }` in the same order, `feedback?` |
+| `gap-select` | `title`, a `passage` with `{{1}}`…, `gaps` of `{ choices: [{ text, isCorrect }] }` — exactly one right — `feedback?` |
+| `dictation` | `title`, `transcript` — words from the source, as said there — `feedback?` |
+| `read-aloud` | `title`, `referenceText`, `instructions?`, `feedback?` |
+| `written-response` | `title`, `prompt`, `minWords`, `maxWords`, `rubric?` of `{ criteria: [{ name, description? }] }` |
+
+From captions, every draft also names the `caption` it is about.
+
+### What comes back
+
+**`checkAiDrafts(raw, request, { newId })`** reads a reply into drafts, in the author's order of
+types:
+
+- **Ids are yours.** `newId` gives the item's id and each option's and choice's — an option id reaches
+  the learner, so the SDK never numbers them; a blank's and a gap's id is its placeholder's number.
+- **Only the shape is read.** A model's `id`, `media`, `questionHtml`, `shuffle`, `ai` or
+  `scoringStrategy` is ignored. A question is scored `all-or-nothing` unless your settings say
+  otherwise, a written response's criteria are weighted equally, and the item's `locale` is the one
+  you passed, unless a setting names another.
+- **What only you can finish is left as a new draft leaves it.** A read-aloud without settings has
+  `recording: { maxSeconds: 0 }` and no scored dimension: `incomplete`. A dictation has no recording;
+  in a video it needs one (`ig_timeline_dictation_media`) — make it from the transcript, or cut it from
+  the video at `clip`.
+- **Each draft is checked alone**: `validation` is what `validateDraft` says, `findings` what the item
+  critic finds. One unfinished draft does not refuse its neighbours. A gap's key is the one choice
+  marked right; none, or several, is no key, which `validateDraft` asks for.
+- **From captions, a draft goes where its caption ends:** `at`, in seconds. A draft that names no
+  caption the source has comes back without `at`, for the end of the video.
+- **`clip`**: a dictation from captions whose transcript is words of the caption it named — case and
+  punctuation aside — carries that caption's `start` and `end`: the stretch of video that says it.
+- **`findings`** on the whole result holds what only the set shows: every right option in one place.
+- **The whole reply is refused** only when it is not `{ drafts: [...] }` of objects of the chosen types
+  (`malformed`), or holds more drafts than you asked for, or than 50 with no count (`too-long`).
+
+### The repair loop
+
+`aiDraftsRepairRequest(request, drafts)` sends back the drafts with something wrong **the model can
+fix** — unfinished, wrong, or a flaw the critic warns about, at a field the model writes — each as the
+model wrote it, with those problems at the paths it wrote (a gap's missing key at its `choices`, a
+text too long for your recording time at its `referenceText`); it is `null` when there is nothing to
+fix. A read-aloud's missing recording time, a dictation's missing recording and advice are not sent
+back: they are yours, and the author's. `generateDrafts` runs that
+loop, `repairs` times (1 by default, at most 3):
+
+- it keeps a repaired draft only when it is no worse than the one it replaces — by status, then by
+  warnings — and a repaired draft keeps its id;
+- it never throws for a model's failure: a port that throws or a reply the SDK refuses ends the loop
+  and is recorded in `run.calls`, beside every call's `provenance` and `usage`, which the SDK never
+  adds up. A first call that fails leaves no drafts.
+
+### A quiz for an interactive video
+
+`interactiveVideoFromDrafts({ request, drafts, video, durationSeconds, title?, newId })` makes the
+drafts an interactive video: an [item group](./interactive-video.md) whose stimulus is `video` — with
+the source kept as its author-only `transcript` — and whose timeline opens a quiz:
+
+- **at each moment a draft was placed**, the end of its caption; drafts placed at one moment share
+  its quiz, in the author's order of types;
+- **at `durationSeconds`, for every draft placed nowhere** — all of them when the source was a script
+  with no times, in the author's order. Without `durationSeconds` that quiz has no time yet
+  (`ig_timeline_quiz_time_required`), for the author to set: the SDK never reads the video, so it
+  cannot know where the end is.
+
+It comes back with `validation` (`validateItemGroupDraft`) and `findings` (`critiqueItemGroupDraft`).
+A type a video does not take — a written response — is reported (`ig_timeline_item_type`), not
+dropped.
+
+**Not here:** suggested distractors or accepted answers for an item an author is writing, and a check
+that a generated question is true to its source — which is what the author's review, and the
+[critique](#reviewing-an-item-with-a-model), are for.
+
 ## What the SDK refuses to show
 
 Whatever a port resolves to is checked before a learner sees it. A refused answer shows as "not
@@ -426,6 +617,7 @@ the reason:
 | `reveals-answer` | A hint containing an answer |
 | `misquotes-answer` | Feedback on writing that corrects words the draft does not contain |
 | `contradicts-marks` | Coaching on a word the speech engine did not mark, or a sound it did not report |
+| `contradicts-item` | A critique that points at a field the item does not have, or quotes words that field does not contain |
 
 Text is always rendered as text, never as HTML.
 
@@ -498,9 +690,11 @@ const report = await runAiCheck({
   hint: (request) => callMyModel(HINT_PROMPT, request),
   writingFeedback: (request) => callMyModel(WRITING_PROMPT, request),
   pronunciationCoaching: (request) => callMyModel(COACHING_PROMPT, request),
+  critique: (request) => callMyModel(CRITIQUE_PROMPT, request),
+  drafts: (request) => callMyModel(DRAFTS_PROMPT, request),
 });
 console.log(formatAiCheckReport(report));
-// ai-check: 22/24 shown, 2 refused, 0 failed — slowest 1840 ms
+// ai-check: 32/34 shown, 2 refused, 0 failed — slowest 1840 ms
 //   reveals-answer: 1
 //   misquotes-answer: 1
 //   ✗ fib-hint-1 [hint] Both blanks empty: reveals-answer
@@ -514,8 +708,13 @@ expect(report.refused).toBe(0);
   `aiWritingFeedbackRequest` and `aiCoachingRequest`: every type the SDK explains, answered right,
   wrong and partly right; every type it hints for, before an answer and after a wrong one; drafts of a
   written response with mistakes, without any, revised after feedback, and asked about in Spanish;
-  and a reading with a mispronounced "th" and a word left out, one read cleanly, the same slips from
-  a stored grade without sounds, and coaching asked for in Spanish. They include what a
+  a reading with a mispronounced "th" and a word left out, one read cleanly, the same slips from
+  a stored grade without sounds, and coaching asked for in Spanish. For authors, built by
+  `aiCritiqueRequest` and `aiDraftsRequest`: items to review — a question whose distractor is
+  botanically a right answer, a writing task far above its level, a clean cloze, and a review asked
+  for in Spanish — and drafts from a short reading, one case per text type, plus a video quiz of
+  multiple choice, dictation and read-aloud from timed captions and from the script alone, with no
+  count. They include what a
   model slips on — an answer a hint can hardly avoid naming (`Madrid`), an answer of one short word
   (`is`), an accented answer (`cañón`), a passage with more than one blank, and a draft that makes the
   same mistake twice.
@@ -525,7 +724,11 @@ expect(report.refused).toBe(0);
 - **A refusal is a failure, not a warning:** it is help a learner asked for and did not get.
   `reveals-answer` is the one to treat most seriously — that prompt gives answers away. Next come
   `misquotes-answer`, from a prompt that corrects words the learner never wrote, and
-  `contradicts-marks`, from one that coaches words the engine heard as right.
+  `contradicts-marks`, from one that coaches words the engine heard as right. For authors,
+  `contradicts-item` is a prompt that points at fields the item does not have.
+- **A drafts case that is shown is a reply the SDK read, not a good one.** Its `result.drafts` holds
+  each draft with what `validateDraft` and the critic say: count how many came back `complete` and
+  without warnings.
 - **It runs one call at a time** by default, because a run in CI meets a rate limit long before it
   runs out of patience; `concurrency` raises it.
 - A port you leave out has its cases skipped rather than failed, and a port that throws is an
@@ -533,8 +736,8 @@ expect(report.refused).toBe(0);
 
 ## What is not here yet
 
-- **Assistants for authors:** generated drafts, an item critic, suggested distractors and accepted
-  answers.
+- **Suggestions while an author writes:** distractors and accepted answers for the item being
+  written.
 - **Assisted grading** with a calibration gate.
 
 Each is on the [roadmap](./roadmap.md#next--the-delivery-policy-then-ai), after v1.0.

@@ -59,6 +59,7 @@ What changed in each release, and what to do about it: the [upgrading guide](./u
 | Feature | Since (core / react) | Guide |
 |---|---|---|
 | Drafts that tell unfinished from wrong (`validateDraft`), and `<ActivityPreview>` | 0.9.0 / 8.0.0 | [Authoring](./authoring.md) |
+| **An item critic** — what a reviewer would point out on a valid item: the right option much longer, an answer printed in the passage, a hint that gives it away (`critiqueDraft`) | 1.2.0 / — | [Authoring](./authoring.md#reviewing-an-item-the-critic-12) |
 | Drafts for item groups | 0.12.0 / 12.0.0 | [Authoring](./authoring.md) |
 | A JSON Schema for every type (`jsonSchemaFor`) | 0.3.0 / — | [Authoring](./authoring.md) |
 
@@ -71,6 +72,9 @@ What changed in each release, and what to do about it: the [upgrading guide](./u
 | What a call cost, refusals you can watch, and a kit to test your prompts in CI | 0.19.0 / 19.0.0 | [AI help](./ai.md#testing-your-prompt) |
 | **Feedback on a draft of a written response** — corrections that must quote the learner, rubric comments, an indicative score that is not a grade | 0.22.0 / 22.0.0 | [AI help](./ai.md#feedback-on-writing) |
 | **Coaching on a reading aloud** — a model explains the speech engine's marks, and may coach only the words it marked and the sounds it reported | 1.1.0 / 23.1.0 | [AI help](./ai.md#coaching-on-a-reading) |
+| **A model's review of an item, for its author** — findings that must point at the item's own fields and quote its own words | 1.2.0 / — | [AI help](./ai.md#reviewing-an-item-with-a-model) |
+| **Drafts from a passage, a script or captions** — the types the author ticks, in the author's order, as many as asked or as the source is worth; checked and critiqued, repaired in a bounded loop, never approved by the SDK | 1.2.0 / — | [AI help](./ai.md#drafts-from-a-source) |
+| **A video's quizzes, drafted** — each question where its caption ends, or at the end of the video when the script has no times (`interactiveVideoFromDrafts`) | 1.2.0 / — | [AI help](./ai.md#a-quiz-for-an-interactive-video) |
 
 ## Platform
 

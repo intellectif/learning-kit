@@ -129,6 +129,12 @@ The timeline's own codes, which [docs/authoring.md](./authoring.md) lists in ful
 An editor UI should let an author place a quiz **at the playhead**: the moment is the only field a
 timeline needs that a form cannot infer.
 
+**Or draft the quizzes with a model** (lk-core 1.2): give it the captions — with their times, or the
+script alone — the types the author ticked, in the author's order, and optionally how many, and
+`interactiveVideoFromDrafts` returns the whole group as a draft: each question at the end of the
+caption it is about, the rest in one quiz at the end of the video, all checked and critiqued for the
+author to approve. See [Drafts from a source](./ai.md#drafts-from-a-source).
+
 ## What can be embedded
 
 Five types, and `INTERACTIVE_VIDEO_ITEM_TYPES` is the list the schema and the player both read:

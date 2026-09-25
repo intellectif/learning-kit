@@ -1,5 +1,5 @@
 import { aiAllowedByContent, aiSupports, readAiTextResult } from './ai.js';
-import { cleanText } from './ai-text.js';
+import { cleanText, folded, needle } from './ai-text.js';
 import { countWords } from './count-words.js';
 import { gradeFromRubric } from './grading.js';
 import type { LearnerResponse, WrittenResponseData } from './types/activity.js';
@@ -89,49 +89,6 @@ export function aiWritingFeedbackRequest(input: {
 }
 
 // ── Finding a quote in the draft ───────────────────────────────────────
-
-/** Typographic quotes a model writes for the plain ones a learner typed, and back. */
-const QUOTE_FOLD: Readonly<Record<string, string>> = {
-  '‘': "'",
-  '’': "'",
-  '‛': "'",
-  '′': "'",
-  '“': '"',
-  '”': '"',
-  '„': '"',
-  '″': '"',
-};
-
-/**
- * Text as a quote is matched against it: typographic quotes folded to plain
- * ones and every run of whitespace one space — the two liberties a model takes
- * when it copies words out — with, for each folded character, where it came
- * from, so a match maps back to the learner's own text. Case is kept: a
- * correction of "i" to "I" is about case.
- */
-function folded(text: string): { chars: string; from: number[] } {
-  let chars = '';
-  const from: number[] = [];
-  let space = false;
-  for (let at = 0; at < text.length; at += 1) {
-    const char = text[at] as string;
-    if (/\s/u.test(char)) {
-      if (!space) {
-        chars += ' ';
-        from.push(at);
-        space = true;
-      }
-      continue;
-    }
-    space = false;
-    chars += QUOTE_FOLD[char] ?? char;
-    from.push(at);
-  }
-  return { chars, from };
-}
-
-/** A quote as it is searched for: folded, and without the spaces around it. */
-const needle = (quote: string): string => folded(quote).chars.trim();
 
 /**
  * Where `quote` sits in the draft: at `claimed`, when the model named a range —

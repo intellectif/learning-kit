@@ -37,6 +37,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.20.0 | 20.0.0 | Delivery policies: `delivery` on every activity and both pagers switches off feedback, solutions, hints or AI help per paper; `resolveDeliveryPolicy`, `validateDeliveryPolicy`, `combineDeliveryPolicies`; `planAttempt(…, { delivery })` records it in the plan and its hash, and `verifyAttemptPlan` reports `deliveryChanged`. **No grade changes, and an absent policy changes nothing** — the major is the peer bump, plus a required `delivery` on `InteractiveVideoQuestion` |
 | 0.21.0 | 21.0.0 | Scoring policies: `scoring` on every activity and both pagers — "Try again" in `practice` (`retries`), which try `counts`, and what tries and hints cost (`retryPenalty`, `hintPenalty`); `scoreTries`, `evaluateTries` and `evaluate(…, { scoring })`; `resolveItemScoringPolicy` / `validateItemScoringPolicy`; `planAttempt(…, { scoring })` and `scoringChanged`; `hintsRevealed` on multiple-choice, fill-in-the-blanks and gap-select responses. **No grade changes without a policy.** One fix to 0.20's `solutions: false` on a dictation, and one possible type error — see [0.20 → 0.21](#020--021-lk-core--20x--21x-lk-react) |
 | 0.22.0 | 22.0.0 | Feedback on writing: a `writingFeedback` port gives `<WrittenResponse>` "Get feedback on my draft" in `practice`; `useAiWritingFeedback` for a written response you draw; `aiWritingFeedbackRequest` and `checkAiWritingFeedback` in lk-core, which refuses a correction of words the draft does not contain (`misquotes-answer`) and computes the rubric's indicative score itself; four writing cases in `ai-check`. **Additive, and nothing changes without the port** — the major is the peer bump, plus eight strings and the type errors in [0.21 → 0.22](#021--022-lk-core--21x--22x-lk-react) |
+| 1.2.0 | — | Assistants for authors: `critiqueDraft`, `critiqueDrafts` and `critiqueItemGroupDraft`, an item critic whose findings (`warning`, `advice`) sit beside `validateDraft`'s issues and never refuse an item; `aiCritiqueRequest` / `checkAiCritique`, a model's review whose findings must point at the item's own fields (`contradicts-item`); `aiDraftsRequest`, `checkAiDrafts`, `aiDraftsRepairRequest` and `generateDrafts`, drafts of the types an author chooses, in the author's order, from a passage, a script or captions; `interactiveVideoFromDrafts`, a video quiz with each question where its caption ends, or at the end. **lk-core only** — no lk-react release; see [1.1 → 1.2](#11--12-lk-core) |
 | 1.1.0 | 23.1.0 | Coaching on a reading: a `pronunciationCoaching` port gives `<ReadAloud>` and `<PronunciationFeedback>` "Coach me on this reading" under the marks; `useAiCoaching` for marks you draw; `aiCoachingRequest` and `checkAiCoaching` in lk-core, which refuses coaching on a word the engine did not mark or a sound it did not report (`contradicts-marks`); four reading cases in `ai-check`. **Additive, and nothing changes without the port** — install both together; see [1.0 → 1.1](#10--11-lk-core--230--231-lk-react) |
 | 1.0.0 | 23.0.0 | **1.0: what stays stable, written down** — see [Stability](./stability.md). A `lk-core` minor no longer releases a `lk-react` major. `ScoringDetail.correct` is removed and `outcome` required; zod is private — no export is a zod schema, `validateMedia` / `validateOptionMedia` replace the two a media picker used, and the `Redacted*` types are written out; a type you register takes a [Standard Schema](https://standardschema.dev), which a zod 4 schema already is. **No grade changes** — see [0.22 → 1.0](#022--10-lk-core--22x--23x-lk-react) |
 
@@ -68,6 +69,28 @@ you record stay exactly what they were.
 - On **21.0.x**? See [0.21 → 0.22](#021--022-lk-core--21x--22x-lk-react) — additive: feedback on a draft appears only once you pass a `writingFeedback` port; the type errors it can cause.
 - On **22.0.x**? See [0.22 → 1.0](#022--10-lk-core--22x--23x-lk-react) — no grade changes; what can stop a build, and the one read of stored data to check.
 - On **23.0.x**? See [1.0 → 1.1](#10--11-lk-core--230--231-lk-react) — additive: coaching appears only once you pass a `pronunciationCoaching` port.
+- On **lk-core 1.1.x**? See [1.1 → 1.2](#11--12-lk-core) — additive, lk-core only: nothing runs until you call it.
+
+---
+
+## 1.1 → 1.2 (`lk-core`)
+
+Assistants for authors: an item critic, a model's review of an item, and drafts from a source — a
+video's quizzes among them. See
+[Reviewing an item: the critic](./authoring.md#reviewing-an-item-the-critic-12),
+[Reviewing an item with a model](./ai.md#reviewing-an-item-with-a-model) and
+[Drafts from a source](./ai.md#drafts-from-a-source). **Nothing runs until you call it**, no grade
+changes, and **no lk-react release**: lk-react 23.1 works with lk-core 1.2 as it is.
+
+What can stop a build, as [Stability](./stability.md#the-public-api) allows a minor:
+
+- **`AiRefusal` gains `'contradicts-item'`.** A `switch` over it without a `default` branch stops
+  compiling.
+- **`AiCheckCase` gains critique and drafts cases.** `aiCheckCases()` returns ten more, with
+  `feature: 'item-critique'` or `'draft-generation'`; code that reads `request` without narrowing on
+  `feature` sees the wider union. A run without a `critique` or `drafts` port skips them.
+- **`ActivityTypeAuthoring` gains an optional `critique`.** A descriptor typed by hand keeps
+  compiling; add one to give your type the item critic.
 
 ---
 

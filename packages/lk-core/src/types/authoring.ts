@@ -49,6 +49,28 @@ export interface DraftNotComplete {
  */
 export type DraftValidationResult<T> = DraftComplete<T> | DraftNotComplete;
 
+/**
+ * How much a finding of the item critic matters. Neither makes a draft
+ * incomplete or invalid: an item with findings is a valid item, stored and
+ * served like any other, and whether to change it is the author's call.
+ *
+ * - `warning` — a known flaw a learner can exploit or trip over: the right
+ *   option is the longest, an answer printed in the passage, a hint that gives
+ *   the answer away, two options that read the same.
+ * - `advice` — an item-writing guideline the item departs from: "all of the
+ *   above", two accepted answers the matcher already treats as one.
+ */
+export type ItemFindingSeverity = 'warning' | 'advice';
+
+/**
+ * One thing the item critic found. A {@link ValidationError} with a severity,
+ * as a {@link DraftIssue} is, so an editor lists both in one list — sorted by
+ * severity: `invalid`, `incomplete`, `warning`, `advice`.
+ */
+export interface ItemFinding extends ValidationError {
+  severity: ItemFindingSeverity;
+}
+
 /** What `createDraft` hands an activity type's `authoring.createDraft`. */
 export interface DraftContext {
   /**

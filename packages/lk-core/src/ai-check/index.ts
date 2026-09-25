@@ -20,6 +20,8 @@
  *   hint: (request) => callMyModel(HINT_PROMPT, request),
  *   writingFeedback: (request) => callMyModel(FEEDBACK_PROMPT, request),
  *   pronunciationCoaching: (request) => callMyModel(COACHING_PROMPT, request),
+ *   critique: (request) => callMyModel(CRITIQUE_PROMPT, request),
+ *   drafts: (request) => callMyModel(DRAFTS_PROMPT, request),
  * });
  * console.log(formatAiCheckReport(report));
  * if (report.refused > 0 || report.errors > 0) {
@@ -36,10 +38,16 @@
  */
 import { checkAiExplanation, checkAiHint } from '../ai.js';
 import { checkAiCoaching } from '../ai-coaching.js';
+import { checkAiCritique } from '../ai-critique.js';
+import { checkAiDrafts } from '../ai-drafts.js';
 import { checkAiWritingFeedback } from '../ai-writing.js';
 import type {
   AiCoaching,
   AiCoachingRequest,
+  AiCritique,
+  AiCritiqueRequest,
+  AiDrafts,
+  AiDraftsRequest,
   AiExplanationRequest,
   AiHintRequest,
   AiRefusal,
@@ -63,6 +71,10 @@ export interface AiCheckPorts {
   hint?(request: AiHintRequest): Promise<unknown> | unknown;
   writingFeedback?(request: AiWritingFeedbackRequest): Promise<unknown> | unknown;
   pronunciationCoaching?(request: AiCoachingRequest): Promise<unknown> | unknown;
+  /** Reviews an item for its author: the port an editor's "Review with AI" calls. */
+  critique?(request: AiCritiqueRequest): Promise<unknown> | unknown;
+  /** Drafts items from a source, for an author to approve. */
+  drafts?(request: AiDraftsRequest): Promise<unknown> | unknown;
 }
 
 /** What happened on one case. */
@@ -84,6 +96,14 @@ export interface AiCheckResult {
   feedback?: AiWritingFeedback;
   /** For a coaching case a learner would have been shown: the coaching, as the SDK accepted it. */
   coaching?: AiCoaching;
+  /** For a critique case an author would have been shown: the findings, as the SDK accepted them. */
+  critique?: AiCritique;
+  /**
+   * For a drafts case the SDK read: the drafts, each with what `validateDraft`
+   * and the item critic say of it. A reply read is not a good one — check how
+   * many came back `complete` and without warnings.
+   */
+  drafts?: AiDrafts;
   /** How long the call took, in milliseconds. */
   ms: number;
 }
@@ -128,6 +148,7 @@ const REFUSALS: AiRefusal[] = [
   'reveals-answer',
   'misquotes-answer',
   'contradicts-marks',
+  'contradicts-item',
 ];
 
 /** The port a case is for. */
@@ -142,6 +163,10 @@ function portFor(
       return ports.hint as never;
     case 'pronunciation-coaching':
       return ports.pronunciationCoaching as never;
+    case 'item-critique':
+      return ports.critique as never;
+    case 'draft-generation':
+      return ports.drafts as never;
     default:
       return ports.writingFeedback as never;
   }
@@ -169,6 +194,24 @@ async function runCase(ports: AiCheckPorts, one: AiCheckCase): Promise<AiCheckRe
     };
   }
   const ms = now() - started;
+  if (one.request.feature === 'draft-generation') {
+    let next = 0;
+    const checked = checkAiDrafts(raw, one.request, {
+      newId: () => {
+        next += 1;
+        return `ai-check-${next}`;
+      },
+    });
+    return checked.ok
+      ? { case: one, ok: true, drafts: checked.drafts, ms }
+      : refused(one, raw, checked.refusal, ms);
+  }
+  if (one.request.feature === 'item-critique') {
+    const checked = checkAiCritique(raw, one.request);
+    return checked.ok
+      ? { case: one, ok: true, critique: checked.critique, ms }
+      : refused(one, raw, checked.refusal, ms);
+  }
   if (one.request.feature === 'pronunciation-coaching') {
     const checked = checkAiCoaching(raw, one.request);
     if (checked.ok) {

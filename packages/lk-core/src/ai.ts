@@ -1,5 +1,5 @@
-import { cleanText } from './ai-text.js';
-import { PLACEHOLDER_RE } from './schemas/fill-in-the-blanks.js';
+import { cleanText, provenanceOf, usageOf } from './ai-text.js';
+import { numberedPassage, placeholderOrder, revealsAnswer } from './answer-leak.js';
 import { alignDictation } from './scoring/dictation/align.js';
 import { isGradeInRange } from './scoring/grade-numbers.js';
 import { score } from './scoring/index.js';
@@ -20,14 +20,12 @@ import type {
   AiGrade,
   AiHintRequest,
   AiItemFacts,
-  AiProvenance,
   AiRefusal,
   AiSupportedActivityType,
   AiTextResult,
   AiVerdict,
   AiWordFact,
 } from './types/ai.js';
-import type { GraderUsage } from './types/grading.js';
 
 /**
  * The activity types the SDK builds facts for, and which of them take hints.
@@ -95,23 +93,6 @@ export function aiGradeOf(result: { score: number; maxScore: number; passed: boo
 }
 
 // ── Facts ──────────────────────────────────────────────────────────────
-
-/**
- * The ids of a passage's placeholders, in the order they appear. Read with the
- * schema's own expression, so a passage means here what it means to validation.
- */
-function placeholderOrder(passage: string): string[] {
-  return [...passage.matchAll(PLACEHOLDER_RE)].map((match) => match[1] as string);
-}
-
-/** The passage with each placeholder written as `[n]`, in passage order. */
-function numberedPassage(passage: string): string {
-  let position = 0;
-  return passage.replace(PLACEHOLDER_RE, () => {
-    position += 1;
-    return `[${position}]`;
-  });
-}
 
 /**
  * The `correct` flag a detail stored before 0.3 carries instead of an
@@ -428,40 +409,6 @@ export function aiHintRequest(input: {
 
 const VERDICTS: readonly string[] = ['correct', 'partly-correct', 'incorrect'];
 
-/** A provenance field a host may send, kept only when it is a short string. */
-function provenanceOf(raw: unknown): AiProvenance | undefined {
-  if (typeof raw !== 'object' || raw === null) {
-    return undefined;
-  }
-  const kept: AiProvenance = {};
-  for (const key of ['model', 'promptHash', 'generatedAt'] as const) {
-    const value = (raw as Record<string, unknown>)[key];
-    if (typeof value === 'string' && value.length > 0 && value.length <= 200) {
-      kept[key] = value;
-    }
-  }
-  return Object.keys(kept).length > 0 ? kept : undefined;
-}
-
-/**
- * What the call cost, as a port reported it. Read on the same terms as the
- * provenance: a number that is not finite and zero or more says nothing about
- * a cost, so it is dropped rather than carried into a host's totals.
- */
-function usageOf(raw: unknown): GraderUsage | undefined {
-  if (typeof raw !== 'object' || raw === null) {
-    return undefined;
-  }
-  const kept: GraderUsage = {};
-  for (const key of ['promptTokens', 'completionTokens', 'costUsd'] as const) {
-    const value = (raw as Record<string, unknown>)[key];
-    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
-      kept[key] = value;
-    }
-  }
-  return Object.keys(kept).length > 0 ? kept : undefined;
-}
-
 /**
  * Reads what a port returned. Anything but an object with a string `text` is
  * `malformed`; text that is empty once cleaned, or longer than
@@ -542,70 +489,6 @@ export function checkAiHint(
 // ── The answer-leak guard ──────────────────────────────────────────────
 
 /**
- * Text folded for searching: compatibility forms read as what they stand for,
- * accents and other marks removed, lower-cased, and every run of anything but
- * letters and digits turned into one space. "Está," and "esta" fold alike.
- */
-function fold(text: string): string[] {
-  const folded = text
-    .normalize('NFKD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .trim();
-  return folded === '' ? [] : folded.split(' ');
-}
-
-/** Whether `needle` appears in `haystack` as a run of whole words. */
-function containsWords(haystack: readonly string[], needle: readonly string[]): boolean {
-  if (needle.length === 0 || needle.length > haystack.length) {
-    return false;
-  }
-  for (let start = 0; start + needle.length <= haystack.length; start += 1) {
-    let match = true;
-    for (let offset = 0; offset < needle.length; offset += 1) {
-      if (haystack[start + offset] !== needle[offset]) {
-        match = false;
-        break;
-      }
-    }
-    if (match) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * An answer too short to search for on its own: one word of fewer than four
- * characters — "is", "the", "26". A hint may use such a word freely; it
- * reveals the answer only when it writes it where the answer goes.
- */
-const isShort = (words: readonly string[]): boolean =>
-  words.length === 1 && [...(words[0] as string)].length < 4;
-
-/**
- * The words either side of the gap numbered `position` in a numbered
- * passage, other gaps left out.
- */
-function neighbours(passage: string, position: number): { before?: string; after?: string } {
-  const marker = `[${position}]`;
-  const at = passage.indexOf(marker);
-  if (at === -1) {
-    return {};
-  }
-  const strip = (text: string): string => text.replace(/\[\d+\]/g, ' ');
-  const left = fold(strip(passage.slice(0, at)));
-  const right = fold(strip(passage.slice(at + marker.length)));
-  const before = left[left.length - 1];
-  const after = right[0];
-  return {
-    ...(before !== undefined ? { before } : {}),
-    ...(after !== undefined ? { after } : {}),
-  };
-}
-
-/**
  * Whether a hint gives away an answer, judged against the facts it was asked
  * for. It is a floor, not a proof: it finds an answer written out, not one
  * spelled letter by letter or described.
@@ -619,24 +502,8 @@ function neighbours(passage: string, position: number): { before?: string; after
  * Case, accents and punctuation are ignored on both sides.
  */
 export function hintRevealsAnswer(facts: AiItemFacts, hint: string): boolean {
-  const words = fold(hint);
-  const reveals = (answer: string, passage?: string, position?: number): boolean => {
-    const needle = fold(answer);
-    if (needle.length === 0) {
-      return false;
-    }
-    if (!isShort(needle) || passage === undefined || position === undefined) {
-      return containsWords(words, needle);
-    }
-    const { before, after } = neighbours(passage, position);
-    if (before === undefined && after === undefined) {
-      return containsWords(words, needle);
-    }
-    return (
-      (before !== undefined && containsWords(words, [before, ...needle])) ||
-      (after !== undefined && containsWords(words, [...needle, after]))
-    );
-  };
+  const reveals = (answer: string, passage?: string, position?: number): boolean =>
+    revealsAnswer(hint, answer, passage, position);
   switch (facts.activityType) {
     case 'multiple-choice':
       return facts.options.some((option) => option.correct === true && reveals(option.text));

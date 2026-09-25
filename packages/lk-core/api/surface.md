@@ -13,6 +13,10 @@ class RedactedScoringError: declare class RedactedScoringError extends Error { r
 class UnknownActivityTypeError: declare class UnknownActivityTypeError extends Error { readonly activityType: string; constructor(activityType: string); }
 const AI_COACHING_MAX_TIP_LENGTH: AI_COACHING_MAX_TIP_LENGTH = 500
 const AI_COACHING_MAX_WORDS: AI_COACHING_MAX_WORDS = 20
+const AI_CRITIQUE_MAX_FIELD_LENGTH: AI_CRITIQUE_MAX_FIELD_LENGTH = 500
+const AI_CRITIQUE_MAX_FINDINGS: AI_CRITIQUE_MAX_FINDINGS = 20
+const AI_DRAFTS_MAX_COUNT: AI_DRAFTS_MAX_COUNT = 50
+const AI_DRAFTS_MAX_REPAIRS: AI_DRAFTS_MAX_REPAIRS = 3
 const AI_EXPLANATION_TYPES: AI_EXPLANATION_TYPES: readonly AiSupportedActivityType[]
 const AI_HINT_TYPES: AI_HINT_TYPES: readonly AiSupportedActivityType[]
 const AI_TEXT_MAX_LENGTH: AI_TEXT_MAX_LENGTH = 2000
@@ -56,6 +60,9 @@ const xAPIBuilder: xAPIBuilder: { buildStatement(params: XAPIStatementParams): X
 const XAPIVerb: XAPIVerb: { readonly ANSWERED: "http:; readonly ATTEMPTED: "http:; readonly COMPLETED: "http:; readonly EXPERIENCED: "http:; readonly FAILED: "http:; readonly INTERACTED: "http:; readonly PASSED: "http:; readonly SCORED: "http:; readonly SUBMITTED: "http:; readonly WATCHED: "https:; }
 function aiAllowedByContent: declare function aiAllowedByContent(data: AiActivityInput, feature: AiFeature): boolean;
 function aiCoachingRequest: declare function aiCoachingRequest(input: { assessment?: SpeechAssessment | null; data: AiActivityInput; grade?: GradeRecord | null; learnerLocale?: string; }): AiCoachingRequest | null;
+function aiCritiqueRequest: declare function aiCritiqueRequest(input: { authorLocale?: string; draft: unknown; level?: string; type: ActivityType; }): AiCritiqueRequest | null;
+function aiDraftsRepairRequest: declare function aiDraftsRepairRequest(request: AiDraftsRequest, drafts: AiDrafts | readonly AiGeneratedDraft[]): AiDraftsRequest | null;
+function aiDraftsRequest: declare function aiDraftsRequest(input: { count?: number; instructions?: string; level?: string; locale?: string; settings?: AiDraftSettings; source: AiDraftSource; types: readonly AiDraftType[]; }): AiDraftsRequest | null;
 function aiExplanationRequest: declare function aiExplanationRequest(input: { data: AiActivityInput; learnerLocale?: string; outcome?: ItemOutcome; response: LearnerResponse | null; }): AiExplanationRequest | null;
 function aiGradeOf: declare function aiGradeOf(result: { maxScore: number; passed: boolean; score: number; }): AiGrade;
 function aiHintRequest: declare function aiHintRequest(input: { data: AiActivityInput; learnerLocale?: string; previousHints: readonly string[]; response: LearnerResponse | null; }): AiHintRequest | null;
@@ -68,6 +75,8 @@ function assertRedactedItemGroup: declare function assertRedactedItemGroup(data:
 function buildAiFacts: declare function buildAiFacts(data: AiActivityInput, response: LearnerResponse | null, details: null | readonly ScoringDetail[]): AiItemFacts | null;
 function canonicalJson: declare function canonicalJson(value: unknown, seen?: Set<object>): string;
 function checkAiCoaching: declare function checkAiCoaching(raw: unknown, request: AiCoachingRequest): { coaching: AiCoaching; ok: true; } | { ok: false; refusal: AiRefusal; };
+function checkAiCritique: declare function checkAiCritique(raw: unknown, request: AiCritiqueRequest): { critique: AiCritique; ok: true; } | { ok: false; refusal: AiRefusal; };
+function checkAiDrafts: declare function checkAiDrafts(raw: unknown, request: AiDraftsRequest, options: { newId: () => string; }): { drafts: AiDrafts; ok: true; } | { ok: false; refusal: AiRefusal; };
 function checkAiExplanation: declare function checkAiExplanation(raw: unknown, request: AiExplanationRequest): { ok: false; refusal: AiRefusal; } | { ok: true; result: AiTextResult; };
 function checkAiHint: declare function checkAiHint(raw: unknown, request: AiHintRequest): { ok: false; refusal: AiRefusal; } | { ok: true; result: AiTextResult; };
 function checkAiWritingFeedback: declare function checkAiWritingFeedback(raw: unknown, request: AiWritingFeedbackRequest): { feedback: AiWritingFeedback; ok: true; } | { ok: false; refusal: AiRefusal; };
@@ -81,6 +90,9 @@ function countWords: declare function countWords(text: string): number;
 function createDraft: declare function createDraft<T extends ActivityType>(type: T, context: DraftContext): ActivityDataMap[T];
 function createInteractiveVideoDraft: declare function createInteractiveVideoDraft(context: DraftContext): ItemGroup;
 function createItemGroupDraft: declare function createItemGroupDraft(context: DraftContext): ItemGroup;
+function critiqueDraft: declare function critiqueDraft(type: ActivityType, draft: unknown): ItemFinding[];
+function critiqueDrafts: declare function critiqueDrafts(entries: readonly unknown[]): ItemFinding[];
+function critiqueItemGroupDraft: declare function critiqueItemGroupDraft(draft: unknown): ItemFinding[];
 function defineActivityType: declare function defineActivityType<TData extends { type: string; }, TResponse>(descriptor: ActivityTypeDescriptor<TData, TResponse>): ActivityTypeDescriptor<TData, TResponse>;
 function dictationReferenceWords: declare function dictationReferenceWords(data: DictationReference): readonly (readonly { itemId: string; word: string; }[])[];
 function diffDictationChars: declare function diffDictationChars(reference: string, attempt: string): DictationCharOp[];
@@ -90,6 +102,7 @@ function evaluate: declare function evaluate(data: ActivityData, response: Learn
 function evaluateTries: declare function evaluateTries(data: ActivityData, responses: readonly LearnerResponse[], options?: EvaluateOptions): ItemTriesOutcome;
 function fingerprint: declare function fingerprint(input: string): string;
 function flattenSequence: declare function flattenSequence<TItem extends { id: string; type: string; }>(entries: readonly SequenceEntry<TItem>[], options?: FlattenSequenceOptions): SequenceSlot<TItem>[];
+function generateDrafts: declare function generateDrafts(input: { newId: () => string; port: (request: AiDraftsRequest) => Promise<unknown> | unknown; repairs?: number; request: AiDraftsRequest; }): Promise<AiDraftsRun>;
 function getActivityTypeDescriptor: declare function getActivityTypeDescriptor(type: string): RegisteredActivityTypeDescriptor | undefined;
 function gradeFromRubric: declare function gradeFromRubric(criteria: readonly CriterionScore[], activityData?: ActivityData, options?: GradeFromRubricOptions): GradeRecord | { reason: string; unscorable: true; };
 function gradeReadAloud: declare function gradeReadAloud(data: ReadAloudData, response: ReadAloudLearnerResponse, assessment: SpeechAssessment | null, options: GradeReadAloudOptions): GradeRecord | SpeechUnscorable;
@@ -98,6 +111,7 @@ function hasGrade: declare function hasGrade(outcome: ItemOutcome): outcome is E
 function hashSeed: declare function hashSeed(input: string): number;
 function hintRevealsAnswer: declare function hintRevealsAnswer(facts: AiItemFacts, hint: string): boolean;
 function inspectWav: declare function inspectWav(bytes: Uint8Array, policy: WavInspectionPolicy): WavInspection;
+function interactiveVideoFromDrafts: declare function interactiveVideoFromDrafts(input: { drafts: AiDrafts | AiDraftsRun | readonly AiGeneratedDraft[]; durationSeconds?: number; newId: () => string; request: AiDraftsRequest; title?: string; video: ActivityMedia; }): AiVideoDraft;
 function isInteractiveVideoItemType: declare function isInteractiveVideoItemType(type: unknown): type is InteractiveVideoItemType;
 function isItemGroup: declare function isItemGroup<TItem extends { type: string; }>(entry: SequenceEntry<TItem>): entry is ItemGroup<TItem>;
 function jsonSchemaFor: declare function jsonSchemaFor(type: string): Record<string, unknown>;
@@ -144,7 +158,7 @@ interface ActivityDataMap: interface ActivityDataMap { 'multiple-choice': Multip
 interface ActivityFeedback: interface ActivityFeedback { correct?: string; incorrect?: string; }
 interface ActivityMedia: interface ActivityMedia { type: 'audio' | 'embed' | 'image' | 'video'; url: string; alt?: string; captionsUrl?: string; tracks?: MediaTrack[]; poster?: string; playback?: MediaPlaybackPolicy; }
 interface ActivityResult: interface ActivityResult { score: number; maxScore: number; passed: boolean; timeSpent: number; xapiStatement: XAPIStatement; }
-interface ActivityTypeAuthoring: interface ActivityTypeAuthoring<TData> { readonly createDraft?: (context: DraftContext) => TData; readonly checkDraft?: (draft: Readonly<Record<string, unknown>>) => DraftIssue[]; }
+interface ActivityTypeAuthoring: interface ActivityTypeAuthoring<TData> { readonly createDraft?: (context: DraftContext) => TData; readonly checkDraft?: (draft: Readonly<Record<string, unknown>>) => DraftIssue[]; readonly critique?: (draft: Readonly<Record<string, unknown>>) => ItemFinding[]; }
 interface ActivityTypeDescriptor: interface ActivityTypeDescriptor<TData extends { type: string; }, TResponse> { readonly type: TData['type']; readonly schema: StandardSchemaV1<unknown, TData>; readonly jsonSchema?: Readonly<Record<string, unknown>>; readonly scoring: ActivityTypeScoring<TData, TResponse>; readonly isAnswered?: (response: TResponse | undefined) => boolean; readonly fieldPolicy?: FieldPolicy; readonly redactedSchema?: StandardSchemaV1; readonly interop?: ActivityTypeInterop<TData>; readonly interactions?: readonly string[]; readonly authoring?: ActivityTypeAuthoring<TData>; }
 interface ActivityTypeInterop: interface ActivityTypeInterop<TData> { readonly xapiActivityTypeIri?: string; readonly xapiInteractionType?: XAPIInteractionType; readonly correctResponsesPattern?: (data: TData) => string[]; }
 interface AiActivityInput: interface AiActivityInput { readonly type: string; readonly id: string; readonly title: string; readonly locale?: unknown; readonly redacted?: unknown; readonly ai?: unknown; }
@@ -153,11 +167,23 @@ interface AiCoaching: interface AiCoaching { text: string; words: (AiCoachingWor
 interface AiCoachingRequest: interface AiCoachingRequest { feature: 'pronunciation-coaching'; facts: AiReadingFacts; grade?: { maxScore: number; passed: boolean; score: number; }; learnerLocale?: string; }
 interface AiCoachingResult: interface AiCoachingResult { text: string; words?: AiCoachingWord[]; provenance?: AiProvenance; usage?: GraderUsage; }
 interface AiCoachingWord: interface AiCoachingWord { itemId: string; tip: string; sound?: { expected: string; heard?: string; }; }
+interface AiCritique: interface AiCritique { findings: AiCritiqueFinding[]; provenance?: AiProvenance; usage?: GraderUsage; }
+interface AiCritiqueField: interface AiCritiqueField { path: string[]; text: string; }
+interface AiCritiqueFinding: interface AiCritiqueFinding extends ItemFinding { severity: 'advice'; quote?: string; }
+interface AiCritiqueFindingResult: interface AiCritiqueFindingResult { path: (number | string)[]; kind: AiCritiqueKind; message: string; quote?: string; }
+interface AiCritiqueRequest: interface AiCritiqueRequest { feature: 'item-critique'; facts: { activityType: string; fields: AiCritiqueField[]; findings: { code: string; message: string; path: string[]; }[]; item: Readonly<Record<string, unknown>>; level?: string; }; authorLocale?: string; }
+interface AiCritiqueResult: interface AiCritiqueResult { findings: AiCritiqueFindingResult[]; provenance?: AiProvenance; usage?: GraderUsage; }
 interface AiDictationFacts: interface AiDictationFacts extends AiFactsBase { activityType: 'dictation'; transcript: null | string; typed: string; words: AiWordFact[] | null; }
+interface AiDraftCaption: interface AiDraftCaption { index: number; start: number; end: number; text: string; }
+interface AiDraftProblem: interface AiDraftProblem { path: string[]; code: string; message: string; severity: 'incomplete' | 'invalid' | 'warning'; }
+interface AiDrafts: interface AiDrafts { drafts: AiGeneratedDraft[]; findings: ItemFinding[]; provenance?: AiProvenance; usage?: GraderUsage; }
+interface AiDraftsRequest: interface AiDraftsRequest { feature: 'draft-generation'; facts: { activityTypes: AiDraftType[]; count?: number; instructions?: string; level?: string; locale?: string; source: { captions: AiDraftCaption[]; kind: 'captions'; } | { kind: 'passage' | 'transcript'; text: string; }; }; shape: Readonly<Record<string, unknown>>; settings?: AiDraftSettings; repair?: { draft: Readonly<Record<string, unknown>>; index: number; problems: AiDraftProblem[]; }[]; }
+interface AiDraftsRun: interface AiDraftsRun { drafts: AiGeneratedDraft[]; findings: ItemFinding[]; calls: AiDraftsCall[]; }
 interface AiExplanationRequest: interface AiExplanationRequest { feature: 'explanation'; facts: AiItemFacts; grade: AiGrade; learnerLocale?: string; }
 interface AiFillInTheBlanksFacts: interface AiFillInTheBlanksFacts extends AiFactsBase { activityType: 'fill-in-the-blanks'; passage: string; blanks: AiBlankFact[]; }
 interface AiGapFact: interface AiGapFact { id: string; position: number; choices: string[]; chosen: null | string; answer: null | string; correct: boolean | null; feedback?: string; }
 interface AiGapSelectFacts: interface AiGapSelectFacts extends AiFactsBase { activityType: 'gap-select'; passage: string; gaps: AiGapFact[]; }
+interface AiGeneratedDraft: interface AiGeneratedDraft { index: number; type: AiDraftType; draft: Record<string, unknown>; validation: DraftValidationResult<unknown>; findings: ItemFinding[]; at?: number; clip?: { end: number; start: number; }; generated: Readonly<Record<string, unknown>>; }
 interface AiGrade: interface AiGrade { score: number; maxScore: number; passed: boolean; category: AiVerdict; }
 interface AiHintRequest: interface AiHintRequest { feature: 'hint'; facts: AiItemFacts; hintNumber: number; previousHints: string[]; learnerLocale?: string; }
 interface AiMultipleChoiceFacts: interface AiMultipleChoiceFacts extends AiFactsBase { activityType: 'multiple-choice'; question: string; mode: 'multi' | 'single'; options: AiOptionFact[]; }
@@ -168,6 +194,7 @@ interface AiReadingWordFact: interface AiReadingWordFact { itemId?: string; word
 interface AiRubricCriterionFact: interface AiRubricCriterionFact { name: string; description?: string; weight: number; }
 interface AiSoundFact: interface AiSoundFact { symbol: string; accuracy?: number; heardAs?: { score: number; symbol: string; }[]; }
 interface AiTextResult: interface AiTextResult { text: string; verdict?: AiVerdict; provenance?: AiProvenance; usage?: GraderUsage; }
+interface AiVideoDraft: interface AiVideoDraft { group: Record<string, unknown>; validation: DraftValidationResult<unknown>; findings: ItemFinding[]; }
 interface AiWordFact: interface AiWordFact { expected: string; typed: string; status: 'correct' | 'extra' | 'incorrect' | 'missing'; }
 interface AiWritingCorrection: interface AiWritingCorrection { original: string; corrected: string; explanation?: string; category?: string; range?: { end: number; start: number; }; }
 interface AiWritingFacts: interface AiWritingFacts { activityType: 'written-response'; activityId: string; title: string; locale?: string; prompt: string; text: string; wordCount: number; minWords: number; maxWords: number; withinWordBounds: boolean; rubric: AiRubricCriterionFact[] | null; languageTarget?: string; }
@@ -219,6 +246,7 @@ interface GradeRecord: interface GradeRecord { score: number; maxScore: number; 
 interface GraderUsage: interface GraderUsage { promptTokens?: number; completionTokens?: number; costUsd?: number; }
 interface InlineCorrection: interface InlineCorrection { original: string; corrected: string; explanation?: string; range?: { end: number; start: number; }; category?: string; }
 interface InteractionEvent: interface InteractionEvent { type: InteractionKind; activityId: string; timestamp: number; payload: Record<string, unknown>; }
+interface ItemFinding: interface ItemFinding extends ValidationError { severity: ItemFindingSeverity; }
 interface ItemGroup: interface ItemGroup<TItem = ActivityData> { schemaVersion: '1.0'; type: 'item-group'; id: string; title?: string; slotKey?: string; stimulus: Stimulus; items: (TItem & { slotKey?: string; })[]; shuffle?: 'none' | 'within-group'; timeline?: MediaTimeline; }
 interface ItemScoringPolicy: interface ItemScoringPolicy { hintPenalty?: null | number; retries?: null | number; retryPenalty?: null | number; counts?: ItemScoringCount | null; }
 interface ItemScoringPolicyIssue: interface ItemScoringPolicyIssue { path: string; message: string; }
@@ -316,9 +344,14 @@ type ActivityData: type ActivityData = ActivityDataMap[ActivityType];
 type ActivityType: type ActivityType = keyof ActivityDataMap;
 type ActivityTypeScoring: type ActivityTypeScoring<TData, TResponse> = { readonly kind: 'deferred'; readonly partial?: (data: TData, response: TResponse | undefined) => DeferredScoringPartial; readonly reason: 'requires_async_grading'; } | { readonly kind: 'sync'; readonly score: (data: TData, response: TResponse) => PartialScoringResult; };
 type AiCriterionJudgement: type AiCriterionJudgement = Omit<CriterionScore, 'weight'> & { weight?: number; };
+type AiCritiqueKind: type AiCritiqueKind = 'ambiguous' | 'cue' | 'implausible-distractor' | 'language' | 'level' | 'other' | 'second-answer' | 'sensitivity' | 'wrong-key';
+type AiDraftsCall: type AiDraftsCall = { error?: string; ok: false; refusal?: AiRefusal; } | { ok: true; provenance?: AiProvenance; usage?: GraderUsage; };
+type AiDraftSettings: type AiDraftSettings = Partial<Record<AiDraftType, Readonly<Record<string, unknown>>>>;
+type AiDraftSource: type AiDraftSource = { cues: { end: number; start: number; text: string; }[]; kind: 'captions'; } | { kind: 'passage' | 'transcript'; text: string; };
+type AiDraftType: type AiDraftType = 'dictation' | 'fill-in-the-blanks' | 'gap-select' | 'multiple-choice' | 'read-aloud' | 'written-response';
 type AiFeature: type AiFeature = 'explanation' | 'hint' | 'pronunciation-coaching' | 'writing-feedback';
 type AiItemFacts: type AiItemFacts = AiDictationFacts | AiFillInTheBlanksFacts | AiGapSelectFacts | AiMultipleChoiceFacts;
-type AiRefusal: type AiRefusal = 'contradicts-grade' | 'contradicts-marks' | 'empty' | 'malformed' | 'misquotes-answer' | 'reveals-answer' | 'too-long';
+type AiRefusal: type AiRefusal = 'contradicts-grade' | 'contradicts-item' | 'contradicts-marks' | 'empty' | 'malformed' | 'misquotes-answer' | 'reveals-answer' | 'too-long';
 type AiSupportedActivityType: type AiSupportedActivityType = 'dictation' | 'fill-in-the-blanks' | 'gap-select' | 'multiple-choice';
 type AiVerdict: type AiVerdict = 'correct' | 'incorrect' | 'partly-correct';
 type DeferredReason: type DeferredReason = 'grade_rejected' | 'no_response_recorded' | 'requires_async_grading';
@@ -329,6 +362,7 @@ type GraderKind: type GraderKind = 'ai' | 'auto' | 'human';
 type GradingState: type GradingState = 'failed' | 'graded' | 'queued' | 'running' | 'skipped';
 type InteractionKind: type InteractionKind = 'ai-coaching-shown' | 'ai-explanation-shown' | 'ai-help-refused' | 'ai-hint-shown' | 'ai-writing-feedback-shown' | 'assessment-failed' | 'assessment-requested' | 'blank-filled' | 'hint-requested' | 'media-play-consumed' | 'media-play-errored' | 'media-play-refunded' | 'media-play-refused' | 'option-deselected' | 'option-selected' | 'recording-discarded' | 'recording-started' | 'recording-stopped' | 'recording-upload-failed' | 'recording-uploaded' | 'submitted' | 'text-changed' | 'video-captions-changed' | 'video-ended' | 'video-fullscreen-changed' | 'video-paused' | 'video-pip-changed' | 'video-played' | 'video-quiz-closed' | 'video-quiz-opened' | 'video-quiz-question-shown' | 'video-quiz-skipped' | 'video-rate-changed' | 'video-seeked' | (string & {});
 type InteractiveVideoItemType: type InteractiveVideoItemType = (typeof INTERACTIVE_VIDEO_ITEM_TYPES)[number];
+type ItemFindingSeverity: type ItemFindingSeverity = 'advice' | 'warning';
 type ItemOutcome: type ItemOutcome = { code?: string; maxScore: number; reason: string; status: 'unscorable'; } | { details: ScoringDetail[]; feedback: null | string; maxScore: number; passed: boolean; score: number; status: 'scored'; } | { feedback: null | string; grade: GradeRecord; maxScore: number; passed: boolean; score: number; status: 'graded'; } | { maxScore: number; partial?: DeferredScoringPartial; reason: DeferredReason; rejectedGrade?: GradeRecord; status: 'deferred'; };
 type ItemScoringCount: type ItemScoringCount = 'best' | 'first' | 'last';
 type LearnerResponse: type LearnerResponse = LearnerResponseMap[keyof LearnerResponseMap];
@@ -361,11 +395,11 @@ type XAPIVerbKey: type XAPIVerbKey = keyof typeof XAPIVerb;
 function aiCheckCases: declare function aiCheckCases(): AiCheckCase[];
 function formatAiCheckReport: declare function formatAiCheckReport(report: AiCheckReport): string;
 function runAiCheck: declare function runAiCheck(ports: AiCheckPorts, options?: AiCheckOptions): Promise<AiCheckReport>;
-interface AiCheckCase: interface AiCheckCase { id: string; feature: 'explanation' | 'hint' | 'pronunciation-coaching' | 'writing-feedback'; about: string; request: AiCoachingRequest | AiExplanationRequest | AiHintRequest | AiWritingFeedbackRequest; }
+interface AiCheckCase: interface AiCheckCase { id: string; feature: 'draft-generation' | 'explanation' | 'hint' | 'item-critique' | 'pronunciation-coaching' | 'writing-feedback'; about: string; request: AiCoachingRequest | AiCritiqueRequest | AiDraftsRequest | AiExplanationRequest | AiHintRequest | AiWritingFeedbackRequest; }
 interface AiCheckOptions: interface AiCheckOptions { cases?: readonly AiCheckCase[]; concurrency?: number; }
-interface AiCheckPorts: interface AiCheckPorts { explain?(request: AiExplanationRequest): Promise<unknown> | unknown; hint?(request: AiHintRequest): Promise<unknown> | unknown; writingFeedback?(request: AiWritingFeedbackRequest): Promise<unknown> | unknown; pronunciationCoaching?(request: AiCoachingRequest): Promise<unknown> | unknown; }
+interface AiCheckPorts: interface AiCheckPorts { explain?(request: AiExplanationRequest): Promise<unknown> | unknown; hint?(request: AiHintRequest): Promise<unknown> | unknown; writingFeedback?(request: AiWritingFeedbackRequest): Promise<unknown> | unknown; pronunciationCoaching?(request: AiCoachingRequest): Promise<unknown> | unknown; critique?(request: AiCritiqueRequest): Promise<unknown> | unknown; drafts?(request: AiDraftsRequest): Promise<unknown> | unknown; }
 interface AiCheckReport: interface AiCheckReport { total: number; shown: number; refused: number; errors: number; skipped: number; byRefusal: Record<AiRefusal, number>; results: AiCheckResult[]; }
-interface AiCheckResult: interface AiCheckResult { case: AiCheckCase; ok: boolean; refusal?: AiRefusal; error?: string; result?: AiTextResult; feedback?: AiWritingFeedback; coaching?: AiCoaching; ms: number; }
+interface AiCheckResult: interface AiCheckResult { case: AiCheckCase; ok: boolean; refusal?: AiRefusal; error?: string; result?: AiTextResult; feedback?: AiWritingFeedback; coaching?: AiCoaching; critique?: AiCritique; drafts?: AiDrafts; ms: number; }
 ```
 
 ## @intellectif/lk-core/schemas

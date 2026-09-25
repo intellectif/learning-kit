@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type {
   AiCoachingRequest,
+  AiCritiqueRequest,
+  AiDraftsRequest,
   AiExplanationRequest,
   AiHintRequest,
   AiTextResult,
@@ -33,7 +35,7 @@ describe('aiCheckCases', () => {
     const explaining = cases.filter((one) => one.feature === 'explanation');
     const hinting = cases.filter((one) => one.feature === 'hint');
     const typesOf = (list: AiCheckCase[]) =>
-      new Set(list.map((one) => one.request.facts.activityType));
+      new Set(list.map((one) => (one.request.facts as { activityType: string }).activityType));
 
     expect(typesOf(explaining)).toEqual(
       new Set(['multiple-choice', 'fill-in-the-blanks', 'gap-select', 'dictation']),
@@ -79,6 +81,49 @@ describe('aiCheckCases', () => {
     expect(
       (find('writing-feedback-in-spanish').request as AiWritingFeedbackRequest).learnerLocale,
     ).toBe('es');
+  });
+
+  it('drafts from a reading each type alone, and a video quiz of several types from timed captions and from a script', () => {
+    const drafting = cases.filter((one) => one.feature === 'draft-generation');
+    expect(
+      drafting.map((one) => [
+        one.id,
+        (one.request as AiDraftsRequest).facts.activityTypes.join(' > '),
+      ]),
+    ).toEqual([
+      ['drafts-questions', 'multiple-choice'],
+      ['drafts-cloze', 'fill-in-the-blanks'],
+      ['drafts-gaps', 'gap-select'],
+      ['drafts-writing', 'written-response'],
+      ['drafts-video', 'multiple-choice > dictation > read-aloud'],
+      ['drafts-script', 'multiple-choice > dictation > read-aloud'],
+    ]);
+    const video = find('drafts-video').request as AiDraftsRequest;
+    expect(
+      video.facts.source.kind === 'captions' && video.facts.source.captions.map((one) => one.end),
+    ).toEqual([4.2, 8.9, 12.6, 18.1]);
+    // As many as the video is worth: no count, from either source.
+    expect(video.facts).not.toHaveProperty('count');
+    expect((find('drafts-script').request as AiDraftsRequest).facts.source.kind).toBe('transcript');
+    expect(video.settings?.['read-aloud']).toMatchObject({ locale: 'en-US' });
+  });
+
+  it('reviews for an author a question with a second answer, a task above its level, a clean cloze, and in Spanish', () => {
+    const critiques = cases.filter((one) => one.feature === 'item-critique');
+    expect(critiques.map((one) => one.id)).toEqual([
+      'critique-second-answer',
+      'critique-level',
+      'critique-clean',
+      'critique-in-spanish',
+    ]);
+    const fruit = find('critique-second-answer').request as AiCritiqueRequest;
+    expect(fruit.facts.level).toBe('A1');
+    expect(fruit.facts.fields.map((field) => field.path.join('.'))).toContain('options.2.text');
+    // Each is valid, and the SDK's own critic finds nothing: what is wrong is for a model to see.
+    for (const one of critiques) {
+      expect((one.request as AiCritiqueRequest).facts.findings, one.id).toEqual([]);
+    }
+    expect((find('critique-in-spanish').request as AiCritiqueRequest).authorLocale).toBe('es');
   });
 
   it('reads aloud with slips, cleanly, from a stored grade, and with coaching asked for in another language', () => {
@@ -162,7 +207,112 @@ describe('runAiCheck', () => {
         }),
     }));
 
-    const report = await runAiCheck({ explain, hint, writingFeedback, pronunciationCoaching });
+    // Points at the first field it was given, quoting its first word.
+    const critique = vi.fn(async (request: AiCritiqueRequest) => {
+      const field = request.facts.fields[0] as { path: string[]; text: string };
+      return {
+        findings: [
+          {
+            path: field.path,
+            kind: 'ambiguous',
+            message: 'Could be read two ways.',
+            quote: field.text.split(' ')[0],
+          },
+        ],
+      };
+    });
+
+    // One valid draft of each type asked for, on the caption it is about when there are captions.
+    const draftOf = (
+      type: string,
+      caption: { caption?: number },
+    ): { drafts: Record<string, unknown>[] } => {
+      switch (type) {
+        case 'multiple-choice':
+          return {
+            drafts: [
+              {
+                type,
+                title: 'Where Maria lives',
+                question: 'Where does Maria live?',
+                mode: 'single',
+                options: [
+                  { text: 'Seville', isCorrect: true },
+                  { text: 'Madrid', isCorrect: false },
+                  { text: 'Lisbon', isCorrect: false },
+                ],
+                ...caption,
+              },
+            ],
+          };
+        case 'fill-in-the-blanks':
+          return {
+            drafts: [
+              {
+                type,
+                title: 'Saturday',
+                passage: 'Every Saturday she {{1}} to the market.',
+                blanks: [{ acceptedAnswers: ['walks'] }],
+              },
+            ],
+          };
+        case 'gap-select':
+          return {
+            drafts: [
+              {
+                type,
+                title: 'Saturday',
+                passage: 'She walks {{1}} the market.',
+                gaps: [
+                  {
+                    choices: [
+                      { text: 'to', isCorrect: true },
+                      { text: 'at', isCorrect: false },
+                    ],
+                  },
+                ],
+              },
+            ],
+          };
+        case 'dictation':
+          return {
+            drafts: [{ type, title: 'Listen', transcript: 'She walks to the market', ...caption }],
+          };
+        case 'read-aloud':
+          return {
+            drafts: [
+              { type, title: 'Read it', referenceText: 'Maria lives in Seville.', ...caption },
+            ],
+          };
+        default:
+          return {
+            drafts: [
+              {
+                type,
+                title: 'Your Saturday',
+                prompt: 'Describe your Saturday.',
+                minWords: 40,
+                maxWords: 80,
+              },
+            ],
+          };
+      }
+    };
+    const drafts = vi.fn(async (request: AiDraftsRequest) => {
+      const caption = request.facts.source.kind === 'captions' ? { caption: 1 } : {};
+      return {
+        drafts: request.facts.activityTypes.flatMap((type) => draftOf(type, caption).drafts),
+      };
+    });
+
+    const report = await runAiCheck({
+      explain,
+      hint,
+      writingFeedback,
+      pronunciationCoaching,
+      critique,
+      drafts,
+    });
 
     expect(report.total).toBe(cases.length);
     expect(report.shown).toBe(cases.length);
@@ -223,6 +373,45 @@ describe('runAiCheck', () => {
     expect(report.total).toBe(writing.length);
     expect(report.byRefusal['misquotes-answer']).toBe(writing.length);
     expect(formatAiCheckReport(report)).toContain('misquotes-answer');
+  });
+
+  it('reports what a drafts prompt wrote: each draft checked, and where a caption placed it', async () => {
+    const report = await runAiCheck(
+      {
+        drafts: async () => ({
+          drafts: [
+            {
+              type: 'multiple-choice',
+              title: 'Where Maria lives',
+              question: 'Where does Maria live?',
+              mode: 'single',
+              options: [{ text: 'Seville', isCorrect: true }],
+              caption: 0,
+            },
+          ],
+        }),
+      },
+      { cases: [find('drafts-video')] },
+    );
+    const [only] = report.results;
+    expect(only?.ok).toBe(true);
+    expect(only?.drafts?.drafts[0]).toMatchObject({
+      at: 4.2,
+      validation: { status: 'incomplete' },
+    });
+    expect(only?.drafts?.drafts[0]?.draft.id).toBe('ai-check-1');
+  });
+
+  it('names the prompt that points an author at fields the item does not have', async () => {
+    const report = await runAiCheck({
+      critique: async () => ({
+        findings: [{ path: ['explanation'], kind: 'other', message: 'Add an explanation.' }],
+      }),
+    });
+    const critiques = cases.filter((one) => one.feature === 'item-critique');
+    expect(report.total).toBe(critiques.length);
+    expect(report.byRefusal['contradicts-item']).toBe(critiques.length);
+    expect(formatAiCheckReport(report)).toContain('contradicts-item');
   });
 
   it('names the prompt that coaches words the engine did not mark', async () => {
