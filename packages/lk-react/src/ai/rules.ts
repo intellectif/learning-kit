@@ -6,6 +6,7 @@
  * the hooks so the hooks' module exports nothing but the hooks themselves.
  */
 import {
+  type AiActivityInput,
   type AiRefusal,
   aiAllowedByContent,
   aiSupports,
@@ -126,6 +127,34 @@ export function explanationOffered(input: {
   return graded && aiSupports(data.type, 'explanation') && aiAllowedByContent(data, 'explanation');
 }
 
+/**
+ * Whether the learner may ask for coaching on a reading: one whose marks are
+ * on screen — which a read-aloud has only once it is graded, in `practice` or
+ * in `review` — never in `exam`, on a read-aloud whose author left
+ * explanations on. The paper's policy must show feedback, since the marks are
+ * feedback, and allow AI explanations, which coaching is: a model's words
+ * about the learner's own answer. Not `solutions`: a read-aloud hides no
+ * answer, and its text is on screen throughout.
+ */
+export function coachingOffered(input: {
+  data: AiActivityInput;
+  renderMode: RenderMode;
+  /** Whether there are marks to coach: a request could be built. */
+  marked: boolean;
+  delivery?: ResolvedDeliveryPolicy;
+}): boolean {
+  const { data, renderMode, marked } = input;
+  const delivery = input.delivery ?? OPEN_DELIVERY_POLICY;
+  return (
+    delivery.feedback &&
+    delivery.ai.explanations &&
+    renderMode !== 'exam' &&
+    marked &&
+    aiSupports(data.type, 'pronunciation-coaching') &&
+    aiAllowedByContent(data, 'pronunciation-coaching')
+  );
+}
+
 /** Calls a port, turning a synchronous throw into a rejection. */
 export function callPort<T>(call: () => Promise<T>): Promise<T> {
   try {
@@ -137,7 +166,7 @@ export function callPort<T>(call: () => Promise<T>): Promise<T> {
 
 /** Tells a developer why a port's answer was not shown. Silent in production. */
 export function warnRefused(
-  feature: 'explanation' | 'hint' | 'writing feedback',
+  feature: 'explanation' | 'hint' | 'writing feedback' | 'pronunciation coaching',
   activityId: string,
   reason: AiRefusal,
 ): void {

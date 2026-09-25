@@ -53,6 +53,12 @@ decides every release.
 - **lk-react's surface also includes** what a page styles and translates: the `LkStrings` keys, the
   `--lk-*` custom properties, and the class hooks and data attributes documented in
   [Styling](./styling.md), such as the marking contracts.
+- **A minor can add to a type the SDK hands you**: a member of a union — a feature, a refusal, an
+  interaction kind — a key of `LkStrings`, or an optional property. Its changeset names each one.
+  Give a `switch` over such a union a `default` branch, and it stays correct across minors. A
+  translation typed as a complete `LkStrings` shows each new key as a type error until it has one,
+  deliberately: a string left untranslated is found at build time. Removing or narrowing any of
+  them is a major.
 
 ## Content
 

@@ -22,8 +22,8 @@ import type { CriterionScore, GraderUsage, InlineCorrection } from './grading.js
 export interface ActivityAiPermissions {
   /**
    * An explanation of the learner's graded answer — and, on a written
-   * response, feedback on a draft: both are a model's words about the
-   * learner's own answer.
+   * response, feedback on a draft, and on a read-aloud, coaching on the
+   * marks: each is a model's words about the learner's own answer.
    */
   explanations?: boolean;
   /** Hints before the learner submits. */
@@ -46,7 +46,7 @@ export interface AiActivityInput {
 }
 
 /** The kinds of help a learner can be given. */
-export type AiFeature = 'explanation' | 'hint' | 'writing-feedback';
+export type AiFeature = 'explanation' | 'hint' | 'writing-feedback' | 'pronunciation-coaching';
 
 /** The activity types the SDK builds facts for. */
 export type AiSupportedActivityType =
@@ -235,7 +235,8 @@ export interface AiTextResult {
 /**
  * Why a result was not shown. `misquotes-answer` is writing feedback that
  * corrects words the learner did not write: a correction whose quote is not in
- * the draft, or not where it claims to be.
+ * the draft, or not where it claims to be. `contradicts-marks` is coaching on
+ * a word the engine did not mark, or on a sound it did not report.
  */
 export type AiRefusal =
   | 'malformed'
@@ -243,7 +244,8 @@ export type AiRefusal =
   | 'too-long'
   | 'contradicts-grade'
   | 'reveals-answer'
-  | 'misquotes-answer';
+  | 'misquotes-answer'
+  | 'contradicts-marks';
 
 // ── Feedback on writing ─────────────────────────────────────────────────
 
@@ -350,6 +352,102 @@ export interface AiWritingFeedback {
    * learner was shown.
    */
   indicativeScore: number | null;
+  provenance?: AiProvenance;
+  usage?: GraderUsage;
+}
+
+// ── Coaching on a read-aloud ────────────────────────────────────────────
+
+/** One sound of a word, as the engine reported it. */
+export interface AiSoundFact {
+  /** The sound expected, in the assessment's phoneme alphabet. */
+  symbol: string;
+  /** How close it came, 0..100, when the engine scored it. */
+  accuracy?: number;
+  /** What the engine heard instead, best first, each with its score 0..100. */
+  heardAs?: { symbol: string; score: number }[];
+}
+
+/** One word of a reading, as the engine marked it. */
+export interface AiReadingWordFact {
+  /** `w<n>` for a word of the text; absent for a word the learner added. */
+  itemId?: string;
+  /** The word of the text, normalised; `''` for a word the learner added. */
+  word: string;
+  /** What was heard, normalised; `''` for an omitted word. */
+  heard: string;
+  state: 'correct' | 'mispronounced' | 'omitted' | 'inserted';
+  /** The engine's accuracy for the word, 0..100, when it has one. */
+  accuracy?: number;
+  /** The word's sounds, from the full assessment only. */
+  sounds?: AiSoundFact[];
+}
+
+/**
+ * What a model is told about a read-aloud: the text, the engine's marks word
+ * by word, and its scores. The marks are the engine's; a model explains them
+ * and never makes its own.
+ */
+export interface AiReadingFacts {
+  activityType: 'read-aloud';
+  activityId: string;
+  title: string;
+  /** The language the text is in. */
+  locale: string;
+  referenceText: string;
+  instructions?: string;
+  /** Who made the marks: a measurement engine, a model, or a person. */
+  assessor: 'auto' | 'ai' | 'human' | 'unknown';
+  /** The alphabet `sounds` are written in, when any are. */
+  phonemeAlphabet?: 'ipa' | 'sapi';
+  /** The engine's dimension scores, each 0..100, where it measured them. */
+  scores: { accuracy?: number; fluency?: number; completeness?: number; prosody?: number };
+  words: AiReadingWordFact[];
+}
+
+/**
+ * Asks for coaching on a graded reading: what to work on, word by word, and
+ * how. Never in an exam.
+ */
+export interface AiCoachingRequest {
+  feature: 'pronunciation-coaching';
+  facts: AiReadingFacts;
+  /** The grade of the reading, when there is one. */
+  grade?: { score: number; maxScore: number; passed: boolean };
+  /** The language to write in: the learner's interface language, when known. */
+  learnerLocale?: string;
+}
+
+/** One word a model coaches, as it returns it. */
+export interface AiCoachingWord {
+  /** The `itemId` of a word the engine marked mispronounced or omitted. */
+  itemId: string;
+  /** What to do about it, addressed to the learner. */
+  tip: string;
+  /**
+   * A sound the engine reported for this word — `expected` — and, if the
+   * model names one, what the engine heard instead.
+   */
+  sound?: { expected: string; heard?: string };
+}
+
+/** What a host's `pronunciationCoaching` port returns. */
+export interface AiCoachingResult {
+  /** The coaching as a whole, addressed to the learner. Plain text, never HTML. */
+  text: string;
+  words?: AiCoachingWord[];
+  provenance?: AiProvenance;
+  usage?: GraderUsage;
+}
+
+/** Coaching, as the SDK accepted it: what a learner is shown. */
+export interface AiCoaching {
+  text: string;
+  /**
+   * The words to work on, in reading order, each with the word of the text as
+   * the SDK has it — never the model's spelling of it.
+   */
+  words: (AiCoachingWord & { word: string })[];
   provenance?: AiProvenance;
   usage?: GraderUsage;
 }

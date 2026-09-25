@@ -52,11 +52,14 @@ export const AI_TEXT_MAX_LENGTH = 2000;
 /**
  * Whether the SDK supports `feature` for this activity type: explanations and
  * hints for the types it builds facts for, and writing feedback for a written
- * response. A read-aloud, or a consumer's own type, has none.
+ * response, and coaching for a read-aloud. A consumer's own type has none.
  */
 export function aiSupports(activityType: string, feature: AiFeature): boolean {
   if (feature === 'writing-feedback') {
     return activityType === 'written-response';
+  }
+  if (feature === 'pronunciation-coaching') {
+    return activityType === 'read-aloud';
   }
   const types = feature === 'hint' ? AI_HINT_TYPES : AI_EXPLANATION_TYPES;
   return (types as readonly string[]).includes(activityType);
@@ -66,9 +69,9 @@ export function aiSupports(activityType: string, feature: AiFeature): boolean {
  * Whether the item's author allows `feature`. Only an explicit `false`
  * switches it off: an author can refuse a feature, never force one on.
  *
- * Writing feedback reads `explanations`: both are a model's words about the
- * learner's own answer, and an author who switched one off has switched off
- * the other.
+ * Writing feedback and pronunciation coaching read `explanations`: each is a
+ * model's words about the learner's own answer, and an author who switched one
+ * off has switched off the others.
  */
 export function aiAllowedByContent(data: AiActivityInput, feature: AiFeature): boolean {
   const permissions = (data as { ai?: unknown }).ai;

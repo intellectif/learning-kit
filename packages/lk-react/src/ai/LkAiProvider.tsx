@@ -1,6 +1,8 @@
 'use client';
 
 import type {
+  AiCoachingRequest,
+  AiCoachingResult,
   AiExplanationRequest,
   AiHintRequest,
   AiTextResult,
@@ -48,7 +50,18 @@ export interface LearnerAi {
   /** How many times a learner can ask for feedback on one written response. Default 3, at most 10. */
   maxWritingFeedback?: number;
   /**
-   * The language to write explanations and hints in, as a tag (`es`,
+   * Coaches a learner on a graded reading aloud: what the speech engine's
+   * marks mean and how to practise, word by word. The marks are the engine's
+   * and are never re-scored; coaching on a word the engine did not mark, or a
+   * sound it did not report, is refused whole. See `checkAiCoaching` in
+   * lk-core. One coaching per reading.
+   */
+  pronunciationCoaching?: (
+    request: AiCoachingRequest,
+    options: { signal: AbortSignal },
+  ) => Promise<AiCoachingResult>;
+  /**
+   * The language to write explanations, hints, feedback and coaching in, as a tag (`es`,
    * `pt-BR`). Defaults to the component's `locale`: the interface language,
    * which the buttons around the help are in, and usually the right one. In a
    * language course it need not be the item's — English items, explained in

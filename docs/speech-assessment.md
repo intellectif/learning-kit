@@ -471,6 +471,8 @@ export function Marks(props: {
 
 **It checks the evidence before it aligns it**, because `alignReadAloud` throws for evidence `validateSpeechAssessment` refuses. In development the refusal is thrown as `ActivitySchemaError`, which the component's error boundary shows. In production the score and the dimensions are rendered and the word list is left out: a malformed assessment costs the learner the marks, never the grade.
 
+**Coaching on the marks** (lk-core 1.1.0, lk-react 23.1.0). Given a `pronunciationCoaching` port — as `ai`, or from `LkAiProvider` — and the item's `id` and `title` in `data`, the panel offers "Coach me on this reading" under the marks. A model explains what the engine marked, word by word and sound by sound; it never re-scores anything, and coaching on a word the engine did not mark, or a sound it did not report, is refused whole. `renderMode`, `delivery` and `onInteraction` are read for this alone: never in `exam`, and only where the paper shows feedback and allows AI explanations. `<ReadAloud>` does the same under its own marks, including those a review reads back from a stored grade. See [Coaching on a reading](./ai.md#coaching-on-a-reading).
+
 ### Recording without the component: `useSpeechRecorder`
 
 `useSpeechRecorder({ maxDurationMs, minDurationMs?, maxTakes?, workletUrl? })` is the capture `<ReadAloud>` is built on. It returns `status` (`idle`, `requesting-permission`, `recording`, `recorded`, `error`), `error`, an input `level` from 0 to 1, `elapsedMs`, the `take`, `takesUsed`, `canRecord`, and `start`, `stop`, `discard` and `reset`.

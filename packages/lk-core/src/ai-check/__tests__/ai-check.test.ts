@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type {
+  AiCoachingRequest,
   AiExplanationRequest,
   AiHintRequest,
   AiTextResult,
@@ -80,6 +81,34 @@ describe('aiCheckCases', () => {
     ).toBe('es');
   });
 
+  it('reads aloud with slips, cleanly, from a stored grade, and with coaching asked for in another language', () => {
+    const coaching = cases.filter((one) => one.feature === 'pronunciation-coaching');
+    expect(coaching.map((one) => one.id)).toEqual([
+      'coaching-slips',
+      'coaching-clean',
+      'coaching-from-grade',
+      'coaching-in-spanish',
+    ]);
+    const slips = find('coaching-slips').request as AiCoachingRequest;
+    expect(
+      slips.facts.words
+        .filter((word) => word.state !== 'correct')
+        .map((word) => [word.itemId, word.word, word.state]),
+    ).toEqual([
+      ['w2', 'weather', 'mispronounced'],
+      ['w7', 'north', 'omitted'],
+    ]);
+    expect(slips.facts.words[1]?.sounds?.map((sound) => sound.symbol)).toEqual([
+      'w',
+      'ɛ',
+      'ð',
+      'ɚ',
+    ]);
+    const stored = find('coaching-from-grade').request as AiCoachingRequest;
+    expect(stored.facts.words.some((word) => word.sounds !== undefined)).toBe(false);
+    expect((find('coaching-in-spanish').request as AiCoachingRequest).learnerLocale).toBe('es');
+  });
+
   it('hands out a fresh list, so one caller cannot change another’s', () => {
     const mine = aiCheckCases();
     mine.length = 0;
@@ -113,7 +142,27 @@ describe('runAiCheck', () => {
       };
     });
 
-    const report = await runAiCheck({ explain, hint, writingFeedback });
+    // Coaches every word the engine marked, and names a sound only where the
+    // engine reported one — its weakest, and what it was heard as.
+    const pronunciationCoaching = vi.fn(async (request: AiCoachingRequest) => ({
+      text: 'A steady reading.',
+      words: request.facts.words
+        .filter((word) => word.state === 'mispronounced' || word.state === 'omitted')
+        .map((word) => {
+          const weakest = [...(word.sounds ?? [])].sort(
+            (a, b) => (a.accuracy ?? 100) - (b.accuracy ?? 100),
+          )[0];
+          return {
+            itemId: word.itemId as string,
+            tip: `Practise "${word.word}" slowly.`,
+            ...(weakest !== undefined
+              ? { sound: { expected: weakest.symbol, heard: weakest.heardAs?.[0]?.symbol } }
+              : {}),
+          };
+        }),
+    }));
+
+    const report = await runAiCheck({ explain, hint, writingFeedback, pronunciationCoaching });
 
     expect(report.total).toBe(cases.length);
     expect(report.shown).toBe(cases.length);
@@ -126,6 +175,16 @@ describe('runAiCheck', () => {
     expect(written?.feedback?.corrections[0]?.range).toEqual({ start: 0, end: 4 });
     // (0.75 × 2 + 1 + 1) / 4
     expect(written?.feedback?.indicativeScore).toBe(0.875);
+    const coached = report.results.find((one) => one.case.id === 'coaching-slips');
+    expect(coached?.coaching?.words).toEqual([
+      {
+        itemId: 'w2',
+        word: 'weather',
+        tip: 'Practise "weather" slowly.',
+        sound: { expected: 'ð', heard: 'd' },
+      },
+      { itemId: 'w7', word: 'north', tip: 'Practise "north" slowly.' },
+    ]);
     // What the call cost rides back on the result, so a run can be priced.
     const explained = report.results.find((one) => one.case.feature === 'explanation');
     expect(explained?.result?.usage).toEqual({
@@ -164,6 +223,19 @@ describe('runAiCheck', () => {
     expect(report.total).toBe(writing.length);
     expect(report.byRefusal['misquotes-answer']).toBe(writing.length);
     expect(formatAiCheckReport(report)).toContain('misquotes-answer');
+  });
+
+  it('names the prompt that coaches words the engine did not mark', async () => {
+    const report = await runAiCheck({
+      pronunciationCoaching: async () => ({
+        text: 'Work on the first word.',
+        words: [{ itemId: 'w1', tip: 'Say "the" more clearly.' }],
+      }),
+    });
+    const coaching = cases.filter((one) => one.feature === 'pronunciation-coaching');
+    expect(report.total).toBe(coaching.length);
+    expect(report.byRefusal['contradicts-marks']).toBe(coaching.length);
+    expect(formatAiCheckReport(report)).toContain('contradicts-marks');
   });
 
   it('counts each refusal by its own reason', async () => {

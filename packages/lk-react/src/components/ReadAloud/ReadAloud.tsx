@@ -38,6 +38,7 @@ import { ANONYMOUS_ACTOR, detailIsRight, isDevelopment, objectIdFor } from '../_
 import { PronunciationFeedback } from '../PronunciationFeedback/index.js';
 import { markSentence, VISUALLY_HIDDEN } from '../PronunciationFeedback/PronunciationFeedback.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
+import { ReadingCoaching } from '../shared/AiCoaching.js';
 import { joinCaptureGroup } from '../shared/capture-registry.js';
 import { useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
@@ -466,6 +467,12 @@ function OutcomeSummary({
  * and never reaches `onComplete` or a statement; `onComplete` fires exactly when
  * a score is on screen, with that score.
  *
+ * **AI coaching**, with a `pronunciationCoaching` port: under the marks, a
+ * button asks a model to explain them — in `practice` once a take is graded,
+ * and in `review` wherever marks are shown, from kept evidence or from the
+ * stored grade's details. Never in `exam`. The marks are the engine's, and
+ * coaching on a word it did not mark is refused whole.
+ *
  * **Under a strict Content-Security-Policy** the take is played back from a
  * `blob:` URL, so `media-src` must allow `blob:` — refused, the player and the
  * per-word buttons give way to a note saying the take cannot be played here —
@@ -503,6 +510,7 @@ export function ReadAloud({
   monotoneThreshold,
   workletUrl,
   delivery,
+  ai,
 }: ReadAloudProps) {
   const isExam = renderMode === 'exam';
   // A read-aloud's grade comes back from the host's assessor, but showing it is
@@ -1085,6 +1093,16 @@ export function ReadAloud({
   // schema, so there is nothing to normalise.
   const contentLang = typeof data.locale === 'string' ? data.locale : undefined;
   const contentDir = localeDirectionOf(data.locale);
+  // What the marks and the coaching on them read of the item: its text and
+  // language for the marks, and its name and the author's settings for a model.
+  const coachingItem = {
+    id: data.id,
+    title: data.title,
+    referenceText: data.referenceText,
+    locale: data.locale,
+    ...(data.instructions !== undefined ? { instructions: data.instructions } : {}),
+    ...(data.ai !== undefined ? { ai: data.ai } : {}),
+  };
 
   // What the host sent, as the one reader of a host's grade reads it. Every
   // path below that shows or decides anything about a grade — the summary, the
@@ -1440,7 +1458,7 @@ export function ReadAloud({
 
       {feedbackAssessment !== null ? (
         <PronunciationFeedback
-          data={{ referenceText: data.referenceText, locale: data.locale }}
+          data={coachingItem}
           assessment={feedbackAssessment}
           {...(feedbackGrade !== null ? { grade: feedbackGrade } : {})}
           {...(feedbackAudio !== null ? { audioUrl: feedbackAudio } : {})}
@@ -1448,6 +1466,10 @@ export function ReadAloud({
           {...(monotoneThreshold !== undefined ? { monotoneThreshold } : {})}
           {...(locale !== undefined ? { locale } : {})}
           {...(strings !== undefined ? { strings } : {})}
+          {...(ai !== undefined ? { ai } : {})}
+          {...(onInteraction !== undefined ? { onInteraction } : {})}
+          renderMode={renderMode}
+          delivery={policy}
         />
       ) : null}
 
@@ -1491,6 +1513,20 @@ export function ReadAloud({
               </li>
             ))}
           </ul>
+          {/* The same coaching the panel offers, on the marks read back here:
+              the stored grade's, which carry no sounds. */}
+          <ReadingCoaching
+            data={coachingItem}
+            grade={storedGrade}
+            renderMode={renderMode}
+            delivery={policy}
+            {...(ai !== undefined ? { ai } : {})}
+            {...(locale !== undefined ? { locale } : {})}
+            {...(onInteraction !== undefined ? { onInteraction } : {})}
+            strings={s}
+            contentLang={contentLang}
+            contentDir={contentDir}
+          />
         </div>
       ) : null}
 
