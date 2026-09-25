@@ -1,26 +1,33 @@
 'use client';
 
 import {
+  type AiCoaching,
   type AiTextResult,
   type AiWritingFeedback,
+  aiCoachingRequest,
   aiExplanationRequest,
   aiHintRequest,
   aiWritingFeedbackRequest,
+  checkAiCoaching,
   checkAiExplanation,
   checkAiHint,
   checkAiWritingFeedback,
   combineDeliveryPolicies,
   type DeliveryPolicy,
+  type GradeRecord,
   type InteractionEvent,
   type ItemOutcome,
   type LearnerResponse,
+  type ReadAloudData,
+  type SpeechAssessment,
 } from '@intellectif/lk-core';
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { SequenceSlotContext } from '../components/shared/sequence-slot.js';
 import type { RenderableActivity, RenderMode } from '../components/types.js';
 import { type LearnerAi, useLearnerAi } from './LkAiProvider.js';
 import {
   callPort,
+  coachingOffered,
   explanationKey,
   explanationOffered,
   hintLimit,
@@ -150,7 +157,7 @@ function modeInForce(asked: RenderMode | undefined, around: RenderMode | undefin
  * read has it in its own port; an interaction is a record of what happened, and
  * is kept for every learner and every question.
  */
-function shownPayload(result: AiTextResult): Record<string, unknown> {
+function shownPayload(result: Pick<AiTextResult, 'provenance' | 'usage'>): Record<string, unknown> {
   return {
     ...(result.provenance !== undefined ? { provenance: result.provenance } : {}),
     ...(result.usage !== undefined ? { usage: result.usage } : {}),
@@ -644,6 +651,241 @@ export function useAiWritingFeedback(input: AiWritingFeedbackInput): AiWritingFe
     current: last !== undefined && last.about === draftOf(response),
     limit,
     used: current.shown.length,
+    ask,
+  };
+}
+
+export interface AiCoachingInput {
+  /**
+   * The read-aloud item, as `data` is given to `<ReadAloud>` — or as much of
+   * one as coaching reads: its id, title, text and language, and the author's
+   * `instructions` and `ai` settings where it has them.
+   */
+  data: Pick<ReadAloudData, 'id' | 'title' | 'referenceText' | 'locale'> &
+    Partial<Pick<ReadAloudData, 'instructions' | 'ai'>>;
+  /**
+   * The speech engine's assessment of the take, as the learner is shown it.
+   * When given, it is the marks — each word's, with its sounds and what each
+   * was heard as — and the only ones: see `aiCoachingRequest` in lk-core.
+   */
+  assessment?: SpeechAssessment | null;
+  /**
+   * The grade of record. Its score is context for the model; without an
+   * assessment, its word details are the marks, and they carry no sounds.
+   */
+  grade?: GradeRecord | null;
+  /**
+   * Pass on the `renderMode` your reading was given. Coaching is never offered
+   * in `exam`, and an `exam` around the reading wins over anything passed here.
+   */
+  renderMode?: RenderMode;
+  /** The AI ports to use, overriding {@link LkAiProvider}'s for this reading. */
+  ai?: LearnerAi;
+  /** The interface language: the default language for what a model writes. */
+  locale?: string;
+  /** Where `ai-coaching-shown` and `ai-help-refused` go. */
+  onInteraction?: (event: InteractionEvent) => void;
+  /**
+   * The delivery policy your reading was handed. Coaching needs feedback shown
+   * and AI explanations allowed; the paper around the reading holds as well.
+   */
+  delivery?: DeliveryPolicy | null;
+}
+
+export interface AiCoachingHelp {
+  /**
+   * Whether to offer coaching at all: a `pronunciationCoaching` port is
+   * present, there are marks to coach, the mode is not `exam`, the item's
+   * author left explanations on, and the paper shows feedback and allows AI
+   * explanations.
+   */
+  offered: boolean;
+  status: 'idle' | 'loading' | 'shown' | 'unavailable';
+  /**
+   * What to show, once it has arrived and been checked: the coaching's text,
+   * and the words it works on in reading order, each with its tip and, where
+   * the engine reported one, the sound. All of it is text, never HTML.
+   */
+  coaching: AiCoaching | null;
+  /**
+   * Asks the port, when the learner presses something. Does nothing while a
+   * call is on its way, once coaching is shown — one per reading — or where
+   * `offered` is false. One identity for the life of the reading.
+   */
+  ask: () => void;
+}
+
+type CoachingState =
+  | { key: string; status: 'idle' | 'loading' | 'unavailable' }
+  | { key: string; status: 'shown'; coaching: AiCoaching };
+
+/**
+ * "Coach me on this reading", without the SDK's own button and panel: the
+ * rules, the call, the checks and the record, for marks you draw yourself.
+ *
+ * It is what `<PronunciationFeedback>` and `<ReadAloud>` use, so a host's own
+ * marks get coaching on the same terms: never in `exam`, never where the
+ * item's author switched explanations off, and never coaching on a word the
+ * engine did not mark or a sound it did not report — which is refused whole.
+ *
+ * ```tsx
+ * const { offered, status, coaching, ask } = useAiCoaching({
+ *   data: item, assessment, grade, renderMode, ai,
+ * });
+ * ```
+ *
+ * **Say who wrote it**, as the SDK's own panel does: "Written by AI. It can make
+ * mistakes." The marks beside it are the engine's; the coaching is a model's.
+ *
+ * Another reading — other marks, another text — drops the coaching and
+ * abandons a call still on its way, as the caller unmounting does.
+ */
+export function useAiCoaching(input: AiCoachingInput): AiCoachingHelp {
+  const { data, assessment, grade } = input;
+  const around = useContext(SequenceSlotContext);
+  const renderMode = modeInForce(input.renderMode, around?.renderMode);
+  const delivery = combineDeliveryPolicies(input.delivery, around?.delivery);
+  const ai = useLearnerAi(input.ai);
+  const { learnerLocale } = localeOf(ai, input.locale);
+  const { id, title, referenceText, locale: itemLocale, instructions, ai: permissions } = data;
+
+  // Built as the learner sees the marks, and rebuilt only when they change: the
+  // fields, not the object, so a caller that spreads a fresh `data` on every
+  // render does not realign the reading on every render.
+  const request = useMemo(() => {
+    const item = {
+      type: 'read-aloud',
+      id,
+      title,
+      referenceText,
+      locale: itemLocale,
+      instructions,
+      ai: permissions,
+    };
+    return aiCoachingRequest({
+      data: item,
+      ...(assessment !== undefined && assessment !== null ? { assessment } : {}),
+      ...(grade !== undefined && grade !== null ? { grade } : {}),
+      ...(learnerLocale !== undefined ? { learnerLocale } : {}),
+    });
+  }, [
+    id,
+    title,
+    referenceText,
+    itemLocale,
+    instructions,
+    permissions,
+    assessment,
+    grade,
+    learnerLocale,
+  ]);
+  // The reading the coaching is about: the take, and its marks. Another take is
+  // another reading even where the engine marked it the same, and coaching
+  // still on its way for the last one must not land on it. By content, not by
+  // object, so a caller that rebuilds the same assessment keeps its coaching.
+  const take = typeof assessment?.recordingKey === 'string' ? assessment.recordingKey : null;
+  const resetKey = useMemo(
+    () => (request === null ? '' : JSON.stringify([take, request])),
+    [take, request],
+  );
+  const [state, setState] = useState<CoachingState>({ key: resetKey, status: 'idle' });
+  const run = useRef(0);
+  const controller = useRef<AbortController | null>(null);
+  const current: CoachingState = state.key === resetKey ? state : { key: resetKey, status: 'idle' };
+  const offered =
+    ai?.pronunciationCoaching !== undefined &&
+    coachingOffered({
+      data: { type: 'read-aloud', id, title, ai: permissions },
+      renderMode,
+      marked: request !== null,
+      delivery,
+    });
+
+  const latest = useRef({ input, ai, request, resetKey, offered, current });
+  latest.current = { input, ai, request, resetKey, offered, current };
+
+  // Another reading, or the caller going away: abandon the call in flight.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the key is the trigger — its cleanup runs when the marks change
+  useEffect(() => {
+    return () => {
+      run.current += 1;
+      controller.current?.abort();
+      controller.current = null;
+    };
+  }, [resetKey]);
+
+  // No longer offered — the paper switched AI off, or the reading is now an
+  // exam's — while coaching was on its way: it would land where none is allowed.
+  useEffect(() => {
+    if (!offered) {
+      run.current += 1;
+      controller.current?.abort();
+      controller.current = null;
+      setState((previous) =>
+        previous.status === 'loading' ? { key: previous.key, status: 'idle' } : previous,
+      );
+    }
+  }, [offered]);
+
+  const ask = useCallback((): void => {
+    const now = latest.current;
+    const port = now.ai?.pronunciationCoaching;
+    const request = now.request;
+    if (
+      port === undefined ||
+      !now.offered ||
+      request === null ||
+      now.current.status === 'loading' ||
+      now.current.status === 'shown'
+    ) {
+      return;
+    }
+    const key = now.resetKey;
+    const activityId = request.facts.activityId;
+    run.current += 1;
+    const mine = run.current;
+    controller.current?.abort();
+    const abort = new AbortController();
+    controller.current = abort;
+    setState({ key, status: 'loading' });
+    callPort(() => port(request, { signal: abort.signal })).then(
+      (raw) => {
+        if (run.current !== mine) {
+          return;
+        }
+        const checked = checkAiCoaching(raw, request);
+        if (!checked.ok) {
+          warnRefused('pronunciation coaching', activityId, checked.refusal);
+          setState({ key, status: 'unavailable' });
+          latest.current.input.onInteraction?.({
+            type: 'ai-help-refused',
+            activityId,
+            timestamp: Date.now(),
+            payload: { feature: 'pronunciation-coaching', reason: checked.refusal },
+          });
+          return;
+        }
+        const { coaching } = checked;
+        setState({ key, status: 'shown', coaching });
+        latest.current.input.onInteraction?.({
+          type: 'ai-coaching-shown',
+          activityId,
+          timestamp: Date.now(),
+          payload: { words: coaching.words.length, ...shownPayload(coaching) },
+        });
+      },
+      () => {
+        if (run.current === mine) {
+          setState({ key, status: 'unavailable' });
+        }
+      },
+    );
+  }, []);
+
+  return {
+    offered,
+    status: offered ? current.status : 'idle',
+    coaching: offered && current.status === 'shown' ? current.coaching : null,
     ask,
   };
 }

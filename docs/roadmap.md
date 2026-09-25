@@ -844,15 +844,37 @@ as lk-core 1.0.0 / lk-react 23.0.0; see [v1.0](#v10--the-stability-promise). Eve
 until then released an `lk-react` major, and each AI feature still to come would have released another.
 From 1.0 they ship as the minors they are.
 
-1. **The AI line, in this order, after v1.0.** Explanations, hints, the groundwork above and
-   feedback on writing have shipped; what is left is ordered by what a learner or an author gets from
+✅ **Coaching on a reading shipped** in 1.1.0 / 23.1.0 (2026-09-25), the first AI feature under the
+1.x rule: a `pronunciationCoaching` port, "Coach me on this reading" under the marks of
+`<ReadAloud>` and `<PronunciationFeedback>`, `useAiCoaching` for a host's own marks,
+`aiCoachingRequest` and `checkAiCoaching` for a server, and four reading cases in `ai-check`; see
+[docs/ai.md](./ai.md#coaching-on-a-reading). Five decisions shaped it:
+- **The check only the SDK can run.** Every word coached must be one the engine marked
+  `mispronounced` or `omitted`; every sound named, one it reported for that word; every "heard as",
+  one of the engine's own candidates for that sound. Anything else refuses the whole reply as
+  `contradicts-marks`. The words come back in reading order, each as the marks show it.
+- **The marks on screen are the marks.** An assessment given is the only source, and one
+  `gradeReadAloud` would not read — no speech, unscripted, another text or locale — gives no
+  coaching rather than a stored grade's marks the learner is not looking at. With no assessment
+  kept, a review coaches the stored grade's word marks, which carry no sounds, so no sound may be
+  named.
+- **No switch of its own**, as with feedback on writing: it reads `ai.explanations`, the author's and
+  the paper's, and needs `feedback`, because the marks are feedback. Not `solutions`: a reading hides
+  no answer, and its text is on screen throughout.
+- **One per take.** Another take is another reading, even one marked the same, so coaching still on
+  its way for the last take never lands on the next; the same assessment handed in again as a new
+  object keeps it.
+- **Nothing numeric is read.** The marks and the grade are the engine's; a score in the reply is
+  ignored.
+
+**Not shipped:** coaching on an unscripted answer, which waits for `speaking-response`; a model's own
+recording of how a word should sound; and coaching asked for again on the same take.
+
+1. **The AI line, in this order, after v1.0.** Explanations, hints, the groundwork above, feedback
+   on writing and coaching on a reading have shipped; what is left is ordered by what a learner or an author gets from
    it, and each is admitted only on the rules below.
    1. ✅ **Feedback on writing, in practice** — shipped in 0.22.0 / 22.0.0, above.
-   2. **Pronunciation coaching on a read-aloud** — the model explains the engine's marks and
-      never re-scores them (`docs/speech-assessment.md` already says so, and the published
-      comparisons behind it), with the matching check: a word it calls mispronounced must be one the
-      engine marked. It is the check writing feedback runs, on the engine's marks rather than the
-      draft.
+   2. ✅ **Pronunciation coaching on a read-aloud** — shipped in 1.1.0 / 23.1.0, above.
    3. **Assistants for authors** — drafts generated from a passage, a transcript or a video's
       captions (for an interactive video, placed at caption times); a repair loop driven by the SDK's
       own `validateDraft` issues; an item critic reporting in the same shape those checks do, so an

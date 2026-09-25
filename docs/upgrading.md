@@ -37,6 +37,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.20.0 | 20.0.0 | Delivery policies: `delivery` on every activity and both pagers switches off feedback, solutions, hints or AI help per paper; `resolveDeliveryPolicy`, `validateDeliveryPolicy`, `combineDeliveryPolicies`; `planAttempt(…, { delivery })` records it in the plan and its hash, and `verifyAttemptPlan` reports `deliveryChanged`. **No grade changes, and an absent policy changes nothing** — the major is the peer bump, plus a required `delivery` on `InteractiveVideoQuestion` |
 | 0.21.0 | 21.0.0 | Scoring policies: `scoring` on every activity and both pagers — "Try again" in `practice` (`retries`), which try `counts`, and what tries and hints cost (`retryPenalty`, `hintPenalty`); `scoreTries`, `evaluateTries` and `evaluate(…, { scoring })`; `resolveItemScoringPolicy` / `validateItemScoringPolicy`; `planAttempt(…, { scoring })` and `scoringChanged`; `hintsRevealed` on multiple-choice, fill-in-the-blanks and gap-select responses. **No grade changes without a policy.** One fix to 0.20's `solutions: false` on a dictation, and one possible type error — see [0.20 → 0.21](#020--021-lk-core--20x--21x-lk-react) |
 | 0.22.0 | 22.0.0 | Feedback on writing: a `writingFeedback` port gives `<WrittenResponse>` "Get feedback on my draft" in `practice`; `useAiWritingFeedback` for a written response you draw; `aiWritingFeedbackRequest` and `checkAiWritingFeedback` in lk-core, which refuses a correction of words the draft does not contain (`misquotes-answer`) and computes the rubric's indicative score itself; four writing cases in `ai-check`. **Additive, and nothing changes without the port** — the major is the peer bump, plus eight strings and the type errors in [0.21 → 0.22](#021--022-lk-core--21x--22x-lk-react) |
+| 1.1.0 | 23.1.0 | Coaching on a reading: a `pronunciationCoaching` port gives `<ReadAloud>` and `<PronunciationFeedback>` "Coach me on this reading" under the marks; `useAiCoaching` for marks you draw; `aiCoachingRequest` and `checkAiCoaching` in lk-core, which refuses coaching on a word the engine did not mark or a sound it did not report (`contradicts-marks`); four reading cases in `ai-check`. **Additive, and nothing changes without the port** — install both together; see [1.0 → 1.1](#10--11-lk-core--230--231-lk-react) |
 | 1.0.0 | 23.0.0 | **1.0: what stays stable, written down** — see [Stability](./stability.md). A `lk-core` minor no longer releases a `lk-react` major. `ScoringDetail.correct` is removed and `outcome` required; zod is private — no export is a zod schema, `validateMedia` / `validateOptionMedia` replace the two a media picker used, and the `Redacted*` types are written out; a type you register takes a [Standard Schema](https://standardschema.dev), which a zod 4 schema already is. **No grade changes** — see [0.22 → 1.0](#022--10-lk-core--22x--23x-lk-react) |
 
 Every behavioural change here is opt-in, per the
@@ -66,6 +67,43 @@ you record stay exactly what they were.
 - On **20.0.x**? See [0.20 → 0.21](#020--021-lk-core--20x--21x-lk-react) — no grade moves until you pass a scoring policy; a dictation under `solutions: false` stops naming the words it corrects; one possible type error.
 - On **21.0.x**? See [0.21 → 0.22](#021--022-lk-core--21x--22x-lk-react) — additive: feedback on a draft appears only once you pass a `writingFeedback` port; the type errors it can cause.
 - On **22.0.x**? See [0.22 → 1.0](#022--10-lk-core--22x--23x-lk-react) — no grade changes; what can stop a build, and the one read of stored data to check.
+- On **23.0.x**? See [1.0 → 1.1](#10--11-lk-core--230--231-lk-react) — additive: coaching appears only once you pass a `pronunciationCoaching` port.
+
+---
+
+## 1.0 → 1.1 (`lk-core`) / 23.0 → 23.1 (`lk-react`)
+
+Coaching on a reading aloud: a model explains the speech engine's marks, and the SDK refuses coaching
+on anything the engine did not mark. See [Coaching on a reading](./ai.md#coaching-on-a-reading).
+**Nothing changes until you pass a `pronunciationCoaching` port**, and no grade changes: the corpus
+replays unchanged.
+
+**Install both.** lk-react 23.1.0 calls lk-core's new `aiCoachingRequest` and `checkAiCoaching`, so its
+peer range is `^1.1.0`. lk-core 1.1.0 on its own changes nothing for a lk-react 23.0 page.
+
+What can stop a build, as [Stability](./stability.md#the-public-api) allows a minor:
+
+- **`AiFeature` gains `'pronunciation-coaching'`, `AiRefusal` gains `'contradicts-marks'`, and
+  `InteractionKind` gains `'ai-coaching-shown'`.** A `switch` over one of them without a `default`
+  branch stops compiling; add the case, or a `default`.
+- **`LkStrings` gains six keys**: `aiCoaching`, `aiCoachingLoading`, `aiCoachingHeading`,
+  `aiCoachingUnavailable`, `aiCoachingWords` and `aiCoachingSound(expected, heard)`. A translation
+  typed as a complete `LkStrings` needs them; one passed as an override does not. See
+  [i18n](./i18n.md#ai-help).
+- **`AiCheckCase` gains coaching cases.** `aiCheckCases()` returns four more, with
+  `feature: 'pronunciation-coaching'` and an `AiCoachingRequest`; code that reads `request` without
+  narrowing on `feature` sees the wider union. A run without a `pronunciationCoaching` port skips
+  them.
+
+`<PronunciationFeedback>` takes four new props — `ai`, `renderMode`, `delivery` and `onInteraction` —
+all for coaching, and its `data` may now carry the item's `id`, `title`, `instructions` and `ai`. The
+marks render as before in every mode. For coaching, pass the whole item as `data`: without an `id`
+and a `title` none is offered, and a development build says so when a port is in force.
+
+**Where it appears**, if you pass the port: in `practice` once a take is graded, and in `review`
+wherever marks are shown. Never in `exam`. The author's `ai: { explanations: false }` and the paper's
+`ai: { explanations: false }` or `feedback: false` switch it off; `solutions: false` does not, since
+a reading hides no answer. If you give explanations but do not want coaching, leave the port out.
 
 ---
 

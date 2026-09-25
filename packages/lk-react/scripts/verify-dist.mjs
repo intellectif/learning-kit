@@ -88,7 +88,12 @@ const REQUIRED_EXPORTS = {
     'useTheme',
   ],
   'dist/ai/LkAiProvider.js': ['LkAiProvider', 'useLearnerAi'],
-  'dist/ai/useAiHelp.js': ['useAiExplanation', 'useAiHints', 'useAiWritingFeedback'],
+  'dist/ai/useAiHelp.js': [
+    'useAiCoaching',
+    'useAiExplanation',
+    'useAiHints',
+    'useAiWritingFeedback',
+  ],
   'dist/i18n/LkIntlProvider.js': [
     'DEFAULT_STRINGS',
     'LkIntlProvider',
@@ -100,6 +105,7 @@ const REQUIRED_EXPORTS = {
   'dist/index.js': [
     'ActivityPreview',
     'LkAiProvider',
+    'useAiCoaching',
     'useAiExplanation',
     'useAiHints',
     'useAiWritingFeedback',

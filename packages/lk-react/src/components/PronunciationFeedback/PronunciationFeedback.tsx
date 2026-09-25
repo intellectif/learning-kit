@@ -3,7 +3,9 @@
 import {
   ActivitySchemaError,
   alignReadAloud,
+  type DeliveryPolicy,
   type GradeRecord,
+  type InteractionEvent,
   type ReadAloudData,
   type ReadAloudWordAlignment,
   type SpeechAssessment,
@@ -14,12 +16,15 @@ import {
   validateSpeechAssessment,
 } from '@intellectif/lk-core';
 import { type CSSProperties, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { type LearnerAi, useLearnerAi } from '../../ai/LkAiProvider.js';
 import { localeDirectionOf } from '../../i18n/direction.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStrings, LkStringsOverride } from '../../i18n/strings.js';
 import { isDevelopment } from '../_internal.js';
+import { ReadingCoaching } from '../shared/AiCoaching.js';
 import { isSourceRefusal, usePlaybackRefusal } from '../shared/playback-refusal.js';
 import { percentOfGrade, readDimensions, readGrade } from '../shared/read-grade.js';
+import type { RenderMode } from '../types.js';
 
 /**
  * Present for assistive technology, invisible on screen. Inline rather than
@@ -52,11 +57,13 @@ const LEGEND_STATES: readonly ReadAloudWordAlignment['state'][] = [
 
 export interface PronunciationFeedbackProps {
   /**
-   * The item's reading and its language. Only these two fields, because they
-   * are the only ones a mark depends on — everything else about the activity
-   * belongs to whoever rendered it.
+   * The item's reading and its language: the two fields every mark depends
+   * on. Pass the whole item — or its `id` and `title` with them, and its
+   * `instructions` and `ai` where it has them — for AI coaching: without an
+   * `id` and a `title` none is offered, whatever the ports.
    */
-  data: Pick<ReadAloudData, 'referenceText' | 'locale'>;
+  data: Pick<ReadAloudData, 'referenceText' | 'locale'> &
+    Partial<Pick<ReadAloudData, 'id' | 'title' | 'instructions' | 'ai'>>;
   /**
    * The assessor's evidence. Checked with `validateSpeechAssessment` before it
    * is aligned: see the note on this component about what a bad one costs.
@@ -97,6 +104,26 @@ export interface PronunciationFeedbackProps {
   theme?: Partial<ThemeTokens>;
   /** Overrides the SDK's chrome text for this panel. See {@link LkIntlProvider}. */
   strings?: LkStringsOverride;
+  /**
+   * The host's AI ports, overriding `LkAiProvider`'s. With a
+   * `pronunciationCoaching` port the learner can ask for coaching on these
+   * marks — once per reading — which a model writes and the SDK checks: every
+   * word it coaches is one marked here, and every sound one the engine
+   * reported. See {@link LearnerAi}.
+   */
+  ai?: LearnerAi;
+  /**
+   * The mode the reading was given, for AI coaching alone: `exam` offers none,
+   * and an `exam` around the panel wins. The marks themselves show in any mode.
+   */
+  renderMode?: RenderMode;
+  /**
+   * What the paper lets a learner see. Coaching needs `feedback` and AI
+   * explanations; the paper around the panel holds as well.
+   */
+  delivery?: DeliveryPolicy | null;
+  /** Where `ai-coaching-shown` and `ai-help-refused` go. */
+  onInteraction?: (event: InteractionEvent) => void;
 }
 
 /**
@@ -187,10 +214,17 @@ export function markSentence(entry: ReadAloudWordAlignment, s: LkStrings): strin
  * `passed` that is not a boolean, is shown as could-not-be-graded beside the
  * dimensions and the marks, and criteria that cannot be read name no dimension.
  *
- * There is **no `renderMode`**: nothing here submits, grades or reveals an
+ * **The marks show in any mode**: nothing here submits, grades or reveals an
  * answer key. A read-aloud item has none, and the marks exist only once a
  * server has graded the take, so there is no mode in which they must be
- * withheld.
+ * withheld. `renderMode` is read for one thing only — AI coaching, which is
+ * never offered in `exam`.
+ *
+ * **AI coaching**, with a `pronunciationCoaching` port and a `data` that
+ * carries the item's `id` and `title`: a button under the marks asks a model
+ * to explain them. The marks are the engine's and are never re-scored, and
+ * coaching on a word not marked here, or a sound the engine did not report,
+ * is refused whole. See `useAiCoaching` to draw your own.
  *
  * ```tsx
  * <PronunciationFeedback
@@ -200,6 +234,7 @@ export function markSentence(entry: ReadAloudWordAlignment, s: LkStrings): strin
  *   audioUrl={takeUrl}
  *   breakThreshold={0.75}
  *   monotoneThreshold={0.6}
+ *   ai={{ pronunciationCoaching: (request, { signal }) => api.coach(request, signal) }}
  * />
  * ```
  */
@@ -213,6 +248,10 @@ export function PronunciationFeedback({
   locale,
   theme,
   strings,
+  ai,
+  renderMode,
+  delivery,
+  onInteraction,
 }: PronunciationFeedbackProps) {
   const s = useLkStrings(strings);
   const ids = useId();
@@ -261,6 +300,19 @@ export function PronunciationFeedback({
     },
     [],
   );
+
+  // Coaching needs an item to name: its id for the record, its title for the
+  // model. A port in force with neither is a panel wired without them, and
+  // coaching that silently never appears is the failure to say out loud.
+  const coachable = typeof data.id === 'string' && typeof data.title === 'string';
+  const coachingPort = useLearnerAi(ai)?.pronunciationCoaching !== undefined;
+  useEffect(() => {
+    if (isDevelopment() && coachingPort && !coachable) {
+      console.warn(
+        'learning-kit: <PronunciationFeedback> offers no AI coaching without `data.id` and `data.title`. Pass the whole read-aloud item as `data`, or `ai={{}}` to go without.',
+      );
+    }
+  }, [coachingPort, coachable]);
 
   // All hooks are called before this throw, so hook order stays stable.
   if (devError) {
@@ -523,6 +575,30 @@ export function PronunciationFeedback({
               this note names. An engine that reported another one, or none at
               all, gets no note rather than a wrong one. */}
           {alphabet === 'ipa' ? <p className="lk-pf-alphabet">{s.pronunciationIpaNote}</p> : null}
+          {/* Under the marks it explains, and only where there are marks on
+              screen: the checked evidence, never the argument. */}
+          {coachable && checked.success ? (
+            <ReadingCoaching
+              data={{
+                id: data.id as string,
+                title: data.title as string,
+                referenceText: data.referenceText,
+                locale: data.locale,
+                ...(data.instructions !== undefined ? { instructions: data.instructions } : {}),
+                ...(data.ai !== undefined ? { ai: data.ai } : {}),
+              }}
+              assessment={checked.data}
+              {...(grade !== undefined ? { grade } : {})}
+              {...(renderMode !== undefined ? { renderMode } : {})}
+              {...(ai !== undefined ? { ai } : {})}
+              {...(locale !== undefined ? { locale } : {})}
+              {...(onInteraction !== undefined ? { onInteraction } : {})}
+              {...(delivery !== undefined ? { delivery } : {})}
+              strings={s}
+              contentLang={contentLang}
+              contentDir={contentDir}
+            />
+          ) : null}
         </>
       ) : null}
 

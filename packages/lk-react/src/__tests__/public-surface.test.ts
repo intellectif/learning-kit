@@ -43,6 +43,7 @@ describe('published export surface', () => {
     'mergeStrings',
     'resolveCaptionTracks',
     'useActivityState',
+    'useAiCoaching',
     'useAiExplanation',
     'useAiHints',
     'useAiWritingFeedback',
@@ -96,7 +97,12 @@ describe('published export surface', () => {
   // The README's subpath table names these as the contents of
   // `@intellectif/lk-react/ai/LkAiProvider`.
   const aiExports = ['LkAiProvider', 'useLearnerAi'] as const;
-  const aiHelpExports = ['useAiExplanation', 'useAiHints', 'useAiWritingFeedback'] as const;
+  const aiHelpExports = [
+    'useAiCoaching',
+    'useAiExplanation',
+    'useAiHints',
+    'useAiWritingFeedback',
+  ] as const;
 
   const aiNames = Object.keys(aiEntry);
 

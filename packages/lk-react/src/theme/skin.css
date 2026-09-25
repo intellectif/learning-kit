@@ -3339,7 +3339,8 @@
 }
 
 @layer lk-skin {
-  /* ── AI help: an explanation after grading, hints before submit ─────────
+  /* ── AI help: an explanation after grading, hints before submit, feedback
+     on a draft, and coaching on a reading ────────────────────────────────
      Set apart from the author's own feedback by a dashed rule and a notice
      under it, so a learner can always tell what a model wrote from what a
      teacher did. On the plain surface, where the muted notice is a colour
@@ -3443,6 +3444,50 @@
   .lk-wr-indicative {
     font-size: var(--lk-font-size-sm);
     font-weight: 600;
+  }
+
+  /* Coaching on a reading holds a list of words as well as text, spaced as
+     feedback on a draft is. Each word coached leads with the word as the
+     reading spells it, then the sound, then what to do: the tip takes a line
+     of its own, so a long one never squeezes the word beside it. */
+  .lk-ai-coaching .lk-ai-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-sm);
+  }
+
+  .lk-ai-coaching .lk-ai-panel > * {
+    margin: 0;
+  }
+
+  .lk-ai-coaching-words {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-xs);
+    padding: 0;
+    list-style: none;
+  }
+
+  .lk-ai-coaching-word {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    border-inline-start: 3px dashed var(--lk-color-primary);
+  }
+
+  .lk-ai-coaching-target {
+    font-weight: 600;
+  }
+
+  .lk-ai-coaching-sound {
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-ai-coaching-word > .lk-ai-text {
+    flex-basis: 100%;
   }
 
   @media (prefers-reduced-motion: reduce) {

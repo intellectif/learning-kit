@@ -94,6 +94,11 @@ const REQUIRED_EXPORTS = [
   'checkAiWritingFeedback',
   'AI_WRITING_MAX_CORRECTIONS',
   'AI_WRITING_MAX_FIELD_LENGTH',
+  // coaching on a read-aloud
+  'aiCoachingRequest',
+  'checkAiCoaching',
+  'AI_COACHING_MAX_WORDS',
+  'AI_COACHING_MAX_TIP_LENGTH',
   // item scoring policies: tries and hint costs
   'resolveItemScoringPolicy',
   'validateItemScoringPolicy',
@@ -342,6 +347,70 @@ if (typeof core.aiWritingFeedbackRequest === 'function') {
   }
 }
 
+// Coaching runs the matching check on the engine's marks: a word coached must
+// be one the engine marked, and a sound named one it reported. From the build,
+// coaching on the mispronounced word and its reported sound is shown, and
+// coaching on a word read correctly, or on a sound nobody reported, refuses the
+// whole reply.
+if (typeof core.aiCoachingRequest === 'function') {
+  const item = {
+    schemaVersion: '1.0',
+    type: 'read-aloud',
+    id: 'probe-reading',
+    title: 'Probe',
+    referenceText: 'the cat',
+    locale: 'en-US',
+    recording: { maxSeconds: 10 },
+    scoring: { dimensions: [{ name: 'accuracy', weight: 1 }] },
+  };
+  const request = core.aiCoachingRequest({
+    data: item,
+    assessment: {
+      assessmentVersion: '1.0',
+      status: 'assessed',
+      task: 'scripted',
+      locale: 'en-US',
+      referenceText: 'the cat',
+      recordingKey: 'probe-take',
+      assessor: { kind: 'auto' },
+      scale: 100,
+      scores: { accuracy: 60 },
+      miscue: 'assessor',
+      phonemeAlphabet: 'ipa',
+      words: [
+        { text: 'the', error: 'none', accuracy: 95 },
+        {
+          text: 'cat',
+          error: 'mispronunciation',
+          accuracy: 30,
+          phonemes: [{ symbol: 'æ', accuracy: 20, heardAs: [{ symbol: 'ɛ', score: 70 }] }],
+        },
+      ],
+    },
+  });
+  const coached =
+    request &&
+    core.checkAiCoaching(
+      {
+        text: 'The vowel.',
+        words: [{ itemId: 'w2', tip: 'Open wider.', sound: { expected: 'æ', heard: 'ɛ' } }],
+      },
+      request,
+    );
+  if (!coached?.ok || coached.coaching.words[0]?.word !== 'cat') {
+    failures.push('checkAiCoaching() did not show coaching on a word the engine marked');
+  }
+  for (const words of [
+    [{ itemId: 'w1', tip: 'Say it clearly.' }],
+    [{ itemId: 'w2', tip: 'The consonant.', sound: { expected: 'ʃ' } }],
+  ]) {
+    const refused = request && core.checkAiCoaching({ text: 'Tips.', words }, request);
+    if (refused?.ok !== false || refused.refusal !== 'contradicts-marks') {
+      failures.push('checkAiCoaching() showed coaching on marks the engine did not make');
+    }
+  }
+}
+
 // The AI test kit is a subpath of its own, and a subpath is exactly what the
 // barrel check above cannot see: it is built from its own entry, so a rename
 // or a dropped re-export reaches a consumer's CI rather than ours. It also has
@@ -370,6 +439,13 @@ if (typeof aiCheck.runAiCheck === 'function') {
       const first = request.facts.text.split(' ')[0];
       return { text: 'A clear start.', corrections: [{ original: first, corrected: `${first}!` }] };
     },
+    // Coaches only the words the engine marked, as a careful prompt does.
+    pronunciationCoaching: (request) => ({
+      text: 'A steady reading.',
+      words: request.facts.words
+        .filter((word) => word.state === 'mispronounced' || word.state === 'omitted')
+        .map((word) => ({ itemId: word.itemId, tip: `Practise "${word.word}".` })),
+    }),
   });
   if (good.shown !== cases.length || good.refused !== 0 || good.errors !== 0) {
     failures.push(
@@ -461,7 +537,7 @@ if (failures.length > 0) {
 
 console.log(
   `verify-dist OK: ${REQUIRED_EXPORTS.length} documented exports resolve from dist; redaction is fail-closed; ` +
-    'new drafts are incomplete; an unreadable delivery setting restricts; an unreadable scoring setting is refused; a writing correction must quote the draft; ' +
+    'new drafts are incomplete; an unreadable delivery setting restricts; an unreadable scoring setting is refused; a writing correction must quote the draft; coaching keeps to the marks the engine made; ' +
     'the AI check kit runs from its own subpath; ' +
     'no entry point exports a zod schema and no published type names zod; ' +
     `${corpus.vectors.length} grade vectors and ${validationCount} validation expectations replay identically against CJS and ESM.`,

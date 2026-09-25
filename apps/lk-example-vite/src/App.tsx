@@ -13,6 +13,7 @@ import { Dictation } from '@intellectif/lk-react/components/Dictation';
 import { FillInTheBlanks } from '@intellectif/lk-react/components/FillInTheBlanks';
 import { GapSelect } from '@intellectif/lk-react/components/GapSelect';
 import { MultipleChoice } from '@intellectif/lk-react/components/MultipleChoice';
+import { PronunciationFeedback } from '@intellectif/lk-react/components/PronunciationFeedback';
 import { ReadAloud, type RecordingBinding } from '@intellectif/lk-react/components/ReadAloud';
 import { WrittenResponse } from '@intellectif/lk-react/components/WrittenResponse';
 import { useXAPI } from '@intellectif/lk-react/hooks/useXAPI';
@@ -49,6 +50,23 @@ const DEMO_WAV_POLICY: WavInspectionPolicy = { silenceDbfs: -45, frameMs: 20 };
  * values you calibrated.
  */
 const DEMO_PLAUSIBILITY: SpeechPlausibilityPolicy = { maxWordsPerSecond: 6, minVoicedMs: 800 };
+
+/**
+ * A reading already graded, for the coaching demo: the canned evidence, and the
+ * grade `gradeReadAloud` makes of it for a take of four seconds, three of them
+ * voiced. The marks to coach are the evidence's: "lovely" mispronounced, its
+ * vowel heard as /ɒ/, and "park" left out.
+ */
+const coachedAssessment = demoSpeechAssessment('demo-coached-take');
+const coachedGrade = (() => {
+  const graded = gradeReadAloud(
+    sampleReadAloud,
+    { type: 'read-aloud', recording: { key: 'demo-coached-take', mimeType: 'audio/wav' } },
+    coachedAssessment,
+    { measured: { durationMs: 4000, voicedMs: 3000 }, plausibility: DEMO_PLAUSIBILITY },
+  );
+  return 'unscorable' in graded ? undefined : graded;
+})();
 
 /** The interaction kinds each demo activity reports into the log below. */
 const DICTATION_EVENTS: readonly string[] = ['submitted', 'hint-requested'];
@@ -145,11 +163,47 @@ const demoAi: LearnerAi = {
       provenance: { model: 'demo-stand-in' },
     };
   },
+  /**
+   * Coaching on a reading. It coaches the words the engine marked and no
+   * others, and names a sound only where the engine reported one — the weakest,
+   * and what the engine heard in its place — as a careful prompt does. A word
+   * or a sound the engine did not report would refuse the whole reply.
+   */
+  pronunciationCoaching: async (request) => {
+    await pause(300);
+    const marked = request.facts.words.filter(
+      (word) => word.state === 'mispronounced' || word.state === 'omitted',
+    );
+    return {
+      text:
+        marked.length === 0
+          ? 'Clearly read throughout.'
+          : `A clear reading. ${marked.length} word${marked.length === 1 ? '' : 's'} to practise.`,
+      words: marked.map((word) => {
+        const weakest = [...(word.sounds ?? [])].sort(
+          (a, b) => (a.accuracy ?? 100) - (b.accuracy ?? 100),
+        )[0];
+        const heard = weakest?.heardAs?.[0]?.symbol;
+        return {
+          itemId: word.itemId ?? '',
+          tip:
+            word.state === 'omitted'
+              ? `"${word.word}" was left out: read on to the end of the sentence.`
+              : `Slow down on "${word.word}", and play the model once more.`,
+          ...(weakest !== undefined
+            ? { sound: { expected: weakest.symbol, ...(heard !== undefined ? { heard } : {}) } }
+            : {}),
+        };
+      }),
+      provenance: { model: 'demo-stand-in' },
+    };
+  },
   maxHints: 3,
 };
 
 const AI_EVENTS: readonly string[] = ['ai-hint-shown', 'ai-explanation-shown'];
 const WRITING_EVENTS: readonly string[] = ['ai-writing-feedback-shown', 'ai-help-refused'];
+const COACHING_EVENTS: readonly string[] = ['ai-coaching-shown', 'ai-help-refused'];
 
 export function App(): React.JSX.Element {
   const [log, setLog] = useState<{ id: string; text: string }[]>([]);
@@ -318,6 +372,8 @@ export function App(): React.JSX.Element {
             gives the answer away on purpose, is refused. In an exam no question gives AI help,
             whatever the page connects. Below them, feedback on a draft: each correction quotes the
             learner's words, and a reply that corrects words no longer in the draft is refused.
+            Last, coaching on a graded reading: the stand-in may coach only the words the speech
+            engine marked, and name only the sounds it reported.
           </p>
           <LkAiProvider ai={demoAi}>
             <section aria-labelledby="ai-practice-heading">
@@ -336,6 +392,15 @@ export function App(): React.JSX.Element {
               <WrittenResponse
                 data={sampleAiEssay}
                 onInteraction={logInteraction('Writing feedback', WRITING_EVENTS)}
+              />
+            </section>
+            <section aria-labelledby="ai-coaching-heading">
+              <h3 id="ai-coaching-heading">Coaching on a reading</h3>
+              <PronunciationFeedback
+                data={sampleReadAloud}
+                assessment={coachedAssessment}
+                {...(coachedGrade !== undefined ? { grade: coachedGrade } : {})}
+                onInteraction={logInteraction('Coaching', COACHING_EVENTS)}
               />
             </section>
           </LkAiProvider>

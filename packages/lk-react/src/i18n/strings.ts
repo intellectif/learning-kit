@@ -457,6 +457,22 @@ export interface LkStrings {
    * percentage — said to be an indication and not a grade, which it is not.
    */
   aiIndicativeScore: (percent: number) => string;
+  /** The button that asks for coaching on a graded reading aloud. */
+  aiCoaching: string;
+  /** The same button while the coaching is being written. */
+  aiCoachingLoading: string;
+  /** The heading over coaching on a reading, and its accessible name. */
+  aiCoachingHeading: string;
+  /** When no coaching can be shown: the port failed, or its coaching was refused. */
+  aiCoachingUnavailable: string;
+  /** The accessible name of the list of words the coaching works on. */
+  aiCoachingWords: string;
+  /**
+   * The sound a tip is about, as the speech engine spelt it — in the alphabet
+   * it reported, usually IPA — and, when the engine said so, what it was heard
+   * as instead.
+   */
+  aiCoachingSound: (expected: string, heard: string | undefined) => string;
 
   // ── Audio transport ────────────────────────────────────────────────────
   /**
@@ -769,6 +785,13 @@ export const DEFAULT_STRINGS: LkStrings = {
   aiWritingFeedbackOutdated: 'You have changed your text since this feedback.',
   aiCorrections: 'Suggested corrections',
   aiIndicativeScore: (percent) => `Indicative score: ${percent}%. Not a grade.`,
+  aiCoaching: 'Coach me on this reading',
+  aiCoachingLoading: 'Writing your coaching…',
+  aiCoachingHeading: 'Coaching on your reading',
+  aiCoachingUnavailable: 'No coaching is available right now.',
+  aiCoachingWords: 'Words to practise',
+  aiCoachingSound: (expected, heard) =>
+    heard === undefined ? `Sound: ${expected}` : `Sound: ${expected}, heard as ${heard}`,
 
   media: {
     play: 'Play',

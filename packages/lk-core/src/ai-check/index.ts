@@ -19,6 +19,7 @@
  *   explain: (request) => callMyModel(EXPLAIN_PROMPT, request),
  *   hint: (request) => callMyModel(HINT_PROMPT, request),
  *   writingFeedback: (request) => callMyModel(FEEDBACK_PROMPT, request),
+ *   pronunciationCoaching: (request) => callMyModel(COACHING_PROMPT, request),
  * });
  * console.log(formatAiCheckReport(report));
  * if (report.refused > 0 || report.errors > 0) {
@@ -28,13 +29,17 @@
  *
  * A refusal is a real failure, not a warning: it is an answer a learner would
  * have asked for and not received. `reveals-answer` on a hint case is the one
- * to take most seriously — that prompt gives answers away — and
- * `misquotes-answer` on a writing case the next: that prompt corrects words the
- * learner never wrote.
+ * to take most seriously — that prompt gives answers away. Next come
+ * `misquotes-answer` on a writing case — that prompt corrects words the learner
+ * never wrote — and `contradicts-marks` on a coaching case: that prompt coaches
+ * words the engine heard as right, or sounds it never reported.
  */
 import { checkAiExplanation, checkAiHint } from '../ai.js';
+import { checkAiCoaching } from '../ai-coaching.js';
 import { checkAiWritingFeedback } from '../ai-writing.js';
 import type {
+  AiCoaching,
+  AiCoachingRequest,
   AiExplanationRequest,
   AiHintRequest,
   AiRefusal,
@@ -57,6 +62,7 @@ export interface AiCheckPorts {
   explain?(request: AiExplanationRequest): Promise<unknown> | unknown;
   hint?(request: AiHintRequest): Promise<unknown> | unknown;
   writingFeedback?(request: AiWritingFeedbackRequest): Promise<unknown> | unknown;
+  pronunciationCoaching?(request: AiCoachingRequest): Promise<unknown> | unknown;
 }
 
 /** What happened on one case. */
@@ -76,6 +82,8 @@ export interface AiCheckResult {
   result?: AiTextResult;
   /** For a writing case a learner would have been shown: the feedback, as the SDK accepted it. */
   feedback?: AiWritingFeedback;
+  /** For a coaching case a learner would have been shown: the coaching, as the SDK accepted it. */
+  coaching?: AiCoaching;
   /** How long the call took, in milliseconds. */
   ms: number;
 }
@@ -119,6 +127,7 @@ const REFUSALS: AiRefusal[] = [
   'contradicts-grade',
   'reveals-answer',
   'misquotes-answer',
+  'contradicts-marks',
 ];
 
 /** The port a case is for. */
@@ -131,6 +140,8 @@ function portFor(
       return ports.explain as never;
     case 'hint':
       return ports.hint as never;
+    case 'pronunciation-coaching':
+      return ports.pronunciationCoaching as never;
     default:
       return ports.writingFeedback as never;
   }
@@ -158,6 +169,24 @@ async function runCase(ports: AiCheckPorts, one: AiCheckCase): Promise<AiCheckRe
     };
   }
   const ms = now() - started;
+  if (one.request.feature === 'pronunciation-coaching') {
+    const checked = checkAiCoaching(raw, one.request);
+    if (checked.ok) {
+      const { text, provenance, usage } = checked.coaching;
+      return {
+        case: one,
+        ok: true,
+        result: {
+          text,
+          ...(provenance !== undefined ? { provenance } : {}),
+          ...(usage !== undefined ? { usage } : {}),
+        },
+        coaching: checked.coaching,
+        ms,
+      };
+    }
+    return refused(one, raw, checked.refusal, ms);
+  }
   if (one.request.feature === 'writing-feedback') {
     const checked = checkAiWritingFeedback(raw, one.request);
     if (checked.ok) {

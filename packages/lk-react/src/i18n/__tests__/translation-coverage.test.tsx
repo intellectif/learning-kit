@@ -796,6 +796,61 @@ describe('translation coverage', () => {
     keep(document.body);
     cleanup();
 
+    // Coaching on those marks: asked for, on its way, and shown with a word
+    // whose sound the engine reported — then a reply that coaches a word read
+    // correctly, refused.
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const coachingAssessment = {
+      ...speechAssessment,
+      words: speechAssessment.words.map((word) =>
+        word.text === 'agradable'
+          ? {
+              ...word,
+              phonemes: [{ symbol: 'ɣ', accuracy: 20, heardAs: [{ symbol: 'g', score: 60 }] }],
+            }
+          : word,
+      ),
+    } satisfies SpeechAssessment;
+    const coachLater = defer<unknown>();
+    sweep(
+      <PronunciationFeedback
+        data={ra}
+        assessment={coachingAssessment}
+        ai={{ pronunciationCoaching: vi.fn(() => coachLater.promise) as never }}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: sentinel('aiCoaching') }));
+    keep(document.body);
+    await act(async () => {
+      coachLater.settle({
+        text: 'Bien leído.',
+        words: [
+          { itemId: 'w4', tip: 'Suaviza la g.', sound: { expected: 'ɣ', heard: 'g' } },
+          { itemId: 'w3', tip: 'No te la saltes.' },
+        ],
+      });
+    });
+    await screen.findByText('Suaviza la g.');
+    keep(document.body);
+    cleanup();
+
+    sweep(
+      <PronunciationFeedback
+        data={ra}
+        assessment={coachingAssessment}
+        ai={{
+          pronunciationCoaching: async () =>
+            ({ text: 'Mal.', words: [{ itemId: 'w1', tip: 'Repite.' }] }) as never,
+        }}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: sentinel('aiCoaching') }));
+    await waitFor(() =>
+      expect(document.body.textContent).toContain(sentinel('aiCoachingUnavailable')),
+    );
+    keep(document.body);
+    cleanup();
+
     // ── Authoring preview: the notice for an unfinished and for a wrong draft ─
     sweep(<ActivityPreview draft={{ ...mc, title: '' }} />);
     cleanup();

@@ -1,14 +1,23 @@
 import { aiExplanationRequest, aiHintRequest } from '../ai.js';
+import { aiCoachingRequest } from '../ai-coaching.js';
 import { aiWritingFeedbackRequest } from '../ai-writing.js';
+import { gradeReadAloud } from '../scoring/speech/grade.js';
 import type {
   DictationData,
   FillInTheBlanksData,
   GapSelectData,
   LearnerResponse,
   MultipleChoiceData,
+  ReadAloudData,
   WrittenResponseData,
 } from '../types/activity.js';
-import type { AiExplanationRequest, AiHintRequest, AiWritingFeedbackRequest } from '../types/ai.js';
+import type {
+  AiCoachingRequest,
+  AiExplanationRequest,
+  AiHintRequest,
+  AiWritingFeedbackRequest,
+} from '../types/ai.js';
+import type { SpeechAssessment, SpeechWord } from '../types/speech.js';
 
 /**
  * The items the cases are built from. Small, ordinary language-course content
@@ -106,6 +115,79 @@ const weekend: WrittenResponseData = {
   },
 };
 
+const weather: ReadAloudData = {
+  schemaVersion: '1.0',
+  type: 'read-aloud',
+  id: 'ai-check-reading',
+  title: 'Read the forecast aloud',
+  referenceText: 'The weather is warm in the north.',
+  locale: 'en-US',
+  recording: { maxSeconds: 20 },
+  scoring: {
+    dimensions: [
+      { name: 'accuracy', weight: 2 },
+      { name: 'fluency', weight: 1 },
+    ],
+  },
+};
+
+/** A word of the forecast as an engine reports it. */
+const said = (text: string, over: Partial<SpeechWord> = {}): SpeechWord => ({
+  text,
+  error: 'none',
+  accuracy: 92,
+  ...over,
+});
+
+/**
+ * An engine's assessment of the forecast. With `slips`, "weather" is
+ * mispronounced — its "th" heard as /d/ or /z/ — and "north" is left out: the
+ * marks a model must coach, and no others.
+ */
+function forecast(slips: boolean): SpeechAssessment {
+  return {
+    assessmentVersion: '1.0',
+    status: 'assessed',
+    task: 'scripted',
+    locale: 'en-US',
+    referenceText: weather.referenceText,
+    recordingKey: 'ai-check-take',
+    assessor: { kind: 'auto', id: 'pronunciation-engine' },
+    scale: 100,
+    scores: slips ? { accuracy: 68, fluency: 81, completeness: 86 } : { accuracy: 94, fluency: 90 },
+    miscue: 'assessor',
+    phonemeAlphabet: 'ipa',
+    words: [
+      said('The'),
+      slips
+        ? said('weather', {
+            accuracy: 38,
+            error: 'mispronunciation',
+            phonemes: [
+              { symbol: 'w', accuracy: 90 },
+              { symbol: 'ɛ', accuracy: 85 },
+              {
+                symbol: 'ð',
+                accuracy: 12,
+                heardAs: [
+                  { symbol: 'd', score: 64 },
+                  { symbol: 'z', score: 21 },
+                  { symbol: 'ð', score: 12 },
+                ],
+              },
+              { symbol: 'ɚ', accuracy: 80 },
+            ],
+          })
+        : said('weather'),
+      said('is'),
+      said('warm'),
+      said('in'),
+      said('the'),
+      slips ? { text: 'north', error: 'omission' } : said('north'),
+    ],
+  };
+}
+
 /**
  * One call to make against a host's port, and what a learner was looking at
  * when the SDK would have made it.
@@ -114,11 +196,11 @@ export interface AiCheckCase {
   /** Stable across releases, so a host can name one in an allow-list or a report. */
   id: string;
   /** Which port the case is for. */
-  feature: 'explanation' | 'hint' | 'writing-feedback';
+  feature: 'explanation' | 'hint' | 'writing-feedback' | 'pronunciation-coaching';
   /** What the learner did, in a few words, for a report a person reads. */
   about: string;
   /** The request, built by the SDK exactly as a component builds it. */
-  request: AiExplanationRequest | AiHintRequest | AiWritingFeedbackRequest;
+  request: AiExplanationRequest | AiHintRequest | AiWritingFeedbackRequest | AiCoachingRequest;
 }
 
 const chose = (ids: string[]): LearnerResponse => ({
@@ -185,6 +267,37 @@ function writingCase(
     throw new Error(`ai-check: no writing feedback request for "${id}"`);
   }
   return { id, feature: 'writing-feedback', about, request };
+}
+
+function coachingCase(
+  id: string,
+  about: string,
+  marks: { assessment?: SpeechAssessment; fromGradeOnly?: boolean },
+  learnerLocale?: string,
+): AiCheckCase {
+  const assessment = marks.assessment ?? forecast(true);
+  const grade = gradeReadAloud(
+    weather,
+    { type: 'read-aloud', recording: { key: 'ai-check-take', mimeType: 'audio/wav' } },
+    assessment,
+    {
+      measured: { durationMs: 4000, voicedMs: 3000 },
+      plausibility: { maxWordsPerSecond: 6, minVoicedMs: 500 },
+    },
+  );
+  if ('unscorable' in grade) {
+    throw new Error(`ai-check: the reading for "${id}" did not grade: ${grade.reason}`);
+  }
+  const request = aiCoachingRequest({
+    data: weather,
+    ...(marks.fromGradeOnly === true ? {} : { assessment }),
+    grade,
+    ...(learnerLocale !== undefined ? { learnerLocale } : {}),
+  });
+  if (request === null) {
+    throw new Error(`ai-check: no coaching request for "${id}"`);
+  }
+  return { id, feature: 'pronunciation-coaching', about, request };
 }
 
 /**
@@ -287,6 +400,23 @@ export function aiCheckCases(): AiCheckCase[] {
       'A first draft, with feedback asked for in Spanish',
       'Last weekend I visit my grandmother. She cook a big lunch and we eat together in the garden.',
       [],
+      'es',
+    ),
+    coachingCase('coaching-slips', 'A reading with a mispronounced "th" and a word left out', {
+      assessment: forecast(true),
+    }),
+    coachingCase('coaching-clean', 'A reading the engine marked correct throughout', {
+      assessment: forecast(false),
+    }),
+    coachingCase(
+      'coaching-from-grade',
+      'The same slips, from a stored grade: marks without sounds',
+      { fromGradeOnly: true },
+    ),
+    coachingCase(
+      'coaching-in-spanish',
+      'The same slips, with coaching asked for in Spanish',
+      { assessment: forecast(true) },
       'es',
     ),
   ];

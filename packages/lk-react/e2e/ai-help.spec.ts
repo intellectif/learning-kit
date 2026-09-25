@@ -105,3 +105,27 @@ test('practice: feedback on a draft, out of date after a revision, then a reply 
     page.getByText(/Writing feedback ai-help-refused .*"reason":"misquotes-answer"/),
   ).toBeVisible();
 });
+
+test('practice: coaching on a graded reading, on the words the engine marked, once', async ({
+  page,
+}) => {
+  const section = page.getByLabel('Coaching on a reading', { exact: true });
+  const ask = section.getByRole('button', { name: 'Coach me on this reading' });
+  await ask.click();
+
+  const panel = section.getByRole('region', { name: 'Coaching on your reading' });
+  await expect(panel).toContainText('A clear reading. 2 words to practise.');
+  await expect(panel).toBeFocused();
+  await expectFullWidth(panel);
+  // In reading order, each as the text spells it, with the sound the engine reported.
+  const words = panel.getByRole('list', { name: 'Words to practise' }).getByRole('listitem');
+  await expect(words).toHaveCount(2);
+  await expect(words.nth(0)).toContainText('lovely');
+  await expect(words.nth(0)).toContainText('Sound: ʌ, heard as ɒ');
+  await expect(words.nth(0).locator('[lang="en-US"]')).toHaveText('lovely');
+  await expect(words.nth(1)).toContainText('park');
+  await expect(panel).toContainText('Written by AI. It can make mistakes.');
+  // One per reading: the button that asked is gone.
+  await expect(ask).toHaveCount(0);
+  await expect(page.getByText(/Coaching ai-coaching-shown \{"words":2,/)).toBeVisible();
+});

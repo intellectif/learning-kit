@@ -1095,6 +1095,11 @@ export type InteractionKind =
    * port's `provenance` and `usage` when it sent them). Never the text.
    */
   | 'ai-writing-feedback-shown'
+  /**
+   * Coaching on a read-aloud was shown (the number of `words` it coached, and
+   * the port's `provenance` and `usage` when it sent them). Never the text.
+   */
+  | 'ai-coaching-shown'
   // `string & {}` preserves literal autocompletion while keeping the union open
   // for registered custom types.
   | (string & {});

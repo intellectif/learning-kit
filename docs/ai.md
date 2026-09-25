@@ -1,12 +1,12 @@
 # AI help for learners
 
-A learner can ask for **an explanation of a graded answer**, for **hints before submitting one**, and
-for **feedback on a draft of a written response** before handing it in. The model is yours: the SDK
-never calls one, never holds a key, and never writes a prompt. It builds the facts your model is
-given, from the item, the learner's answer and its own scorer, and checks what comes back before a
-learner sees it.
+A learner can ask for **an explanation of a graded answer**, for **hints before submitting one**,
+for **feedback on a draft of a written response** before handing it in, and for **coaching on a
+reading aloud** once the speech engine has marked it. The model is yours: the SDK never calls one,
+never holds a key, and never writes a prompt. It builds the facts your model is given, from the item,
+the learner's answer and its own scorer, and checks what comes back before a learner sees it.
 
-It describes `@intellectif/lk-core` 0.22.0 and `@intellectif/lk-react` 22.0.0.
+It describes `@intellectif/lk-core` 1.1.0 and `@intellectif/lk-react` 23.1.0.
 
 - [What a learner sees](#what-a-learner-sees)
 - [Connecting your model](#connecting-your-model)
@@ -14,6 +14,7 @@ It describes `@intellectif/lk-core` 0.22.0 and `@intellectif/lk-react` 22.0.0.
 - [Where help appears, and who can switch it off](#where-help-appears-and-who-can-switch-it-off)
 - [What your model is given](#what-your-model-is-given)
 - [Feedback on writing](#feedback-on-writing)
+- [Coaching on a reading](#coaching-on-a-reading)
 - [What the SDK refuses to show](#what-the-sdk-refuses-to-show)
 - [Records, cost and privacy](#records-cost-and-privacy)
 - [Testing your prompt](#testing-your-prompt)
@@ -28,6 +29,7 @@ It describes `@intellectif/lk-core` 0.22.0 and `@intellectif/lk-react` 22.0.0.
 | Gap select | "Get a hint" | "Explain my answer" |
 | Dictation | — (it has its own word-by-word hints) | "Explain my answer" |
 | Written response | "Get feedback on my draft" | — (a grader returns its grade) |
+| Read aloud | — | "Coach me on this reading", under the marks |
 
 - **Hints** are listed as "Hint 1", "Hint 2"…, up to your limit (3 by default, at most 10). They stay
   listed after submit, so the learner can see what they were given, but no more can be asked for —
@@ -41,6 +43,9 @@ It describes `@intellectif/lk-core` 0.22.0 and `@intellectif/lk-react` 22.0.0.
   grade." The learner revises and asks again, up to your limit (3 by default, at most 10). Once the
   text changes, the feedback says it is about an earlier draft. See
   [Feedback on writing](#feedback-on-writing).
+- **Coaching on a reading** appears under the speech engine's marks: what the model said, and the
+  words it works on in reading order, each with the sound the engine reported where there was one
+  ("Sound: ʌ, heard as oʊ") and a tip. One per take. See [Coaching on a reading](#coaching-on-a-reading).
 - **Everything a model wrote is marked:** "Written by AI. It can make mistakes."
 - **A call that fails or is refused** says so ("No hint is available right now.") and leaves the
   question exactly as it was. The learner can ask again, and a failure never blocks an answer.
@@ -58,6 +63,7 @@ import { LkAiProvider } from '@intellectif/lk-react/ai/LkAiProvider';
     explain: (request, { signal }) => post('/api/ai/explain', request, signal),
     hint: (request, { signal }) => post('/api/ai/hint', request, signal),
     writingFeedback: (request, { signal }) => post('/api/ai/writing', request, signal),
+    pronunciationCoaching: (request, { signal }) => post('/api/ai/coaching', request, signal),
     maxHints: 3,
     maxWritingFeedback: 3,
     learnerLocale: learner.helpLanguage, // see "The language help is written in", below
@@ -68,7 +74,7 @@ import { LkAiProvider } from '@intellectif/lk-react/ai/LkAiProvider';
 ```
 
 - **Every component also takes an `ai` prop**, which wins over the provider whole. So do
-  `<ActivitySequence>` and `<InteractiveVideo>`. A question you draw yourself — a sequence's
+  `<ActivitySequence>`, `<InteractiveVideo>` and `<PronunciationFeedback>`. A question you draw yourself — a sequence's
   `renderers` override, or the video's `renderQuestion` — is handed the ports in force as `ai`,
   except in `exam`, where no question is given them, and can offer the same help through the hooks in
   [A question you draw yourself](#a-question-you-draw-yourself).
@@ -104,8 +110,8 @@ app.post('/api/ai/explain', async (req, res) => {
 
 **The request is built in the browser.** In practice the browser already holds the answer key, so it
 reveals nothing. A server that does not want to trust it can rebuild the request from its own copy of
-the item and the submitted answer, with `aiExplanationRequest`, `aiHintRequest` and
-`aiWritingFeedbackRequest` from lk-core.
+the item and the submitted answer, with `aiExplanationRequest`, `aiHintRequest`,
+`aiWritingFeedbackRequest` and `aiCoachingRequest` from lk-core.
 
 ### The language help is written in
 
@@ -182,6 +188,11 @@ when the question is. It hands back `offered`, `status`, `used`, `limit` and `as
 - `current`, whether `latest` is about the draft as it stands. When it is `false`, say so: its
   corrections may point at words the learner has since changed.
 
+Marks of a reading you draw yourself take a fourth, `useAiCoaching`. Pass the item as `data`, the
+engine's `assessment` as the learner is shown it, and the `grade` — or the grade alone, when no
+assessment was kept. It hands back `offered`, `status`, `ask` and `coaching`: the text, and the
+words in reading order, each with its `word`, `tip` and, where the engine reported one, `sound`.
+
 - **`offered` is the rule, `ask` is the guard.** `ask` does nothing where `offered` is false, so a
   page that draws its own button reaches no model in an exam, however it asks, and none on an item
   whose author switched that help off.
@@ -197,11 +208,11 @@ when the question is. It hands back `offered`, `status`, `used`, `limit` and `as
 
 ## Where help appears, and who can switch it off
 
-| Mode | Hints | Explanation | Feedback on writing |
-|---|---|---|---|
-| `practice` | Before submit, unless the question is `disabled` | After submit | Before submit, unless the question is `disabled` |
-| `exam` | **Never** | **Never** | **Never** |
-| `review` | Never | When the grade of record (`outcome`) is scored | Never |
+| Mode | Hints | Explanation | Feedback on writing | Coaching on a reading |
+|---|---|---|---|---|
+| `practice` | Before submit, unless the question is `disabled` | After submit | Before submit, unless the question is `disabled` | Once the take is graded |
+| `exam` | **Never** | **Never** | **Never** | **Never** |
+| `review` | Never | When the grade of record (`outcome`) is scored | Never | Wherever the marks are shown |
 
 Help appears only where four things allow it:
 
@@ -222,6 +233,10 @@ Help appears only where four things allow it:
 false }` and the paper's `ai: { explanations: false }` switch it off too, and it needs `feedback` and
 `solutions`: a corrected sentence is a model answer. It has no switch of its own, because a new one
 would change the policy every existing paper records, and with it every `planHash` made under one.
+
+**So is coaching on a reading.** `explanations: false`, the author's or the paper's, switches it off,
+and it needs `feedback`, because the marks it explains are feedback. It does not need `solutions`: a
+reading hides no answer, and its text is on screen throughout.
 
 ## What your model is given
 
@@ -318,6 +333,84 @@ app.post('/api/ai/writing', async (req, res) => {
 });
 ```
 
+## Coaching on a reading
+
+Once a read-aloud is graded, a learner can ask a model what the speech engine's marks mean and how to
+practise. The marks are the engine's: the model explains them, and never re-scores them. The check
+that makes this safe is one only the SDK can run, because only it holds the marks: **every word a
+model coaches must be one the engine marked, and every sound it names one the engine reported.**
+
+**Where it appears:** under the marks. `<ReadAloud>` offers it in `practice` once a take is graded,
+and in `review` wherever marks are shown, from a kept assessment or from the stored grade's details.
+`<PronunciationFeedback>` offers it too when it is given the item's `id` and `title` — pass the whole
+item as `data`; in development it warns when a port is in force and they are missing. One coaching
+per take: another take drops it, and a refused or failed call can be asked again.
+
+**Your port is given** `request.facts`:
+
+- the `title`, `instructions`, `referenceText` and `locale` — the language of the reading;
+- `assessor`: `auto`, `ai`, `human`, or `unknown`;
+- `scores`: the engine's `accuracy`, `fluency`, `completeness` and `prosody`, out of 100, where it
+  reported them;
+- `words`: every word in reading order, each with its `itemId` (`w1`, `w2`…), the `word` as the
+  marks show it (normalised: `The` is `the`), what was `heard`, its `state` — `correct`,
+  `mispronounced`, `omitted`, or `inserted` for a word read that the text does not have, which has
+  no `itemId` — and its `accuracy`;
+- for each word, when the marks came from the engine's assessment, its `sounds`: each phoneme's
+  `symbol` in `phonemeAlphabet` (`ipa` or `sapi`), its `accuracy`, and `heardAs`, what the engine
+  heard in its place, with a score.
+
+`request.grade` carries the score, the maximum and whether it passed, when there is a grade, and
+`learnerLocale` the language to write in. **The marks come from the assessment when there is one**,
+and then only from it: an assessment `gradeReadAloud` would not read — no speech heard, unscripted,
+or made against another text or locale — gives no coaching, rather than a stored grade's marks the
+learner is not looking at. With no assessment kept, the marks come from the stored grade, and carry
+no sounds.
+
+**It returns** the coaching, and the words it works on:
+
+```ts
+{
+  text: 'A clear reading. Two words to work on.',
+  words: [
+    { itemId: 'w4', tip: 'Keep the vowel short, as in "cup".', sound: { expected: 'ʌ', heard: 'oʊ' } },
+    { itemId: 'w5', tip: 'Read every word to the end of the sentence.' },
+  ],
+  provenance: { model: MODEL_ID },
+}
+```
+
+- **A word coached is one the engine marked** `mispronounced` or `omitted`, at most once. Coaching on
+  a word read correctly, or one the text does not have, refuses the whole reply as
+  `contradicts-marks`. Praise belongs in `text`.
+- **A sound named is one the engine reported for that word**: `expected` is one of its `sounds`, and
+  `heard`, when given, one of that sound's `heardAs`. Symbols are compared composed and trimmed, and
+  shown as the engine spelt them. Where the facts carry no sounds — marks from a stored grade, or an
+  engine that reports none — any `sound` is `contradicts-marks`: nothing stands behind it.
+- **The words come back in reading order**, each with the word as the marks show it, whatever order
+  the model sent them in.
+- **Nothing numeric is read.** A score in the reply is ignored: the marks and the grade are the
+  engine's.
+- **Limits:** 20 words; 500 characters for a tip; 16 for a sound. A reply over them is refused as
+  `too-long`, never cut.
+
+On your server, run the same check before you log what a learner was shown, and tell your model the
+rule it enforces:
+
+```ts
+import { type AiCoachingRequest, checkAiCoaching } from '@intellectif/lk-core';
+
+// In the prompt: coach only words marked `mispronounced` or `omitted`; name a sound only from that
+// word's `sounds`, and what it was heard as only from its `heardAs`; write in `learnerLocale`.
+app.post('/api/ai/coaching', async (req, res) => {
+  const request: AiCoachingRequest = req.body;
+  const out = await model.json(COACHING_PROMPT, request);
+  const checked = checkAiCoaching(out, request);
+  // checked.coaching is what the learner will see; on a refusal, checked.refusal says why.
+  res.json(checked.ok ? { ...out, provenance: { model: MODEL_ID } } : { text: '' });
+});
+```
+
 ## What the SDK refuses to show
 
 Whatever a port resolves to is checked before a learner sees it. A refused answer shows as "not
@@ -328,10 +421,11 @@ the reason:
 |---|---|
 | `malformed` | Not an object with a string `text`, or a `verdict` it does not know. For writing: a correction that changes nothing, or a criterion the rubric does not have |
 | `empty` | Nothing left once cleaned. Control characters are removed, line breaks kept |
-| `too-long` | Over 2,000 characters. Refused rather than cut, so a learner never reads half a sentence. For writing, also over the [limits](#feedback-on-writing) on corrections |
+| `too-long` | Over 2,000 characters. Refused rather than cut, so a learner never reads half a sentence. For writing, also over the [limits](#feedback-on-writing) on corrections, and for coaching the [limits](#coaching-on-a-reading) on words |
 | `contradicts-grade` | An explanation stating a `verdict` other than the SDK's |
 | `reveals-answer` | A hint containing an answer |
 | `misquotes-answer` | Feedback on writing that corrects words the draft does not contain |
+| `contradicts-marks` | Coaching on a word the speech engine did not mark, or a sound it did not report |
 
 Text is always rendered as text, never as HTML.
 
@@ -349,15 +443,17 @@ prompt should forbid giving the answer, and this check catches the model that do
 
 ## Records, cost and privacy
 
-- **Four interactions** reach `onInteraction`:
+- **Five interactions** reach `onInteraction`:
   - `ai-hint-shown`, with `hintNumber`;
   - `ai-explanation-shown`;
   - `ai-writing-feedback-shown`, with `draftNumber`, `corrections` (how many) and the
     `indicativeScore` when there was one;
-  - `ai-help-refused`, with `feature` (`hint`, `explanation` or `writing-feedback`), `reason` (a
-    refusal from the table above) and, for a hint, `hintNumber`, and for feedback, `draftNumber`.
+  - `ai-coaching-shown`, with `words` (how many were coached);
+  - `ai-help-refused`, with `feature` (`hint`, `explanation`, `writing-feedback` or
+    `pronunciation-coaching`), `reason` (a refusal from the table above) and, for a hint,
+    `hintNumber`, and for feedback, `draftNumber`.
 
-  The three "shown" events carry the port's `provenance` when it sent one (`model`, `promptHash`,
+  The four "shown" events carry the port's `provenance` when it sent one (`model`, `promptHash`,
   `generatedAt`) and its `usage` when it sent that, and each is emitted only for help the learner
   actually saw. Keep them beside the attempt: they are how a teacher, or an appeal, knows the learner
   had help.
@@ -378,7 +474,7 @@ prompt should forbid giving the answer, and this check catches the model that do
   model, the billing and the identity of the learner, and the SDK has none of those. Your port is the
   one place every call passes through, which makes it the place to count them.
 - **A hint changes a score only under a [scoring policy](./scoring.md) that charges for hints**, and
-  then costs what any hint costs. Feedback on writing changes no score.
+  then costs what any hint costs. Feedback on writing and coaching on a reading change no score.
 - **Cost:** a call happens only when a learner presses a button. Two calls asking the same thing have
   the same request, so `contentHash(request)` from lk-core is a cache key: canonical, key-order
   independent, and the same on your server as in the browser.
@@ -401,9 +497,10 @@ const report = await runAiCheck({
   explain: (request) => callMyModel(EXPLAIN_PROMPT, request),
   hint: (request) => callMyModel(HINT_PROMPT, request),
   writingFeedback: (request) => callMyModel(WRITING_PROMPT, request),
+  pronunciationCoaching: (request) => callMyModel(COACHING_PROMPT, request),
 });
 console.log(formatAiCheckReport(report));
-// ai-check: 18/20 shown, 2 refused, 0 failed — slowest 1840 ms
+// ai-check: 22/24 shown, 2 refused, 0 failed — slowest 1840 ms
 //   reveals-answer: 1
 //   misquotes-answer: 1
 //   ✗ fib-hint-1 [hint] Both blanks empty: reveals-answer
@@ -413,10 +510,12 @@ console.log(formatAiCheckReport(report));
 expect(report.refused).toBe(0);
 ```
 
-- **The cases are ordinary calls**, built by `aiExplanationRequest`, `aiHintRequest` and
-  `aiWritingFeedbackRequest`: every type the SDK explains, answered right, wrong and partly right;
-  every type it hints for, before an answer and after a wrong one; and drafts of a written response
-  with mistakes, without any, revised after feedback, and asked about in Spanish. They include what a
+- **The cases are ordinary calls**, built by `aiExplanationRequest`, `aiHintRequest`,
+  `aiWritingFeedbackRequest` and `aiCoachingRequest`: every type the SDK explains, answered right,
+  wrong and partly right; every type it hints for, before an answer and after a wrong one; drafts of a
+  written response with mistakes, without any, revised after feedback, and asked about in Spanish;
+  and a reading with a mispronounced "th" and a word left out, one read cleanly, the same slips from
+  a stored grade without sounds, and coaching asked for in Spanish. They include what a
   model slips on — an answer a hint can hardly avoid naming (`Madrid`), an answer of one short word
   (`is`), an accented answer (`cañón`), a passage with more than one blank, and a draft that makes the
   same mistake twice.
@@ -424,8 +523,9 @@ expect(report.refused).toBe(0);
   built on your own items with the same functions. That is how you test a prompt against the content
   your learners actually see.
 - **A refusal is a failure, not a warning:** it is help a learner asked for and did not get.
-  `reveals-answer` is the one to treat most seriously — that prompt gives answers away — and
-  `misquotes-answer` the next: that prompt corrects words the learner never wrote.
+  `reveals-answer` is the one to treat most seriously — that prompt gives answers away. Next come
+  `misquotes-answer`, from a prompt that corrects words the learner never wrote, and
+  `contradicts-marks`, from one that coaches words the engine heard as right.
 - **It runs one call at a time** by default, because a run in CI meets a rate limit long before it
   runs out of patience; `concurrency` raises it.
 - A port you leave out has its cases skipped rather than failed, and a port that throws is an
@@ -433,7 +533,6 @@ expect(report.refused).toBe(0);
 
 ## What is not here yet
 
-- **Pronunciation coaching** for read-aloud.
 - **Assistants for authors:** generated drafts, an item critic, suggested distractors and accepted
   answers.
 - **Assisted grading** with a calibration gate.
