@@ -3,7 +3,7 @@
 import type { XAPIConfig, XAPIStatement } from '@intellectif/lk-core';
 import { useCallback, useRef } from 'react';
 
-/** Backoff before retry 1 / 2 / 3 (Req 10.4). */
+/** Backoff before retry 1 / 2 / 3. */
 const BACKOFF_MS = [1000, 2000, 4000] as const;
 
 /**
@@ -134,7 +134,7 @@ export function useXAPI(config: XAPIConfig): UseXAPIResult {
         statusCode = response.status;
         message = `LRS responded with ${response.status}`;
 
-        // Only network errors and 5xx are retryable (Req 10.4). A 4xx is a
+        // Only network errors and 5xx are retryable. A 4xx is a
         // client error — fail immediately rather than waste retries.
         if (response.status < 500) {
           cfg.onError?.({ statement, attempt, statusCode, message });

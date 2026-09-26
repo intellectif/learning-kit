@@ -1,6 +1,11 @@
 name: E2E
 
+# On every pull request, and on main after each merge — the commit the
+# release publishes from, which a pull request's run did not test after
+# another merged before it.
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -13,13 +18,14 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      # Pinned to commits, as in release.yml; Dependabot updates them.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 11.0.8
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
           cache: 'pnpm'
@@ -27,23 +33,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check for Playwright config
-        id: playwright
-        run: |
-          if [ -f "playwright.config.ts" ]; then
-            echo "configured=true" >> $GITHUB_OUTPUT
-          else
-            echo "configured=false" >> $GITHUB_OUTPUT
-          fi
-
+      # No step is skipped when something is missing: a moved config or an
+      # empty spec folder fails the job (Playwright exits non-zero on "No tests
+      # found") instead of passing it with nothing run.
       - name: Install Playwright browsers
-        if: steps.playwright.outputs.configured == 'true'
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Build
-        if: steps.playwright.outputs.configured == 'true'
         run: pnpm turbo run build
 
       - name: Run E2E tests
-        if: steps.playwright.outputs.configured == 'true'
         run: pnpm turbo run e2e
+
+      # Storybook: built, and every story opened in the browser above. A story
+      # renders, or shows why it cannot: Storybook's own preview refuses content
+      # lk-core would refuse (`.storybook/preview.tsx`).
+      - name: Build Storybook
+        run: pnpm --filter @intellectif/lk-storybook build-storybook
+
+      - name: Render every story
+        run: pnpm --filter @intellectif/lk-storybook smoke

@@ -1,4 +1,4 @@
-import { z } from 'zod/v4';
+import * as z from 'zod/v4';
 
 /**
  * What an author allows AI to do for one item: see `ActivityAiPermissions`.

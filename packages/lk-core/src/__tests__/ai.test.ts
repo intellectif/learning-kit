@@ -713,6 +713,11 @@ describe('hintRevealsAnswer: the floor under every hint', () => {
     expect(hintRevealsAnswer(factsOf(vowels), 'The letters A and E are vowels.')).toBe(true);
   });
 
+  it('withholds a hint on facts it cannot read, rather than show it unchecked', () => {
+    const unknown = { activityType: 'matching', pairs: [] } as unknown as AiItemFacts;
+    expect(hintRevealsAnswer(unknown, 'Anything at all.')).toBe(true);
+  });
+
   it('removes accents rather than splitting a word at them', () => {
     const facts = factsOf({
       ...mc,

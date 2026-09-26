@@ -1,4 +1,4 @@
-import { z } from 'zod/v4';
+import * as z from 'zod/v4';
 import { AiPermissionsSchema } from './ai.js';
 import { FeedbackSchema } from './feedback.js';
 import { MediaSchema } from './media.js';
@@ -19,8 +19,8 @@ export const WrittenResponseRubricSchema = z.looseObject({
 /**
  * The strict counterparts of the rubric schemas, for the redacted shapes.
  *
- * The authoring schemas above are loose on purpose (Req 22.5: a consumer's
- * rubric sidecars must survive `validateActivity` verbatim). The REDACTED
+ * The authoring schemas above are loose on purpose: a consumer's rubric
+ * sidecars must survive `validateActivity` verbatim. The REDACTED
  * shape must not be: `RedactedWrittenResponseDataSchema` is a `strictObject`
  * precisely so an unknown key is a validation failure, and embedding the loose
  * rubric there meant the strictness stopped at the rubric boundary — a
@@ -38,11 +38,11 @@ export const RedactedWrittenResponseRubricSchema = z.strictObject({
 });
 
 /**
- * Zod schema validating the Written Response activity data contract (Req 22).
+ * Zod schema validating the Written Response activity data contract.
  *
- * Wire-format constraints (Req 22.9): field names are locked for
+ * Wire-format constraints: field names are locked for
  * byte-compatibility with consumer-stored rows, and the schema is loose at
- * EVERY level (Req 22.5) — unknown top-level keys, `promptHtml`, `rubric`
+ * EVERY level — unknown top-level keys, `promptHtml`, `rubric`
  * sidecars and any future fields survive `validateActivity` verbatim.
  */
 export const WrittenResponseDataSchema = z

@@ -23,7 +23,7 @@ export default defineConfig({
         functions: 80,
         branches: 80,
         statements: 80,
-        // The scoring engine is the correctness core — enforce 100% (Req 21.7).
+        // The scoring engine is the correctness core — enforce 100%.
         'src/scoring/**': {
           lines: 100,
           functions: 100,

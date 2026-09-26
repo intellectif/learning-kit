@@ -52,8 +52,7 @@ const arbitraryBytes = (): fc.Arbitrary<Uint8Array> =>
   );
 
 describe('Read-aloud grading properties', () => {
-  // Feature: learning-kit-sdk, Property 17: a read-aloud grade is a scaled score
-  it('Property 17: never grades outside [0, 1], and never invents a number it cannot compute', () => {
+  it('never grades outside [0, 1], and never invents a number it cannot compute', () => {
     fc.assert(
       fc.property(arbitraryTake(), ({ data, response, assessment, options }) => {
         const result = gradeReadAloud(data, response, assessment, options);
@@ -71,8 +70,7 @@ describe('Read-aloud grading properties', () => {
     );
   });
 
-  // Feature: learning-kit-sdk, Property 18: a blank read-aloud response scores 0
-  it('Property 18: a blank always scores 0, with a mark against every word of the text', () => {
+  it('a blank always scores 0, with a mark against every word of the text', () => {
     fc.assert(
       fc.property(arbitraryReadAloudItem(), (data) => {
         const result = gradeReadAloud(data, BLANK_RESPONSE, null, {
@@ -93,8 +91,7 @@ describe('Read-aloud grading properties', () => {
     );
   });
 
-  // Feature: learning-kit-sdk, Property 19: a weighted dimension with no score is never graded
-  it('Property 19: a weighted dimension the assessment does not carry is refused, not scored', () => {
+  it('a weighted dimension the assessment does not carry is refused, not scored', () => {
     fc.assert(
       fc.property(arbitraryTake('some'), ({ data, response, assessment, options }) => {
         const absent = data.scoring.dimensions.filter(
@@ -113,8 +110,7 @@ describe('Read-aloud grading properties', () => {
     );
   });
 
-  // Feature: learning-kit-sdk, Property 20: read-aloud grading is deterministic
-  it('Property 20: the same evidence always produces the same grade and the same marks', () => {
+  it('the same evidence always produces the same grade and the same marks', () => {
     fc.assert(
       fc.property(arbitraryTake(), ({ data, response, assessment, options }) => {
         expect(gradeReadAloud(data, response, assessment, options)).toEqual(
@@ -126,8 +122,7 @@ describe('Read-aloud grading properties', () => {
     );
   });
 
-  // Feature: learning-kit-sdk, Property 21: read-aloud marks are the item's own words
-  it('Property 21: the marked words are dictationReferenceWords, in order, whatever was heard', () => {
+  it('the marked words are dictationReferenceWords, in order, whatever was heard', () => {
     fc.assert(
       fc.property(arbitraryReferenceText(), arbitrarySpeechAssessment(), (referenceText, heard) => {
         const expected = dictationReferenceWords({ transcript: referenceText })[0] as readonly {
@@ -147,8 +142,7 @@ describe('Read-aloud grading properties', () => {
     );
   });
 
-  // Feature: learning-kit-sdk, Property 22: inspectWav never throws on bytes
-  it('Property 22: reads any bytes at all without throwing, given a policy it can apply', () => {
+  it('reads any bytes at all without throwing, given a policy it can apply', () => {
     fc.assert(
       fc.property(arbitraryBytes(), arbitraryInspectionPolicy(), (bytes, policy) => {
         const inspection = inspectWav(bytes, policy);

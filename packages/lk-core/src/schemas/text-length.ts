@@ -1,4 +1,4 @@
-import type { z } from 'zod/v4';
+import type * as z from 'zod/v4';
 
 /**
  * `schema`, refusing a string longer than `max` UTF-16 code units — its

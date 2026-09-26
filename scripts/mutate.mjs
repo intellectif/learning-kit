@@ -33,7 +33,7 @@
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import ts from 'typescript';
 
@@ -201,7 +201,6 @@ writeFileSync(
 );
 
 const corpus = JSON.parse(readFileSync(join(CORE, 'vectors/scoring.json'), 'utf8'));
-const { replay } = await import(pathToFileURL(join(CORE, 'vectors/replay.mjs')).href);
 
 // One copy of the tree, mutated one file at a time — far cheaper than copying
 // it per mutant, and it keeps the real sources untouched whatever happens here.
@@ -290,7 +289,12 @@ for (const mutation of planned) {
 // ── Report ───────────────────────────────────────────────────────────────────
 
 const score = planned.length === 0 ? 1 : killed / planned.length;
-console.log(`\n\nkilled ${killed}/${planned.length} (${(score * 100).toFixed(1)}%)`);
+// A mutant killed only by the time limit (`T` above) may be a slow survivor on
+// a loaded machine: the count says how many there are to look at.
+console.log(
+  `\n\nkilled ${killed}/${planned.length} (${(score * 100).toFixed(1)}%)` +
+    `${timedOut > 0 ? `, ${timedOut} of them by the time limit` : ''}`,
+);
 
 if (survivors.length > 0) {
   console.log(

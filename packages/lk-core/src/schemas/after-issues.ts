@@ -1,4 +1,6 @@
-import { z } from 'zod/v4';
+// From zod's core, by name: reaching it through `z.core` would bring the whole
+// core namespace, every locale included, into an app's bundle.
+import { $ZodCheck, type ParsePayload } from 'zod/v4/core';
 
 /**
  * A check zod runs even when another field was refused. An ordinary check is
@@ -7,10 +9,8 @@ import { z } from 'zod/v4';
  * check itself decides which of its guards the refused fields leave nothing to
  * read — read them through {@link parsedFields}.
  */
-export function checkEvenAfterIssues<T>(
-  check: (payload: z.core.ParsePayload<T>) => void,
-): z.core.$ZodCheck<T> {
-  const guard: z.core.$ZodCheck<T> = new z.core.$ZodCheck({ check: 'custom', when: () => true });
+export function checkEvenAfterIssues<T>(check: (payload: ParsePayload<T>) => void): $ZodCheck<T> {
+  const guard: $ZodCheck<T> = new $ZodCheck({ check: 'custom', when: () => true });
   guard._zod.check = check;
   return guard;
 }
@@ -28,7 +28,7 @@ export function checkEvenAfterIssues<T>(
  * required key asks `refused` first.
  */
 export function parsedFields<T extends object>(
-  payload: z.core.ParsePayload<T>,
+  payload: ParsePayload<T>,
 ): { data: T; refused: ReadonlySet<string> } {
   const refused = new Set(payload.issues.map((issue) => String(issue.path?.[0])));
   const data = { ...payload.value } as Record<string, unknown>;

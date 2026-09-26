@@ -4,13 +4,13 @@ import { gapSelectAuthoring } from '../authoring/gap-select.js';
 import { multipleChoiceAuthoring } from '../authoring/multiple-choice.js';
 import { readAloudAuthoring } from '../authoring/read-aloud.js';
 import { writtenResponseAuthoring } from '../authoring/written-response.js';
+import type { BuiltInActivityType } from '../built-in-types.js';
 import { countWords } from '../count-words.js';
 import { DictationDataSchema } from '../schemas/dictation.js';
 import { FillInTheBlanksDataSchema } from '../schemas/fill-in-the-blanks.js';
 import { GapSelectDataSchema } from '../schemas/gap-select.js';
 import { MultipleChoiceDataSchema } from '../schemas/multiple-choice.js';
 import { ReadAloudDataSchema } from '../schemas/read-aloud.js';
-import { ownSchemas } from '../schemas/read-schema.js';
 import {
   RedactedDictationDataSchema,
   RedactedFillInTheBlanksDataSchema,
@@ -44,7 +44,8 @@ import type {
   WrittenResponseData,
   WrittenResponseLearnerResponse,
 } from '../types/activity.js';
-import { defineActivityType, type FieldPolicy, registerActivityType } from './registry.js';
+import { defineActivityType } from './define.js';
+import type { FieldPolicy } from './registry.js';
 
 /**
  * Field-sensitivity policies for the built-in types (R7). Fail-closed:
@@ -522,25 +523,18 @@ export const readAloudType = defineActivityType<ReadAloudData, ReadAloudLearnerR
   authoring: readAloudAuthoring,
 });
 
-// The SDK's own schemas are read with zod, which reports what each failing
-// check was given; see `readSchema`.
-for (const descriptor of [
-  multipleChoiceType,
-  fillInTheBlanksType,
-  writtenResponseType,
-  gapSelectType,
-  dictationType,
-  readAloudType,
-]) {
-  ownSchemas(
-    descriptor.schema,
-    ...(descriptor.redactedSchema !== undefined ? [descriptor.redactedSchema] : []),
-  );
-}
-
-registerActivityType(multipleChoiceType);
-registerActivityType(fillInTheBlanksType);
-registerActivityType(writtenResponseType);
-registerActivityType(gapSelectType);
-registerActivityType(dictationType);
-registerActivityType(readAloudType);
+/**
+ * The SDK's own types, by type: what the registry is created holding
+ * (`registry.ts`). Nothing here registers anything as this module loads — the
+ * registry reads this, so the built-ins travel with the lookups that use them.
+ * A type in `BUILT_IN_ACTIVITY_TYPES` without a descriptor here, or with one
+ * of another type, does not compile.
+ */
+export const BUILT_IN_DESCRIPTORS = {
+  'multiple-choice': multipleChoiceType,
+  'fill-in-the-blanks': fillInTheBlanksType,
+  'written-response': writtenResponseType,
+  'gap-select': gapSelectType,
+  dictation: dictationType,
+  'read-aloud': readAloudType,
+} satisfies { readonly [Type in BuiltInActivityType]: { readonly type: Type } };

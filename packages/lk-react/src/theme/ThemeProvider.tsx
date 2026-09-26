@@ -49,7 +49,7 @@ export interface ThemeProviderProps {
  * custom properties on a wrapper `<div>`, and via {@link useTheme}.
  *
  * Resolution: an explicit `theme` prop merges over {@link defaultTheme} (and
- * suppresses dark auto-detect, per Req 13.5). With no `theme` prop, the OS
+ * suppresses dark auto-detect). With no `theme` prop, the OS
  * `prefers-color-scheme: dark` preference auto-applies {@link darkTheme}.
  * SSR-safe: the server snapshot is always light, so hydration never mismatches.
  */

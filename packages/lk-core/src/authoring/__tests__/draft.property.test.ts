@@ -1,5 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { BUILT_IN_ACTIVITY_TYPES, type BuiltInActivityType } from '../../built-in-types.js';
 import { validateActivity } from '../../schemas/index.js';
 import { evaluate } from '../../scoring/index.js';
 import type { ActivityData, ActivityType, LearnerResponse } from '../../types/activity.js';
@@ -27,14 +28,7 @@ import { validateItemGroupDraft } from '../item-group.js';
  * outside an enumeration (a `mode` of `"bogus"`).
  */
 
-const BUILT_IN: ActivityType[] = [
-  'multiple-choice',
-  'fill-in-the-blanks',
-  'written-response',
-  'gap-select',
-  'dictation',
-  'read-aloud',
-];
+const BUILT_IN = BUILT_IN_ACTIVITY_TYPES;
 
 /** Many runs: each is two schema parses and a check, all pure and fast. */
 const RUNS = { numRuns: 1000 };
@@ -585,17 +579,21 @@ const readAloudDraft = fc
   })
   .map(compact);
 
-const EDITOR_DRAFTS: [ActivityType, fc.Arbitrary<Record<string, unknown>>][] = [
-  ['multiple-choice', multipleChoiceDraft],
-  ['fill-in-the-blanks', fillInTheBlanksDraft],
-  ['written-response', writtenResponseDraft],
-  ['gap-select', gapSelectDraft],
-  ['dictation', dictationDraft],
-  ['read-aloud', readAloudDraft],
-];
+/** An editor's draft of each type: a type without one does not compile. */
+const EDITOR_DRAFTS = Object.entries({
+  'multiple-choice': multipleChoiceDraft,
+  'fill-in-the-blanks': fillInTheBlanksDraft,
+  'written-response': writtenResponseDraft,
+  'gap-select': gapSelectDraft,
+  dictation: dictationDraft,
+  'read-aloud': readAloudDraft,
+} satisfies Record<BuiltInActivityType, fc.Arbitrary<Record<string, unknown>>>) as [
+  BuiltInActivityType,
+  fc.Arbitrary<Record<string, unknown>>,
+][];
 
 /** A well-formed response for each type, to score a complete draft with. */
-const RESPONSES: Record<string, LearnerResponse> = {
+const RESPONSES = {
   'multiple-choice': { type: 'multiple-choice', selectedOptionIds: ['a'] },
   'fill-in-the-blanks': { type: 'fill-in-the-blanks', answers: { a: 'Went', b: '' } },
   'written-response': { type: 'written-response', text: 'I went home.', wordCount: 3 },
@@ -604,7 +602,7 @@ const RESPONSES: Record<string, LearnerResponse> = {
   // A learner who submitted without recording: the blank a deferred type still
   // has to evaluate without throwing.
   'read-aloud': { type: 'read-aloud', recording: null },
-};
+} satisfies Record<BuiltInActivityType, LearnerResponse>;
 
 describe('validateDraft properties', () => {
   it.each(BUILT_IN)('never throws on any input for %s', (type) => {

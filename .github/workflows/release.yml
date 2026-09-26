@@ -9,7 +9,12 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 # Least-privilege, OIDC-based. NO npm token is stored anywhere:
 # `id-token: write` lets npm Trusted Publishing mint a short-lived,
 # per-run identity (with provenance). `contents`/`pull-requests: write`
-# are for the Changesets "version packages" PR via the built-in GITHUB_TOKEN.
+# are for the Changesets "version packages" PR via the built-in GITHUB_TOKEN,
+# or via a GitHub App's token once one is set up (see the first step).
+#
+# Every action is pinned to a commit, not a tag: this job can publish, and a
+# tag can be moved. The comment names the release the commit is; Dependabot
+# updates both.
 permissions:
   contents: write
   pull-requests: write
@@ -20,15 +25,34 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      # The release PR's checks start only for a push that is not the default
+      # token's: opened and updated by `github-actions[bot]`, they wait for a
+      # maintainer's approval. A GitHub App's token starts them like anyone's
+      # push. Until the App exists — repository variable RELEASE_APP_CLIENT_ID
+      # and secret RELEASE_APP_PRIVATE_KEY, see docs/releasing.md — this step
+      # is skipped and everything below uses the default token, as before.
+      - name: Token for the release PR
+        id: app-token
+        if: ${{ vars.RELEASE_APP_CLIENT_ID != '' }}
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      # The checkout's token is the one `git push` uses (it outranks the
+      # .netrc changesets/action writes), so it must be the App's too.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token || github.token }}
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 11.0.8
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           # Node 24 LTS ships with npm 11.5+, which supports OIDC Trusted
           # Publishing natively — no self-upgrade step needed (the in-place
@@ -53,11 +77,11 @@ jobs:
       # The very first publish of each package is done manually & interactively
       # by a maintainer (`npm login`, 2FA on) — see docs/releasing.md.
       - name: Create release PR or publish (OIDC, no stored token)
-        uses: changesets/action@v1
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           publish: pnpm release
           version: pnpm version-packages
           commit: 'chore: version packages'
           title: 'chore: version packages'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}

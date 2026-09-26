@@ -85,15 +85,22 @@ function surfaceOf(entryFile) {
   for (const symbol of checker.getExportsOfModule(moduleSymbol)) {
     const resolved =
       symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
-    const declaration = resolved.declarations?.[0];
+    const declarations = resolved.declarations ?? [];
+    const [declaration] = declarations;
     // The DECLARATION TEXT, not a resolved type. In a `.d.ts` every declaration
     // already IS the public surface, and printing one through the checker went
     // wrong two ways: a class came out as `typeof import("<absolute path>")`,
     // which embeds the machine that ran the build — so the committed report
     // could never match CI's — and it said nothing about the class's shape.
-    lines.push(
-      `${kindOf(resolved, declaration)} ${symbol.getName()}: ${declarationText(declaration)}`,
-    );
+    //
+    // Every declaration, in order: an overloaded function has one per
+    // signature, and reading only the first let a change to any later one —
+    // or a new overload — pass unseen.
+    const text =
+      declarations.length === 0
+        ? declarationText(undefined)
+        : declarations.map(declarationText).join(' ');
+    lines.push(`${kindOf(resolved, declaration)} ${symbol.getName()}: ${text}`);
   }
   return lines.sort((a, b) => a.localeCompare(b, REPORT_COLLATION));
 }
@@ -133,22 +140,106 @@ function declarationText(declaration) {
   if (declaration === undefined) {
     return '<unresolved>';
   }
-  return collapsed(canonicalText(declaration));
+  // Whether a declaration file writes `export declare function f` or
+  // `declare function f` with an export list is how the bundler laid it out,
+  // not the API: the export itself is what the report lists. So the modifier
+  // is left out, and changing bundlers is not an API change.
+  return collapsed(canonicalText(declaration)).replace(/^export\s+/, '');
 }
 
-/** `text` without comments, on one line, single-spaced. */
+/**
+ * `text` on one line, single-spaced, in one spelling of what declaration
+ * bundlers write two ways: no trailing comma before a closing bracket, and an
+ * empty body as `{}`. Comments are already out: see {@link sourceSlice}.
+ */
 function collapsed(text) {
   return text
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/\/\/[^\n]*/g, ' ')
     .replace(/\s+/g, ' ')
+    .replace(/,\s*([}\])])/g, ' $1')
+    .replace(/\{\s+\}/g, '{}')
     .trim();
+}
+
+/**
+ * A source file's namespace imports, alias to module: `import * as
+ * react_jsx_runtime from "react/jsx-runtime"`. One bundler names a type through
+ * such an alias, another writes `import("react/jsx-runtime")` in its place; the
+ * report writes the second, which names the module whatever the alias is.
+ */
+const namespacesOf = new WeakMap();
+function namespaceImports(source) {
+  let aliases = namespacesOf.get(source);
+  if (aliases === undefined) {
+    aliases = new Map();
+    for (const statement of source.statements) {
+      const bindings = ts.isImportDeclaration(statement)
+        ? statement.importClause?.namedBindings
+        : undefined;
+      if (bindings !== undefined && ts.isNamespaceImport(bindings)) {
+        aliases.set(bindings.name.text, statement.moduleSpecifier.text);
+      }
+    }
+    namespacesOf.set(source, aliases);
+  }
+  return aliases;
+}
+
+/**
+ * Where a source file's comments are, as the parser read them: the leading and
+ * trailing trivia of every node. A comment is never inside a token, so a string
+ * or a template keeps its `//` and its `/*` — a pattern over the text could not
+ * tell the two apart, and cut every URL in the report at `"http:`.
+ */
+const commentsOf = new WeakMap();
+function commentRanges(source) {
+  let ranges = commentsOf.get(source);
+  if (ranges !== undefined) {
+    return ranges;
+  }
+  const byStart = new Map();
+  const text = source.text;
+  const note = (found) => {
+    for (const range of found ?? []) {
+      byStart.set(range.pos, range.end);
+    }
+  };
+  const visit = (node) => {
+    note(ts.getLeadingCommentRanges(text, node.pos));
+    note(ts.getTrailingCommentRanges(text, node.end));
+    for (const child of node.getChildren(source)) {
+      visit(child);
+    }
+  };
+  visit(source);
+  ranges = [...byStart].sort((a, b) => a[0] - b[0]);
+  commentsOf.set(source, ranges);
+  return ranges;
+}
+
+/** `source.text` from `start` to `end`, each comment in it read as a space. */
+function sourceSlice(source, start, end) {
+  let text = '';
+  let at = start;
+  for (const [from, to] of commentRanges(source)) {
+    if (to <= at || from >= end) {
+      continue;
+    }
+    text += `${source.text.slice(at, Math.max(at, from))} `;
+    at = Math.min(to, end);
+  }
+  return text + source.text.slice(at, end);
 }
 
 const byCodeUnit = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
 /** `node`'s text, with every union and every object type of properties inside it in one order. */
 function canonicalText(node) {
+  if (ts.isIdentifier(node) && ts.isQualifiedName(node.parent) && node.parent.left === node) {
+    const module = namespaceImports(node.getSourceFile()).get(node.text);
+    if (module !== undefined) {
+      return `import(${JSON.stringify(module)})`;
+    }
+  }
   if (ts.isUnionTypeNode(node)) {
     return node.types
       .map((member) => collapsed(canonicalText(member)))
@@ -166,15 +257,72 @@ function canonicalText(node) {
     );
     return `{ ${members.sort(byCodeUnit).join(' ')} }`;
   }
-  const source = node.getSourceFile().text;
+  const source = node.getSourceFile();
   let text = '';
   let at = node.getStart();
   ts.forEachChild(node, (child) => {
-    text += source.slice(at, child.getStart()) + canonicalText(child);
+    text += sourceSlice(source, at, child.getStart()) + canonicalText(child);
     at = child.end;
   });
-  return text + source.slice(at, node.end);
+  return text + sourceSlice(source, at, node.end);
 }
+
+/**
+ * The report reads what it claims to: a declaration with comments beside
+ * strings that look like them comes out with the comments gone and every
+ * string whole. Run on every report and every check, so the reading cannot
+ * quietly regress.
+ */
+function proveDeclarationText() {
+  const source = ts.createSourceFile(
+    'probe.d.ts',
+    [
+      'declare const probe: {',
+      '  /** A doc comment. */',
+      '  readonly verb: "http://adlnet.gov/expapi/verbs/answered"; // a trailing comment',
+      "  readonly glob: 'a/*b*/c';",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: TypeScript source text — a template literal type.
+      '  /* a block */ readonly path: `x//${string}`;',
+      '};',
+    ].join('\n'),
+    ts.ScriptTarget.ES2022,
+    true,
+  );
+  const [statement] = source.statements;
+  const [declaration] = statement.declarationList.declarations;
+  const read = declarationText(declaration);
+  const expected =
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the declaration's text, template literal type and all.
+    'probe: { readonly glob: \'a/*b*/c\'; readonly path: `x//${string}`; readonly verb: "http://adlnet.gov/expapi/verbs/answered"; }';
+  if (read !== expected) {
+    throw new Error(
+      `api-report: a declaration is misread.\n  read:     ${read}\n  expected: ${expected}`,
+    );
+  }
+}
+proveDeclarationText();
+
+/**
+ * Two declaration bundlers' spellings of one function read the same: an
+ * alias or `import("…")`, `export` or not, a trailing comma or none.
+ */
+function proveBundlerNeutral() {
+  const read = (text) => {
+    const source = ts.createSourceFile('probe.d.ts', text, ts.ScriptTarget.ES2022, true);
+    const declaration = source.statements.find((statement) => ts.isFunctionDeclaration(statement));
+    return declarationText(declaration);
+  };
+  const aliased = read(
+    'import * as react_jsx_runtime from "react/jsx-runtime";\ndeclare function f({ a, b, }: P): react_jsx_runtime.JSX.Element;\ninterface P { }',
+  );
+  const inline = read(
+    'export declare function f({ a, b }: P): import("react/jsx-runtime").JSX.Element;\ninterface P {}',
+  );
+  if (aliased !== inline) {
+    throw new Error(`api-report: one declaration reads two ways.\n  ${aliased}\n  ${inline}`);
+  }
+}
+proveBundlerNeutral();
 
 const PACKAGES = ['packages/lk-core', 'packages/lk-react'];
 const failures = [];

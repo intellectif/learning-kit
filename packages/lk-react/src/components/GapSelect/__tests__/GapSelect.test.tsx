@@ -2,7 +2,7 @@ import { evaluate, type GapSelectData, redact } from '@intellectif/lk-core';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { axe } from 'vitest-axe';
+import { runAxe } from '../../../test-support/a11y.js';
 import { ActivityPreview } from '../../ActivityPreview/index.js';
 import { ActivitySequence } from '../../ActivitySequence/index.js';
 import { GapSelect } from '../index.js';
@@ -55,7 +55,7 @@ describe('<GapSelect> rendering', () => {
 
   it('has no accessibility violations', async () => {
     const { container } = render(<GapSelect data={data} />);
-    expect(await axe(container)).toHaveNoViolations();
+    expect(await runAxe(container)).toHaveNoViolations();
   });
 });
 

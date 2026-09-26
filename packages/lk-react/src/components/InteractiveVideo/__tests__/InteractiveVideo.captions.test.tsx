@@ -3,6 +3,7 @@ import { act, cleanup, render, screen, waitFor, within } from '@testing-library/
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { checkA11y } from '../../../test-support/a11y.js';
+import { stubMediaElement } from '../../../test-support/media.js';
 import { InteractiveVideo } from '../index.js';
 import type { VideoPreferences } from '../prefs.js';
 
@@ -72,46 +73,6 @@ const group = (tracks: MediaTrack[] = TRACKS, navigation?: 'no-skip-ahead'): Ite
     },
   }) as ItemGroup;
 
-function stubVideo(): void {
-  const state = new WeakMap<HTMLMediaElement, { paused: boolean; time: number }>();
-  const get = (el: HTMLMediaElement) => {
-    let entry = state.get(el);
-    if (entry === undefined) {
-      entry = { paused: true, time: 0 };
-      state.set(el, entry);
-    }
-    return entry;
-  };
-  Object.defineProperty(HTMLMediaElement.prototype, 'paused', {
-    configurable: true,
-    get(this: HTMLMediaElement) {
-      return get(this).paused;
-    },
-  });
-  Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', {
-    configurable: true,
-    get(this: HTMLMediaElement) {
-      return get(this).time;
-    },
-    set(this: HTMLMediaElement, value: number) {
-      get(this).time = value;
-    },
-  });
-  Object.defineProperty(HTMLMediaElement.prototype, 'duration', {
-    configurable: true,
-    get: () => 100,
-  });
-  HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
-    get(this).paused = false;
-    this.dispatchEvent(new Event('play'));
-    return Promise.resolve();
-  };
-  HTMLMediaElement.prototype.pause = function pause(this: HTMLMediaElement) {
-    get(this).paused = true;
-    this.dispatchEvent(new Event('pause'));
-  };
-}
-
 const loader = () => vi.fn(async (track: MediaTrack) => FILES[track.srclang] ?? '');
 
 async function mount(ui: React.ReactElement): Promise<void> {
@@ -157,7 +118,7 @@ async function chooseSecond(user: ReturnType<typeof userEvent.setup>, name: stri
 }
 
 beforeEach(() => {
-  stubVideo();
+  stubMediaElement({ duration: 100 });
   localStorage.clear();
 });
 

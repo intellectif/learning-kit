@@ -1,4 +1,4 @@
-import { z } from 'zod/v4';
+import * as z from 'zod/v4';
 import {
   READ_ALOUD_MAX_DIMENSION_WEIGHT,
   READ_ALOUD_MAX_SECONDS,

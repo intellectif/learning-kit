@@ -13,7 +13,7 @@ import { pausePlaybackGroupOthers, usePlaybackGroup } from './playback-group.js'
  * images use `alt` (schema requires it non-empty); audio/video expose an
  * optional label and a captions `<track>` when `captionsUrl` is provided;
  * `embed` renders a responsive sandboxed iframe with `alt` as its required
- * accessible `title` (Req 14.5).
+ * accessible `title`.
  *
  * Audio additionally carries a playback policy (`media.playback`). With no
  * policy the emitted element is character-identical to what every release
@@ -139,7 +139,7 @@ export function ActivityMedia(props: ActivityMediaProps): React.JSX.Element {
 
   return (
     <figure className="lk-media">
-      {/* biome-ignore lint/a11y/useMediaCaption: captions are optional in the data contract — a <track> is rendered when captionsUrl is provided; absence is the author's documented choice (Req 14.5) */}
+      {/* biome-ignore lint/a11y/useMediaCaption: captions are optional in the data contract — a <track> is rendered when captionsUrl is provided; absence is the author's documented choice */}
       <video className="lk-media-el" controls aria-label={media.alt || undefined}>
         <source src={media.url} />
         {media.captionsUrl ? <track kind="captions" src={media.captionsUrl} default /> : null}

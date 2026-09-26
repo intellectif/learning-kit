@@ -1,134 +1,110 @@
 [
   {
+    "name": "lk-core: score",
+    "path": "packages/lk-core/dist/scoring.js",
+    "import": "{ score }",
+    "limit": "51 kB"
+  },
+  {
+    "name": "lk-core: validateActivity",
+    "path": "packages/lk-core/dist/index.js",
+    "import": "{ validateActivity }",
+    "limit": "54 kB"
+  },
+  {
+    "name": "lk-core: xAPIBuilder",
+    "path": "packages/lk-core/dist/xapi.js",
+    "import": "{ xAPIBuilder }",
+    "limit": "53 kB"
+  },
+  {
+    "name": "lk-core: everything",
+    "path": "packages/lk-core/dist/index.js",
+    "import": "*",
+    "limit": "81 kB"
+  },
+  {
     "name": "ActivityPreview",
     "path": "packages/lk-react/dist/components/ActivityPreview.js",
     "import": "{ ActivityPreview }",
-    "ignore": [
-      "react",
-      "react-dom",
-      "@intellectif/lk-core"
-    ],
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "50 kB"
   },
   {
     "name": "ActivitySequence",
     "path": "packages/lk-react/dist/components/ActivitySequence.js",
     "import": "{ ActivitySequence }",
-    "ignore": [
-      "react",
-      "react-dom",
-      "@intellectif/lk-core"
-    ],
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "50 kB"
   },
   {
     "name": "MultipleChoice",
     "path": "packages/lk-react/dist/components/MultipleChoice.js",
     "import": "{ MultipleChoice }",
-    "ignore": [
-      "react",
-      "react-dom",
-      "@intellectif/lk-core"
-    ],
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "50 kB"
   },
   {
     "name": "FillInTheBlanks",
     "path": "packages/lk-react/dist/components/FillInTheBlanks.js",
     "import": "{ FillInTheBlanks }",
-    "ignore": [
-      "react",
-      "react-dom",
-      "@intellectif/lk-core"
-    ],
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "50 kB"
   },
   {
     "name": "WrittenResponse",
     "path": "packages/lk-react/dist/components/WrittenResponse.js",
     "import": "{ WrittenResponse }",
-    "ignore": [
-      "react",
-      "react-dom",
-      "@intellectif/lk-core"
-    ],
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "50 kB"
   },
   {
     "name": "GapSelect",
     "path": "packages/lk-react/dist/components/GapSelect.js",
     "import": "{ GapSelect }",
-    "ignore": [
-      "react",
-      "react-dom",
-      "@intellectif/lk-core"
-    ],
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "50 kB"
   },
   {
     "name": "Dictation",
     "path": "packages/lk-react/dist/components/Dictation.js",
     "import": "{ Dictation }",
-    "ignore": [
-      "react",
-      "react-dom",
-      "@intellectif/lk-core"
-    ],
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "50 kB"
   },
   {
     "name": "ReadAloud",
     "path": "packages/lk-react/dist/components/ReadAloud.js",
     "import": "{ ReadAloud }",
-    "ignore": [
-      "react",
-      "react-dom",
-      "@intellectif/lk-core"
-    ],
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "50 kB"
   },
   {
     "name": "InteractiveVideo",
     "path": "packages/lk-react/dist/components/InteractiveVideo.js",
     "import": "{ InteractiveVideo }",
-    "ignore": [
-      "react",
-      "react-dom",
-      "@intellectif/lk-core"
-    ],
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "50 kB"
   },
   {
     "name": "PronunciationFeedback",
     "path": "packages/lk-react/dist/components/PronunciationFeedback.js",
     "import": "{ PronunciationFeedback }",
-    "ignore": [
-      "react",
-      "react-dom",
-      "@intellectif/lk-core"
-    ],
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "50 kB"
   },
   {
     "name": "useAiHelp",
     "path": "packages/lk-react/dist/ai/useAiHelp.js",
     "import": "{ useAiHints, useAiExplanation }",
-    "ignore": [
-      "react",
-      "react-dom",
-      "@intellectif/lk-core"
-    ],
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "6 kB"
   },
   {
     "name": "useSpeechRecorder",
     "path": "packages/lk-react/dist/hooks/useSpeechRecorder.js",
     "import": "{ useSpeechRecorder }",
-    "ignore": [
-      "react",
-      "react-dom",
-      "@intellectif/lk-core"
-    ],
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "10 kB"
   }
 ]

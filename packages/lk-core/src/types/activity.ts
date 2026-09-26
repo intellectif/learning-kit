@@ -259,9 +259,19 @@ export interface BlankConfig {
   id: string;
   /** List of strings accepted as correct answers for this blank. */
   acceptedAnswers: string[];
-  /** Whether answer matching is case-sensitive. Defaults to false. */
+  /**
+   * Whether answer matching is case-sensitive. Defaults to false.
+   *
+   * @deprecated Since lk-core 1.3: write `match: { caseSensitive }`, which
+   * means the same. Still read throughout 1.x; a 2.0 may remove it.
+   */
   caseSensitive?: boolean;
-  /** Whether leading/trailing whitespace is stripped before matching. Defaults to true. */
+  /**
+   * Whether leading/trailing whitespace is stripped before matching. Defaults to true.
+   *
+   * @deprecated Since lk-core 1.3: write `match: { trim }`, which means the
+   * same. Still read throughout 1.x; a 2.0 may remove it.
+   */
   trimWhitespace?: boolean;
   /**
    * Optional matching-tolerance policy for this blank (Unicode normalization,
@@ -451,10 +461,10 @@ export interface WrittenResponseRubric {
  * Data contract for a Written Response activity (free-text writing graded
  * asynchronously — by an AI or human grader — after submission).
  *
- * Wire-format note (Req 22.9): field names and casing are locked for
+ * Wire-format note: field names and casing are locked for
  * byte-compatibility with consumer-stored JSONB rows. `feedback` and
- * `passThreshold` are SDK-side optional additions for component parity
- * (Req 22.8 / Req 3.9) — being optional, their absence keeps stored payloads
+ * `passThreshold` are SDK-side optional additions for component parity —
+ * being optional, their absence keeps stored payloads
  * byte-identical.
  */
 export interface WrittenResponseData {

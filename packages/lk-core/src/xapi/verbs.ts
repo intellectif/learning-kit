@@ -16,7 +16,7 @@ export const XAPIVerb = {
    * learner has submitted work whose grade does not exist yet, so `answered`
    * (which implies a scored response) would be wrong. xAPI 1.0.3 defines no
    * canonical "submit" verb; the Activity Streams 1.0 IRI is the established
-   * community choice (design decision recorded per Task 25.4).
+   * community choice.
    */
   SUBMITTED: 'http://activitystrea.ms/schema/1.0/submit',
   /**

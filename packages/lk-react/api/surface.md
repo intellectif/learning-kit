@@ -11,25 +11,25 @@ const CAPTURE_PROCESSOR_SOURCE: CAPTURE_PROCESSOR_SOURCE: string
 const darkTheme: darkTheme: Partial<ThemeTokens>
 const DEFAULT_STRINGS: DEFAULT_STRINGS: LkStrings
 const defaultTheme: defaultTheme: ThemeTokens
-function ActivityPreview: declare function ActivityPreview({ draft, renderMode, response, outcome, fallback, renderers, shuffleSeed, sanitizeHtml, strings, theme, locale, }: ActivityPreviewProps): react_jsx_runtime.JSX.Element;
-function ActivitySequence: declare function ActivitySequence({ activities, renderers, onActivityComplete, onComplete, onFinished, onSubmit, onInteraction, renderMode, shuffle, shuffleSeed, defaultIndex, onIndexChange, responses, submittedSlotIds, outcomes, sanitizeHtml, theme, locale, disabled, mediaBudget, recordingBinding, assessments, workletUrl, strings, ai, delivery, scoring, }: ActivitySequenceProps): React.JSX.Element;
+function ActivityPreview: declare function ActivityPreview({ draft, renderMode, response, outcome, fallback, renderers, shuffleSeed, sanitizeHtml, strings, theme, locale }: ActivityPreviewProps): import("react/jsx-runtime").JSX.Element;
+function ActivitySequence: declare function ActivitySequence({ activities, renderers, onActivityComplete, onComplete, onFinished, onSubmit, onInteraction, renderMode, shuffle, shuffleSeed, defaultIndex, onIndexChange, responses, submittedSlotIds, outcomes, sanitizeHtml, theme, locale, disabled, mediaBudget, recordingBinding, assessments, workletUrl, strings, ai, delivery, scoring }: ActivitySequenceProps): React.JSX.Element;
 function asRenderable: declare function asRenderable<TData extends ActivityData>(redacted: RedactedActivityData): Renderable<TData>;
 function asRenderableSequence: declare function asRenderableSequence(entries: readonly (RedactedActivityData | RedactedItemGroupData)[]): readonly SequenceEntry<RenderableActivity>[];
 function createTailwindTheme: declare function createTailwindTheme(theme: Partial<ThemeTokens>): TailwindThemeExtension;
-function Dictation: declare function Dictation(props: DictationProps): react_jsx_runtime.JSX.Element;
+function Dictation: declare function Dictation(props: DictationProps): import("react/jsx-runtime").JSX.Element;
 function directionForLocale: declare function directionForLocale(locale: string | undefined): 'ltr' | 'rtl';
-function FillInTheBlanks: declare function FillInTheBlanks(props: FillInTheBlanksProps): react_jsx_runtime.JSX.Element;
-function GapSelect: declare function GapSelect(props: GapSelectProps): react_jsx_runtime.JSX.Element;
-function InteractiveVideo: declare function InteractiveVideo(props: InteractiveVideoProps): react_jsx_runtime.JSX.Element;
+function FillInTheBlanks: declare function FillInTheBlanks(props: FillInTheBlanksProps): import("react/jsx-runtime").JSX.Element;
+function GapSelect: declare function GapSelect(props: GapSelectProps): import("react/jsx-runtime").JSX.Element;
+function InteractiveVideo: declare function InteractiveVideo(props: InteractiveVideoProps): import("react/jsx-runtime").JSX.Element;
 function LkAiProvider: declare function LkAiProvider({ ai, children }: LkAiProviderProps): React.JSX.Element;
-function LkIntlProvider: declare function LkIntlProvider({ strings, locale, direction, children, }: LkIntlProviderProps): React.JSX.Element;
+function LkIntlProvider: declare function LkIntlProvider({ strings, locale, direction, children }: LkIntlProviderProps): React.JSX.Element;
 function mergeStrings: declare function mergeStrings(base: LkStrings, override?: LkStringsOverride): LkStrings;
-function MultipleChoice: declare function MultipleChoice(props: MultipleChoiceProps): react_jsx_runtime.JSX.Element;
-function PronunciationFeedback: declare function PronunciationFeedback(props: PronunciationFeedbackProps): react_jsx_runtime.JSX.Element;
-function ReadAloud: declare function ReadAloud(props: ReadAloudProps): react_jsx_runtime.JSX.Element;
+function MultipleChoice: declare function MultipleChoice(props: MultipleChoiceProps): import("react/jsx-runtime").JSX.Element;
+function PronunciationFeedback: declare function PronunciationFeedback(props: PronunciationFeedbackProps): import("react/jsx-runtime").JSX.Element;
+function ReadAloud: declare function ReadAloud(props: ReadAloudProps): import("react/jsx-runtime").JSX.Element;
 function resolveCaptionTracks: declare function resolveCaptionTracks(tracks: readonly MediaTrack[], preferences: Pick<VideoPreferences, 'captionLanguage' | 'secondaryCaptionLanguage'>): CaptionTracks;
-function StimulusPanel: declare function StimulusPanel({ stimulus, range, sanitizeHtml, locale, renderMode, mediaBudget, mediaStrings, onInteraction, disabled, strings, }: StimulusPanelProps): React.JSX.Element;
-function ThemeProvider: declare function ThemeProvider({ theme, children }: ThemeProviderProps): react_jsx_runtime.JSX.Element;
+function StimulusPanel: declare function StimulusPanel({ stimulus, range, sanitizeHtml, locale, renderMode, mediaBudget, mediaStrings, onInteraction, disabled, strings }: StimulusPanelProps): React.JSX.Element;
+function ThemeProvider: declare function ThemeProvider({ theme, children }: ThemeProviderProps): import("react/jsx-runtime").JSX.Element;
 function useActivityState: declare function useActivityState(initialState?: ActivityState): UseActivityStateResult;
 function useAiCoaching: declare function useAiCoaching(input: AiCoachingInput): AiCoachingHelp;
 function useAiExplanation: declare function useAiExplanation(input: AiExplanationInput): AiExplanationHelp;
@@ -41,7 +41,7 @@ function useLkStrings: declare function useLkStrings(override?: LkStringsOverrid
 function useSpeechRecorder: declare function useSpeechRecorder(options: SpeechRecorderOptions): SpeechRecorder;
 function useTheme: declare function useTheme(): ThemeTokens;
 function useXAPI: declare function useXAPI(config: XAPIConfig): UseXAPIResult;
-function WrittenResponse: declare function WrittenResponse(props: WrittenResponseProps): react_jsx_runtime.JSX.Element;
+function WrittenResponse: declare function WrittenResponse(props: WrittenResponseProps): import("react/jsx-runtime").JSX.Element;
 interface ActivityPreviewProps: interface ActivityPreviewProps { draft: unknown; renderMode?: RenderMode; response?: LearnerResponse; outcome?: ItemOutcome; fallback?: (result: DraftNotComplete) => ReactNode; renderers?: Readonly<Record<string, ActivityRenderer>>; shuffleSeed?: string; sanitizeHtml?: HtmlSanitizer; strings?: LkStringsOverride; theme?: Partial<ThemeTokens>; locale?: string; }
 interface ActivityProps: interface ActivityProps<TData extends ActivityData = ActivityData> { data: RenderableActivity<TData>; onComplete?: (result: ActivityResult) => void; onSubmit?: (response: LearnerResponse) => void; value?: LearnerResponse; defaultValue?: LearnerResponse; defaultSubmitted?: boolean; onChange?: (response: LearnerResponse) => void; renderMode?: RenderMode; outcome?: ItemOutcome; sanitizeHtml?: HtmlSanitizer; mediaBudget?: MediaBudgetBinding; mediaStrings?: Partial<MediaTransportStrings>; strings?: LkStringsOverride; onInteraction?: (event: InteractionEvent) => void; ai?: LearnerAi; delivery?: DeliveryPolicy | null; scoring?: ItemScoringPolicy | null; theme?: Partial<ThemeTokens>; locale?: string; disabled?: boolean; }
 interface ActivitySequenceProps: interface ActivitySequenceProps { activities: readonly SequenceEntry<RenderableActivity>[]; renderers?: Readonly<Record<string, ActivityRenderer>>; onActivityComplete?: (result: ActivityResult, index: number, slotId: string) => void; onSubmit?: (response: LearnerResponse, slot: { activityId: string; index: number; slotId: string; }) => void; onComplete?: (results: ActivityResult[]) => void; onFinished?: (items: SequenceItemOutcome[]) => void; onInteraction?: (event: InteractionEvent) => void; renderMode?: RenderMode; mediaBudget?: SequenceMediaBudget; recordingBinding?: SequenceRecordingBinding; assessments?: Readonly<Record<string, SpeechAssessment>>; workletUrl?: string; strings?: LkStringsOverride; ai?: LearnerAi; delivery?: DeliveryPolicy | null; scoring?: ItemScoringPolicy | null; shuffle?: 'entries' | 'none'; shuffleSeed?: string; defaultIndex?: number; onIndexChange?: (index: number) => void; responses?: Readonly<Record<string, LearnerResponse>>; submittedSlotIds?: readonly string[]; outcomes?: Readonly<Record<string, ItemOutcome>>; sanitizeHtml?: HtmlSanitizer; theme?: Partial<ThemeTokens>; locale?: string; disabled?: boolean; }
@@ -55,7 +55,7 @@ interface AiHintsInput: interface AiHintsInput extends AiHelpSituation { disable
 interface AiWritingFeedbackHelp: interface AiWritingFeedbackHelp { offered: boolean; status: 'idle' | 'loading' | 'unavailable'; feedback: readonly AiWritingFeedback[]; latest: AiWritingFeedback | null; current: boolean; limit: number; used: number; ask: () => void; }
 interface AiWritingFeedbackInput: interface AiWritingFeedbackInput extends AiHelpSituation { disabled?: boolean; }
 interface CaptionTracks: interface CaptionTracks { primary?: MediaTrack; secondary?: MediaTrack; }
-interface DictationProps: interface DictationProps extends ActivityProps<DictationData> { }
+interface DictationProps: interface DictationProps extends ActivityProps<DictationData> {}
 interface FillInTheBlanksProps: interface FillInTheBlanksProps extends ActivityProps<FillInTheBlanksData> { showCorrectAnswers?: boolean; }
 interface GapSelectProps: interface GapSelectProps extends ActivityProps<GapSelectData> { shuffleSeed?: string; }
 interface InteractiveVideoProps: interface InteractiveVideoProps { group: RenderableItemGroup; renderMode?: RenderMode; progress?: MediaProgress; onProgress?: (progress: MediaProgress) => void; responses?: Readonly<Record<string, LearnerResponse>>; submittedSlotIds?: readonly string[]; outcomes?: Readonly<Record<string, ItemOutcome>>; onSubmit?: (response: LearnerResponse, slot: InteractiveVideoSlot) => void; onActivityComplete?: (result: ActivityResult, slot: InteractiveVideoSlot) => void; onFinished?: (summary: InteractiveVideoSummary) => void; onInteraction?: (event: InteractionEvent) => void; renderQuestion?: (question: InteractiveVideoQuestion) => ReactNode | undefined; recordingBinding?: SequenceRecordingBinding; assessments?: Readonly<Record<string, SpeechAssessment>>; workletUrl?: string; captionsLoader?: (track: MediaTrack) => Promise<string>; preferences?: Partial<VideoPreferences>; defaultPreferences?: Partial<VideoPreferences>; onPreferencesChange?: (next: VideoPreferences, change: Partial<VideoPreferences>) => void; label?: string; shuffleSeed?: string; locale?: string; strings?: LkStringsOverride; ai?: LearnerAi; delivery?: DeliveryPolicy | null; scoring?: ItemScoringPolicy | null; theme?: Partial<ThemeTokens>; sanitizeHtml?: HtmlSanitizer; }
@@ -133,14 +133,14 @@ interface AiWritingFeedbackInput: interface AiWritingFeedbackInput extends AiHel
 ## @intellectif/lk-react/components/ActivityPreview
 
 ```ts
-function ActivityPreview: declare function ActivityPreview({ draft, renderMode, response, outcome, fallback, renderers, shuffleSeed, sanitizeHtml, strings, theme, locale, }: ActivityPreviewProps): react_jsx_runtime.JSX.Element;
+function ActivityPreview: declare function ActivityPreview({ draft, renderMode, response, outcome, fallback, renderers, shuffleSeed, sanitizeHtml, strings, theme, locale }: ActivityPreviewProps): import("react/jsx-runtime").JSX.Element;
 interface ActivityPreviewProps: interface ActivityPreviewProps { draft: unknown; renderMode?: RenderMode; response?: LearnerResponse; outcome?: ItemOutcome; fallback?: (result: DraftNotComplete) => ReactNode; renderers?: Readonly<Record<string, ActivityRenderer>>; shuffleSeed?: string; sanitizeHtml?: HtmlSanitizer; strings?: LkStringsOverride; theme?: Partial<ThemeTokens>; locale?: string; }
 ```
 
 ## @intellectif/lk-react/components/ActivitySequence
 
 ```ts
-function ActivitySequence: declare function ActivitySequence({ activities, renderers, onActivityComplete, onComplete, onFinished, onSubmit, onInteraction, renderMode, shuffle, shuffleSeed, defaultIndex, onIndexChange, responses, submittedSlotIds, outcomes, sanitizeHtml, theme, locale, disabled, mediaBudget, recordingBinding, assessments, workletUrl, strings, ai, delivery, scoring, }: ActivitySequenceProps): React.JSX.Element;
+function ActivitySequence: declare function ActivitySequence({ activities, renderers, onActivityComplete, onComplete, onFinished, onSubmit, onInteraction, renderMode, shuffle, shuffleSeed, defaultIndex, onIndexChange, responses, submittedSlotIds, outcomes, sanitizeHtml, theme, locale, disabled, mediaBudget, recordingBinding, assessments, workletUrl, strings, ai, delivery, scoring }: ActivitySequenceProps): React.JSX.Element;
 interface ActivitySequenceProps: interface ActivitySequenceProps { activities: readonly SequenceEntry<RenderableActivity>[]; renderers?: Readonly<Record<string, ActivityRenderer>>; onActivityComplete?: (result: ActivityResult, index: number, slotId: string) => void; onSubmit?: (response: LearnerResponse, slot: { activityId: string; index: number; slotId: string; }) => void; onComplete?: (results: ActivityResult[]) => void; onFinished?: (items: SequenceItemOutcome[]) => void; onInteraction?: (event: InteractionEvent) => void; renderMode?: RenderMode; mediaBudget?: SequenceMediaBudget; recordingBinding?: SequenceRecordingBinding; assessments?: Readonly<Record<string, SpeechAssessment>>; workletUrl?: string; strings?: LkStringsOverride; ai?: LearnerAi; delivery?: DeliveryPolicy | null; scoring?: ItemScoringPolicy | null; shuffle?: 'entries' | 'none'; shuffleSeed?: string; defaultIndex?: number; onIndexChange?: (index: number) => void; responses?: Readonly<Record<string, LearnerResponse>>; submittedSlotIds?: readonly string[]; outcomes?: Readonly<Record<string, ItemOutcome>>; sanitizeHtml?: HtmlSanitizer; theme?: Partial<ThemeTokens>; locale?: string; disabled?: boolean; }
 interface SequenceQuestion: interface SequenceQuestion { slot: SequenceRecordingSlot; active: boolean; portalContainer: HTMLElement | null; clear(): void; setPending(pending: boolean): void; emit(type: InteractionKind, payload?: Record<string, unknown>): void; }
 type ActivityRenderer: type ActivityRenderer = ComponentType<ActivityProps & { question?: SequenceQuestion; }>;
@@ -150,28 +150,28 @@ type SequenceItemOutcome: type SequenceItemOutcome = { activityId: string; index
 ## @intellectif/lk-react/components/Dictation
 
 ```ts
-function Dictation: declare function Dictation(props: DictationProps): react_jsx_runtime.JSX.Element;
-interface DictationProps: interface DictationProps extends ActivityProps<DictationData> { }
+function Dictation: declare function Dictation(props: DictationProps): import("react/jsx-runtime").JSX.Element;
+interface DictationProps: interface DictationProps extends ActivityProps<DictationData> {}
 ```
 
 ## @intellectif/lk-react/components/FillInTheBlanks
 
 ```ts
-function FillInTheBlanks: declare function FillInTheBlanks(props: FillInTheBlanksProps): react_jsx_runtime.JSX.Element;
+function FillInTheBlanks: declare function FillInTheBlanks(props: FillInTheBlanksProps): import("react/jsx-runtime").JSX.Element;
 interface FillInTheBlanksProps: interface FillInTheBlanksProps extends ActivityProps<FillInTheBlanksData> { showCorrectAnswers?: boolean; }
 ```
 
 ## @intellectif/lk-react/components/GapSelect
 
 ```ts
-function GapSelect: declare function GapSelect(props: GapSelectProps): react_jsx_runtime.JSX.Element;
+function GapSelect: declare function GapSelect(props: GapSelectProps): import("react/jsx-runtime").JSX.Element;
 interface GapSelectProps: interface GapSelectProps extends ActivityProps<GapSelectData> { shuffleSeed?: string; }
 ```
 
 ## @intellectif/lk-react/components/InteractiveVideo
 
 ```ts
-function InteractiveVideo: declare function InteractiveVideo(props: InteractiveVideoProps): react_jsx_runtime.JSX.Element;
+function InteractiveVideo: declare function InteractiveVideo(props: InteractiveVideoProps): import("react/jsx-runtime").JSX.Element;
 function resolveCaptionTracks: declare function resolveCaptionTracks(tracks: readonly MediaTrack[], preferences: Pick<VideoPreferences, 'captionLanguage' | 'secondaryCaptionLanguage'>): CaptionTracks;
 interface CaptionTracks: interface CaptionTracks { primary?: MediaTrack; secondary?: MediaTrack; }
 interface InteractiveVideoProps: interface InteractiveVideoProps { group: RenderableItemGroup; renderMode?: RenderMode; progress?: MediaProgress; onProgress?: (progress: MediaProgress) => void; responses?: Readonly<Record<string, LearnerResponse>>; submittedSlotIds?: readonly string[]; outcomes?: Readonly<Record<string, ItemOutcome>>; onSubmit?: (response: LearnerResponse, slot: InteractiveVideoSlot) => void; onActivityComplete?: (result: ActivityResult, slot: InteractiveVideoSlot) => void; onFinished?: (summary: InteractiveVideoSummary) => void; onInteraction?: (event: InteractionEvent) => void; renderQuestion?: (question: InteractiveVideoQuestion) => ReactNode | undefined; recordingBinding?: SequenceRecordingBinding; assessments?: Readonly<Record<string, SpeechAssessment>>; workletUrl?: string; captionsLoader?: (track: MediaTrack) => Promise<string>; preferences?: Partial<VideoPreferences>; defaultPreferences?: Partial<VideoPreferences>; onPreferencesChange?: (next: VideoPreferences, change: Partial<VideoPreferences>) => void; label?: string; shuffleSeed?: string; locale?: string; strings?: LkStringsOverride; ai?: LearnerAi; delivery?: DeliveryPolicy | null; scoring?: ItemScoringPolicy | null; theme?: Partial<ThemeTokens>; sanitizeHtml?: HtmlSanitizer; }
@@ -186,21 +186,21 @@ type RenderableItemGroup: type RenderableItemGroup = ItemGroup<RenderableActivit
 ## @intellectif/lk-react/components/MultipleChoice
 
 ```ts
-function MultipleChoice: declare function MultipleChoice(props: MultipleChoiceProps): react_jsx_runtime.JSX.Element;
+function MultipleChoice: declare function MultipleChoice(props: MultipleChoiceProps): import("react/jsx-runtime").JSX.Element;
 interface MultipleChoiceProps: interface MultipleChoiceProps extends ActivityProps<MultipleChoiceData> { shuffleSeed?: string; }
 ```
 
 ## @intellectif/lk-react/components/PronunciationFeedback
 
 ```ts
-function PronunciationFeedback: declare function PronunciationFeedback(props: PronunciationFeedbackProps): react_jsx_runtime.JSX.Element;
+function PronunciationFeedback: declare function PronunciationFeedback(props: PronunciationFeedbackProps): import("react/jsx-runtime").JSX.Element;
 interface PronunciationFeedbackProps: interface PronunciationFeedbackProps { data: Pick<ReadAloudData, 'locale' | 'referenceText'> & Partial<Pick<ReadAloudData, 'ai' | 'id' | 'instructions' | 'title'>>; assessment: SpeechAssessment; grade?: GradeRecord; audioUrl?: string; breakThreshold?: number; monotoneThreshold?: number; locale?: string; theme?: Partial<ThemeTokens>; strings?: LkStringsOverride; ai?: LearnerAi; renderMode?: RenderMode; delivery?: DeliveryPolicy | null; onInteraction?: (event: InteractionEvent) => void; }
 ```
 
 ## @intellectif/lk-react/components/ReadAloud
 
 ```ts
-function ReadAloud: declare function ReadAloud(props: ReadAloudProps): react_jsx_runtime.JSX.Element;
+function ReadAloud: declare function ReadAloud(props: ReadAloudProps): import("react/jsx-runtime").JSX.Element;
 interface ReadAloudProps: interface ReadAloudProps extends ActivityProps<ReadAloudData> { recordingBinding?: RecordingBinding; assessment?: SpeechAssessment; breakThreshold?: number; monotoneThreshold?: number; workletUrl?: string; onChange?: (response: LearnerResponse) => void; }
 interface RecordedTake: interface RecordedTake { blob: Blob; mimeType: string; durationMs: number; peakLevel: number; }
 interface RecordingBinding: interface RecordingBinding { upload(take: RecordedTake): Promise<RecordingRef>; assess?(ref: RecordingRef): Promise<ReadAloudAssessResult>; playbackUrl?(ref: RecordingRef): Promise<string>; }
@@ -210,14 +210,14 @@ type ReadAloudAssessResult: type ReadAloudAssessResult = { assessment: SpeechAss
 ## @intellectif/lk-react/components/StimulusPanel
 
 ```ts
-function StimulusPanel: declare function StimulusPanel({ stimulus, range, sanitizeHtml, locale, renderMode, mediaBudget, mediaStrings, onInteraction, disabled, strings, }: StimulusPanelProps): React.JSX.Element;
+function StimulusPanel: declare function StimulusPanel({ stimulus, range, sanitizeHtml, locale, renderMode, mediaBudget, mediaStrings, onInteraction, disabled, strings }: StimulusPanelProps): React.JSX.Element;
 interface StimulusPanelProps: interface StimulusPanelProps { stimulus: Stimulus; range?: { first: number; last: number; }; sanitizeHtml?: HtmlSanitizer; locale?: string; renderMode?: RenderMode; mediaBudget?: MediaBudgetBinding; mediaStrings?: Partial<MediaTransportStrings>; onInteraction?: (event: InteractionEvent) => void; disabled?: boolean; strings?: LkStringsOverride; }
 ```
 
 ## @intellectif/lk-react/components/WrittenResponse
 
 ```ts
-function WrittenResponse: declare function WrittenResponse(props: WrittenResponseProps): react_jsx_runtime.JSX.Element;
+function WrittenResponse: declare function WrittenResponse(props: WrittenResponseProps): import("react/jsx-runtime").JSX.Element;
 interface WrittenResponseProps: interface WrittenResponseProps { data: Renderable<WrittenResponseData>; onSubmitted?: (submission: WrittenResponseSubmission) => void; onSubmit?: (response: LearnerResponse) => void; value?: LearnerResponse; defaultValue?: LearnerResponse; defaultSubmitted?: boolean; onChange?: (response: LearnerResponse) => void; renderMode?: RenderMode; outcome?: ItemOutcome; sanitizeHtml?: HtmlSanitizer; mediaBudget?: MediaBudgetBinding; mediaStrings?: Partial<MediaTransportStrings>; strings?: LkStringsOverride; onInteraction?: (event: InteractionEvent) => void; theme?: Partial<ThemeTokens>; locale?: string; disabled?: boolean; delivery?: DeliveryPolicy | null; ai?: LearnerAi; }
 interface WrittenResponseSubmission: interface WrittenResponseSubmission { text: string; wordCount: number; withinWordBounds: boolean; timeSpent: number; xapiStatement: XAPIStatement; }
 type HtmlSanitizer: type HtmlSanitizer = (html: string) => string;
@@ -257,7 +257,7 @@ interface UseXAPIResult: interface UseXAPIResult { sendStatement: (statement: XA
 ```ts
 const DEFAULT_STRINGS: DEFAULT_STRINGS: LkStrings
 function directionForLocale: declare function directionForLocale(locale: string | undefined): 'ltr' | 'rtl';
-function LkIntlProvider: declare function LkIntlProvider({ strings, locale, direction, children, }: LkIntlProviderProps): React.JSX.Element;
+function LkIntlProvider: declare function LkIntlProvider({ strings, locale, direction, children }: LkIntlProviderProps): React.JSX.Element;
 function mergeStrings: declare function mergeStrings(base: LkStrings, override?: LkStringsOverride): LkStrings;
 function useLkDirection: declare function useLkDirection(): 'ltr' | 'rtl';
 function useLkStrings: declare function useLkStrings(override?: LkStringsOverride): LkStrings;
@@ -273,7 +273,7 @@ type LkStringsOverride: type LkStringsOverride = Partial<Omit<LkStrings, 'media'
 const darkTheme: darkTheme: Partial<ThemeTokens>
 const defaultTheme: defaultTheme: ThemeTokens
 function createTailwindTheme: declare function createTailwindTheme(theme: Partial<ThemeTokens>): TailwindThemeExtension;
-function ThemeProvider: declare function ThemeProvider({ theme, children }: ThemeProviderProps): react_jsx_runtime.JSX.Element;
+function ThemeProvider: declare function ThemeProvider({ theme, children }: ThemeProviderProps): import("react/jsx-runtime").JSX.Element;
 function useTheme: declare function useTheme(): ThemeTokens;
 interface TailwindThemeExtension: interface TailwindThemeExtension { colors: Record<string, string>; spacing: Record<string, string>; borderRadius: Record<string, string>; fontFamily: Record<string, string>; fontSize: Record<string, string>; }
 interface ThemeProviderProps: interface ThemeProviderProps { theme?: Partial<ThemeTokens>; children: ReactNode; }

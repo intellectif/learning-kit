@@ -86,7 +86,7 @@ export type RenderableActivity<TData extends ActivityData = ActivityData> = TDat
 export type HtmlSanitizer = (html: string) => string;
 
 /**
- * The prop contract shared by every activity component (Req 3.1). Defined
+ * The prop contract shared by every activity component. Defined
  * here (React-specific) rather than in lk-core, which is React-free.
  *
  * Controlled / uncontrolled follows the React convention: pass `value` +

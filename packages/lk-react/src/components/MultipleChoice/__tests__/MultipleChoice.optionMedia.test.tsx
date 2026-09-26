@@ -2,7 +2,7 @@ import type { MultipleChoiceData } from '@intellectif/lk-core';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
-import { axe } from 'vitest-axe';
+import { runAxe } from '../../../test-support/a11y.js';
 import { MultipleChoice } from '../index.js';
 
 afterEach(cleanup);
@@ -71,7 +71,7 @@ describe('<MultipleChoice> with picture options', () => {
 
   it('has no accessibility violations', async () => {
     const { container } = render(<MultipleChoice data={pictureChoice} />);
-    expect(await axe(container)).toHaveNoViolations();
+    expect(await runAxe(container)).toHaveNoViolations();
   });
 });
 
@@ -137,7 +137,7 @@ describe('<MultipleChoice> with recording options', () => {
 
   it('has no accessibility violations', async () => {
     const { container } = render(<MultipleChoice data={listening} />);
-    expect(await axe(container)).toHaveNoViolations();
+    expect(await runAxe(container)).toHaveNoViolations();
   });
 });
 

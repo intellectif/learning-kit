@@ -1,4 +1,4 @@
-import { z } from 'zod/v4';
+import * as z from 'zod/v4';
 import { containsUnspacedScript, dictationNormalizer } from '../scoring/dictation/normalize.js';
 import {
   READ_ALOUD_MAX_DIMENSION_WEIGHT,

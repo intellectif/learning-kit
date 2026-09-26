@@ -79,13 +79,13 @@ Rules: 2–26 options; ≥1 correct; `mode: "single"` ⇒ **exactly one** correc
   "blanks": [
     { "id": "evaporation",  "acceptedAnswers": ["evaporation"], "hint": "Starts with E" },
     { "id": "precipitation","acceptedAnswers": ["precipitation", "rain"],
-      "caseSensitive": false, "trimWhitespace": true }
+      "match": { "caseSensitive": false, "trim": true } }
   ],
   "scoringStrategy": "partial"
 }
 ```
 
-Rules: every `{{id}}` placeholder must appear **exactly once** and have exactly one matching blank, and vice-versa; blank ids and option ids must be unique. Defaults: `caseSensitive: false`, `trimWhitespace: true`. `partial` = correctBlanks / totalBlanks. Hints have a Show/Hide toggle.
+Rules: every `{{id}}` placeholder must appear **exactly once** and have exactly one matching blank, and vice-versa; blank ids and option ids must be unique. Defaults: case ignored and surrounding whitespace trimmed (`match.caseSensitive: false`, `match.trim: true`). A blank's own `caseSensitive` and `trimWhitespace` fields still work and are **deprecated** since lk-core 1.3: `match.caseSensitive` and `match.trim` mean the same. `partial` = correctBlanks / totalBlanks. Hints have a Show/Hide toggle.
 
 **Matching tolerances (v0.3, opt-in).** A blank may carry a `match` policy; absent, matching is the exact v1 behaviour (trim + case-insensitive equality). Every field is opt-in because a new tolerance changes what "correct" means:
 
@@ -1360,7 +1360,7 @@ const slots = flattenSequence(entries, { shuffleEntries: true, seed: attemptId }
 // slots[i] = { slotId, index, activity, group?: { id, title?, stimulus, position, size } }
 ```
 
-**Shuffle fairness — `version`.** `seededShuffle(items, seed, { version })` selects the draw. Version 1 (the default) takes the Fisher–Yates index from the low bits of its generator, and those bits are strongly correlated: on a four-option item only 12 of the 24 orders are reachable *for any seed*, and the last authored option lands first 8% of the time against 42% second. Version 2 draws from the high bits and reaches every order uniformly. Version 1 stays the default because these permutations are a wire contract — an attempt may be stored with only its seed, and a review render has to reproduce what the learner saw — so switching it is a package major.
+**Shuffle fairness — `version`.** `seededShuffle(items, seed, { version })` selects the draw. Version 1 (the default) takes the Fisher–Yates index from the low bits of its generator, and those bits are strongly correlated: on a four-option item only 12 of the 24 orders are reachable *for any seed*, and the last authored option lands first 8% of the time against 42% second. Version 2 draws from the high bits and reaches every order uniformly. Version 1 stays the default because these permutations are a wire contract — an attempt may be stored with only its seed, and a review render has to reproduce what the learner saw — so switching it is a package major. **Leaving `version` out is deprecated** since lk-core 1.3, because a 2.0 may make that switch: name it — `{ version: 1 }` to reproduce an order already recorded, `{ version: 2 }` for new content.
 
 **`version` is only reachable on a direct call.** `flattenSequence`, `planAttempt`, within-group shuffling and `<MultipleChoice>`'s option order all call `seededShuffle` without it and therefore always use version 1, and none of their option bags exposes the setting. So version 2 applies today only to content you order yourself, before handing it to the SDK — passing it to `flattenSequence` is not possible rather than merely ineffective. Threading it through is tracked in the [roadmap](./roadmap.md).
 
@@ -1593,7 +1593,10 @@ comparing, so the displayed number and the pass decision cannot disagree.
 
 
 `registerActivityType` (lk-core) makes a custom type validate, score, redact and
-export JSON Schema. To put it on screen, register a renderer with the sequence:
+export JSON Schema. `registeredActivityTypes()` then lists it beside the SDK's own;
+`BUILT_IN_ACTIVITY_TYPES` and `isBuiltInActivityType(type)` (lk-core 1.3) tell the two apart
+— `ActivityType` cannot, since your augmentation below widens it. To put the type on screen,
+register a renderer with the sequence:
 
 ```tsx
 import { defineActivityType, registerActivityType } from '@intellectif/lk-core';
@@ -1676,7 +1679,7 @@ void sendStatement(result.xapiStatement); // never throws; retries 5xx/network (
 
 ## Retry
 
-Retry is supported and **consumer-triggered** via the reset-on-`data`-change rule (Req 3.7):
+Retry is supported and **consumer-triggered** via the reset-on-`data`-change rule:
 
 ```tsx
 // Option A: change the React key to remount fresh

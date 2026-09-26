@@ -1380,7 +1380,7 @@ export function ReadAloud({
           {s.readAloudPlaybackUnavailable}
         </p>
       ) : (
-        // biome-ignore lint/a11y/useMediaCaption: the learner's own take has no caption track to offer; its accessible name says whose recording it is
+        // No caption track: the learner's own take has none to offer; its accessible name says whose recording it is.
         <audio
           className="lk-ra-take"
           controls

@@ -29,7 +29,7 @@ import { type ComponentType, useEffect, useMemo, useRef, useState } from 'react'
 import type { LearnerAi } from '../../ai/LkAiProvider.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStringsOverride } from '../../i18n/strings.js';
-import { randomSessionId } from '../_internal.js';
+import { everyBuiltInTypeHandled, randomSessionId } from '../_internal.js';
 import { Dictation } from '../Dictation/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
@@ -1769,6 +1769,7 @@ export function ActivitySequence({
         />
       );
     }
+    everyBuiltInTypeHandled(activity);
     return (
       <div className="lk-seq-unsupported" role="note">
         {s.unsupportedActivity}

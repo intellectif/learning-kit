@@ -133,9 +133,8 @@ function assertStructurallyComplete(r: ActivityResult): void {
 const PROPERTY_TIMEOUT_MS = 20_000;
 
 describe('onComplete payload completeness (Property 10)', () => {
-  // Feature: learning-kit-sdk, Property 10: onComplete payload is structurally complete
   it(
-    'Property 10: MultipleChoice onComplete payload is structurally complete',
+    'MultipleChoice onComplete payload is structurally complete',
     () => {
       fc.assert(
         fc.property(mcPair, ({ data, selectedOptionIds }) => {
@@ -161,9 +160,8 @@ describe('onComplete payload completeness (Property 10)', () => {
     PROPERTY_TIMEOUT_MS,
   );
 
-  // Feature: learning-kit-sdk, Property 10: onComplete payload is structurally complete
   it(
-    'Property 10: FillInTheBlanks onComplete payload is structurally complete',
+    'FillInTheBlanks onComplete payload is structurally complete',
     () => {
       fc.assert(
         fc.property(fibPair, ({ data, values }) => {

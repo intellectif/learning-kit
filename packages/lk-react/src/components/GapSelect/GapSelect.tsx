@@ -31,7 +31,7 @@ import {
 } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation, AiHints, useComponentAiHints } from '../shared/AiHelp.js';
-import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
+import { feedbackAnnouncement, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import { mintTake, stampTake } from '../shared/sequence-slot.js';
 import {
@@ -204,7 +204,7 @@ export function GapSelect({
   }, [defaultSubmitted]);
 
   // Identity-guarded so the mount run is a no-op: without it this fires after
-  // the first paint and undoes every seed it was just given (Req 3.7).
+  // the first paint and undoes every seed it was just given.
   const lastDataRef = useRef(data);
   useEffect(() => {
     if (lastDataRef.current === data) {
@@ -241,7 +241,7 @@ export function GapSelect({
       map.set(
         gap.id,
         data.shuffleChoices === true
-          ? seededShuffle(choices, `${seedSource}:${data.id}:${gap.id}`)
+          ? seededShuffle(choices, `${seedSource}:${data.id}:${gap.id}`, { version: 1 })
           : choices,
       );
     }
@@ -571,13 +571,15 @@ export function GapSelect({
         id={`${data.id}-feedback`}
         {...(scoringPolicy.retries > 0 ? { ref: feedbackRef } : {})}
       >
-        {isReview
-          ? policy.feedback || !outcomeShowsMarks(outcome)
-            ? reviewSummary
-            : null
-          : policy.feedback || summary === null
-            ? announced
-            : s.answerSubmitted}
+        {feedbackAnnouncement({
+          review: isReview,
+          feedback: policy.feedback,
+          outcome,
+          readBack: reviewSummary,
+          submitted: summary !== null,
+          result: announced,
+          received: s.answerSubmitted,
+        })}
       </FeedbackRegion>
       <TryActions
         tries={tries}

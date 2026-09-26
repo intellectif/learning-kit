@@ -176,7 +176,7 @@ describe('FillInTheBlanks — controlled/uncontrolled', () => {
     });
   });
 
-  it('re-seeds from defaultValue when the data prop changes (Req 3.7, uncontrolled)', async () => {
+  it('re-seeds from defaultValue when the data prop changes (uncontrolled)', async () => {
     const user = userEvent.setup();
     const defaultValue = response({ a: 'Lyon' });
     const { rerender } = render(<FillInTheBlanks data={fib()} defaultValue={defaultValue} />);

@@ -151,9 +151,13 @@ subpath of their own.
 
 ### Versioning note
 
-`@intellectif/lk-core` is a **peer** dependency, so widening its range is a breaking
-change for installs and forces a `lk-react` major. Some majors here — **5.0.0**
-is the clearest — are exactly that and change no React API. Others do: 6.0.0
+`@intellectif/lk-core` is a **peer** dependency. Before 1.0 every `lk-core` minor
+forced a `lk-react` major, which is why this package is at 23.x; since 1.0 a
+`lk-core` minor or patch releases no `lk-react` at all, and when `lk-react` needs a
+newer `lk-core` its own release says which
+([Stability](https://github.com/intellectif/learning-kit/blob/main/docs/stability.md#the-two-version-numbers)).
+Some of the early majors — **5.0.0** is the clearest — are only that peer bump and
+change no React API. Others do: 6.0.0
 added five `<ActivitySequence>` props, a `restored` arm to `SequenceItemOutcome`
 that an exhaustive `switch` must handle, and a changed reset target for
 `<MultipleChoice>`. Always read the
@@ -165,7 +169,7 @@ before assuming a migration is needed.
 - **What is supported, and since when** — [Features](https://github.com/intellectif/learning-kit/blob/main/docs/features.md): every activity and capability, the `lk-core` / `lk-react` versions it arrived in, and its guide.
 - **What changed** — [GitHub Releases](https://github.com/intellectif/learning-kit/releases), one per package version, and the same notes in each package's `CHANGELOG.md` (it ships in the npm package, so it is in your `node_modules` too). Notes written since release notes gained a template — every release after lk-core 0.20.0 / lk-react 20.0.0 — start with a one-line summary and **Action required**: `none`, or what to do. Earlier notes lead with the detail; the version map in the upgrading guide says what each one asks of you.
 - **How to upgrade** — [Upgrading](https://github.com/intellectif/learning-kit/blob/main/docs/upgrading.md): which `lk-core` goes with which `lk-react`, and a section per release saying what, if anything, you need to change. A `lk-react` major is often only the `lk-core` peer bump; the map says so.
-- **Hearing about a release** — on GitHub, **Watch → Custom → Releases**, or subscribe to [the releases feed](https://github.com/intellectif/learning-kit/releases.atom). Better still, let your dependency bot bring each release to you as a pull request, with its notes — and keep the two packages together in one, since they move together:
+- **Hearing about a release** — on GitHub, **Watch → Custom → Releases**, or subscribe to [the releases feed](https://github.com/intellectif/learning-kit/releases.atom). Better still, let your dependency bot bring each release to you as a pull request, with its notes — and keep the two packages together in one, since a `lk-react` release names the `lk-core` it needs:
 
   ```yaml
   # .github/dependabot.yml — one entry per directory with a package.json
@@ -181,7 +185,7 @@ before assuming a migration is needed.
 
   With Renovate: `"packageRules": [{ "matchPackageNames": ["@intellectif/lk-core", "@intellectif/lk-react"], "groupName": "learning-kit" }]`.
 
-  `lk-core` is still `0.x`, and a caret range on a `0.x` version matches only that minor: `^0.18.0` never installs `0.19.0`. A bot is how you find out there is one.
+  A caret range installs every later minor and patch of its major — `^1.2.0` takes `1.3.0` — and never a new major. A bot is how you hear about either, with its notes.
 
 ## Documentation
 

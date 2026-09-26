@@ -24,4 +24,12 @@ describe('validation corpus', () => {
       .map(({ id, expected, actual }) => ({ id, expected, actual }));
     expect(changed).toEqual([]);
   }, 60_000);
+
+  it('holds a seed for every built-in type, so a new one cannot go unpinned', () => {
+    // Regenerate with `node scripts/generate-validation-vectors.mjs`: it keeps
+    // the frozen seeds and adds one for a type they lack.
+    expect(Object.keys(corpus.seeds.activities).sort()).toEqual(
+      [...core.BUILT_IN_ACTIVITY_TYPES].sort(),
+    );
+  });
 });

@@ -1,4 +1,4 @@
-import { z } from 'zod/v4';
+import * as z from 'zod/v4';
 import { getActivityTypeDescriptor } from '../registry/index.js';
 import {
   INTERACTIVE_VIDEO_ITEM_TYPES,

@@ -62,3 +62,35 @@ function policyKey(given: unknown): string {
 export function outcomeShowsMarks(outcome: ItemOutcome | undefined): boolean {
   return outcome?.status === 'scored' || outcome?.status === 'graded';
 }
+
+/**
+ * What an activity's feedback region says, by the rule every activity that
+ * scores on submit follows — kept in one place because the copies drifted: a
+ * multiple choice once said "Answer submitted." before anything was answered.
+ *
+ * - In review, a grade read back is feedback, said only when the policy shows
+ *   feedback; "not graded yet" says nothing about the answer and is always said.
+ * - Live, nothing before a submit. After one, the result — or, without
+ *   feedback, only that the answer was received. The score still reaches
+ *   `onComplete`.
+ *
+ * `result` is what a submit announces (`null` before one), `readBack` what a
+ * review announces, `received` what a submit says without feedback.
+ */
+export function feedbackAnnouncement<T>(input: {
+  review: boolean;
+  feedback: boolean;
+  outcome: ItemOutcome | undefined;
+  readBack: T | null;
+  submitted: boolean;
+  result: T | null;
+  received: T;
+}): T | null {
+  if (input.review) {
+    return input.feedback || !outcomeShowsMarks(input.outcome) ? input.readBack : null;
+  }
+  if (!input.submitted) {
+    return null;
+  }
+  return input.feedback ? input.result : input.received;
+}

@@ -1,7 +1,13 @@
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { defineConfig } from 'tsup';
+import { defineConfig } from 'tsdown';
 
+/**
+ * The published build: ESM and CommonJS with declarations for each, one set per
+ * entry point, sharing chunks. As in lk-core's config, what decides what a
+ * consumer installs is set rather than left to a default: the file names the
+ * exports map names, and the syntax level (the tsconfig's ES2022).
+ */
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
@@ -25,19 +31,35 @@ export default defineConfig({
     'theme/ThemeProvider': 'src/theme/ThemeProvider.tsx',
   },
   format: ['esm', 'cjs'],
+  platform: 'neutral',
+  target: 'es2022',
   dts: true,
   sourcemap: true,
   clean: true,
-  treeshake: true,
-  splitting: true,
-  external: ['react', 'react-dom', '@intellectif/lk-core'],
-  // tsup does not process/copy CSS. Mirror the static stylesheets into dist so
-  // the `./theme/defaults.css` and `./theme/skin.css` exports resolve.
-  onSuccess: async () => {
-    mkdirSync('dist/theme', { recursive: true });
-    copyFileSync('src/theme/defaults.css', 'dist/theme/defaults.css');
-    copyFileSync('src/theme/skin.css', 'dist/theme/skin.css');
-    addUseClientDirective('dist');
+  outExtensions: ({ format }) =>
+    format === 'cjs' ? { js: '.cjs', dts: '.d.cts' } : { js: '.js', dts: '.d.ts' },
+  // The host's React and lk-core, never a copy of them.
+  deps: {
+    neverBundle: [/^react(\/|$)/, /^react-dom(\/|$)/, /^@intellectif\/lk-core(\/|$)/],
+  },
+  // The stylesheets the `./theme/*.css` exports name, as they are.
+  copy: [
+    { from: 'src/theme/defaults.css', to: 'dist/theme' },
+    { from: 'src/theme/skin.css', to: 'dist/theme' },
+  ],
+  hooks: {
+    'build:done': () => addUseClientDirective('dist'),
+  },
+  // Bundling drops each file's 'use client' and says so, once per file; the
+  // hook above puts it back on every emitted module. Only that notice is
+  // silenced — any other warning still shows.
+  inputOptions: {
+    onLog(level, log, handler) {
+      if (log.code === 'MODULE_LEVEL_DIRECTIVE' && log.message.includes('"use client"')) {
+        return;
+      }
+      handler(level, log);
+    },
   },
 });
 

@@ -146,7 +146,7 @@ describe('WrittenResponse — uncontrolled defaultValue', () => {
     });
   });
 
-  it('resets to the current seed when the data prop changes (Req 3.7)', async () => {
+  it('resets to the current seed when the data prop changes', async () => {
     const user = userEvent.setup();
     const { rerender } = render(
       <WrittenResponse data={wr()} defaultValue={response('first seed', 2)} />,

@@ -629,6 +629,8 @@ punctuation, and reading compatibility forms such as fullwidth letters as the le
 - **Fill in the blanks and gap select:** any accepted answer, as whole words. An answer of one short
   word ("is", "the", "26") counts only where the hint writes it beside a word that neighbours it in the
   passage ("name is", "is Rossi"), so a hint can still say "the verb is irregular".
+- **Facts of any other kind** — ones the check cannot read — count as revealing (lk-core 1.3): a hint
+  it cannot check is withheld, not shown.
 
 It is a floor, not a proof: it cannot catch an answer spelled out letter by letter, or described. Your
 prompt should forbid giving the answer, and this check catches the model that does it anyway.

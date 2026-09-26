@@ -1,4 +1,4 @@
-import { z } from 'zod/v4';
+import * as z from 'zod/v4';
 import { maxUnits } from '../../schemas/text-length.js';
 import type { ValidationError, ValidationResult } from '../../types/activity.js';
 import type { SpeechAssessment, SpeechWord } from '../../types/speech.js';
