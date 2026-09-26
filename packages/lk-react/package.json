@@ -1,6 +1,6 @@
 {
   "name": "@intellectif/lk-react",
-  "version": "23.1.1",
+  "version": "23.1.2",
   "description": "Accessible React 19 components for every lk-core activity — from multiple choice and dictation to read-aloud with pronunciation feedback and interactive video — with a resumable exam/review pager, theming, and xAPI delivery.",
   "keywords": [
     "react",
