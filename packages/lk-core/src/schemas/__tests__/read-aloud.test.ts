@@ -215,17 +215,12 @@ describe('ReadAloudDataSchema: the field rules', () => {
     expect(problems(ra({ locale }))).toEqual([]);
   });
 
-  it.each([
-    '',
-    'en',
-    'EN-US',
-    'en_US',
-    'en-us',
-    'en-US-u-ca-gregory',
-    'not a locale',
-  ])('refuses the tag %s', (locale) => {
-    expect(problems(ra({ locale }))).toEqual([['locale', 'invalid_format']]);
-  });
+  it.each(['', 'en', 'EN-US', 'en_US', 'en-us', 'en-US-u-ca-gregory', 'not a locale'])(
+    'refuses the tag %s',
+    (locale) => {
+      expect(problems(ra({ locale }))).toEqual([['locale', 'invalid_format']]);
+    },
+  );
 
   it('refuses a text of nothing but whitespace', () => {
     expect(problems(ra({ referenceText: '   ' }))).toEqual([['referenceText', 'custom']]);

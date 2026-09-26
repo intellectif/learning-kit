@@ -615,48 +615,50 @@ describe('validateDraft properties', () => {
     );
   });
 
-  it.each(
-    EDITOR_DRAFTS,
-  )('gives every issue a documented code and severity for any editor-shaped %s draft', (type, drafts) => {
-    fc.assert(
-      fc.property(drafts, (draft) => {
-        const result = validateDraft(type, draft);
-        const undocumented = result.issues.filter(
-          (found) =>
-            !Object.hasOwn(DRAFT_ISSUE_SEVERITY, found.code) ||
-            DRAFT_ISSUE_SEVERITY[found.code as keyof typeof DRAFT_ISSUE_SEVERITY] !==
-              found.severity,
-        );
-        expect(undocumented).toEqual([]);
-      }),
-      RUNS,
-    );
-  });
+  it.each(EDITOR_DRAFTS)(
+    'gives every issue a documented code and severity for any editor-shaped %s draft',
+    (type, drafts) => {
+      fc.assert(
+        fc.property(drafts, (draft) => {
+          const result = validateDraft(type, draft);
+          const undocumented = result.issues.filter(
+            (found) =>
+              !Object.hasOwn(DRAFT_ISSUE_SEVERITY, found.code) ||
+              DRAFT_ISSUE_SEVERITY[found.code as keyof typeof DRAFT_ISSUE_SEVERITY] !==
+                found.severity,
+          );
+          expect(undocumented).toEqual([]);
+        }),
+        RUNS,
+      );
+    },
+  );
 
-  it.each(
-    EDITOR_DRAFTS,
-  )('is never looser than validateActivity, and a complete %s draft always scores', (type, drafts) => {
-    fc.assert(
-      fc.property(drafts, (draft) => {
-        const result = validateDraft(type, draft);
-        const stored = validateActivity(type, draft);
-        if (result.status === 'complete') {
-          expect(stored.success).toBe(true);
-          expect(result.issues).toEqual([]);
-          const response = RESPONSES[type] as LearnerResponse;
-          expect(() => evaluate(result.data as ActivityData, response)).not.toThrow();
-        }
-        if (!stored.success) {
-          expect(result.status).not.toBe('complete');
-          expect(result.issues.length).toBeGreaterThan(0);
-        }
-        expect(result.status === 'invalid').toBe(
-          result.issues.some((found) => found.severity === 'invalid'),
-        );
-      }),
-      RUNS,
-    );
-  });
+  it.each(EDITOR_DRAFTS)(
+    'is never looser than validateActivity, and a complete %s draft always scores',
+    (type, drafts) => {
+      fc.assert(
+        fc.property(drafts, (draft) => {
+          const result = validateDraft(type, draft);
+          const stored = validateActivity(type, draft);
+          if (result.status === 'complete') {
+            expect(stored.success).toBe(true);
+            expect(result.issues).toEqual([]);
+            const response = RESPONSES[type] as LearnerResponse;
+            expect(() => evaluate(result.data as ActivityData, response)).not.toThrow();
+          }
+          if (!stored.success) {
+            expect(result.status).not.toBe('complete');
+            expect(result.issues.length).toBeGreaterThan(0);
+          }
+          expect(result.status === 'invalid').toBe(
+            result.issues.some((found) => found.severity === 'invalid'),
+          );
+        }),
+        RUNS,
+      );
+    },
+  );
 
   it('never throws on any input for an item group', () => {
     // The container has no registered descriptor to guard it — `item-group` is

@@ -1059,9 +1059,12 @@ describe('<Dictation> marks in every script', () => {
         ['equal', cp(0x924)],
       ],
     ],
-  ])('leaves %s as its own mark, since it is drawn apart', (_label, transcript, typed, expected) => {
-    expect(marksOf({ ...data, transcript }, typed)).toEqual(expected);
-  });
+  ])(
+    'leaves %s as its own mark, since it is drawn apart',
+    (_label, transcript, typed, expected) => {
+      expect(marksOf({ ...data, transcript }, typed)).toEqual(expected);
+    },
+  );
 
   it.each<[string, string, string, string, string]>([
     [
@@ -1079,20 +1082,23 @@ describe('<Dictation> marks in every script', () => {
       `${LRM}•${LRM}`,
     ],
     ['two English words meet', 'en', 'the cat', 'thecat', `${LRM}•${LRM}`],
-  ])('lays out the bullet for a missing space where %s in the content direction when its neighbours disagree', (_label, locale, transcript, typed, bullet) => {
-    const item: DictationData = { ...data, locale, transcript };
-    const value = { type: 'dictation', text: typed } as const;
-    const { container } = render(
-      <Dictation
-        data={item}
-        renderMode="review"
-        defaultValue={value}
-        outcome={evaluate(item, value)}
-      />,
-    );
-    const missing = container.querySelector('.lk-dc-diff .lk-dc-op[data-op="missing"]');
-    expect(missing?.textContent).toBe(bullet);
-  });
+  ])(
+    'lays out the bullet for a missing space where %s in the content direction when its neighbours disagree',
+    (_label, locale, transcript, typed, bullet) => {
+      const item: DictationData = { ...data, locale, transcript };
+      const value = { type: 'dictation', text: typed } as const;
+      const { container } = render(
+        <Dictation
+          data={item}
+          renderMode="review"
+          defaultValue={value}
+          outcome={evaluate(item, value)}
+        />,
+      );
+      const missing = container.querySelector('.lk-dc-diff .lk-dc-op[data-op="missing"]');
+      expect(missing?.textContent).toBe(bullet);
+    },
+  );
 
   it('keeps a bullet missing, not wrong, whatever marks sit on it', () => {
     const marks = marksOf(
@@ -1205,10 +1211,13 @@ describe('<Dictation> marks in every script', () => {
       'חום 30 היום',
       `${LRM}•${LRM}`,
     ],
-  ])('lays out the bullet for %s in the direction of the character it stands for', (_label, locale, transcript, typed, bullet) => {
-    const marks = marksOf({ ...data, locale, transcript }, typed);
-    expect(marks.find(([op]) => op === 'missing')?.[1]).toBe(bullet);
-  });
+  ])(
+    'lays out the bullet for %s in the direction of the character it stands for',
+    (_label, locale, transcript, typed, bullet) => {
+      const marks = marksOf({ ...data, locale, transcript }, typed);
+      expect(marks.find(([op]) => op === 'missing')?.[1]).toBe(bullet);
+    },
+  );
 
   it.each<[string, Partial<DictationData>, string, string | null]>([
     ['a Central Kurdish tag', { locale: 'ckb', transcript: 'القطة تنام' }, 'rtl', 'rtl'],

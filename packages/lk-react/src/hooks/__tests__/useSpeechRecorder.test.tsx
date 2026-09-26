@@ -356,17 +356,16 @@ describe('useSpeechRecorder', () => {
 
   // Three separate reasons a worklet cannot be built, each of which a real
   // engine or a real policy produces, and none of which is a failed recording.
-  it.each([
-    'AudioWorkletNode',
-    'audioWorklet',
-    'objectUrls',
-  ] as const)('falls back to a script processor in an environment without %s', async (missing) => {
-    const audio = install({ without: [missing] });
-    const recorder = mount({ maxDurationMs: 15_000 });
-    await begin(recorder);
-    expect(audio.capturePath()).toBe('script-processor');
-    expect(recorder.result.current.status).toBe('recording');
-  });
+  it.each(['AudioWorkletNode', 'audioWorklet', 'objectUrls'] as const)(
+    'falls back to a script processor in an environment without %s',
+    async (missing) => {
+      const audio = install({ without: [missing] });
+      const recorder = mount({ maxDurationMs: 15_000 });
+      await begin(recorder);
+      expect(audio.capturePath()).toBe('script-processor');
+      expect(recorder.result.current.status).toBe('recording');
+    },
+  );
 
   it('keeps every block, even where the engine reuses its input buffer', async () => {
     // The script-processor fallback is handed the same array on every callback,

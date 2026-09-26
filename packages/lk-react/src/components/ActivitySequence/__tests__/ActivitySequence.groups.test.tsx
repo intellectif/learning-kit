@@ -250,16 +250,16 @@ describe('ActivitySequence focus and landmarks with a group', () => {
 describe('ActivitySequence seed contract', () => {
   const shuffledGroup: ItemGroup = { ...passageGroup, shuffle: 'within-group' };
 
-  it.each([
-    'exam',
-    'review',
-  ] as const)('throws in %s mode when shuffling without a shuffleSeed', (renderMode) => {
-    // An order nobody can reproduce cannot be reconciled with the attempt the
-    // server recorded. Fail before the learner sits the paper.
-    expect(() =>
-      render(<ActivitySequence activities={[shuffledGroup]} renderMode={renderMode} />),
-    ).toThrow(/requires a `shuffleSeed`/);
-  });
+  it.each(['exam', 'review'] as const)(
+    'throws in %s mode when shuffling without a shuffleSeed',
+    (renderMode) => {
+      // An order nobody can reproduce cannot be reconciled with the attempt the
+      // server recorded. Fail before the learner sits the paper.
+      expect(() =>
+        render(<ActivitySequence activities={[shuffledGroup]} renderMode={renderMode} />),
+      ).toThrow(/requires a `shuffleSeed`/);
+    },
+  );
 
   it('accepts a seed in exam mode', () => {
     render(

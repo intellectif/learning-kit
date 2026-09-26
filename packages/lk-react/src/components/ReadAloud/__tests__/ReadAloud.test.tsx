@@ -1018,103 +1018,106 @@ describe('<ReadAloud> events and lifecycle', () => {
       'nothing, as its redacted projection',
       (item: ReadAloudData): Renderable<ReadAloudData> => asRenderable<ReadAloudData>(redact(item)),
     ],
-  ] as const)('keeps the take, the budget and the grade in flight when the host changes %s (C3)', async (_change, rebuild) => {
-    // Measured before the fix: reset on the IDENTITY of `data` threw a grade
-    // still being assessed away and refunded the take budget whenever a host
-    // handed the component a new object — which `redact()` does on every call,
-    // and `activities={raw.map(redact)}` on every render. Nothing about what
-    // the learner reads changed, so nothing about the take may.
-    const user = userEvent.setup();
-    const onComplete = vi.fn();
-    let settle: (result: ReadAloudAssessResult) => void = () => {};
-    const binding: RecordingBinding = {
-      ...storeOnly(),
-      assess: () =>
-        new Promise<ReadAloudAssessResult>((resolve) => {
-          settle = resolve;
-        }),
-    };
-    const view = render(
-      <ReadAloud data={data} recordingBinding={binding} onComplete={onComplete} />,
-    );
-    await makeTake(user);
-    await user.click(submit());
-    await flush();
-    expect(screen.getByText('Checking your pronunciation…')).toBeInTheDocument();
-
-    view.rerender(
-      <ReadAloud data={rebuild(data)} recordingBinding={binding} onComplete={onComplete} />,
-    );
-    await act(async () => {
-      settle({ status: 'graded', assessment, grade });
-    });
-    await flush();
-
-    expect(onComplete).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('2 of 3 recordings left')).toBeInTheDocument();
-    expect(record()).toHaveTextContent('Record again');
-  });
-
-  it.each([
-    'practice',
-    'exam',
-  ] as const)('allows one take at maxTakes 1 in %s when the host rebuilds the item on every render (C3)', async (renderMode) => {
-    // The regression as a host meets it: an item passed through `redact()` in
-    // render, and a submit saved into state. Before the fix the save re-rendered
-    // the host, the component reset, and a `maxTakes: 1` exam took a second take.
-    const user = userEvent.setup();
-    const onSubmit = vi.fn();
-    const onComplete = vi.fn();
-    const oneTake: ReadAloudData = {
-      ...data,
-      recording: { maxSeconds: 20, minSeconds: 1, maxTakes: 1 },
-    };
-    let settle: (result: ReadAloudAssessResult) => void = () => {};
-    const binding: RecordingBinding = {
-      ...storeOnly(),
-      assess: () =>
-        new Promise<ReadAloudAssessResult>((resolve) => {
-          settle = resolve;
-        }),
-    };
-    function Host() {
-      const [saved, setSaved] = useState(0);
-      return (
-        <>
-          <output>{saved}</output>
-          <ReadAloud
-            data={asRenderable<ReadAloudData>(redact(oneTake))}
-            renderMode={renderMode}
-            recordingBinding={binding}
-            onComplete={onComplete}
-            onSubmit={(response) => {
-              onSubmit(response);
-              setSaved((count) => count + 1);
-            }}
-          />
-        </>
+  ] as const)(
+    'keeps the take, the budget and the grade in flight when the host changes %s (C3)',
+    async (_change, rebuild) => {
+      // Measured before the fix: reset on the IDENTITY of `data` threw a grade
+      // still being assessed away and refunded the take budget whenever a host
+      // handed the component a new object — which `redact()` does on every call,
+      // and `activities={raw.map(redact)}` on every render. Nothing about what
+      // the learner reads changed, so nothing about the take may.
+      const user = userEvent.setup();
+      const onComplete = vi.fn();
+      let settle: (result: ReadAloudAssessResult) => void = () => {};
+      const binding: RecordingBinding = {
+        ...storeOnly(),
+        assess: () =>
+          new Promise<ReadAloudAssessResult>((resolve) => {
+            settle = resolve;
+          }),
+      };
+      const view = render(
+        <ReadAloud data={data} recordingBinding={binding} onComplete={onComplete} />,
       );
-    }
-    render(<Host />);
+      await makeTake(user);
+      await user.click(submit());
+      await flush();
+      expect(screen.getByText('Checking your pronunciation…')).toBeInTheDocument();
 
-    await makeTake(user);
-    await user.click(submit());
-    await flush();
-    await act(async () => {
-      settle({ status: 'graded', assessment, grade });
-    });
-    await flush();
+      view.rerender(
+        <ReadAloud data={rebuild(data)} recordingBinding={binding} onComplete={onComplete} />,
+      );
+      await act(async () => {
+        settle({ status: 'graded', assessment, grade });
+      });
+      await flush();
 
-    expect(onSubmit).toHaveBeenCalledTimes(1);
-    if (renderMode === 'practice') {
       expect(onComplete).toHaveBeenCalledTimes(1);
-      expect(screen.getByText('0 of 1 recording left')).toBeInTheDocument();
-      expect(record()).toHaveAttribute('aria-disabled', 'true');
-    } else {
-      expect(screen.queryByRole('button', { name: /^Record/ })).toBeNull();
-      expect(screen.getByText('Answer submitted.')).toBeInTheDocument();
-    }
-  });
+      expect(screen.getByText('2 of 3 recordings left')).toBeInTheDocument();
+      expect(record()).toHaveTextContent('Record again');
+    },
+  );
+
+  it.each(['practice', 'exam'] as const)(
+    'allows one take at maxTakes 1 in %s when the host rebuilds the item on every render (C3)',
+    async (renderMode) => {
+      // The regression as a host meets it: an item passed through `redact()` in
+      // render, and a submit saved into state. Before the fix the save re-rendered
+      // the host, the component reset, and a `maxTakes: 1` exam took a second take.
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      const onComplete = vi.fn();
+      const oneTake: ReadAloudData = {
+        ...data,
+        recording: { maxSeconds: 20, minSeconds: 1, maxTakes: 1 },
+      };
+      let settle: (result: ReadAloudAssessResult) => void = () => {};
+      const binding: RecordingBinding = {
+        ...storeOnly(),
+        assess: () =>
+          new Promise<ReadAloudAssessResult>((resolve) => {
+            settle = resolve;
+          }),
+      };
+      function Host() {
+        const [saved, setSaved] = useState(0);
+        return (
+          <>
+            <output>{saved}</output>
+            <ReadAloud
+              data={asRenderable<ReadAloudData>(redact(oneTake))}
+              renderMode={renderMode}
+              recordingBinding={binding}
+              onComplete={onComplete}
+              onSubmit={(response) => {
+                onSubmit(response);
+                setSaved((count) => count + 1);
+              }}
+            />
+          </>
+        );
+      }
+      render(<Host />);
+
+      await makeTake(user);
+      await user.click(submit());
+      await flush();
+      await act(async () => {
+        settle({ status: 'graded', assessment, grade });
+      });
+      await flush();
+
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      if (renderMode === 'practice') {
+        expect(onComplete).toHaveBeenCalledTimes(1);
+        expect(screen.getByText('0 of 1 recording left')).toBeInTheDocument();
+        expect(record()).toHaveAttribute('aria-disabled', 'true');
+      } else {
+        expect(screen.queryByRole('button', { name: /^Record/ })).toBeNull();
+        expect(screen.getByText('Answer submitted.')).toBeInTheDocument();
+      }
+    },
+  );
 
   it('reports nothing once it has been detached, and nothing for the item it has left', async () => {
     const user = userEvent.setup();
@@ -1692,53 +1695,53 @@ describe('<ReadAloud> and a budgeted model recording during a take (C8)', () => 
     onPlayConsumed,
   });
 
-  it.each([
-    'practice',
-    'exam',
-  ] as const)('charges no play for a press, a media key or a confirmation while the learner records (%s)', async (renderMode) => {
-    // The F6 guard silenced a model started mid-take — after the transport had
-    // charged the play. A learner on a two-play listening item lost one they
-    // never heard, with no message. Refused before the charge instead.
-    stubMediaElement();
-    const user = userEvent.setup();
-    const onPlayConsumed = vi.fn(() => undefined);
-    render(
-      <ReadAloud
-        data={budgeted(2)}
-        renderMode={renderMode}
-        recordingBinding={storeOnly()}
-        mediaBudget={bindingFor(onPlayConsumed)}
-      />,
-    );
-    const model = screen.getByRole('group', { name: 'Model recording' });
-    const element = model.querySelector('audio') as HTMLAudioElement;
-    await user.click(record());
-    await flush();
-
-    const play = within(model).getByRole('button', { name: 'Play' });
-    expect(play).toHaveAttribute('aria-disabled', 'true');
-    await user.click(play);
-    // A hardware media key or a script starts the element without the button.
-    await act(async () => {
-      await element.play();
-    });
-    expect(onPlayConsumed).not.toHaveBeenCalled();
-    expect(element.paused).toBe(true);
-    expect(within(model).getByText('2 of 2 plays remaining')).toBeInTheDocument();
-
-    act(() => {
-      (harness as SpeechCaptureHarness).pushLevel(
-        0.5,
-        (harness as SpeechCaptureHarness).sampleRate * 2,
+  it.each(['practice', 'exam'] as const)(
+    'charges no play for a press, a media key or a confirmation while the learner records (%s)',
+    async (renderMode) => {
+      // The F6 guard silenced a model started mid-take — after the transport had
+      // charged the play. A learner on a two-play listening item lost one they
+      // never heard, with no message. Refused before the charge instead.
+      stubMediaElement();
+      const user = userEvent.setup();
+      const onPlayConsumed = vi.fn(() => undefined);
+      render(
+        <ReadAloud
+          data={budgeted(2)}
+          renderMode={renderMode}
+          recordingBinding={storeOnly()}
+          mediaBudget={bindingFor(onPlayConsumed)}
+        />,
       );
-    });
-    await user.click(screen.getByRole('button', { name: 'Stop recording' }));
+      const model = screen.getByRole('group', { name: 'Model recording' });
+      const element = model.querySelector('audio') as HTMLAudioElement;
+      await user.click(record());
+      await flush();
 
-    // Once the take is over, a press is a play again, charged once.
-    await user.click(within(model).getByRole('button', { name: 'Play' }));
-    expect(onPlayConsumed).toHaveBeenCalledTimes(1);
-    expect(within(model).getByText('1 of 2 plays remaining')).toBeInTheDocument();
-  });
+      const play = within(model).getByRole('button', { name: 'Play' });
+      expect(play).toHaveAttribute('aria-disabled', 'true');
+      await user.click(play);
+      // A hardware media key or a script starts the element without the button.
+      await act(async () => {
+        await element.play();
+      });
+      expect(onPlayConsumed).not.toHaveBeenCalled();
+      expect(element.paused).toBe(true);
+      expect(within(model).getByText('2 of 2 plays remaining')).toBeInTheDocument();
+
+      act(() => {
+        (harness as SpeechCaptureHarness).pushLevel(
+          0.5,
+          (harness as SpeechCaptureHarness).sampleRate * 2,
+        );
+      });
+      await user.click(screen.getByRole('button', { name: 'Stop recording' }));
+
+      // Once the take is over, a press is a play again, charged once.
+      await user.click(within(model).getByRole('button', { name: 'Play' }));
+      expect(onPlayConsumed).toHaveBeenCalledTimes(1);
+      expect(within(model).getByText('1 of 2 plays remaining')).toBeInTheDocument();
+    },
+  );
 
   it('charges nothing for a last-play confirmation that was left open when the take began', async () => {
     // The confirmation calls straight into the charge, past the checks the
@@ -1787,21 +1790,24 @@ describe('<ReadAloud> focus after Try again (C8)', () => {
           .mockResolvedValue({ status: 'graded', assessment, grade }),
       }),
     ],
-  ])('moves focus to the submit it retries, never to the page body, after %s', async (_, binding) => {
-    const user = userEvent.setup();
-    render(<ReadAloud data={data} recordingBinding={binding()} />);
-    await makeTake(user);
-    await user.click(submit());
-    await flush();
+  ])(
+    'moves focus to the submit it retries, never to the page body, after %s',
+    async (_, binding) => {
+      const user = userEvent.setup();
+      render(<ReadAloud data={data} recordingBinding={binding()} />);
+      await makeTake(user);
+      await user.click(submit());
+      await flush();
 
-    const retry = screen.getByRole('button', { name: 'Try again' });
-    retry.focus();
-    await user.keyboard('{Enter}');
-    expect(document.activeElement).toBe(submit());
-    await flush();
-    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
-    expect(document.activeElement).toBe(submit());
-  });
+      const retry = screen.getByRole('button', { name: 'Try again' });
+      retry.focus();
+      await user.keyboard('{Enter}');
+      expect(document.activeElement).toBe(submit());
+      await flush();
+      expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+      expect(document.activeElement).toBe(submit());
+    },
+  );
 });
 
 describe('<ReadAloud> bounds a server stored (C8)', () => {

@@ -43,20 +43,20 @@ const optionOrder = (): string =>
     .join(',');
 
 describe('ActivitySequence seed guard — an item that shuffles its own options', () => {
-  it.each([
-    'exam',
-    'review',
-  ] as const)('throws in %s mode when an item shuffles and no shuffleSeed is given', (renderMode) => {
-    expect(() =>
-      render(
-        <ActivitySequence
-          activities={[shufflingItem()]}
-          renderMode={renderMode}
-          onSubmit={vi.fn()}
-        />,
-      ),
-    ).toThrow(/shuffleSeed/);
-  });
+  it.each(['exam', 'review'] as const)(
+    'throws in %s mode when an item shuffles and no shuffleSeed is given',
+    (renderMode) => {
+      expect(() =>
+        render(
+          <ActivitySequence
+            activities={[shufflingItem()]}
+            renderMode={renderMode}
+            onSubmit={vi.fn()}
+          />,
+        ),
+      ).toThrow(/shuffleSeed/);
+    },
+  );
 
   // Here the item is the ONLY shuffle, so a message naming just the sequence's
   // own causes (`shuffle="entries"`, `within-group`) sends the reader looking

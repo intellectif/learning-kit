@@ -362,80 +362,79 @@ describe('<ActivitySequence> completion with a read-aloud (D1)', () => {
     // not a number is not an `ActivityResult` — so no `onComplete` says it
     // ended. A wait released only by a grade would hold this set for good.
     { settles: 'graded with no usable score', kinds: ['scored', 'responded'], retryable: false },
-  ] as const)('waits for a grade in flight when the read-aloud fills the set last, and reports once when it settles $settles (F13)', async ({
-    settles,
-    kinds,
-    retryable,
-  }) => {
-    // The read-aloud is the LAST slot to be filled, and its assessment is still
-    // running when it is. Reporting the set there handed `onFinished` the raw
-    // `responded` placeholder, and the grade that landed a moment later could
-    // never reach it — the one whole-set report a mixed set gets carried no
-    // score for the question that had one. So the report waits for the grade
-    // the pager KNOWS is in flight, and every way an assessment can end
-    // releases it: a grade puts the score in place, and a take that came back
-    // with none reports the placeholder, exactly as D1 requires.
-    const user = userEvent.setup();
-    const onFinished = vi.fn<(items: SequenceItemOutcome[]) => void>();
-    const onComplete = vi.fn<(results: ActivityResult[]) => void>();
-    const onActivityComplete = vi.fn();
-    const held = deferred<ReadAloudAssessResult>();
+  ] as const)(
+    'waits for a grade in flight when the read-aloud fills the set last, and reports once when it settles $settles (F13)',
+    async ({ settles, kinds, retryable }) => {
+      // The read-aloud is the LAST slot to be filled, and its assessment is still
+      // running when it is. Reporting the set there handed `onFinished` the raw
+      // `responded` placeholder, and the grade that landed a moment later could
+      // never reach it — the one whole-set report a mixed set gets carried no
+      // score for the question that had one. So the report waits for the grade
+      // the pager KNOWS is in flight, and every way an assessment can end
+      // releases it: a grade puts the score in place, and a take that came back
+      // with none reports the placeholder, exactly as D1 requires.
+      const user = userEvent.setup();
+      const onFinished = vi.fn<(items: SequenceItemOutcome[]) => void>();
+      const onComplete = vi.fn<(results: ActivityResult[]) => void>();
+      const onActivityComplete = vi.fn();
+      const held = deferred<ReadAloudAssessResult>();
 
-    render(
-      <ActivitySequence
-        activities={[mc('q1', 'Q one?'), readAloud('ra1', 'Read it')]}
-        recordingBinding={bindingThat(() => held.promise)}
-        onFinished={onFinished}
-        onComplete={onComplete}
-        onActivityComplete={onActivityComplete}
-      />,
-    );
+      render(
+        <ActivitySequence
+          activities={[mc('q1', 'Q one?'), readAloud('ra1', 'Read it')]}
+          recordingBinding={bindingThat(() => held.promise)}
+          onFinished={onFinished}
+          onComplete={onComplete}
+          onActivityComplete={onActivityComplete}
+        />,
+      );
 
-    await answerMultipleChoice(user);
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    await speakAndSubmit(user);
+      await answerMultipleChoice(user);
+      await user.click(screen.getByRole('button', { name: 'Next' }));
+      await speakAndSubmit(user);
 
-    expect(onFinished).not.toHaveBeenCalled();
-    expect(onComplete).not.toHaveBeenCalled();
-
-    if (settles === 'graded') {
-      held.resolve(graded);
-    } else if (settles === 'graded with no usable score') {
-      held.resolve({ ...graded, grade: { ...graded.grade, score: Number.NaN } });
-    } else if (settles === 'unscorable') {
-      held.resolve({ status: 'unscorable', code: 'no_speech' });
-    } else if (settles === 'failed') {
-      held.resolve({ status: 'failed', retryable: false });
-    } else if (settles === 'failed, retryable') {
-      held.resolve({ status: 'failed', retryable: true });
-    } else {
-      held.reject(new Error('assessor unreachable'));
-    }
-    await flush();
-
-    if (retryable) {
-      // "Try again" is on screen and may yet grade the take, so the set is not
-      // reported; leaving the question is what gives the retry up.
-      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
       expect(onFinished).not.toHaveBeenCalled();
-      await user.click(screen.getByRole('button', { name: 'Previous' }));
-    }
-
-    expect(onFinished).toHaveBeenCalledTimes(1);
-    const items = onFinished.mock.calls[0]?.[0] ?? [];
-    expect(items.map((item) => item.kind)).toEqual(kinds);
-    if (settles === 'graded') {
-      const spoken = items[1];
-      expect(spoken?.kind === 'scored' ? spoken.result.score : null).toBe(0.88);
-      expect(onActivityComplete).toHaveBeenCalledTimes(2);
-      expect(onActivityComplete.mock.calls[1]?.[2]).toBe('1');
-      expect(onComplete).toHaveBeenCalledTimes(1);
-      expect(onComplete.mock.calls[0]?.[0]?.map((result) => result.score)).toEqual([1, 0.88]);
-    } else {
-      expect(onActivityComplete).toHaveBeenCalledTimes(1);
       expect(onComplete).not.toHaveBeenCalled();
-    }
-  });
+
+      if (settles === 'graded') {
+        held.resolve(graded);
+      } else if (settles === 'graded with no usable score') {
+        held.resolve({ ...graded, grade: { ...graded.grade, score: Number.NaN } });
+      } else if (settles === 'unscorable') {
+        held.resolve({ status: 'unscorable', code: 'no_speech' });
+      } else if (settles === 'failed') {
+        held.resolve({ status: 'failed', retryable: false });
+      } else if (settles === 'failed, retryable') {
+        held.resolve({ status: 'failed', retryable: true });
+      } else {
+        held.reject(new Error('assessor unreachable'));
+      }
+      await flush();
+
+      if (retryable) {
+        // "Try again" is on screen and may yet grade the take, so the set is not
+        // reported; leaving the question is what gives the retry up.
+        expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+        expect(onFinished).not.toHaveBeenCalled();
+        await user.click(screen.getByRole('button', { name: 'Previous' }));
+      }
+
+      expect(onFinished).toHaveBeenCalledTimes(1);
+      const items = onFinished.mock.calls[0]?.[0] ?? [];
+      expect(items.map((item) => item.kind)).toEqual(kinds);
+      if (settles === 'graded') {
+        const spoken = items[1];
+        expect(spoken?.kind === 'scored' ? spoken.result.score : null).toBe(0.88);
+        expect(onActivityComplete).toHaveBeenCalledTimes(2);
+        expect(onActivityComplete.mock.calls[1]?.[2]).toBe('1');
+        expect(onComplete).toHaveBeenCalledTimes(1);
+        expect(onComplete.mock.calls[0]?.[0]?.map((result) => result.score)).toEqual([1, 0.88]);
+      } else {
+        expect(onActivityComplete).toHaveBeenCalledTimes(1);
+        expect(onComplete).not.toHaveBeenCalled();
+      }
+    },
+  );
 
   it('waits again for an assessment the learner retries (F13)', async () => {
     // Released once — the first assessment failed and said so — and then put
@@ -542,34 +541,34 @@ describe('<ActivitySequence> first-outcome-wins is otherwise untouched', () => {
     expect(onFinished.mock.calls[0]?.[0]?.[0]?.kind).toBe('responded');
   });
 
-  it.each([
-    'multiple-choice',
-    'read-aloud',
-  ] as const)('keeps a restored outcome when a resumed %s slot submits and scores anyway', async (type) => {
-    // `restored` is seeded at mount for a slot the learner had already
-    // submitted. It is not a placeholder and nothing upgrades it — a resumed
-    // attempt must not be re-reported as if it had just been sat. The
-    // read-aloud case is the one that could regress: a submit marks its slot
-    // provisional even when the submit itself is refused (F10), so a `restored`
-    // slot has to be excluded by name or the score that follows would replace it.
-    const user = userEvent.setup();
-    const onFinished = vi.fn<(items: SequenceItemOutcome[]) => void>();
-    const activity = type === 'read-aloud' ? readAloud('ra1', 'Read it') : mc('q1', 'Q one?');
-    render(
-      <ActivitySequence
-        activities={[activity]}
-        submittedSlotIds={['0']}
-        renderers={{ [type]: SubmitsThenScores }}
-        onFinished={onFinished}
-      />,
-    );
+  it.each(['multiple-choice', 'read-aloud'] as const)(
+    'keeps a restored outcome when a resumed %s slot submits and scores anyway',
+    async (type) => {
+      // `restored` is seeded at mount for a slot the learner had already
+      // submitted. It is not a placeholder and nothing upgrades it — a resumed
+      // attempt must not be re-reported as if it had just been sat. The
+      // read-aloud case is the one that could regress: a submit marks its slot
+      // provisional even when the submit itself is refused (F10), so a `restored`
+      // slot has to be excluded by name or the score that follows would replace it.
+      const user = userEvent.setup();
+      const onFinished = vi.fn<(items: SequenceItemOutcome[]) => void>();
+      const activity = type === 'read-aloud' ? readAloud('ra1', 'Read it') : mc('q1', 'Q one?');
+      render(
+        <ActivitySequence
+          activities={[activity]}
+          submittedSlotIds={['0']}
+          renderers={{ [type]: SubmitsThenScores }}
+          onFinished={onFinished}
+        />,
+      );
 
-    // Seeding fires nothing; the set was already this far along at mount.
-    expect(onFinished).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: `Finish ${activity.id}` }));
+      // Seeding fires nothing; the set was already this far along at mount.
+      expect(onFinished).not.toHaveBeenCalled();
+      await user.click(screen.getByRole('button', { name: `Finish ${activity.id}` }));
 
-    expect(onFinished).not.toHaveBeenCalled();
-  });
+      expect(onFinished).not.toHaveBeenCalled();
+    },
+  );
 
   it('keeps the first score when a practice renderer scores twice', async () => {
     const user = userEvent.setup();
@@ -738,31 +737,30 @@ describe('<ActivitySequence> a practice learner who records again (F10, F15)', (
     // take-1's 40% reported a score beside a response it does not grade — the
     // one pairing a set's report must never make.
     { verdicts: [0.4, 'unscorable'], kind: 'responded', holds: 'take-2' },
-  ] as const)('reports what two takes judged $verdicts leave in the set, when it finishes after them', async ({
-    verdicts,
-    kind,
-    holds,
-  }) => {
-    const user = userEvent.setup();
-    const onFinished = vi.fn<(items: SequenceItemOutcome[]) => void>();
-    render(
-      <ActivitySequence
-        activities={[readAloud('ra1', 'Read it'), mc('q1', 'Q one?')]}
-        recordingBinding={bindingGrading(verdicts)}
-        onFinished={onFinished}
-      />,
-    );
+  ] as const)(
+    'reports what two takes judged $verdicts leave in the set, when it finishes after them',
+    async ({ verdicts, kind, holds }) => {
+      const user = userEvent.setup();
+      const onFinished = vi.fn<(items: SequenceItemOutcome[]) => void>();
+      render(
+        <ActivitySequence
+          activities={[readAloud('ra1', 'Read it'), mc('q1', 'Q one?')]}
+          recordingBinding={bindingGrading(verdicts)}
+          onFinished={onFinished}
+        />,
+      );
 
-    await speakAndSubmit(user);
-    await speakAndSubmit(user);
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    await answerMultipleChoice(user);
+      await speakAndSubmit(user);
+      await speakAndSubmit(user);
+      await user.click(screen.getByRole('button', { name: 'Next' }));
+      await answerMultipleChoice(user);
 
-    expect(onFinished).toHaveBeenCalledTimes(1);
-    const spoken = onFinished.mock.calls[0]?.[0]?.[0];
-    expect(spoken?.kind).toBe(kind);
-    expect(heldBy(spoken)).toBe(holds);
-  });
+      expect(onFinished).toHaveBeenCalledTimes(1);
+      const spoken = onFinished.mock.calls[0]?.[0]?.[0];
+      expect(spoken?.kind).toBe(kind);
+      expect(heldBy(spoken)).toBe(holds);
+    },
+  );
 
   it('reports a fully scored set to onComplete once, however many of its takes are graded (F15)', async () => {
     // The only path that reaches the `onComplete` latch a second time: a set
@@ -850,44 +848,44 @@ describe('<ActivitySequence> an outcome that settles after the paper changed (F1
     };
   }
 
-  it.each([
-    'read-aloud',
-    'multiple-choice',
-  ] as const)('refuses an outcome from a %s renderer that lands in the paper that replaced it', async (type) => {
-    // Measured before the fix: the new paper was reported finished and fully
-    // scored though nobody had answered it, and `onActivityComplete` carries no
-    // activity id, so a consumer could not tell. The renderer is the consumer's,
-    // so no guard inside a bundled component can reach this — only the pager,
-    // which knows what is at that position NOW.
-    const user = userEvent.setup();
-    const score = deferred<number>();
-    const onActivityComplete = vi.fn();
-    const onFinished = vi.fn();
-    const onComplete = vi.fn();
-    const renderers = { [type]: gradingWhen(score.promise) };
-    const item = (id: string) =>
-      type === 'read-aloud' ? readAloud(id, `Read ${id}`) : mc(id, `${id}?`);
-    const pager = (id: string) => (
-      <ActivitySequence
-        activities={[item(id)]}
-        renderers={renderers}
-        onActivityComplete={onActivityComplete}
-        onFinished={onFinished}
-        onComplete={onComplete}
-      />
-    );
-    const { rerender } = render(pager('first'));
+  it.each(['read-aloud', 'multiple-choice'] as const)(
+    'refuses an outcome from a %s renderer that lands in the paper that replaced it',
+    async (type) => {
+      // Measured before the fix: the new paper was reported finished and fully
+      // scored though nobody had answered it, and `onActivityComplete` carries no
+      // activity id, so a consumer could not tell. The renderer is the consumer's,
+      // so no guard inside a bundled component can reach this — only the pager,
+      // which knows what is at that position NOW.
+      const user = userEvent.setup();
+      const score = deferred<number>();
+      const onActivityComplete = vi.fn();
+      const onFinished = vi.fn();
+      const onComplete = vi.fn();
+      const renderers = { [type]: gradingWhen(score.promise) };
+      const item = (id: string) =>
+        type === 'read-aloud' ? readAloud(id, `Read ${id}`) : mc(id, `${id}?`);
+      const pager = (id: string) => (
+        <ActivitySequence
+          activities={[item(id)]}
+          renderers={renderers}
+          onActivityComplete={onActivityComplete}
+          onFinished={onFinished}
+          onComplete={onComplete}
+        />
+      );
+      const { rerender } = render(pager('first'));
 
-    await user.click(screen.getByRole('button', { name: 'Answer first' }));
-    rerender(pager('second'));
-    score.resolve(1);
-    await flush();
+      await user.click(screen.getByRole('button', { name: 'Answer first' }));
+      rerender(pager('second'));
+      score.resolve(1);
+      await flush();
 
-    expect(onActivityComplete).not.toHaveBeenCalled();
-    expect(onFinished).not.toHaveBeenCalled();
-    expect(onComplete).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Answer second' })).toBeInTheDocument();
-  });
+      expect(onActivityComplete).not.toHaveBeenCalled();
+      expect(onFinished).not.toHaveBeenCalled();
+      expect(onComplete).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Answer second' })).toBeInTheDocument();
+    },
+  );
 
   it('still takes that outcome when the paper is only re-created, not changed', async () => {
     // The guard compares identity, not array references: a parent that builds
@@ -1039,60 +1037,63 @@ describe('<ActivitySequence> a result from a paper that shares the read-aloud (C
   it.each([
     'a new paper that shares the read-aloud',
     'the same paper after a loading blip',
-  ] as const)("does not let the old paper's late grade report %s while its own take is assessed", async (swap) => {
-    // Measured before the fix: the old grade released the new paper's wait, so
-    // `onFinished` reported B's read-aloud as ungraded while B's own take was
-    // still being assessed — and B's grade then reached everything but it.
-    const user = userEvent.setup();
-    const onFinished = vi.fn<(items: SequenceItemOutcome[]) => void>();
-    const onSubmit = vi.fn();
-    const { binding, uploads, assessments, gradeOf } = heldBinding();
-    const host = renderSwappable(binding, { onFinished, onSubmit });
+  ] as const)(
+    "does not let the old paper's late grade report %s while its own take is assessed",
+    async (swap) => {
+      // Measured before the fix: the old grade released the new paper's wait, so
+      // `onFinished` reported B's read-aloud as ungraded while B's own take was
+      // still being assessed — and B's grade then reached everything but it.
+      const user = userEvent.setup();
+      const onFinished = vi.fn<(items: SequenceItemOutcome[]) => void>();
+      const onSubmit = vi.fn();
+      const { binding, uploads, assessments, gradeOf } = heldBinding();
+      const host = renderSwappable(binding, { onFinished, onSubmit });
 
-    await speakAndSubmit(user);
-    await act(async () => {
-      uploads[0]?.settle(true);
-    });
-    await flush();
-    if (swap === 'a new paper that shares the read-aloud') {
-      host.show(host.paperB);
-    } else {
-      host.show([]);
+      await speakAndSubmit(user);
+      await act(async () => {
+        uploads[0]?.settle(true);
+      });
       await flush();
-      host.show([...host.paperA]);
-    }
-    await flush();
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    await answerMultipleChoice(user);
-    await user.click(screen.getByRole('button', { name: 'Previous' }));
-    await speakAndSubmit(user);
-    await act(async () => {
-      uploads[1]?.settle(true);
-    });
-    await flush();
+      if (swap === 'a new paper that shares the read-aloud') {
+        host.show(host.paperB);
+      } else {
+        host.show([]);
+        await flush();
+        host.show([...host.paperA]);
+      }
+      await flush();
+      await user.click(screen.getByRole('button', { name: 'Next' }));
+      await answerMultipleChoice(user);
+      await user.click(screen.getByRole('button', { name: 'Previous' }));
+      await speakAndSubmit(user);
+      await act(async () => {
+        uploads[1]?.settle(true);
+      });
+      await flush();
 
-    await act(async () => {
-      assessments.get('take-1')?.resolve(gradeOf('take-1', 0.4));
-    });
-    await flush();
-    expect(onFinished).not.toHaveBeenCalled();
+      await act(async () => {
+        assessments.get('take-1')?.resolve(gradeOf('take-1', 0.4));
+      });
+      await flush();
+      expect(onFinished).not.toHaveBeenCalled();
 
-    await act(async () => {
-      assessments.get('take-2')?.resolve(gradeOf('take-2', 0.9));
-    });
-    await flush();
+      await act(async () => {
+        assessments.get('take-2')?.resolve(gradeOf('take-2', 0.9));
+      });
+      await flush();
 
-    expect(onFinished).toHaveBeenCalledTimes(1);
-    const spoken = onFinished.mock.calls[0]?.[0]?.[0];
-    expect(spoken?.kind).toBe('scored');
-    // The score and the answer it grades travel together.
-    expect(spoken?.kind === 'scored' ? spoken.result.score : null).toBe(0.9);
-    expect(
-      spoken?.kind === 'scored'
-        ? (spoken.response as ReadAloudLearnerResponse | undefined)?.recording?.key
-        : null,
-    ).toBe('take-2');
-  });
+      expect(onFinished).toHaveBeenCalledTimes(1);
+      const spoken = onFinished.mock.calls[0]?.[0]?.[0];
+      expect(spoken?.kind).toBe('scored');
+      // The score and the answer it grades travel together.
+      expect(spoken?.kind === 'scored' ? spoken.result.score : null).toBe(0.9);
+      expect(
+        spoken?.kind === 'scored'
+          ? (spoken.response as ReadAloudLearnerResponse | undefined)?.recording?.key
+          : null,
+      ).toBe('take-2');
+    },
+  );
 });
 
 /**
@@ -1105,56 +1106,56 @@ describe('<ActivitySequence> a host that rebuilds its read-aloud on every render
     { ...readAloud('ra1', 'Read it'), recording: { maxSeconds: 20, minSeconds: 1, maxTakes: 1 } },
   ];
 
-  it.each([
-    'practice',
-    'exam',
-  ] as const)('allows one take at maxTakes 1 in %s, and lands the grade in flight', async (mode) => {
-    // Measured before the fix, in both modes: the host's re-render after
-    // `onSubmit` handed the slot a new object, the component took that for a
-    // different reading, threw the grade in flight away and refunded the budget
-    // — "1 of 1 recording left", and a second take accepted.
-    const user = userEvent.setup();
-    const onActivityComplete = vi.fn();
-    const onSubmit = vi.fn();
-    const held = deferred<ReadAloudAssessResult>();
-    function Host() {
-      const [saved, setSaved] = useState(0);
-      return (
-        <>
-          <output>{saved}</output>
-          <ActivitySequence
-            activities={asRenderableSequence(raw.map((item) => redact(item)))}
-            renderMode={mode}
-            recordingBinding={bindingThat(() => held.promise)}
-            onActivityComplete={onActivityComplete}
-            onSubmit={(response) => {
-              onSubmit(response);
-              setSaved((count) => count + 1);
-            }}
-          />
-        </>
-      );
-    }
-    render(<Host />);
+  it.each(['practice', 'exam'] as const)(
+    'allows one take at maxTakes 1 in %s, and lands the grade in flight',
+    async (mode) => {
+      // Measured before the fix, in both modes: the host's re-render after
+      // `onSubmit` handed the slot a new object, the component took that for a
+      // different reading, threw the grade in flight away and refunded the budget
+      // — "1 of 1 recording left", and a second take accepted.
+      const user = userEvent.setup();
+      const onActivityComplete = vi.fn();
+      const onSubmit = vi.fn();
+      const held = deferred<ReadAloudAssessResult>();
+      function Host() {
+        const [saved, setSaved] = useState(0);
+        return (
+          <>
+            <output>{saved}</output>
+            <ActivitySequence
+              activities={asRenderableSequence(raw.map((item) => redact(item)))}
+              renderMode={mode}
+              recordingBinding={bindingThat(() => held.promise)}
+              onActivityComplete={onActivityComplete}
+              onSubmit={(response) => {
+                onSubmit(response);
+                setSaved((count) => count + 1);
+              }}
+            />
+          </>
+        );
+      }
+      render(<Host />);
 
-    await speakAndSubmit(user);
-    held.resolve(graded);
-    await flush();
+      await speakAndSubmit(user);
+      held.resolve(graded);
+      await flush();
 
-    expect(onSubmit).toHaveBeenCalledTimes(1);
-    if (mode === 'practice') {
-      expect(onActivityComplete).toHaveBeenCalledTimes(1);
-      expect(screen.getByText('0 of 1 recording left')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Record again' })).toHaveAttribute(
-        'aria-disabled',
-        'true',
-      );
-    } else {
-      // An exam answer is locked once handed in: no recorder to offer again.
-      expect(screen.queryByRole('button', { name: /^Record/ })).toBeNull();
-      expect(screen.getByText('Answer submitted.')).toBeInTheDocument();
-    }
-  });
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      if (mode === 'practice') {
+        expect(onActivityComplete).toHaveBeenCalledTimes(1);
+        expect(screen.getByText('0 of 1 recording left')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Record again' })).toHaveAttribute(
+          'aria-disabled',
+          'true',
+        );
+      } else {
+        // An exam answer is locked once handed in: no recorder to offer again.
+        expect(screen.queryByRole('button', { name: /^Record/ })).toBeNull();
+        expect(screen.getByText('Answer submitted.')).toBeInTheDocument();
+      }
+    },
+  );
 });
 
 describe('<ActivitySequence> a practice take that could not be stored (F14)', () => {
@@ -1252,80 +1253,79 @@ describe('<ActivitySequence> a practice take that could not be stored (F14)', ()
     // No grade follows here, so only the stored take itself can fill the slot —
     // the case that shows the retry's take is what the set reports.
     { retried: 'unscorable', kind: 'responded', holds: 'take-1' },
-  ] as const)('reports the take a retried upload stored, $retried', async ({
-    retried,
-    kind,
-    holds,
-  }) => {
-    const user = userEvent.setup();
-    const onFinished = vi.fn<(items: SequenceItemOutcome[]) => void>();
-    let attempts = 0;
-    render(
-      <ActivitySequence
-        activities={[readAloud('ra1', 'Read it'), mc('q1', 'Q one?')]}
-        recordingBinding={{
-          upload: async (take) => {
-            attempts += 1;
-            return attempts === 1 ? offline() : { key: 'take-1', mimeType: take.mimeType };
-          },
-          assess: async () =>
-            retried === 'graded' ? graded : { status: 'unscorable', code: 'no_speech' },
-        }}
-        onFinished={onFinished}
-      />,
-    );
+  ] as const)(
+    'reports the take a retried upload stored, $retried',
+    async ({ retried, kind, holds }) => {
+      const user = userEvent.setup();
+      const onFinished = vi.fn<(items: SequenceItemOutcome[]) => void>();
+      let attempts = 0;
+      render(
+        <ActivitySequence
+          activities={[readAloud('ra1', 'Read it'), mc('q1', 'Q one?')]}
+          recordingBinding={{
+            upload: async (take) => {
+              attempts += 1;
+              return attempts === 1 ? offline() : { key: 'take-1', mimeType: take.mimeType };
+            },
+            assess: async () =>
+              retried === 'graded' ? graded : { status: 'unscorable', code: 'no_speech' },
+          }}
+          onFinished={onFinished}
+        />,
+      );
 
-    await speakAndSubmit(user);
-    await user.click(screen.getByRole('button', { name: 'Try again' }));
-    await flush();
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    await answerMultipleChoice(user);
+      await speakAndSubmit(user);
+      await user.click(screen.getByRole('button', { name: 'Try again' }));
+      await flush();
+      await user.click(screen.getByRole('button', { name: 'Next' }));
+      await answerMultipleChoice(user);
 
-    expect(onFinished).toHaveBeenCalledTimes(1);
-    const spoken = onFinished.mock.calls[0]?.[0]?.[0];
-    expect(spoken?.kind).toBe(kind);
-    expect(heldBy(spoken)).toBe(holds);
-  });
+      expect(onFinished).toHaveBeenCalledTimes(1);
+      const spoken = onFinished.mock.calls[0]?.[0]?.[0];
+      expect(spoken?.kind).toBe(kind);
+      expect(heldBy(spoken)).toBe(holds);
+    },
+  );
 
   it.each([
     { first: 'graded', kind: 'scored' },
     { first: 'unscorable', kind: 'responded' },
-  ] as const)('never lets a failed upload replace a take that was stored and came back $first', async ({
-    first,
-    kind,
-  }) => {
-    // `unsubmitted` is for a slot with nothing in it. A take that WAS stored is
-    // the answer `onSubmit` last reported, graded or not, and a re-take that
-    // failed to upload — never reported — must not overwrite it.
-    const user = userEvent.setup();
-    const onFinished = vi.fn<(items: SequenceItemOutcome[]) => void>();
-    let attempts = 0;
-    render(
-      <ActivitySequence
-        activities={[readAloud('ra1', 'Read it'), mc('q1', 'Q one?')]}
-        recordingBinding={{
-          upload: async (take) => {
-            attempts += 1;
-            return attempts === 1 ? { key: 'take-1', mimeType: take.mimeType } : offline();
-          },
-          assess: async () =>
-            first === 'graded' ? graded : { status: 'unscorable', code: 'no_speech' },
-        }}
-        onFinished={onFinished}
-      />,
-    );
+  ] as const)(
+    'never lets a failed upload replace a take that was stored and came back $first',
+    async ({ first, kind }) => {
+      // `unsubmitted` is for a slot with nothing in it. A take that WAS stored is
+      // the answer `onSubmit` last reported, graded or not, and a re-take that
+      // failed to upload — never reported — must not overwrite it.
+      const user = userEvent.setup();
+      const onFinished = vi.fn<(items: SequenceItemOutcome[]) => void>();
+      let attempts = 0;
+      render(
+        <ActivitySequence
+          activities={[readAloud('ra1', 'Read it'), mc('q1', 'Q one?')]}
+          recordingBinding={{
+            upload: async (take) => {
+              attempts += 1;
+              return attempts === 1 ? { key: 'take-1', mimeType: take.mimeType } : offline();
+            },
+            assess: async () =>
+              first === 'graded' ? graded : { status: 'unscorable', code: 'no_speech' },
+          }}
+          onFinished={onFinished}
+        />,
+      );
 
-    await speakAndSubmit(user);
-    await speakAndSubmit(user);
-    expect(screen.getByText('Your recording could not be sent.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    await answerMultipleChoice(user);
+      await speakAndSubmit(user);
+      await speakAndSubmit(user);
+      expect(screen.getByText('Your recording could not be sent.')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Next' }));
+      await answerMultipleChoice(user);
 
-    expect(onFinished).toHaveBeenCalledTimes(1);
-    const spoken = onFinished.mock.calls[0]?.[0]?.[0];
-    expect(spoken?.kind).toBe(kind);
-    expect(heldBy(spoken)).toBe(kind === 'scored' ? 0.88 : 'take-1');
-  });
+      expect(onFinished).toHaveBeenCalledTimes(1);
+      const spoken = onFinished.mock.calls[0]?.[0]?.[0];
+      expect(spoken?.kind).toBe(kind);
+      expect(heldBy(spoken)).toBe(kind === 'scored' ? 0.88 : 'take-1');
+    },
+  );
 
   it('records nothing for a failed upload in an exam, where a blank is the learner’s decision', async () => {
     const user = userEvent.setup();

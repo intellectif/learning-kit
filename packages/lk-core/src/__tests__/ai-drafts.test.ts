@@ -98,6 +98,14 @@ const reading = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+/** `value`, or a failed test that names what was missing — never a TypeError a step later. */
+const present = <T>(value: T | null | undefined, what: string): T => {
+  if (value === null || value === undefined) {
+    throw new Error(`expected ${what}`);
+  }
+  return value;
+};
+
 const read = (checked: ReturnType<typeof checkAiDrafts>) => {
   if (!checked.ok) {
     throw new Error(checked.refusal);
@@ -185,8 +193,8 @@ describe('aiDraftsRequest', () => {
       ],
     });
     const itemOf = (request: AiDraftsRequest | null) =>
-      ((request?.shape.properties as Record<string, Record<string, unknown>>).drafts?.items ??
-        {}) as { required: string[]; properties: Record<string, unknown> };
+      ((present(request, 'a request').shape.properties as Record<string, Record<string, unknown>>)
+        .drafts?.items ?? {}) as { required: string[]; properties: Record<string, unknown> };
     const item = itemOf(built);
     expect(item.required).toContain('caption');
     expect(item.properties.caption).toMatchObject({ type: 'integer', minimum: 0 });
@@ -492,7 +500,9 @@ describe('checkAiDrafts', () => {
     ).drafts;
     expect(one?.draft).not.toHaveProperty('mode');
     expect(
-      (one?.draft.options as { isCorrect: boolean }[]).map((option) => option.isCorrect),
+      (present(one, 'the draft').draft.options as { isCorrect: boolean }[]).map(
+        (option) => option.isCorrect,
+      ),
     ).toEqual([false, false]);
     expect(one?.validation.issues.map((issue) => issue.code)).toEqual(
       expect.arrayContaining(['mc_mode_required', 'mc_correct_option_required']),
@@ -659,7 +669,12 @@ describe('aiDraftsRepairRequest', () => {
         path: ['gaps', '0', 'choices'],
       }),
     ]);
-    const drafts = (repair?.shape.properties as Record<string, Record<string, unknown>>).drafts;
+    const drafts = (
+      present(repair, 'a repair request').shape.properties as Record<
+        string,
+        Record<string, unknown>
+      >
+    ).drafts;
     expect([drafts?.minItems, drafts?.maxItems]).toEqual([2, 2]);
     expect(request).not.toHaveProperty('repair');
     expect(aiDraftsRepairRequest(request, [])).toBeNull();
@@ -763,9 +778,8 @@ describe('generateDrafts', () => {
       });
     const run = await generateDrafts({ request: ask(['multiple-choice']), port, newId: counter() });
     expect(port).toHaveBeenCalledTimes(2);
-    expect((port.mock.calls[1]?.[0] as AiDraftsRequest).repair?.map((one) => one.index)).toEqual([
-      1,
-    ]);
+    const repairCall = present(port.mock.calls[1]?.[0], 'a second call') as AiDraftsRequest;
+    expect(repairCall.repair?.map((one) => one.index)).toEqual([1]);
     expect(run.drafts.map((one) => [one.index, one.validation.status, one.draft.title])).toEqual([
       [0, 'complete', 'Maria’s town'],
       [1, 'complete', 'Fixed'],

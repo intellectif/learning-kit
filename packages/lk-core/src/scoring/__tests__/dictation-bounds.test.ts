@@ -605,63 +605,67 @@ describe('dictation — bounded on any input', () => {
   it.each([
     ['caption', 'captions', 'en', 'English'],
     ['subtitle', 'subtitles', 'es', 'Español'],
-  ] as const)('refuses a %s track on a group stimulus that a dictation plays, as it refuses captionsUrl', (_label, kind, srclang, label) => {
-    const track = { kind, src: `https://cdn.example/story.${srclang}.vtt`, srclang, label };
-    const group = (dictation: Record<string, unknown>) => ({
-      schemaVersion: '1.0',
-      type: 'item-group',
-      id: 'group',
-      title: 'Listen',
-      stimulus: {
-        id: 'stimulus',
-        kind: 'audio',
-        media: { type: 'audio', url: 'https://cdn.example/story.mp3', tracks: [track] },
-      },
-      items: [item(dictation)],
-    });
-    const played = group({});
+  ] as const)(
+    'refuses a %s track on a group stimulus that a dictation plays, as it refuses captionsUrl',
+    (_label, kind, srclang, label) => {
+      const track = { kind, src: `https://cdn.example/story.${srclang}.vtt`, srclang, label };
+      const group = (dictation: Record<string, unknown>) => ({
+        schemaVersion: '1.0',
+        type: 'item-group',
+        id: 'group',
+        title: 'Listen',
+        stimulus: {
+          id: 'stimulus',
+          kind: 'audio',
+          media: { type: 'audio', url: 'https://cdn.example/story.mp3', tracks: [track] },
+        },
+        items: [item(dictation)],
+      });
+      const played = group({});
 
-    // The same code and message as for captionsUrl, at the field that carries them.
-    const result = validateItemGroup(played);
-    expect(result.success ? [] : result.errors.map((error) => error.path.join('.'))).toEqual([
-      'stimulus.media.tracks',
-    ]);
-    expect(result.success ? '' : result.errors[0]?.message).toMatch(/captions are the answer/);
-    expect(
-      validateItemGroupDraft(played).issues.map((found) => [found.code, found.path.join('.')]),
-    ).toEqual([['dc_captions_not_allowed', 'stimulus.media.tracks']]);
+      // The same code and message as for captionsUrl, at the field that carries them.
+      const result = validateItemGroup(played);
+      expect(result.success ? [] : result.errors.map((error) => error.path.join('.'))).toEqual([
+        'stimulus.media.tracks',
+      ]);
+      expect(result.success ? '' : result.errors[0]?.message).toMatch(/captions are the answer/);
+      expect(
+        validateItemGroupDraft(played).issues.map((found) => [found.code, found.path.join('.')]),
+      ).toEqual([['dc_captions_not_allowed', 'stimulus.media.tracks']]);
 
-    // The exam path: redaction refuses to build the payload, and a payload
-    // built by hand is refused at the boundary.
-    // Loose on purpose: the fixture is content an author could store, typed or not.
-    expect(() => redactItemGroup(played as never)).toThrow(ActivitySchemaError);
-    const handBuilt = {
-      redacted: true,
-      schemaVersion: '1.0',
-      type: 'item-group',
-      id: 'group',
-      title: 'Listen',
-      stimulus: played.stimulus,
-      items: [redact(item({ media: { type: 'audio', url: 'https://cdn.example/s.mp3' } }))].map(
-        ({ media: _own, ...rest }) => rest,
-      ),
-    };
-    expect(() => assertRedactedItemGroup(handBuilt)).toThrow(ActivitySchemaError);
+      // The exam path: redaction refuses to build the payload, and a payload
+      // built by hand is refused at the boundary.
+      // Loose on purpose: the fixture is content an author could store, typed or not.
+      expect(() => redactItemGroup(played as never)).toThrow(ActivitySchemaError);
+      const handBuilt = {
+        redacted: true,
+        schemaVersion: '1.0',
+        type: 'item-group',
+        id: 'group',
+        title: 'Listen',
+        stimulus: played.stimulus,
+        items: [redact(item({ media: { type: 'audio', url: 'https://cdn.example/s.mp3' } }))].map(
+          ({ media: _own, ...rest }) => rest,
+        ),
+      };
+      expect(() => assertRedactedItemGroup(handBuilt)).toThrow(ActivitySchemaError);
 
-    // With both fields written, one refusal, at the path it has always had.
-    const both = group({});
-    (both.stimulus.media as Record<string, unknown>).captionsUrl = 'https://cdn.example/story.vtt';
-    const twice = validateItemGroup(both);
-    expect(twice.success ? [] : twice.errors.map((error) => error.path.join('.'))).toEqual([
-      'stimulus.media.captionsUrl',
-    ]);
+      // With both fields written, one refusal, at the path it has always had.
+      const both = group({});
+      (both.stimulus.media as Record<string, unknown>).captionsUrl =
+        'https://cdn.example/story.vtt';
+      const twice = validateItemGroup(both);
+      expect(twice.success ? [] : twice.errors.map((error) => error.path.join('.'))).toEqual([
+        'stimulus.media.captionsUrl',
+      ]);
 
-    // A dictation with its own recording does not play the captioned one.
-    expect(
-      validateItemGroup(group({ media: { type: 'audio', url: 'https://cdn.example/s.mp3' } }))
-        .success,
-    ).toBe(true);
-  });
+      // A dictation with its own recording does not play the captioned one.
+      expect(
+        validateItemGroup(group({ media: { type: 'audio', url: 'https://cdn.example/s.mp3' } }))
+          .success,
+      ).toBe(true);
+    },
+  );
 });
 
 describe('score() and evaluate() check the rounding option', () => {

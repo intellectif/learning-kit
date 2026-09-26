@@ -29,7 +29,7 @@
   "type": "module",
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
-    "@biomejs/biome": "^2.4.15",
+    "@biomejs/biome": "^2.5.14",
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "2.31.0",
     "@playwright/test": "^1.49.0",
