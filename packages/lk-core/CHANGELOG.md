@@ -1,5 +1,20 @@
 # @intellectif/lk-core
 
+## 1.2.0
+
+### Minor Changes
+
+- [#88](https://github.com/intellectif/learning-kit/pull/88) [`493dd06`](https://github.com/intellectif/learning-kit/commit/493dd0648a73c7f47d889683bc9f7f08d8a0acc9) Thanks [@diego28e](https://github.com/diego28e)! - **Assistants for authors**: an item critic, a model's review of an item, and drafts from a passage, a transcript or a video's captions.
+
+  **Action required:** none unless your code switches over `AiRefusal` without a `default` branch (new member `'contradicts-item'`) or reads `AiCheckCase.request` without narrowing on `feature` (new `'item-critique'` and `'draft-generation'` cases). Nothing runs until you call it, no grade changes, and there is no lk-react release: lk-react 23.1 works with it as it is. See https://github.com/intellectif/learning-kit/blob/main/docs/upgrading.md
+
+  - **The item critic:** `critiqueDraft(type, draft)`, `critiqueDrafts(entries)` for a question set and `critiqueItemGroupDraft(group)` for a testlet point out what a reviewer would on an item that may be perfectly valid — a title, hint or passage that prints the answer, two options that read the same, the right option much longer than the rest, "all of the above" under shuffle, a word bank with no distractor, a text too long for its recording time, every right option in one position. Findings are `warning` or `advice`, in `DraftIssue`'s shape so an editor lists both, and never change what `validateDraft` says. Seventeen codes, documented with their rules: https://github.com/intellectif/learning-kit/blob/main/docs/authoring.md
+  - **A registered type** joins the critic through a new optional `authoring.critique`.
+  - **A model's review:** `aiCritiqueRequest` gives a model the item, every text field it may point at, and the critic's own findings; `checkAiCritique` lists its findings as `advice`, and refuses the whole reply as `contradicts-item` when a finding points at a field the item does not have or quotes words that field does not hold.
+  - **Drafts from a source:** `aiDraftsRequest` takes the types an author ticks — multiple choice, fill in the blanks, gap select, dictation, read-aloud, written response — in the author's order, an optional count (left out, as many as the source is worth, up to 50), the author's own instructions and your settings per type, and gives the model the JSON Schema of a reply: each type's own fields, no ids, HTML, media, switches or scoring settings; `checkAiDrafts` makes drafts with your ids and settings, in the author's order, each checked by `validateDraft` and the critic — from captions placed where its caption ends, a dictation with the stretch of video that says it; `aiDraftsRepairRequest` sends back what is unfinished, wrong or warned about; `generateDrafts` runs that loop, once by default and three times at most, and never throws for a model's failure. A draft is never approved by the SDK. https://github.com/intellectif/learning-kit/blob/main/docs/ai.md
+  - **A video's quizzes:** `interactiveVideoFromDrafts` makes the drafts an interactive video — each question where its caption ends, questions at one moment in the author's order, and every question without a moment in one quiz at the end of the video (`durationSeconds`).
+  - **ai-check:** a `critique` port runs four review cases and a `drafts` port six drafting cases, two of them video quizzes.
+
 ## 1.1.0
 
 ### Minor Changes
