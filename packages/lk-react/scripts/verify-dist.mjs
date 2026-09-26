@@ -9,7 +9,7 @@
  *     module-level directives ("Module level directives cause errors when
  *     bundled ... was ignored"), so the directive reached 0 of 38 emitted
  *     modules. Importing a component into a React Server Component tree failed
- *     for a package whose README advertises RSC support. `tsup.config.ts`
+ *     for a package whose README advertises RSC support. `tsdown.config.ts`
  *     re-applies it after the build — if that step is removed, replaced with a
  *     banner, or silently stops working, this is what fails.
  *
@@ -70,11 +70,25 @@ if (checked === 0) {
 
 // Load the BUILT modules: a source-level export test cannot see a bundler or
 // exports-map regression.
+/**
+ * The component for each built-in activity type. Held against lk-core's own
+ * `BUILT_IN_ACTIVITY_TYPES` below, so a type lk-core gains with no component
+ * here fails this check rather than rendering as "unsupported".
+ */
+const COMPONENT_FOR_TYPE = {
+  'multiple-choice': 'MultipleChoice',
+  'fill-in-the-blanks': 'FillInTheBlanks',
+  'written-response': 'WrittenResponse',
+  'gap-select': 'GapSelect',
+  dictation: 'Dictation',
+  'read-aloud': 'ReadAloud',
+};
+
 const REQUIRED_EXPORTS = {
+  ...Object.fromEntries(
+    Object.values(COMPONENT_FOR_TYPE).map((name) => [`dist/components/${name}.js`, [name]]),
+  ),
   'dist/components/ActivityPreview.js': ['ActivityPreview'],
-  'dist/components/GapSelect.js': ['GapSelect'],
-  'dist/components/Dictation.js': ['Dictation'],
-  'dist/components/ReadAloud.js': ['ReadAloud'],
   'dist/components/InteractiveVideo.js': ['InteractiveVideo', 'resolveCaptionTracks'],
   'dist/components/PronunciationFeedback.js': ['PronunciationFeedback'],
   // The processor source is pinned beside the hook: `workletUrl` is unusable
@@ -103,6 +117,7 @@ const REQUIRED_EXPORTS = {
     'useLkStrings',
   ],
   'dist/index.js': [
+    ...Object.values(COMPONENT_FOR_TYPE),
     'ActivityPreview',
     'LkAiProvider',
     'useAiCoaching',
@@ -114,9 +129,7 @@ const REQUIRED_EXPORTS = {
     'DEFAULT_STRINGS',
     'InteractiveVideo',
     'LkIntlProvider',
-    'MultipleChoice',
     'PronunciationFeedback',
-    'ReadAloud',
     'createTailwindTheme',
     'resolveCaptionTracks',
     'useLkStrings',
@@ -136,6 +149,27 @@ for (const [rel, expected] of Object.entries(REQUIRED_EXPORTS)) {
   for (const name of expected) {
     if (mod[name] === undefined) {
       failures.push(`${rel} does not export ${name}`);
+    }
+  }
+}
+
+// A component for every type lk-core ships, by lk-core's own list: the one
+// this package is built against, as a consumer's install resolves it.
+{
+  const core = await import('@intellectif/lk-core');
+  const builtIn = core.BUILT_IN_ACTIVITY_TYPES;
+  if (!Array.isArray(builtIn)) {
+    failures.push(
+      '@intellectif/lk-core exports no BUILT_IN_ACTIVITY_TYPES to hold the components to',
+    );
+  } else {
+    const missing = builtIn.filter((type) => !Object.hasOwn(COMPONENT_FOR_TYPE, type));
+    const stale = Object.keys(COMPONENT_FOR_TYPE).filter((type) => !builtIn.includes(type));
+    if (missing.length > 0) {
+      failures.push(`no component for lk-core's built-in type(s): ${missing.join(', ')}`);
+    }
+    if (stale.length > 0) {
+      failures.push(`a component for a type lk-core does not ship: ${stale.join(', ')}`);
     }
   }
 }

@@ -149,7 +149,7 @@ describe('MultipleChoice', () => {
     expect(onComplete).not.toHaveBeenCalled();
   });
 
-  it('resets when the data prop changes (Req 3.7)', async () => {
+  it('resets when the data prop changes', async () => {
     const user = userEvent.setup();
     const { rerender } = render(<MultipleChoice data={single()} onComplete={vi.fn()} />);
     await user.click(screen.getByRole('radio', { name: 'Four' }));
@@ -175,8 +175,7 @@ describe('MultipleChoice', () => {
     expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 
-  // Feature: learning-kit-sdk, Property 9: Shuffle is deterministic per session
-  it('Property 9: shuffle renders a permutation, stable within a session', () => {
+  it('shuffle renders a permutation, stable within a session', () => {
     const data = single({
       shuffle: true,
       options: [

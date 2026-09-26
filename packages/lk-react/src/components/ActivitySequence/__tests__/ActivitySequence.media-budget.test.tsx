@@ -1,54 +1,8 @@
 import type { MediaPlayClaim } from '@intellectif/lk-core';
 import { render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { stubMediaElement } from '../../../test-support/media.js';
 import { ActivitySequence } from '../index.js';
-
-/**
- * The pager is where a play budget is actually wired: it derives the budget
- * key, seeds the count from the ledger, and refuses to render an exam that
- * could not persist what it spends. Testing the transport alone proves none of
- * that — and the keying in particular is the difference between a
- * six-question listening group having two plays and having twelve.
- */
-function stubMediaElement(): void {
-  const state = new WeakMap<HTMLMediaElement, { paused: boolean; time: number }>();
-  const get = (el: HTMLMediaElement) => {
-    let s = state.get(el);
-    if (s === undefined) {
-      s = { paused: true, time: 0 };
-      state.set(el, s);
-    }
-    return s;
-  };
-  Object.defineProperty(HTMLMediaElement.prototype, 'paused', {
-    configurable: true,
-    get(this: HTMLMediaElement) {
-      return get(this).paused;
-    },
-  });
-  Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', {
-    configurable: true,
-    get(this: HTMLMediaElement) {
-      return get(this).time;
-    },
-    set(this: HTMLMediaElement, v: number) {
-      get(this).time = v;
-    },
-  });
-  Object.defineProperty(HTMLMediaElement.prototype, 'duration', {
-    configurable: true,
-    get: () => 60,
-  });
-  HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
-    get(this).paused = false;
-    this.dispatchEvent(new Event('play'));
-    return Promise.resolve();
-  };
-  HTMLMediaElement.prototype.pause = function pause(this: HTMLMediaElement) {
-    get(this).paused = true;
-    this.dispatchEvent(new Event('pause'));
-  };
-}
 
 const question = (id: string) =>
   ({

@@ -1,7 +1,9 @@
-import { isStandardSchema } from '../schemas/read-schema.js';
+import { BUILT_IN_ACTIVITY_TYPES } from '../built-in-types.js';
+import { isStandardSchema, ownSchemas } from '../schemas/read-schema.js';
 import type { StandardSchemaV1 } from '../standard-schema.js';
 import type { DeferredScoringPartial, ScoringResult } from '../types/activity.js';
 import type { DraftContext, DraftIssue, ItemFinding } from '../types/authoring.js';
+import { BUILT_IN_DESCRIPTORS } from './builtins.js';
 
 /** ScoringResult without `passed` — the public `score()` / `evaluate()` fill that in. */
 export type PartialScoringResult = Omit<ScoringResult, 'passed'>;
@@ -205,23 +207,30 @@ export interface RegisteredActivityTypeDescriptor {
 
 /**
  * Module-scoped default registry (deliberate — no registry instances until a
- * second consumer exists; see roadmap §3.2 / audit §15.3).
- */
-const registry = new Map<string, RegisteredActivityTypeDescriptor>();
-
-/**
- * Identity helper that gives full type inference when authoring a descriptor:
+ * second consumer exists), created holding the SDK's own types.
  *
- * ```ts
- * const myType = defineActivityType<MyTypeData, MyTypeLearnerResponse>({ ... });
- * registerActivityType(myType);
- * ```
+ * The built-ins are READ here, from the descriptors `builtins.ts` exports,
+ * rather than registered by that module as it loads. Registration as a
+ * module's side effect held only while a bundler kept the module: lk-core
+ * declares `sideEffects: false`, which lets an app's bundler drop an import
+ * whose bindings nothing uses — and it held because the build happened to put
+ * the registrations in the chunk with the lookups. Read here, they come with
+ * the first lookup that is kept, whatever the chunks.
  */
-export function defineActivityType<TData extends { type: string }, TResponse>(
-  descriptor: ActivityTypeDescriptor<TData, TResponse>,
-): ActivityTypeDescriptor<TData, TResponse> {
-  return descriptor;
-}
+const registry = new Map<string, RegisteredActivityTypeDescriptor>(
+  BUILT_IN_ACTIVITY_TYPES.map((type) => {
+    const descriptor = BUILT_IN_DESCRIPTORS[type];
+    // The SDK's own schemas are read with zod, which reports what each failing
+    // check was given; see `readSchema`.
+    ownSchemas(
+      descriptor.schema,
+      ...(descriptor.redactedSchema !== undefined ? [descriptor.redactedSchema] : []),
+    );
+    return [type, descriptor as unknown as RegisteredActivityTypeDescriptor];
+  }),
+);
+
+export { defineActivityType } from './define.js';
 
 /**
  * Registers an activity type on the default registry, making it live for

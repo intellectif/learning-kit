@@ -24,8 +24,7 @@ const REQUIRED_FIB = [
 ] as const;
 
 describe('Activity schema properties', () => {
-  // Feature: learning-kit-sdk, Property 5: Activity Schema round-trip
-  it('Property 5: valid activity data survives a JSON round-trip', () => {
+  it('valid activity data survives a JSON round-trip', () => {
     fc.assert(
       fc.property(
         fc.oneof(arbitraryMultipleChoiceData(), arbitraryFillInTheBlanksData()),
@@ -39,8 +38,7 @@ describe('Activity schema properties', () => {
     );
   });
 
-  // Feature: learning-kit-sdk, Property 6: validateActivity correctly classifies valid and invalid data
-  it('Property 6: validateActivity accepts valid and rejects corrupted data', () => {
+  it('validateActivity accepts valid and rejects corrupted data', () => {
     fc.assert(
       fc.property(
         fc.oneof(

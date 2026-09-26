@@ -591,7 +591,7 @@ describe('ActivitySequence resume — every activity type, not just the easy one
     ],
     ['written-response', essay, () => screen.getByRole('textbox')],
   ])('keeps a submitted %s locked after resume', (_label, entry, control) => {
-    // The Req 3.7 data-change effect ran right after the first paint and reset
+    // The data-change reset effect ran right after the first paint and reset
     // to idle, undoing the seed it had just been given — so `defaultSubmitted`
     // was a no-op for every type without a mount identity guard.
     render(

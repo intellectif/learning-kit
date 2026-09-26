@@ -29,7 +29,7 @@ import {
 } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation, AiHints, useComponentAiHints } from '../shared/AiHelp.js';
-import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
+import { feedbackAnnouncement, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import { mintTake, stampTake } from '../shared/sequence-slot.js';
 import {
@@ -142,7 +142,7 @@ export function MultipleChoice({
   const policy = useDeliveryPolicy(delivery);
   const scoringPolicy = useItemScoringPolicy(scoring);
 
-  // Dev-only boundary validation (Req 2.3). Throwing during render lets
+  // Dev-only boundary validation. Throwing during render lets
   // ActivityErrorBoundary catch it. Memoised so it only re-runs on data change.
   const devError = useMemo(() => {
     if (!isDevelopment()) {
@@ -190,7 +190,7 @@ export function MultipleChoice({
   const feedbackRef = useRef<HTMLDivElement>(null);
   const focusAfterRef = useRef<'answer' | 'feedback' | null>(null);
 
-  // Reset on data-prop CHANGE (Req 3.7). The identity guard makes the mount
+  // Reset on data-prop CHANGE. The identity guard makes the mount
   // run a no-op, which it always was before `defaultValue` existed — without
   // it this effect would wipe the seed immediately after the first render.
   // (It also makes the reset StrictMode-safe: a remount with unchanged data
@@ -235,7 +235,7 @@ export function MultipleChoice({
     const seedSource = shuffleSeed ?? (sessionIdRef.current ??= randomSessionId());
     // The seed string is unchanged from when the algorithm lived in this file,
     // so an order a consumer recorded against a seed still reproduces.
-    return seededShuffle(data.options, `${seedSource}:${data.id}`);
+    return seededShuffle(data.options, `${seedSource}:${data.id}`, { version: 1 });
   }, [data, shuffleSeed]);
 
   // Per-option correctness for `review`, indexed by option id. Null unless the
@@ -544,7 +544,7 @@ export function MultipleChoice({
     return (
       <div className="lk-mc-option-media" key={option.id}>
         {label}
-        {/* biome-ignore lint/a11y/useMediaCaption: captions are optional in the data contract — a <track> is rendered when captionsUrl is provided; absence is the author's documented choice (Req 14.5) */}
+        {/* biome-ignore lint/a11y/useMediaCaption: captions are optional in the data contract — a <track> is rendered when captionsUrl is provided; absence is the author's documented choice */}
         <audio
           className="lk-mc-option-audio"
           src={media.url}
@@ -623,16 +623,15 @@ export function MultipleChoice({
         id={`${data.id}-feedback`}
         {...(scoringPolicy.retries > 0 ? { ref: feedbackRef } : {})}
       >
-        {isReview
-          ? // A grade read back is feedback; "not graded yet" is not.
-            policy.feedback || !outcomeShowsMarks(outcome)
-            ? reviewAnnouncement(outcome, s)
-            : null
-          : // Without feedback a submit says only that it was received, as
-            // an exam's does — the score still reaches `onComplete`.
-            policy.feedback || summary === ''
-            ? announced
-            : s.answerSubmitted}
+        {feedbackAnnouncement({
+          review: isReview,
+          feedback: policy.feedback,
+          outcome,
+          readBack: reviewAnnouncement(outcome, s),
+          submitted: summary !== null,
+          result: announced,
+          received: s.answerSubmitted,
+        })}
       </FeedbackRegion>
       <TryActions
         tries={tries}

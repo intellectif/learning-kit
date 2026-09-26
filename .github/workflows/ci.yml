@@ -18,21 +18,17 @@ jobs:
       fail-fast: false
       matrix:
         # 22 is the LTS consumers run. 24 is the Node the Release job builds the
-        # published tarball on. That job runs `pnpm release`, which runs
-        # `verify-release` first: one turbo run of build, test, lint, typecheck
-        # and the packaging checks, then api-check, docs-check and size. This
-        # job splits those steps and runs them on 22 only, so a task that
-        # reads another's output without declaring it in turbo.json can pass
-        # here and fail the release.
+        # published tarball on.
         node-version: [22, 24]
     steps:
-      - uses: actions/checkout@v6
+      # Pinned to commits, as in release.yml; Dependabot updates them.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 11.0.8
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: "pnpm"
@@ -40,55 +36,25 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build, test, and lint
-        run: pnpm turbo run build test lint
+      # On the Release job's Node, exactly what the release runs before it
+      # publishes: `pnpm release` is `verify-release` and then `changeset
+      # publish`. One turbo run of build, test, lint, typecheck and the
+      # packaging checks — publint, are-the-types-wrong, and verify-dist, which
+      # replays the grade and validation corpora against the built package —
+      # then the repository lint, the public API surface, the docs and release
+      # notes, and the bundle sizes. Running the same command, not the same
+      # steps split apart, is what catches a task that reads another's output
+      # without declaring it in turbo.json: split, it passed here and failed the
+      # release.
+      - name: Everything the release verifies
+        if: matrix.node-version == '24'
+        run: pnpm verify-release
 
-      # Typecheck the FULL program, tests included. The build only compiles
-      # src/, so type errors in test files went unnoticed for months — and a
-      # released defect (redact() being uncallable with the SDK's own exported
-      # interfaces) survived precisely because the suite that should have
-      # caught it did not compile.
-      - name: Typecheck (including tests)
-        run: pnpm turbo run typecheck
-
-      - name: Coverage
+      # On the LTS consumers run: the packages built, linted and typechecked
+      # (tests included — a released defect once survived because its test did
+      # not compile), every test run once, with coverage, and the packaging
+      # checks against this Node's build. `coverage` is the test run: running
+      # `test` as well ran every suite twice.
+      - name: Build, lint, typecheck, test with coverage, packaging
         if: matrix.node-version == '22'
-        run: pnpm turbo run coverage
-
-      - name: Bundle size
-        if: matrix.node-version == '22'
-        run: pnpm size
-
-      # Public API surface gate. `verify-dist` proves the documented exports
-      # RESOLVE; it says nothing about their shapes, so a parameter becoming
-      # required, a return type narrowing, or a field leaving an exported
-      # interface passed every check until a consumer's build broke. The
-      # committed report is regenerated with `pnpm api-report`; a diff here is
-      # the semver question asked while someone can still answer it.
-      - name: Public API surface
-        if: matrix.node-version == '22'
-        run: pnpm api-check
-
-      # What a consumer reads before any code: the README's package table, the
-      # release note each changeset becomes (on npm, in GitHub Releases, in the
-      # upgrade PR a bot opens), and every link between the guides. It ran only
-      # inside `verify-release`, which is the Release job — so a note that broke
-      # the template, or a renamed heading, was found at publish time instead of
-      # in the pull request that caused it.
-      - name: Docs and release notes
-        if: matrix.node-version == '22'
-        run: pnpm docs-check
-
-      # Package-correctness gate. Catches the class of defect that only shows
-      # up after publish: a broken exports map, a declaration that resolves as
-      # the wrong module format, missing files in the tarball. Both packages
-      # once shipped types that a CommonJS TypeScript consumer could not
-      # import at all (attw "Masquerading as ESM") — this stops that silently
-      # regressing. node10 resolution is ignored on purpose: it is TypeScript
-      # < 4.7, and this SDK requires React 19.
-      #
-      # Runs on EVERY matrix Node, unlike coverage and size: `verify-dist`
-      # replays lk-core's grade-stability corpus against the built package, and
-      # the build that matters is the one made by the Release job's Node.
-      - name: Packaging (publint + are-the-types-wrong + grade vectors)
-        run: pnpm check-packaging
+        run: pnpm turbo run build lint typecheck coverage publint attw verify-dist

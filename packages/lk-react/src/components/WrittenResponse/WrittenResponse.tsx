@@ -58,9 +58,8 @@ export interface WrittenResponseSubmission {
  * Props for {@link WrittenResponse}. Mirrors `ActivityProps` except for the
  * completion callback: a deferred-grading activity completes with a
  * {@link WrittenResponseSubmission} (`onSubmitted`), not a scored
- * `ActivityResult` (`onComplete`) — deviation from Req 22.8 recorded in the
- * roadmap (§3.1): fabricating a score of 0 for ungraded work is the exact
- * bug this type exists to fix. Everything else — controlled value, render
+ * `ActivityResult` (`onComplete`), on purpose: fabricating a score of 0 for
+ * ungraded work is the exact bug this type exists to fix. Everything else — controlled value, render
  * mode, server outcome, rich text — follows the shared `ActivityProps`
  * contract verbatim.
  */
@@ -431,7 +430,7 @@ export function WrittenResponse({
   delivery,
   ai: aiProp,
 }: WrittenResponseProps) {
-  // Dev-only boundary validation (Req 2.3), same convention as MC/FIB. The
+  // Dev-only boundary validation, same convention as MC/FIB. The
   // content schema is loose, so a `redact()` projection validates too.
   const s = useLkStrings(strings);
   // An essay is graded later, so `feedback` is the one setting that reaches
@@ -474,7 +473,7 @@ export function WrittenResponse({
     defaultTextRef.current = textOf(defaultValue);
   }, [defaultValue]);
 
-  // Reset on data-prop change (Req 3.7): back to the seed (empty when there
+  // Reset on data-prop change: back to the seed (empty when there
   // is none — the v1 behaviour), never the previous activity's draft.
   // Mirror `defaultSubmitted` so the reset below returns to the SEEDED state.
   // Resetting unconditionally to idle unlocked an item the learner had already

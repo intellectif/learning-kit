@@ -59,6 +59,23 @@ The workflow (`.github/workflows/release.yml`) is already OIDC-ready: it declare
 - **Settings → Code security:** enable **Secret scanning** and **Push protection** (blocks accidental secret pushes).
 - **Settings → Branches:** protect `main` (see git flow below).
 
+### 5. A GitHub App for the version PR (recommended)
+
+With the built-in token, the version PR is opened and updated by `github-actions[bot]`, and its CI
+and E2E runs wait — `action_required` — until a maintainer approves them; one waited over four hours.
+`release.yml` uses a GitHub App's token instead as soon as one is configured, and the runs start by
+themselves. Until then the step that makes the token is skipped and nothing changes.
+
+1. **Create the App** — Settings → Developer settings → GitHub Apps → New GitHub App: any name, no
+   webhook, and only two repository permissions: **Contents: Read and write** and **Pull requests:
+   Read and write**. Install it on this repository only.
+2. **Make a private key** on the App's page, and note its **Client ID**.
+3. **Give them to the workflow** — this repository's Settings → Secrets and variables → Actions:
+   the variable `RELEASE_APP_CLIENT_ID` (the Client ID) and the secret `RELEASE_APP_PRIVATE_KEY` (the
+   whole `.pem` file).
+4. **Check it on the next version PR**: its checks start without an approval, and its commits are
+   the App's.
+
 ## "I just merged something — what do I do now?"
 
 Answer the one question below and do only that line.
@@ -253,7 +270,9 @@ instead of `push`. Until that is done:
   - A check only CI runs does not: coverage, and E2E.
   - The safety net is the required status check on the PR. Keep `main` protected and never push to it directly.
 - Practically this is low risk, because the two merges that matter (feature PR and the version PR) both
-  run the full CI + E2E gate before you can merge them. Do not skip approving those checks on the bot PR.
+  run the full CI + E2E gate before you can merge them — CI's Node 24 job runs `verify-release` itself,
+  exactly as the release will — and E2E runs again on `main` after every merge. Without the App (setup
+  step 5), do not skip approving those checks on the bot PR.
 
 ## Grade-stability vectors
 

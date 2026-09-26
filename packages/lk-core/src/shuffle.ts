@@ -57,7 +57,12 @@ export type ShuffleVersion = 1 | 2;
 
 /** Options for {@link seededShuffle}. */
 export interface SeededShuffleOptions {
-  /** Draw algorithm. Defaults to `1` — see {@link ShuffleVersion}. */
+  /**
+   * Draw algorithm — see {@link ShuffleVersion}. Left out, it is `1`; leaving
+   * it out is deprecated since lk-core 1.3, since a 2.0 may make `2` the
+   * default. Name it: `1` to reproduce an order already recorded, `2` for new
+   * content.
+   */
   version?: ShuffleVersion;
 }
 
@@ -84,6 +89,21 @@ function shuffleWithSeed<T>(items: readonly T[], seed: number, version: ShuffleV
  * (`${attemptId}:${itemId}`), so two shuffles in one attempt do not share an
  * order.
  */
+export function seededShuffle<T>(
+  items: readonly T[],
+  seed: string,
+  options: SeededShuffleOptions & { version: ShuffleVersion },
+): T[];
+/**
+ * @deprecated Since lk-core 1.3, name the version: `{ version: 1 }` draws
+ * exactly what this does, `{ version: 2 }` reaches every order. A 2.0 may make
+ * `2` the default, which would re-order what this call returns.
+ */
+export function seededShuffle<T>(
+  items: readonly T[],
+  seed: string,
+  options?: SeededShuffleOptions,
+): T[];
 export function seededShuffle<T>(
   items: readonly T[],
   seed: string,

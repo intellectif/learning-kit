@@ -40,9 +40,49 @@
       "recommended": true,
       "a11y": {
         "recommended": true
+      },
+      "correctness": {
+        "useExhaustiveDependencies": {
+          "level": "error",
+          "options": {
+            // The interactive video's keyed state (`keyed-state.ts`): the ref
+            // and the setters keep one identity for the life of the player,
+            // like a `useRef` and a `useState` setter; the state itself does not.
+            "hooks": [
+              { "name": "useKeySet", "stableResult": [1, 2] },
+              { "name": "useKeyMap", "stableResult": [1] }
+            ]
+          }
+        }
       }
     }
   },
+  "overrides": [
+    {
+      // lk-core's zod is bundled into every app that imports it. zod's `z` is an
+      // object holding all of zod — every locale included — so a bundler keeps
+      // all of it once one module imports it by name (~50 kB brotli, measured by
+      // `pnpm size`). A namespace import is shaken to what is used.
+      "includes": ["packages/lk-core/src/**", "!**/__tests__/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "zod/v4": {
+                    "importNames": ["z", "default"],
+                    "message": "Import zod as a namespace (`import * as z from 'zod/v4'`): the named `z` brings every zod locale into an app's bundle."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "javascript": {
     "formatter": {
       "quoteStyle": "single",

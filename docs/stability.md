@@ -111,6 +111,13 @@ See [Custom activity types end to end](./authoring.md#custom-activity-types-end-
 A feature is marked `@deprecated`, naming its replacement, for at least one minor before a major
 removes it. The changeset of the minor that deprecates it says so, and so does the upgrading guide.
 
+Deprecated now, each still working throughout 1.x:
+
+| Since | What | Instead |
+|---|---|---|
+| lk-core 1.3 | A fill-in-the-blanks blank's `caseSensitive` and `trimWhitespace` | `match: { caseSensitive, trim }`, which mean the same |
+| lk-core 1.3 | `seededShuffle(items, seed)` without a `version` (it draws version 1) | `{ version: 1 }` for an order already recorded, `{ version: 2 }` for new content — a 2.0 may make 2 the default |
+
 ## Runtimes
 
 - **Node.js 22 or later** (lk-core's `engines`), and **React 19** (lk-react's peer). Requiring a newer

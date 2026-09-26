@@ -1,4 +1,4 @@
-import { z } from 'zod/v4';
+import * as z from 'zod/v4';
 import { maxUnits } from './text-length.js';
 
 /**
@@ -8,7 +8,7 @@ import { maxUnits } from './text-length.js';
  * provider's own embed for `embed`) is the consuming app's responsibility
  * (see requirements "Non-Goals and Shared Responsibility").
  *
- * - `image`: rendered as `<img>` — `alt` is REQUIRED (WCAG 1.1.1 / Req 14.5).
+ * - `image`: rendered as `<img>` — `alt` is REQUIRED (WCAG 1.1.1).
  * - `audio` / `video`: rendered with native controls; `alt` is an optional
  *   accessible label; `captionsUrl` points at a WebVTT `<track>`. `url` must
  *   be a direct media file (NOT a YouTube/Vimeo page — use `embed` for those).

@@ -1,4 +1,4 @@
-import { z } from 'zod/v4';
+import * as z from 'zod/v4';
 
 /**
  * Optional authored "overall feedback" shown after submission, selected by

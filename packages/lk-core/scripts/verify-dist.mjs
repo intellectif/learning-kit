@@ -65,6 +65,9 @@ const REQUIRED_EXPORTS = [
   'composeTimelineScore',
   'INTERACTIVE_VIDEO_ITEM_TYPES',
   'isInteractiveVideoItemType',
+  // the closed list of built-in types
+  'BUILT_IN_ACTIVITY_TYPES',
+  'isBuiltInActivityType',
   'TIMELINE_MAX_QUIZZES',
   'TIMELINE_MAX_ITEMS',
   'TIMELINE_MAX_CHAPTERS',
@@ -229,14 +232,15 @@ if (typeof core.createDraft === 'function' && typeof core.validateDraft === 'fun
     issued += 1;
     return `probe-${issued}`;
   };
-  for (const type of [
-    'multiple-choice',
-    'fill-in-the-blanks',
-    'written-response',
-    'gap-select',
-    'dictation',
-    'read-aloud',
-  ]) {
+  // Every built-in type, from the built list: a type the list gains is
+  // checked here without anyone editing this file.
+  const builtIn = core.BUILT_IN_ACTIVITY_TYPES ?? [];
+  if (JSON.stringify(core.registeredActivityTypes()) !== JSON.stringify(builtIn)) {
+    failures.push(
+      `the built registry holds ${core.registeredActivityTypes().join(', ')}, not BUILT_IN_ACTIVITY_TYPES (${builtIn.join(', ')})`,
+    );
+  }
+  for (const type of builtIn) {
     const draft = core.createDraft(type, { newId });
     const { status } = core.validateDraft(type, draft);
     if (status !== 'incomplete') {
@@ -654,6 +658,87 @@ for (const [label, build] of [
   }
 }
 
+/**
+ * Each entry point, bundled the way an app bundles it, still knows the SDK's
+ * types. lk-core declares `sideEffects: false`, so a bundler may drop any
+ * import whose bindings nothing uses — and it does: esbuild drops the bare
+ * chunk imports the build leaves in some entries. Built-in types that were
+ * registered by such a module as it loaded would vanish with it, and
+ * `xapiDefinitionFor` would quietly return `{}`. So one function per entry is
+ * bundled alone, by esbuild (which honours `sideEffects`), and run.
+ */
+{
+  const { build } = await import('esbuild');
+  const { mkdtempSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const work = mkdtempSync(join(tmpdir(), 'lk-core-bundled-'));
+  const choice = {
+    schemaVersion: '1.0',
+    type: 'multiple-choice',
+    id: 'q',
+    title: 'T',
+    question: 'Q?',
+    mode: 'single',
+    scoringStrategy: 'all-or-nothing',
+    options: [
+      { id: 'a', text: 'A', isCorrect: true },
+      { id: 'b', text: 'B', isCorrect: false },
+    ],
+  };
+  const probes = [
+    [
+      'index',
+      'score',
+      (score) =>
+        score('multiple-choice', choice, { type: 'multiple-choice', selectedOptionIds: ['a'] })
+          .score === 1,
+    ],
+    ['index', 'validateActivity', (validate) => validate('read-aloud', {}).success === false],
+    [
+      'scoring',
+      'score',
+      (score) =>
+        score('multiple-choice', choice, { type: 'multiple-choice', selectedOptionIds: ['a'] })
+          .score === 1,
+    ],
+    ['xapi', 'xapiDefinitionFor', (define) => define(choice).interactionType === 'choice'],
+    [
+      'schemas',
+      'jsonSchemaFor',
+      (schemaFor) => typeof schemaFor('dictation').properties === 'object',
+    ],
+  ];
+  try {
+    for (const [entry, name, works] of probes) {
+      const outfile = join(work, `${entry}-${name}.mjs`);
+      try {
+        await build({
+          stdin: {
+            contents: `export { ${name} } from ${JSON.stringify(join(PKG_ROOT, 'dist', `${entry}.js`))};`,
+            resolveDir: PKG_ROOT,
+            loader: 'js',
+          },
+          bundle: true,
+          format: 'esm',
+          platform: 'node',
+          outfile,
+          logLevel: 'silent',
+        });
+        const bundled = await import(pathToFileURL(outfile).href);
+        if (!works(bundled[name])) {
+          failures.push(
+            `{ ${name} } bundled alone from ${entry}.js does not know the built-in types`,
+          );
+        }
+      } catch (error) {
+        failures.push(`{ ${name} } bundled alone from ${entry}.js fails: ${error.message}`);
+      }
+    }
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+}
+
 if (failures.length > 0) {
   console.error('verify-dist FAILED:\n');
   for (const failure of failures) {
@@ -665,7 +750,7 @@ if (failures.length > 0) {
 console.log(
   `verify-dist OK: ${REQUIRED_EXPORTS.length} documented exports resolve from dist; redaction is fail-closed; ` +
     'new drafts are incomplete; an unreadable delivery setting restricts; an unreadable scoring setting is refused; a writing correction must quote the draft; coaching keeps to the marks the engine made; the item critic advises without refusing, a model drafts content only, and a video puts untimed questions at its end; ' +
-    'the AI check kit runs from its own subpath; ' +
+    'the AI check kit runs from its own subpath; one function per entry, bundled alone, still knows the built-in types; ' +
     'no entry point exports a zod schema and no published type names zod; ' +
     `${corpus.vectors.length} grade vectors and ${validationCount} validation expectations replay identically against CJS and ESM.`,
 );

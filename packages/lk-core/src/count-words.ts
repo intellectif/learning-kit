@@ -1,5 +1,5 @@
 /**
- * Canonical word counter for written-response bounds (Req 22.9): tokens are
+ * Canonical word counter for written-response bounds: tokens are
  * maximal runs of non-whitespace (split on `\s+`), so hyphenated forms
  * (`well-known`) count as one word. The empty / whitespace-only string counts
  * 0. Consumers must use this helper rather than re-implementing the split so

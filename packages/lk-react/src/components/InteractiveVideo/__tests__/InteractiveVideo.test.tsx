@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { checkA11y } from '../../../test-support/a11y.js';
+import { stubMediaElement } from '../../../test-support/media.js';
 import { InteractiveVideo } from '../index.js';
 
 /**
@@ -74,48 +75,6 @@ const group = (over: Partial<ItemGroup> = {}): ItemGroup =>
     ...over,
   }) as ItemGroup;
 
-/** jsdom implements no media stack: these are the parts the player reads. */
-function stubVideo(duration = 120): void {
-  const state = new WeakMap<HTMLMediaElement, { paused: boolean; time: number }>();
-  const get = (el: HTMLMediaElement) => {
-    let entry = state.get(el);
-    if (entry === undefined) {
-      entry = { paused: true, time: 0 };
-      state.set(el, entry);
-    }
-    return entry;
-  };
-  Object.defineProperty(HTMLMediaElement.prototype, 'paused', {
-    configurable: true,
-    get(this: HTMLMediaElement) {
-      return get(this).paused;
-    },
-  });
-  Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', {
-    configurable: true,
-    get(this: HTMLMediaElement) {
-      return get(this).time;
-    },
-    set(this: HTMLMediaElement, value: number) {
-      get(this).time = value;
-    },
-  });
-  Object.defineProperty(HTMLMediaElement.prototype, 'duration', {
-    configurable: true,
-    get: () => duration,
-  });
-  HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
-    get(this).paused = false;
-    this.dispatchEvent(new Event('play'));
-    return Promise.resolve();
-  };
-  HTMLMediaElement.prototype.pause = function pause(this: HTMLMediaElement) {
-    get(this).paused = true;
-    this.dispatchEvent(new Event('pause'));
-  };
-  HTMLMediaElement.prototype.load = function load() {};
-}
-
 /** Mounts the player and starts playback, as pressing play does. */
 async function start(ui: React.ReactElement): Promise<HTMLElement> {
   const { container } = render(ui);
@@ -136,7 +95,7 @@ const quizPanel = () => document.querySelector('.lk-iv-quiz') as HTMLElement;
 const video = () => document.querySelector('video') as HTMLVideoElement;
 
 beforeEach(() => {
-  stubVideo();
+  stubMediaElement({ duration: 120 });
   localStorage.clear();
 });
 

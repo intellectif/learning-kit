@@ -22,6 +22,7 @@ const AI_HINT_TYPES: AI_HINT_TYPES: readonly AiSupportedActivityType[]
 const AI_TEXT_MAX_LENGTH: AI_TEXT_MAX_LENGTH = 2000
 const AI_WRITING_MAX_CORRECTIONS: AI_WRITING_MAX_CORRECTIONS = 20
 const AI_WRITING_MAX_FIELD_LENGTH: AI_WRITING_MAX_FIELD_LENGTH = 500
+const BUILT_IN_ACTIVITY_TYPES: BUILT_IN_ACTIVITY_TYPES: readonly ["multiple-choice", "fill-in-the-blanks", "written-response", "gap-select", "dictation", "read-aloud"]
 const DEFAULT_ITEM_SCORING_POLICY: DEFAULT_ITEM_SCORING_POLICY: ResolvedItemScoringPolicy
 const DEFAULT_PASS_THRESHOLD: DEFAULT_PASS_THRESHOLD = 0.7
 const DICTATION_MAX_ACCEPTED_TRANSCRIPTS: DICTATION_MAX_ACCEPTED_TRANSCRIPTS = 10
@@ -57,7 +58,7 @@ const writtenResponseJsonSchema: writtenResponseJsonSchema: Record<string, unkno
 const writtenResponseType: writtenResponseType: ActivityTypeDescriptor<WrittenResponseData, WrittenResponseLearnerResponse>
 const XAPI_VERB_DISPLAY: XAPI_VERB_DISPLAY: Record<XAPIVerbKey, Record<string, string>>
 const xAPIBuilder: xAPIBuilder: { buildStatement(params: XAPIStatementParams): XAPIStatement; buildAnsweredStatement(params: AnsweredStatementParams): XAPIStatement; buildSubmittedStatement(params: SubmittedStatementParams): XAPIStatement; buildCompletedStatement(params: CompletedStatementParams): XAPIStatement; }
-const XAPIVerb: XAPIVerb: { readonly ANSWERED: "http:; readonly ATTEMPTED: "http:; readonly COMPLETED: "http:; readonly EXPERIENCED: "http:; readonly FAILED: "http:; readonly INTERACTED: "http:; readonly PASSED: "http:; readonly SCORED: "http:; readonly SUBMITTED: "http:; readonly WATCHED: "https:; }
+const XAPIVerb: XAPIVerb: { readonly ANSWERED: "http://adlnet.gov/expapi/verbs/answered"; readonly ATTEMPTED: "http://adlnet.gov/expapi/verbs/attempted"; readonly COMPLETED: "http://adlnet.gov/expapi/verbs/completed"; readonly EXPERIENCED: "http://adlnet.gov/expapi/verbs/experienced"; readonly FAILED: "http://adlnet.gov/expapi/verbs/failed"; readonly INTERACTED: "http://adlnet.gov/expapi/verbs/interacted"; readonly PASSED: "http://adlnet.gov/expapi/verbs/passed"; readonly SCORED: "http://adlnet.gov/expapi/verbs/scored"; readonly SUBMITTED: "http://activitystrea.ms/schema/1.0/submit"; readonly WATCHED: "https://w3id.org/xapi/video/verbs/watched"; }
 function aiAllowedByContent: declare function aiAllowedByContent(data: AiActivityInput, feature: AiFeature): boolean;
 function aiCoachingRequest: declare function aiCoachingRequest(input: { assessment?: SpeechAssessment | null; data: AiActivityInput; grade?: GradeRecord | null; learnerLocale?: string; }): AiCoachingRequest | null;
 function aiCritiqueRequest: declare function aiCritiqueRequest(input: { authorLocale?: string; draft: unknown; level?: string; type: ActivityType; }): AiCritiqueRequest | null;
@@ -112,6 +113,7 @@ function hashSeed: declare function hashSeed(input: string): number;
 function hintRevealsAnswer: declare function hintRevealsAnswer(facts: AiItemFacts, hint: string): boolean;
 function inspectWav: declare function inspectWav(bytes: Uint8Array, policy: WavInspectionPolicy): WavInspection;
 function interactiveVideoFromDrafts: declare function interactiveVideoFromDrafts(input: { drafts: AiDrafts | AiDraftsRun | readonly AiGeneratedDraft[]; durationSeconds?: number; newId: () => string; request: AiDraftsRequest; title?: string; video: ActivityMedia; }): AiVideoDraft;
+function isBuiltInActivityType: declare function isBuiltInActivityType(type: unknown): type is BuiltInActivityType;
 function isInteractiveVideoItemType: declare function isInteractiveVideoItemType(type: unknown): type is InteractiveVideoItemType;
 function isItemGroup: declare function isItemGroup<TItem extends { type: string; }>(entry: SequenceEntry<TItem>): entry is ItemGroup<TItem>;
 function jsonSchemaFor: declare function jsonSchemaFor(type: string): Record<string, unknown>;
@@ -136,7 +138,7 @@ function roundGrade: declare function roundGrade(value: number, policy: Rounding
 function score: declare function score(activityType: ActivityType, activityData: ActivityData, learnerResponse: LearnerResponse, options?: ScoringOptions): ScoringResult;
 function scoredItemsFromPlan: declare function scoredItemsFromPlan(plan: AttemptPlan, outcomes: Readonly<Record<string, ItemOutcome>>, options?: { missing?: MissingOutcomePolicy; }): ScoredItem[];
 function scoreTries: declare function scoreTries(tries: readonly ItemTry[], policy?: ItemScoringPolicy | ResolvedItemScoringPolicy | null): ItemTriesScore;
-function seededShuffle: declare function seededShuffle<T>(items: readonly T[], seed: string, options?: SeededShuffleOptions): T[];
+function seededShuffle: declare function seededShuffle<T>(items: readonly T[], seed: string, options: SeededShuffleOptions & { version: ShuffleVersion; }): T[]; declare function seededShuffle<T>(items: readonly T[], seed: string, options?: SeededShuffleOptions): T[];
 function serializeAttemptState: declare function serializeAttemptState(plan: AttemptPlan, progress: AttemptProgress): AttemptState;
 function serializeMediaPlayLedger: declare function serializeMediaPlayLedger(plan: AttemptPlan, entries: Readonly<Record<string, MediaPlayLedgerEntry>>, options?: { savedAt?: string; }): MediaPlayLedger;
 function slotMediaKey: declare function slotMediaKey(slotId: string): string;
@@ -314,7 +316,7 @@ interface SpeechPlausibilityPolicy: interface SpeechPlausibilityPolicy { maxWord
 interface SpeechSyllable: interface SpeechSyllable { text: string; grapheme?: string; accuracy?: number; startMs?: number; durationMs?: number; }
 interface SpeechUnscorable: interface SpeechUnscorable { unscorable: true; code: SpeechUnscorableCode; reason: string; }
 interface SpeechWord: interface SpeechWord { text: string; accuracy?: number; error: SpeechWordError; vendorError?: string; startMs?: number; durationMs?: number; syllables?: SpeechSyllable[]; phonemes?: SpeechPhoneme[]; breaks?: { missing?: number; unexpected?: number; }; }
-interface StandardSchemaV1: interface StandardSchemaV1<Input = unknown, Output = Input> { readonly '~standard': StandardSchemaV1.Props<Input, Output>; }
+interface StandardSchemaV1: interface StandardSchemaV1<Input = unknown, Output = Input> { readonly '~standard': StandardSchemaV1.Props<Input, Output>; } declare namespace StandardSchemaV1 { interface Props<Input = unknown, Output = Input> { readonly version: 1; readonly vendor: string; readonly validate: (value: unknown, options?: StandardSchemaV1.Options | undefined) => Promise<Result<Output>> | Result<Output>; readonly types?: Types<Input, Output> | undefined; } type Result<Output> = FailureResult | SuccessResult<Output>; interface SuccessResult<Output> { readonly value: Output; readonly issues?: undefined; } interface Options { readonly libraryOptions?: Record<string, unknown> | undefined; } interface FailureResult { readonly issues: ReadonlyArray<Issue>; } interface Issue { readonly message: string; readonly path?: ReadonlyArray<PathSegment | PropertyKey> | undefined; } interface PathSegment { readonly key: PropertyKey; } interface Types<Input = unknown, Output = Input> { readonly input: Input; readonly output: Output; } type InferInput<Schema extends StandardSchemaV1> = NonNullable<Schema['~standard']['types']>['input']; type InferOutput<Schema extends StandardSchemaV1> = NonNullable<Schema['~standard']['types']>['output']; }
 interface Stimulus: interface Stimulus { id: string; kind: StimulusKind; title?: string; body?: string; bodyHtml?: string; media?: ActivityMedia; transcript?: string; locale?: string; attribution?: string; }
 interface SubmittedStatementParams: interface SubmittedStatementParams { actor: XAPIActor; object: XAPIObjectParams; timeSpentMs: number; response?: string; context?: XAPIContext; resultExtensions?: Record<string, unknown>; }
 interface TextMatchPolicy: interface TextMatchPolicy { caseSensitive?: boolean; trim?: boolean; normalize?: 'NFC' | 'NFKC' | 'none'; foldDiacritics?: boolean; collapseInnerWhitespace?: boolean; ignorePunctuation?: boolean; levenshtein?: number; locale?: string; }
@@ -354,6 +356,7 @@ type AiItemFacts: type AiItemFacts = AiDictationFacts | AiFillInTheBlanksFacts |
 type AiRefusal: type AiRefusal = 'contradicts-grade' | 'contradicts-item' | 'contradicts-marks' | 'empty' | 'malformed' | 'misquotes-answer' | 'reveals-answer' | 'too-long';
 type AiSupportedActivityType: type AiSupportedActivityType = 'dictation' | 'fill-in-the-blanks' | 'gap-select' | 'multiple-choice';
 type AiVerdict: type AiVerdict = 'correct' | 'incorrect' | 'partly-correct';
+type BuiltInActivityType: type BuiltInActivityType = (typeof BUILT_IN_ACTIVITY_TYPES)[number];
 type DeferredReason: type DeferredReason = 'grade_rejected' | 'no_response_recorded' | 'requires_async_grading';
 type DictationReference: type DictationReference = Partial<Pick<DictationData, 'acceptedTranscripts' | 'tolerance' | 'transcript'>>;
 type DraftSeverity: type DraftSeverity = 'incomplete' | 'invalid';
@@ -524,7 +527,7 @@ type WavInspection: type WavInspection = { bitsPerSample: 16; channels: number; 
 ```ts
 const XAPI_VERB_DISPLAY: XAPI_VERB_DISPLAY: Record<XAPIVerbKey, Record<string, string>>
 const xAPIBuilder: xAPIBuilder: { buildStatement(params: XAPIStatementParams): XAPIStatement; buildAnsweredStatement(params: AnsweredStatementParams): XAPIStatement; buildSubmittedStatement(params: SubmittedStatementParams): XAPIStatement; buildCompletedStatement(params: CompletedStatementParams): XAPIStatement; }
-const XAPIVerb: XAPIVerb: { readonly ANSWERED: "http:; readonly ATTEMPTED: "http:; readonly COMPLETED: "http:; readonly EXPERIENCED: "http:; readonly FAILED: "http:; readonly INTERACTED: "http:; readonly PASSED: "http:; readonly SCORED: "http:; readonly SUBMITTED: "http:; readonly WATCHED: "https:; }
+const XAPIVerb: XAPIVerb: { readonly ANSWERED: "http://adlnet.gov/expapi/verbs/answered"; readonly ATTEMPTED: "http://adlnet.gov/expapi/verbs/attempted"; readonly COMPLETED: "http://adlnet.gov/expapi/verbs/completed"; readonly EXPERIENCED: "http://adlnet.gov/expapi/verbs/experienced"; readonly FAILED: "http://adlnet.gov/expapi/verbs/failed"; readonly INTERACTED: "http://adlnet.gov/expapi/verbs/interacted"; readonly PASSED: "http://adlnet.gov/expapi/verbs/passed"; readonly SCORED: "http://adlnet.gov/expapi/verbs/scored"; readonly SUBMITTED: "http://activitystrea.ms/schema/1.0/submit"; readonly WATCHED: "https://w3id.org/xapi/video/verbs/watched"; }
 function validateXAPIStatement: declare function validateXAPIStatement(statement: XAPIStatement): void;
 function xapiDefinitionFor: declare function xapiDefinitionFor(data: { type: string; }): Partial<XAPIObjectParams>;
 interface AnsweredStatementParams: interface AnsweredStatementParams { actor: XAPIActor; object: XAPIObjectParams; scoringResult: ScoringResult; timeSpentMs: number; response?: string; context?: XAPIContext; resultExtensions?: Record<string, unknown>; }

@@ -13,6 +13,7 @@ import {
 import { type ReactNode, useMemo } from 'react';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStringsOverride } from '../../i18n/strings.js';
+import { everyBuiltInTypeHandled } from '../_internal.js';
 import { ActivityErrorBoundary } from '../ActivityErrorBoundary.js';
 import type { ActivityRenderer } from '../ActivitySequence/index.js';
 import { Dictation } from '../Dictation/index.js';
@@ -300,6 +301,7 @@ export function ActivityPreview({
     case 'read-aloud':
       return <ReadAloud key={key} data={data} recordingBinding={PREVIEW_RECORDING} {...shared} />;
     default:
+      everyBuiltInTypeHandled(data);
       return (
         <div className="lk-preview-unsupported" role="note">
           {s.unsupportedActivity}

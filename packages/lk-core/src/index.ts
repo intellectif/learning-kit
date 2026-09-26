@@ -6,6 +6,11 @@ export * from './ai-writing.js';
 export * from './attempt-plan.js';
 export * from './attempt-state.js';
 export * from './authoring/index.js';
+export {
+  BUILT_IN_ACTIVITY_TYPES,
+  type BuiltInActivityType,
+  isBuiltInActivityType,
+} from './built-in-types.js';
 export * from './content-hash.js';
 export * from './count-words.js';
 export * from './delivery.js';

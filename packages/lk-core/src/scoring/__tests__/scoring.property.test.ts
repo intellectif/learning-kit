@@ -36,8 +36,7 @@ function fibCorrectCount(data: FillInTheBlanksData, answers: Record<string, stri
 }
 
 describe('Scoring engine properties', () => {
-  // Feature: learning-kit-sdk, Property 1: Score is always in [0, 1]
-  it('Property 1: score is always within [0, 1]', () => {
+  it('score is always within [0, 1]', () => {
     fc.assert(
       fc.property(fc.oneof(mcPair, fibPair), ({ data, response }) => {
         const s = score(data.type, data, response).score;
@@ -47,8 +46,7 @@ describe('Scoring engine properties', () => {
     );
   });
 
-  // Feature: learning-kit-sdk, Property 2: Scoring Engine is deterministic
-  it('Property 2: scoring is deterministic', () => {
+  it('scoring is deterministic', () => {
     fc.assert(
       fc.property(fc.oneof(mcPair, fibPair), ({ data, response }) => {
         const a = score(data.type, data, response);
@@ -59,8 +57,7 @@ describe('Scoring engine properties', () => {
     );
   });
 
-  // Feature: learning-kit-sdk, Property 3: Partial scoring formula holds for both activity types
-  it('Property 3: partial-strategy score matches the balanced formula', () => {
+  it('partial-strategy score matches the balanced formula', () => {
     fc.assert(
       fc.property(
         fc.oneof(
@@ -104,8 +101,7 @@ describe('Scoring engine properties', () => {
     );
   });
 
-  // Feature: learning-kit-sdk, Property 4: Pass threshold is consistent
-  it('Property 4: computePassThreshold is consistent (default 0.7)', () => {
+  it('computePassThreshold is consistent (default 0.7)', () => {
     fc.assert(
       fc.property(
         arbitraryMultipleChoiceData(),
@@ -124,8 +120,7 @@ describe('Scoring engine properties', () => {
     );
   });
 
-  // Feature: learning-kit-sdk, Property 8: Blank matching is order-independent
-  it('Property 8: blank correctness is independent of acceptedAnswers order', () => {
+  it('blank correctness is independent of acceptedAnswers order', () => {
     fc.assert(
       fc.property(
         fc.uniqueArray(

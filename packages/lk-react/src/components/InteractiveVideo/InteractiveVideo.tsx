@@ -11,6 +11,7 @@ import {
   type ItemGroup,
   type ItemOutcome,
   type ItemScoringPolicy,
+  isInteractiveVideoItemType,
   type LearnerResponse,
   type MediaProgress,
   type MediaTimeline,
@@ -38,7 +39,7 @@ import {
 import { type LearnerAi, useLearnerAi } from '../../ai/LkAiProvider.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import type { LkStrings, LkStringsOverride } from '../../i18n/strings.js';
-import { isDevelopment } from '../_internal.js';
+import { everyBuiltInTypeHandled, isDevelopment } from '../_internal.js';
 import { ActivityErrorBoundary } from '../ActivityErrorBoundary.js';
 import { Dictation } from '../Dictation/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
@@ -59,6 +60,7 @@ import type {
   SequenceRecordingBinding,
   SequenceRecordingSlot,
 } from '../types.js';
+import { NO_CUES, useCaptionLine, useCueLoader } from './caption-cues.js';
 import { clock, nudgeSpeed } from './format.js';
 import {
   AlertIcon,
@@ -74,6 +76,7 @@ import {
   SettingsIcon,
   VolumeIcon,
 } from './icons.js';
+import { useKeyMap, useKeySet } from './keyed-state.js';
 import {
   ContentsPanel,
   type ContentsQuiz,
@@ -94,7 +97,7 @@ import { crossedQuiz, limitResume, limitSeek, quizzesAtEnd } from './quiz-engine
 import { type MarkerState, Scrubber, type ScrubberMarker } from './Scrubber.js';
 import { FRAME_SECONDS, JUMP_SECONDS } from './shortcuts.js';
 import { resolveCaptionTracks, secondaryCandidates } from './tracks.js';
-import { type Cue, cueIndexAt, parseWebVtt } from './vtt.js';
+import { cueIndexAt } from './vtt.js';
 
 /** An item group whose items may be `redact()` projections: the client's view of an interactive video. */
 export type RenderableItemGroup = ItemGroup<RenderableActivity>;
@@ -388,63 +391,6 @@ function onNextFrame(run: () => void): () => void {
   return () => clearTimeout(timer);
 }
 
-/** A track as the cue cache knows it. */
-function trackKey(track: MediaTrack): string {
-  return `${track.kind}:${track.srclang}:${track.src}`;
-}
-
-const NO_CUES: Cue[] = [];
-
-/**
- * One caption line's cues: loaded when its track changes, and never another
- * track's. A late answer for a track the line has since left is dropped — a
- * slow Spanish file must never land in a line that now shows Portuguese — and
- * until the new track's cues arrive the line shows nothing rather than the old
- * language, unless they are cached already.
- */
-function useCaptionLine(
-  track: MediaTrack | undefined,
-  load: (track: MediaTrack) => Promise<Cue[]>,
-  peek: (key: string) => Cue[] | undefined,
-): { cues: Cue[]; failed: boolean } {
-  const key = track === undefined ? undefined : trackKey(track);
-  const [line, setLine] = useState<{ key?: string; cues: Cue[]; failed: boolean }>({
-    cues: NO_CUES,
-    failed: false,
-  });
-  const trackRef = useRef(track);
-  trackRef.current = track;
-  useEffect(() => {
-    const wanted = trackRef.current;
-    if (key === undefined || wanted === undefined) {
-      return;
-    }
-    let live = true;
-    load(wanted).then(
-      (cues) => {
-        if (live) {
-          setLine({ key, cues, failed: false });
-        }
-      },
-      () => {
-        if (live) {
-          setLine({ key, cues: NO_CUES, failed: true });
-        }
-      },
-    );
-    return () => {
-      live = false;
-    };
-  }, [key, load]);
-  if (key === undefined) {
-    return { cues: NO_CUES, failed: false };
-  }
-  if (line.key === key) {
-    return line;
-  }
-  return { cues: peek(key) ?? NO_CUES, failed: false };
-}
-
 /** What `video-captions-changed` reports: the language of each line on screen, or `null`. */
 function captionsShown(
   tracks: readonly MediaTrack[],
@@ -459,14 +405,6 @@ function captionsShown(
 
 /** One id per mount, for the quiz capture groups. Module-level: never a render-time `useId`. */
 let playerCount = 0;
-
-const ITEM_TYPES = new Set([
-  'multiple-choice',
-  'fill-in-the-blanks',
-  'gap-select',
-  'dictation',
-  'read-aloud',
-]);
 
 function Player(props: InteractiveVideoProps) {
   const {
@@ -541,7 +479,10 @@ function Player(props: InteractiveVideoProps) {
   const cues = useMemo(
     () =>
       timeline.cues.filter((cue) =>
-        slots.some((slot) => slot.group?.cue?.id === cue.id && ITEM_TYPES.has(slot.activity.type)),
+        slots.some(
+          (slot) =>
+            slot.group?.cue?.id === cue.id && isInteractiveVideoItemType(slot.activity.type),
+        ),
       ),
     [timeline.cues, slots],
   );
@@ -549,7 +490,7 @@ function Player(props: InteractiveVideoProps) {
     const byCue = new Map<string, SequenceSlot<RenderableActivity>[]>();
     for (const slot of slots) {
       const cueId = slot.group?.cue?.id;
-      if (cueId !== undefined && ITEM_TYPES.has(slot.activity.type)) {
+      if (cueId !== undefined && isInteractiveVideoItemType(slot.activity.type)) {
         byCue.set(cueId, [...(byCue.get(cueId) ?? []), slot]);
       }
     }
@@ -592,7 +533,7 @@ function Player(props: InteractiveVideoProps) {
   // Read at mount, like `responses`: a later change is a different attempt,
   // and a different attempt is a remount with a new `key`.
   const [submitted] = useState(() => new Set(props.submittedSlotIds ?? []));
-  const [answered, setAnswered] = useState<ReadonlySet<string>>(() => {
+  const [answered, answeredRef, setSlotAnswered] = useKeySet<string>(() => {
     const seeded = new Set<string>();
     for (const slot of slots) {
       if (
@@ -604,62 +545,15 @@ function Player(props: InteractiveVideoProps) {
     }
     return seeded;
   });
-  const answeredRef = useRef(answered);
-  answeredRef.current = answered;
-  const setSlotAnswered = useCallback((slotId: string, on: boolean) => {
-    setAnswered((previous) => {
-      if (previous.has(slotId) === on) {
-        return previous;
-      }
-      const next = new Set(previous);
-      if (on) {
-        next.add(slotId);
-      } else {
-        next.delete(slotId);
-      }
-      answeredRef.current = next;
-      return next;
-    });
-  }, []);
   // Each question's latest `score / maxScore`, for the end card. State, not a
   // ref: a second result for a question already answered changes the score and
   // nothing else, and the card must still show it.
-  const [scores, setScores] = useState<ReadonlyMap<string, number>>(() => new Map());
-  const setSlotScore = useCallback((slotId: string, score: number | undefined) => {
-    setScores((previous) => {
-      if (previous.get(slotId) === score) {
-        return previous;
-      }
-      const next = new Map(previous);
-      if (score === undefined) {
-        next.delete(slotId);
-      } else {
-        next.set(slotId, score);
-      }
-      return next;
-    });
-  }, []);
+  const [scores, setSlotScore] = useKeyMap<string, number>();
 
   // Work on its way — a take being stored or judged — by source and question:
   // `host:<slotId>` from `setPending`, `take:<slotId>` from an SDK read-aloud's
   // channel. While any is here, nothing hands the attempt over.
-  const [pending, setPendingState] = useState<ReadonlySet<string>>(() => new Set());
-  const pendingRef = useRef(pending);
-  const setPendingKey = useCallback((key: string, on: boolean) => {
-    setPendingState((previous) => {
-      if (previous.has(key) === on) {
-        return previous;
-      }
-      const next = new Set(previous);
-      if (on) {
-        next.add(key);
-      } else {
-        next.delete(key);
-      }
-      pendingRef.current = next;
-      return next;
-    });
-  }, []);
+  const [pending, pendingRef, setPendingKey] = useKeySet<string>(() => new Set());
   // The latest take each SDK read-aloud reported: a report for an older take
   // describes one the learner has replaced.
   const latestTakes = useRef(new Map<string, number>());
@@ -979,46 +873,7 @@ function Player(props: InteractiveVideoProps) {
       }),
     [tracks, preferences.captionLanguage, preferences.secondaryCaptionLanguage],
   );
-  const loaderRef = useRef(captionsLoader);
-  loaderRef.current = captionsLoader;
-  // Parsed cues per track, for the life of the mount: switching languages back
-  // and forth never refetches. The promise while a file loads — so a swap, which
-  // asks for a file both lines want, makes one request — and the cues once it
-  // has. A failure is forgotten, so coming back to that language tries again.
-  const loading = useRef(new Map<string, Promise<Cue[]>>());
-  const loaded = useRef(new Map<string, Cue[]>());
-  const loadCues = useCallback((track: MediaTrack): Promise<Cue[]> => {
-    const key = trackKey(track);
-    const pending = loading.current.get(key);
-    if (pending !== undefined) {
-      return pending;
-    }
-    const request = Promise.resolve()
-      .then(() =>
-        loaderRef.current
-          ? loaderRef.current(track)
-          : fetch(track.src, { credentials: 'same-origin' }).then((response) => {
-              if (!response.ok) {
-                throw new Error(String(response.status));
-              }
-              return response.text();
-            }),
-      )
-      .then((text) => {
-        const parsed = parseWebVtt(text);
-        if (parsed.length === 0) {
-          throw new Error('The caption file held no cues.');
-        }
-        loaded.current.set(key, parsed);
-        return parsed;
-      });
-    loading.current.set(key, request);
-    request.catch(() => {
-      loading.current.delete(key);
-    });
-    return request;
-  }, []);
-  const peekCues = useCallback((key: string) => loaded.current.get(key), []);
+  const { loadCues, peekCues } = useCueLoader(captionsLoader);
   const primaryLine = useCaptionLine(primaryTrack, loadCues, peekCues);
   const secondaryLine = useCaptionLine(secondaryTrack, loadCues, peekCues);
   const primaryCues = primaryLine.cues;
@@ -1734,7 +1589,12 @@ function Player(props: InteractiveVideoProps) {
           />
         );
       }
+      case 'written-response':
+        // Never reached: a timeline refuses a written response
+        // (`INTERACTIVE_VIDEO_ITEM_TYPES`), so no quiz holds one.
+        return null;
       default:
+        everyBuiltInTypeHandled(activity);
         return null;
     }
   };

@@ -7,11 +7,15 @@
  * transport actually reasons about — a paused flag and a settable playhead —
  * which is what lets the state machine be exercised rather than mocked away.
  *
- * Shared rather than duplicated because two suites need it: the transport's own
- * tests and the translation-coverage sweep, which has to reach the `pause` and
- * `preparing` labels and therefore has to be able to start playback.
+ * Shared rather than duplicated: the transport's own tests, the translation
+ * sweep (which has to reach the `pause` and `preparing` labels, so has to be
+ * able to start playback), the interactive video's suites and the sequence's
+ * media budget all need it. Six copies of it once lived in those suites.
+ *
+ * `duration` is what every element reports; `load()` does nothing, where
+ * jsdom's reports it is not implemented.
  */
-export function stubMediaElement(): void {
+export function stubMediaElement({ duration = 60 }: { duration?: number } = {}): void {
   const state = new WeakMap<HTMLMediaElement, { paused: boolean; time: number }>();
   const get = (el: HTMLMediaElement) => {
     let s = state.get(el);
@@ -39,7 +43,7 @@ export function stubMediaElement(): void {
   });
   Object.defineProperty(HTMLMediaElement.prototype, 'duration', {
     configurable: true,
-    get: () => 60,
+    get: () => duration,
   });
   HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
     get(this).paused = false;
@@ -50,4 +54,5 @@ export function stubMediaElement(): void {
     get(this).paused = true;
     this.dispatchEvent(new Event('pause'));
   };
+  HTMLMediaElement.prototype.load = function load() {};
 }

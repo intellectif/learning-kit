@@ -45,8 +45,7 @@ const mutated = fc
   .map(([assessment, key, value]) => ({ ...assessment, [key]: value }));
 
 describe('Speech assessment properties', () => {
-  // Feature: learning-kit-sdk, Property 16: validateSpeechAssessment never throws
-  it('Property 16: never throws, and always answers with a well-formed result', () => {
+  it('never throws, and always answers with a well-formed result', () => {
     fc.assert(
       fc.property(fc.oneof(anything(), mutated), (value) => {
         const result = validateSpeechAssessment(value);

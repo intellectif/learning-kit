@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "storybook dev -p 6006 --no-open",
     "build-storybook": "storybook build",
+    "smoke": "node scripts/smoke.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "biome check ."
   },
@@ -16,6 +17,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@storybook/react-vite": "^10.4.0",
     "@vitejs/plugin-react": "^6.0.0",
     "storybook": "^10.4.0",

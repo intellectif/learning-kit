@@ -30,7 +30,7 @@ import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import { ANONYMOUS_ACTOR, detailIsRight, isDevelopment, objectIdFor } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation } from '../shared/AiHelp.js';
-import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
+import { feedbackAnnouncement, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import { mintTake, stampTake } from '../shared/sequence-slot.js';
 import {
@@ -644,7 +644,7 @@ export function Dictation({
   }, [defaultSubmitted]);
 
   // Identity-guarded so the mount run is a no-op: without it this fires after
-  // the first paint and undoes every seed it was just given (Req 3.7).
+  // the first paint and undoes every seed it was just given.
   const lastDataRef = useRef(data);
   useEffect(() => {
     if (lastDataRef.current === data) {
@@ -1302,17 +1302,18 @@ export function Dictation({
         {...(scoringPolicy.retries > 0 ? { ref: feedbackRef } : {})}
       >
         <AnnouncementText
-          announcement={
-            isReview
-              ? policy.feedback || !outcomeShowsMarks(outcome)
-                ? reviewSummary
-                : null
-              : policy.feedback || summary === null
-                ? summary === null || extra === ''
-                  ? summary
-                  : { ...summary, text: `${summary.text} ${extra}` }
-                : { text: s.answerSubmitted, feedback: null }
-          }
+          announcement={feedbackAnnouncement({
+            review: isReview,
+            feedback: policy.feedback,
+            outcome,
+            readBack: reviewSummary,
+            submitted: summary !== null,
+            result:
+              summary === null || extra === ''
+                ? summary
+                : { ...summary, text: `${summary.text} ${extra}` },
+            received: { text: s.answerSubmitted, feedback: null },
+          })}
         />
       </FeedbackRegion>
       <TryActions

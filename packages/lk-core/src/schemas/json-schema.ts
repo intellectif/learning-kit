@@ -1,4 +1,4 @@
-import { z } from 'zod/v4';
+import * as z from 'zod/v4';
 import { UnknownActivityTypeError } from '../errors.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
 import { DictationDataSchema } from './dictation.js';

@@ -34,7 +34,7 @@ docs/lk-storybook   Storybook 10
 pnpm test       # Vitest unit + fast-check property tests (all packages)
 pnpm coverage   # coverage; 80% gate globally, 100% for packages/lk-core/src/scoring
 pnpm lint       # Biome (lint + format check)
-pnpm build      # tsup build (ESM + CJS + d.ts)
+pnpm build      # tsdown build (ESM + CJS + d.ts)
 
 # End-to-end (Playwright, Chromium) against the built Vite example:
 pnpm turbo run build
@@ -42,26 +42,25 @@ pnpm exec playwright install chromium   # first time only
 pnpm turbo run e2e
 ```
 
-The gates CI enforces on a pull request (`.github/workflows/ci.yml` and `e2e.yml`):
+The gates CI enforces on a pull request, and on `main` after each merge (`.github/workflows/ci.yml` and `e2e.yml`):
 
 ```bash
-pnpm turbo run build test lint   # Node 22 and 24
-pnpm turbo run typecheck         # Node 22 and 24, tests included
-pnpm check-packaging             # publint, are-the-types-wrong, verify-dist; Node 22 and 24
-pnpm turbo run coverage          # Node 22
-pnpm size                        # Node 22: bundle budgets
-pnpm api-check                   # Node 22: the public API surface matches the committed report
-pnpm turbo run e2e               # Node 22
+pnpm verify-release                                     # Node 24: exactly what the release runs
+pnpm turbo run build lint typecheck coverage publint attw verify-dist   # Node 22
+pnpm turbo run e2e                                      # the example app in Chromium
+pnpm --filter @intellectif/lk-storybook build-storybook # then every story rendered:
+pnpm --filter @intellectif/lk-storybook smoke
 ```
 
 `pnpm verify-release` is what `pnpm release` runs before publishing: build,
-test, lint, typecheck, publint, attw and verify-dist in one turbo run, then
-`api-check` and `size`, on Node 24 in the Release job. It is not the run a pull
-request passes. CI splits those tasks into steps and runs `api-check` and `size`
-on Node 22 only, so a task that reads another task's output without declaring it
-in `turbo.json` can pass CI and still fail the release, as one did. Before
-merging a change to the task graph, run `pnpm verify-release` in a clean
-checkout, where no `dist` is left over to hide a missing dependency.
+test, lint, typecheck, publint, attw and verify-dist in one turbo run, then the
+repository lint (`pnpm lint:repo`, warnings fatal), `api-check`, `docs-check`
+and `size`. CI runs that same command on Node 24, the Release job's Node, so a
+task that reads another task's output without declaring it in `turbo.json`
+fails the pull request, not the release. Node 22 runs each test once, with
+coverage. Before merging a change to the task graph, still run
+`pnpm verify-release` in a clean checkout, where no `dist` is left over to hide
+a missing dependency.
 
 ### The public API surface
 
@@ -100,25 +99,25 @@ reports `0 changed`. Anything else means a stored grade just moved.
 Conventions:
 
 - **Biome** is the single linter/formatter (single quotes, 2-space, width 100, trailing commas). Run `pnpm exec biome check --write .` before committing. Suppressions must carry a justification comment.
-- **Property tests** use `fast-check` (`numRuns: 100` min) and are tagged `Feature: learning-kit-sdk, Property N: …`.
-- **Accessibility** is enforced: component tests include `vitest-axe`; e2e covers keyboard-only flows. No axe violations.
+- **Property tests** use `fast-check` (`numRuns: 100` min), and each test's title states the property it holds.
+- **Accessibility** is enforced: component tests run axe-core through `checkA11y` and `expect(…).toHaveNoViolations()` (`packages/lk-react/src/test-support/a11y.ts`); e2e covers keyboard-only flows. No axe violations.
 - TypeScript is strict (`exactOptionalPropertyTypes`, `isolatedModules`); imports use the `.js` extension (bundler resolution).
 
 ## Adding a new activity type
 
 The architecture is contract-first; adding a type touches `lk-core` then `lk-react`:
 
-1. **Types** — add the data/response interfaces to `packages/lk-core/src/types/activity.ts` and export them from `types/index.ts`. Extend `ActivityType` / `ActivityDataMap`.
+1. **Types** — add the data/response interfaces to `packages/lk-core/src/types/activity.ts` and export them from `types/index.ts`. Extend `ActivityType` / `ActivityDataMap`, and add the type to `BUILT_IN_ACTIVITY_TYPES` in `src/built-in-types.ts` — the one list the SDK's per-type tables are held to (see step 10).
 2. **Schema** — add `packages/lk-core/src/schemas/<type>.ts` (Zod, importing `zod/v4`). Reuse `MediaSchema` / `FeedbackSchema` for the optional shared `media` / `feedback` fields. **Keep it internal**: zod is private to lk-core since 1.0, and `verify-dist` fails on an exported zod schema or a published type that names zod — the public contract is the TypeScript type, `validateActivity`, and a JSON Schema export in `schemas/json-schema.ts`. Limit a string's length with `maxUnits` (`schemas/text-length.ts`), never zod's `.max()`, whose unit is zod's to change; a check that must run after other fields failed reads them through `parsedFields` (`schemas/after-issues.ts`). Semantic rules that JSON Schema can't express go in `.refine()` (documented).
 3. **Scoring** — add `packages/lk-core/src/scoring/activity-scorers/<type>.ts` and give it to the type's descriptor in `registry/builtins.ts`, which is how `score` and `evaluate` reach it. The scorer must be **pure and deterministic**, return `{ score∈[0,1], maxScore: 1, feedback: null, details }`, and reach **100% coverage**.
 4. **Authoring** — add `packages/lk-core/src/authoring/<type>.ts` and put it on the descriptor as `authoring`: a `createDraft` that `validateDraft` reports as `incomplete` (never `invalid`), and a `checkDraft` that reports each problem at the path the schema reports it. Add every new code to `DRAFT_ISSUE_SEVERITY` in `authoring/issues.ts` and to the tables in `docs/authoring.md` — a test holds the two together — and extend the editor-shaped arbitraries in `authoring/__tests__/draft.property.test.ts`, which fail on any schema failure the checks do not name.
 5. **Property tests** — add fast-check arbitraries and properties (score ∈ [0,1], determinism, classification round-trip).
-6. **Vectors** — add the type's cases to `scripts/vector-cases.mjs` (every scoring path, every default a later release could "improve", every tie order the scorer pins), build, `node scripts/generate-vectors.mjs`, and add a seed for it to `vectors/validation.json` through `scripts/generate-validation-vectors.mjs` (see `docs/releasing.md`), then `pnpm mutate --filter <type>` and triage every survivor in the PR. A type that ships without vectors has a grade nobody froze.
-7. **Component** — add `packages/lk-react/src/components/<Type>/<Type>.tsx` implementing `ActivityProps<…>`: `'use client'`, dev-only `validateActivity` at the boundary, reset-on-`data`-change (Req 3.7), `onInteraction`/`onComplete`, anonymous actor + `urn:` object id, render optional `media` (`ActivityMedia`) and overall `feedback`. Wrap it in `ActivityErrorBoundary` in `index.tsx`. A component that renders a revealed projection (`redact(data, { reveal: 'after-submit' })`, which carries `redacted: true` AND the answer key) gates its boundary check on the key, not on the marker — `assertRedacted` refuses such a projection by design.
-8. **Wire it up** — add a tsup entry, a package `exports` subpath, the barrel re-export, and a `data.type` branch in both `ActivitySequence` and `ActivityPreview`.
+6. **Vectors** — add the type's cases to `scripts/vector-cases.mjs` (every scoring path, every default a later release could "improve", every tie order the scorer pins), build, `node scripts/generate-vectors.mjs`, then `node scripts/generate-validation-vectors.mjs`, which seeds the type's validation cases from those vectors — `validation-vectors.test.mjs` fails until it has (see `docs/releasing.md`), then `pnpm mutate --filter <type>` and triage every survivor in the PR. A type that ships without vectors has a grade nobody froze.
+7. **Component** — add `packages/lk-react/src/components/<Type>/<Type>.tsx` implementing `ActivityProps<…>`: `'use client'`, dev-only `validateActivity` at the boundary, reset-on-`data`-change, `onInteraction`/`onComplete`, anonymous actor + `urn:` object id, render optional `media` (`ActivityMedia`) and overall `feedback`. Wrap it in `ActivityErrorBoundary` in `index.tsx`. A component that renders a revealed projection (`redact(data, { reveal: 'after-submit' })`, which carries `redacted: true` AND the answer key) gates its boundary check on the key, not on the marker — `assertRedacted` refuses such a projection by design.
+8. **Wire it up** — add a `tsdown.config.ts` entry, a package `exports` subpath, the barrel re-export, and a `data.type` branch in `ActivitySequence`, `ActivityPreview` and `InteractiveVideo` (in the video, a `null` one if a timeline must not hold the type — and then add it to neither `INTERACTIVE_VIDEO_ITEM_TYPES` nor its tests).
 9. **Tests & stories** — RTL + axe unit tests, Storybook stories, and (ideally) a Playwright flow. Keep coverage ≥ 80%.
-10. **Join every per-type enumeration** — the lists a new type must appear in, none of which fails on its own when one is missed: `types/index.ts` exports, `registry/index.ts` exports, `schemas/index.ts` (JSON Schema, redacted type), `types/redacted.ts` (the redacted type written out, the `RedactedActivity` union), `redacted-types.equality.test.ts`, the `ownSchemas` call in `registry/builtins.ts`, `scripts/verify-dist.mjs` in both packages, `create-draft.test.ts` `BUILT_IN`, `draft.property.test.ts` `BUILT_IN` / `EDITOR_DRAFTS` / `RESPONSES`, `redacted-types.test.ts`, `registry.test.ts`, the example app's sample data, `.size-limit.json`, `public-surface.test.ts`, the i18n coverage sweep and `docs/i18n.md`, `docs/styling.md`, `docs/upgrading.md`'s table, both READMEs, and the "New drafts" table in `docs/authoring.md`.
-11. **Specs** — update `requirements.md` / `design.md` / `tasks.md` and add a changeset.
+10. **Follow the failures, then the list** — once the type is in `BUILT_IN_ACTIVITY_TYPES`, the build names most of what is left: `pnpm typecheck` fails in each of `ActivitySequence`, `ActivityPreview` and `InteractiveVideo` (`everyBuiltInTypeHandled`), in `hintRevealsAnswer`, in the draft property tests' `EDITOR_DRAFTS` / `RESPONSES` and in the component lifecycle suite (`satisfies Record<BuiltInActivityType, …>`); `built-in-types.test.ts` fails until the registry, the data map and the descriptor (redacted schema, field policy, interop, JSON Schema, a `createDraft`) all have it; `validation-vectors.test.mjs` until it has seeds; and both `verify-dist` scripts until lk-core's build drafts it and lk-react's has its component. What nothing checks, and still has to be joined by hand: the `types/index.ts`, `registry/index.ts` and `schemas/index.ts` exports (`api-check` shows them, it cannot ask for them), `types/redacted.ts` (the redacted type written out, the `RedactedActivity` union) with `redacted-types.equality.test.ts` and `redacted-types.test.ts`, the `ownSchemas` call in `registry/builtins.ts`, the example app's sample data, `.size-limit.json`, the i18n coverage sweep and `docs/i18n.md`, `docs/styling.md`, `docs/upgrading.md`'s table, both READMEs, and the "New drafts" table in `docs/authoring.md`.
+11. **Changeset and docs** — a changeset written to the release-note template (`docs/releasing.md`), the type's section in its guide, and its row in `docs/features.md`.
 
 A type that lives outside this repository needs none of the above: `defineActivityType` and `registerActivityType` register it at runtime, a module augmentation of `ActivityDataMap` and `LearnerResponseMap` lets TypeScript accept its type name, and a `renderers` entry puts it on screen — see [Custom activity types](./docs/authoring.md#custom-activity-types-end-to-end).
 

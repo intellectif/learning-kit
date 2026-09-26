@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type LearnerAi, LkAiProvider } from '../../../ai/LkAiProvider.js';
 import { useAiHints } from '../../../ai/useAiHelp.js';
 import type { InteractiveVideoQuestion as FromTheRoot } from '../../../index.js';
+import { stubMediaElement } from '../../../test-support/media.js';
 import { type SpeechCaptureHarness, stubSpeechCapture } from '../../../test-support/speech.js';
 import { MultipleChoice } from '../../MultipleChoice/index.js';
 import { SequenceSlotContext } from '../../shared/sequence-slot.js';
@@ -157,47 +158,6 @@ function hosting(onActive?: (active: boolean) => void) {
   return { renderQuestion, current };
 }
 
-function stubVideo(duration = 120): void {
-  const state = new WeakMap<HTMLMediaElement, { paused: boolean; time: number }>();
-  const get = (el: HTMLMediaElement) => {
-    let entry = state.get(el);
-    if (entry === undefined) {
-      entry = { paused: true, time: 0 };
-      state.set(el, entry);
-    }
-    return entry;
-  };
-  Object.defineProperty(HTMLMediaElement.prototype, 'paused', {
-    configurable: true,
-    get(this: HTMLMediaElement) {
-      return get(this).paused;
-    },
-  });
-  Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', {
-    configurable: true,
-    get(this: HTMLMediaElement) {
-      return get(this).time;
-    },
-    set(this: HTMLMediaElement, value: number) {
-      get(this).time = value;
-    },
-  });
-  Object.defineProperty(HTMLMediaElement.prototype, 'duration', {
-    configurable: true,
-    get: () => duration,
-  });
-  HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
-    get(this).paused = false;
-    this.dispatchEvent(new Event('play'));
-    return Promise.resolve();
-  };
-  HTMLMediaElement.prototype.pause = function pause(this: HTMLMediaElement) {
-    get(this).paused = true;
-    this.dispatchEvent(new Event('pause'));
-  };
-  HTMLMediaElement.prototype.load = function load() {};
-}
-
 async function begin(): Promise<void> {
   await act(async () => {
     video().dispatchEvent(new Event('loadedmetadata'));
@@ -233,7 +193,7 @@ const pendingLine = () => document.querySelector('.lk-iv-end-pending');
 let harness: SpeechCaptureHarness | undefined;
 
 beforeEach(() => {
-  stubVideo();
+  stubMediaElement({ duration: 120 });
   localStorage.clear();
 });
 

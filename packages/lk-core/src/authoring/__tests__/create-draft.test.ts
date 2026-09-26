@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod/v4';
+import { BUILT_IN_ACTIVITY_TYPES } from '../../built-in-types.js';
 import { UnknownActivityTypeError } from '../../errors.js';
 import { defineActivityType, registerActivityType } from '../../registry/index.js';
 import { validateActivity } from '../../schemas/index.js';
@@ -15,14 +16,7 @@ const counter = () => {
   };
 };
 
-const BUILT_IN: ActivityType[] = [
-  'multiple-choice',
-  'fill-in-the-blanks',
-  'written-response',
-  'gap-select',
-  'dictation',
-  'read-aloud',
-];
+const BUILT_IN = BUILT_IN_ACTIVITY_TYPES;
 
 describe('createDraft', () => {
   it.each(BUILT_IN)('gives %s a draft that is incomplete — not invalid, not storable', (type) => {

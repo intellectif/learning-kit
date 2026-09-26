@@ -120,7 +120,9 @@ export function flattenSequence<TItem extends { id: string; type: string }>(
   // Carry the AUTHORED index through the shuffle: slot identity comes from
   // where an entry was written, never from where it happens to be shown.
   const authored = entries.map((entry, entryIndex) => ({ entry, entryIndex }));
-  const ordered = shuffleEntries ? seededShuffle(authored, `${seed}:entries`) : authored;
+  const ordered = shuffleEntries
+    ? seededShuffle(authored, `${seed}:entries`, { version: 1 })
+    : authored;
 
   const slots: SequenceSlot<TItem>[] = [];
   for (const { entry, entryIndex } of ordered) {
@@ -161,7 +163,7 @@ export function flattenSequence<TItem extends { id: string; type: string }>(
       timeline !== undefined
         ? inQuizOrder(items, timeline)
         : entry.shuffle === 'within-group'
-          ? seededShuffle(items, `${seed}:group:${entry.id}`)
+          ? seededShuffle(items, `${seed}:group:${entry.id}`, { version: 1 })
           : items;
     const size = presented.length;
     presented.forEach(({ item, itemIndex }, position) => {

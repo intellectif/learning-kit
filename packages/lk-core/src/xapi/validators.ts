@@ -1,4 +1,4 @@
-import { z } from 'zod/v4';
+import * as z from 'zod/v4';
 import { ActivitySchemaError } from '../errors.js';
 import type { ValidationError } from '../types/activity.js';
 import type { XAPIStatement } from '../types/xapi.js';

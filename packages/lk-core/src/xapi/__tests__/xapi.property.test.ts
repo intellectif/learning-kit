@@ -32,8 +32,7 @@ const scoringResultArb: fc.Arbitrary<ScoringResult> = fc
   .map(({ score, passed }) => ({ score, maxScore: 1, passed, feedback: null, details: [] }));
 
 describe('xAPI builder properties', () => {
-  // Feature: learning-kit-sdk, Property 7: xAPI Statement structural validity
-  it('Property 7: buildAnsweredStatement produces a structurally valid xAPI 1.0.3 statement', () => {
+  it('buildAnsweredStatement produces a structurally valid xAPI 1.0.3 statement', () => {
     fc.assert(
       fc.property(
         actorArb,

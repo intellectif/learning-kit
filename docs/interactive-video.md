@@ -109,7 +109,7 @@ numbers items by their position in `items`), so reordering a timeline never re-m
 ## Authoring one
 
 ```ts
-import { createInteractiveVideoDraft, validateItemGroupDraft } from '@intellectif/lk-core/authoring';
+import { createInteractiveVideoDraft, validateItemGroupDraft } from '@intellectif/lk-core';
 
 const draft = createInteractiveVideoDraft({ newId: () => crypto.randomUUID() });
 // → an item group with a video stimulus, no file yet, no questions and no quizzes.

@@ -128,9 +128,10 @@ State is exposed via `data-correct="true|false"` after submission, but **not at 
 **The interactive-video marking contract.** A quiz on the progress bar is a `.lk-iv-marker`, and in
 a list a `.lk-iv-marker-dot`; both carry the same `data-state`, and each state has its own **shape**,
 never a colour alone: `unreached` a hollow ring, `open` a half-filled ring (some of it answered),
-`answered` a filled ring, `correct` a filled ring in the success colour, `partial` a half fill in the
-warning colour, `incorrect` a diamond in the error colour, and `pending` a dashed ring for a grade
-that has not come back. `data-required` marks a quiz that holds the way on. The bar's own colours are
+`answered` a filled ring, `correct` a filled ring in green, `partial` a half fill in amber,
+`incorrect` a diamond in red, and `pending` a dashed ring for a grade that has not come back — bright
+tones chosen for the dark bar, not the theme's `--lk-color-success`, `--lk-color-warning` and
+`--lk-color-error`, which are drawn for light surfaces. `data-required` marks a quiz that holds the way on. The bar's own colours are
 literals rather than tokens — the chrome is always dark, because it sits on moving pictures — with
 one exception: `--lk-color-media-accent` is the accent it draws (the played part of the bar, the
 markers' fill, the focus ring on the chrome), and it defaults to white, which reads on any video. Set

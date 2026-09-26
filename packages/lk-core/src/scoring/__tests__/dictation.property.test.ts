@@ -29,8 +29,23 @@ function naiveDistance(a: string, b: string): number {
   return (table[left.length] as number[])[right.length] as number;
 }
 
+/**
+ * Any code point, surrogate pairs included and lone surrogates not: fast-check
+ * 3's `fullUnicodeString`, as its migration guide writes it for 4.
+ */
+const fullUnicodeString = (constraints: { maxLength: number }) =>
+  fc.string({ ...constraints, unit: 'binary' });
+
+/** Code points of the Basic Multilingual Plane, no surrogate: fast-check 3's `unicodeString`. */
+const SURROGATES = 0xdfff + 1 - 0xd800;
+const bmpCharacter = fc
+  .integer({ min: 0, max: 0xffff - SURROGATES })
+  .map((v) => String.fromCodePoint(v < 0xd800 ? v : v + SURROGATES));
+const unicodeString = (constraints: { maxLength: number }) =>
+  fc.string({ ...constraints, unit: bmpCharacter });
+
 const attemptArb = fc.oneof(
-  fc.fullUnicodeString({ maxLength: 60 }),
+  fullUnicodeString({ maxLength: 60 }),
   fc.string({ maxLength: 60 }),
   arbitraryDictationData().map((data) => data.transcript),
 );
@@ -40,8 +55,7 @@ const pair = arbitraryDictationData().chain((data) =>
 );
 
 describe('Dictation scoring properties', () => {
-  // Feature: learning-kit-sdk, Property 11: dictation score is in [0, 1] and never NaN
-  it('Property 11: score is within [0, 1] and never NaN, and every detail score is too', () => {
+  it('score is within [0, 1] and never NaN, and every detail score is too', () => {
     fc.assert(
       fc.property(pair, ({ data, response }) => {
         const result = score('dictation', data, response);
@@ -58,8 +72,7 @@ describe('Dictation scoring properties', () => {
     );
   });
 
-  // Feature: learning-kit-sdk, Property 12: dictation scoring is deterministic
-  it('Property 12: the same data and text give byte-identical results', () => {
+  it('the same data and text give byte-identical results', () => {
     fc.assert(
       fc.property(pair, ({ data, response }) => {
         const first = JSON.stringify(score('dictation', data, response));
@@ -73,8 +86,7 @@ describe('Dictation scoring properties', () => {
     );
   });
 
-  // Feature: learning-kit-sdk, Property 13: the alignment reconstructs both strings, and the diff counts the distance
-  it('Property 13: the word pairings rebuild both normalised strings; non-equal char ops equal the edit distance', () => {
+  it('the word pairings rebuild both normalised strings; non-equal char ops equal the edit distance', () => {
     fc.assert(
       fc.property(pair, ({ data, response }) => {
         const alignment = alignDictation(data, response.text);
@@ -101,9 +113,8 @@ describe('Dictation scoring properties', () => {
     );
   });
 
-  // Feature: learning-kit-sdk, Property 14: editDistance is a metric and agrees with the textbook definition
-  it('Property 14: editDistance is a metric, equals a naive DP, and equals levenshteinDistance on BMP strings', () => {
-    const anyString = fc.fullUnicodeString({ maxLength: 40 });
+  it('editDistance is a metric, equals a naive DP, and equals levenshteinDistance on BMP strings', () => {
+    const anyString = fullUnicodeString({ maxLength: 40 });
     fc.assert(
       fc.property(anyString, anyString, anyString, (a, b, c) => {
         expect(editDistance(a, a)).toBe(0);
@@ -116,7 +127,7 @@ describe('Dictation scoring properties', () => {
     );
     // No surrogate pair, so a code point and a code unit are the same thing —
     // and the two implementations must count alike.
-    const bmp = fc.unicodeString({ maxLength: 40 });
+    const bmp = unicodeString({ maxLength: 40 });
     fc.assert(
       fc.property(bmp, bmp, (a, b) => {
         expect(editDistance(a, b)).toBe(levenshteinDistance(a, b, Number.POSITIVE_INFINITY));
@@ -125,10 +136,9 @@ describe('Dictation scoring properties', () => {
     );
   });
 
-  // Feature: learning-kit-sdk, Property 15: normalisation is idempotent and NFC without a tolerance
-  it('Property 15: normalizeDictationText is idempotent and NFC without a tolerance; every rule target is a pre-strip fixpoint', () => {
+  it('normalizeDictationText is idempotent and NFC without a tolerance; every rule target is a pre-strip fixpoint', () => {
     fc.assert(
-      fc.property(fc.fullUnicodeString({ maxLength: 80 }), (text) => {
+      fc.property(fullUnicodeString({ maxLength: 80 }), (text) => {
         const once = normalizeDictationText(text);
         expect(normalizeDictationText(once)).toBe(once);
         expect(once.normalize('NFC')).toBe(once);

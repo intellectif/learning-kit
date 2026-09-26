@@ -464,3 +464,65 @@ export const sampleHintCostBlank: FillInTheBlanksData = {
   blanks: [{ id: 'went', acceptedAnswers: ['went'], hint: 'The past of "go" is irregular.' }],
   scoringStrategy: 'partial',
 };
+
+/**
+ * An interactive video: eight seconds of ffmpeg's test pattern
+ * (`public/demo-video.webm`, made for this demo) with English captions, a
+ * multiple-choice quiz at 0:02 and a required fill-in-the-blanks quiz at 0:05.
+ * Served by the app itself, so the demo and its end-to-end test need no network.
+ */
+export const sampleInteractiveVideo: ItemGroup = {
+  schemaVersion: '1.0',
+  type: 'item-group',
+  id: 'demo-video',
+  title: 'A short clip',
+  stimulus: {
+    id: 'demo-video-stimulus',
+    kind: 'video',
+    media: {
+      type: 'video',
+      url: '/demo-video.webm',
+      alt: 'A test pattern with a counting clock',
+      tracks: [
+        {
+          kind: 'captions',
+          src: '/demo-video.vtt',
+          srclang: 'en',
+          label: 'English',
+          default: true,
+        },
+      ],
+    },
+  },
+  items: [
+    {
+      schemaVersion: '1.0',
+      type: 'multiple-choice',
+      id: 'iv-start',
+      title: 'The start',
+      question: 'Where does the clock start?',
+      mode: 'single',
+      scoringStrategy: 'all-or-nothing',
+      options: [
+        { id: 'zero', text: 'At zero', isCorrect: true },
+        { id: 'ten', text: 'At ten', isCorrect: false },
+      ],
+    },
+    {
+      schemaVersion: '1.0',
+      type: 'fill-in-the-blanks',
+      id: 'iv-stop',
+      title: 'The end',
+      passage: 'The clock stops at {{n}}.',
+      blanks: [{ id: 'n', acceptedAnswers: ['eight', '8'] }],
+      scoringStrategy: 'all-or-nothing',
+    },
+  ],
+  timeline: {
+    navigation: 'free',
+    cues: [
+      { id: 'first', at: 2, title: 'First pause', itemIds: ['iv-start'] },
+      { id: 'second', at: 5, title: 'Second pause', itemIds: ['iv-stop'], required: true },
+    ],
+  },
+};

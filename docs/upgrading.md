@@ -37,6 +37,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.20.0 | 20.0.0 | Delivery policies: `delivery` on every activity and both pagers switches off feedback, solutions, hints or AI help per paper; `resolveDeliveryPolicy`, `validateDeliveryPolicy`, `combineDeliveryPolicies`; `planAttempt(…, { delivery })` records it in the plan and its hash, and `verifyAttemptPlan` reports `deliveryChanged`. **No grade changes, and an absent policy changes nothing** — the major is the peer bump, plus a required `delivery` on `InteractiveVideoQuestion` |
 | 0.21.0 | 21.0.0 | Scoring policies: `scoring` on every activity and both pagers — "Try again" in `practice` (`retries`), which try `counts`, and what tries and hints cost (`retryPenalty`, `hintPenalty`); `scoreTries`, `evaluateTries` and `evaluate(…, { scoring })`; `resolveItemScoringPolicy` / `validateItemScoringPolicy`; `planAttempt(…, { scoring })` and `scoringChanged`; `hintsRevealed` on multiple-choice, fill-in-the-blanks and gap-select responses. **No grade changes without a policy.** One fix to 0.20's `solutions: false` on a dictation, and one possible type error — see [0.20 → 0.21](#020--021-lk-core--20x--21x-lk-react) |
 | 0.22.0 | 22.0.0 | Feedback on writing: a `writingFeedback` port gives `<WrittenResponse>` "Get feedback on my draft" in `practice`; `useAiWritingFeedback` for a written response you draw; `aiWritingFeedbackRequest` and `checkAiWritingFeedback` in lk-core, which refuses a correction of words the draft does not contain (`misquotes-answer`) and computes the rubric's indicative score itself; four writing cases in `ai-check`. **Additive, and nothing changes without the port** — the major is the peer bump, plus eight strings and the type errors in [0.21 → 0.22](#021--022-lk-core--21x--22x-lk-react) |
+| 1.3.0 | 23.1.1 | Smaller bundles — one function imported no longer brings all of zod — `BUILT_IN_ACTIVITY_TYPES` / `isBuiltInActivityType`, `hintRevealsAnswer` withholding a hint it cannot check, built-in types registered however a bundler splits lk-core; a blank's `caseSensitive` / `trimWhitespace` and `seededShuffle` without `version` deprecated. lk-react 23.1.1: a multiple choice under `feedback: false` silent before an answer. See [1.2 → 1.3](#12--13-lk-core--231--2311-lk-react) |
 | 1.2.0 | — | Assistants for authors: `critiqueDraft`, `critiqueDrafts` and `critiqueItemGroupDraft`, an item critic whose findings (`warning`, `advice`) sit beside `validateDraft`'s issues and never refuse an item; `aiCritiqueRequest` / `checkAiCritique`, a model's review whose findings must point at the item's own fields (`contradicts-item`); `aiDraftsRequest`, `checkAiDrafts`, `aiDraftsRepairRequest` and `generateDrafts`, drafts of the types an author chooses, in the author's order, from a passage, a script or captions; `interactiveVideoFromDrafts`, a video quiz with each question where its caption ends, or at the end. **lk-core only** — no lk-react release; see [1.1 → 1.2](#11--12-lk-core) |
 | 1.1.0 | 23.1.0 | Coaching on a reading: a `pronunciationCoaching` port gives `<ReadAloud>` and `<PronunciationFeedback>` "Coach me on this reading" under the marks; `useAiCoaching` for marks you draw; `aiCoachingRequest` and `checkAiCoaching` in lk-core, which refuses coaching on a word the engine did not mark or a sound it did not report (`contradicts-marks`); four reading cases in `ai-check`. **Additive, and nothing changes without the port** — install both together; see [1.0 → 1.1](#10--11-lk-core--230--231-lk-react) |
 | 1.0.0 | 23.0.0 | **1.0: what stays stable, written down** — see [Stability](./stability.md). A `lk-core` minor no longer releases a `lk-react` major. `ScoringDetail.correct` is removed and `outcome` required; zod is private — no export is a zod schema, `validateMedia` / `validateOptionMedia` replace the two a media picker used, and the `Redacted*` types are written out; a type you register takes a [Standard Schema](https://standardschema.dev), which a zod 4 schema already is. **No grade changes** — see [0.22 → 1.0](#022--10-lk-core--22x--23x-lk-react) |
@@ -70,6 +71,33 @@ you record stay exactly what they were.
 - On **22.0.x**? See [0.22 → 1.0](#022--10-lk-core--22x--23x-lk-react) — no grade changes; what can stop a build, and the one read of stored data to check.
 - On **23.0.x**? See [1.0 → 1.1](#10--11-lk-core--230--231-lk-react) — additive: coaching appears only once you pass a `pronunciationCoaching` port.
 - On **lk-core 1.1.x**? See [1.1 → 1.2](#11--12-lk-core) — additive, lk-core only: nothing runs until you call it.
+
+---
+
+## 1.2 → 1.3 (`lk-core`) / 23.1 → 23.1.1 (`lk-react`)
+
+Debt paid down. **No grade changes**, and nothing to do to upgrade.
+
+- **Smaller bundles.** One function imported from lk-core no longer brings every zod locale with it:
+  `{ score }` bundles to about 54 kB gzipped, from 121; `/xapi`'s `xAPIBuilder` alike.
+- **`BUILT_IN_ACTIVITY_TYPES`, `BuiltInActivityType` and `isBuiltInActivityType`** name the types the
+  SDK ships, which `ActivityType` cannot once a host augments it — see
+  [Custom activity types](./authoring.md#custom-activity-types-end-to-end).
+- **`hintRevealsAnswer` answers `true` for facts it cannot read**, so an AI hint it cannot check is
+  withheld rather than shown. No built-in type reaches that case.
+- **Built-in types no longer depend on a bundler keeping a module**: the registry is created holding
+  them, where before a module registered them as it loaded.
+- **lk-react 23.1.1:** a `<MultipleChoice>` under `delivery={{ feedback: false }}` no longer says
+  "Answer submitted." before the learner answers.
+
+What to change when you next touch the code — both keep working throughout 1.x
+([Stability](./stability.md#deprecation)):
+
+- **A blank's `caseSensitive` and `trimWhitespace` are deprecated.** Write
+  `match: { caseSensitive, trim }`, which means the same.
+- **`seededShuffle(items, seed)` without a `version` is deprecated.** It still draws version 1; pass
+  `{ version: 1 }` to keep an order already recorded, or `{ version: 2 }` for new content, since a
+  2.0 may make version 2 the default.
 
 ---
 
@@ -605,7 +633,7 @@ import { InteractiveVideo } from '@intellectif/lk-react/components/InteractiveVi
   learner-visible by definition. A snapshot test of a redacted group with a timeline will differ.
 - **`flattenSequence` carries the timeline and each question's quiz** on `slot.group`. Code that
   compares whole slot objects will see the extra fields.
-- **`planActivities` reports a moved quiz** as `changedCueSlotIds`, and the plan hash changes when
+- **`verifyAttemptPlan` reports a moved quiz** as `changedCueSlotIds`, and the plan hash changes when
   a timeline changes — as it should: the questions are asked at different moments.
 - A group with a timeline still pages as an ordinary testlet inside `<ActivitySequence>`; render
   `<InteractiveVideo>` for the interactive experience.

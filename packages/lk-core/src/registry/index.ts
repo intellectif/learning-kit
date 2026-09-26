@@ -1,9 +1,5 @@
-// Importing builtins registers the built-in activity types on the default
-// registry as a module-evaluation effect. Every registry consumer
-// (validateActivity, score, evaluate, redact, jsonSchemaFor) imports THIS
-// barrel, so built-ins are always registered before any lookup.
-import './builtins.js';
-
+// The built-in types need no import for its effect: the registry is created
+// holding them (see `registry.ts`).
 export {
   dictationType,
   fillInTheBlanksType,

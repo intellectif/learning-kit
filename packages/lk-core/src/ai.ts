@@ -1,5 +1,6 @@
 import { cleanText, provenanceOf, usageOf } from './ai-text.js';
 import { numberedPassage, placeholderOrder, revealsAnswer } from './answer-leak.js';
+import { everyBuiltInTypeHandled } from './built-in-types.js';
 import { alignDictation } from './scoring/dictation/align.js';
 import { isGradeInRange } from './scoring/grade-numbers.js';
 import { score } from './scoring/index.js';
@@ -498,6 +499,8 @@ export function checkAiHint(
  *   An answer of one short word ("is", "the") counts only where the hint
  *   writes it beside a neighbour it has in the passage — "name is", "is
  *   Rossi" — so a hint may still use the word on its own.
+ * - **Facts of any other kind:** revealing. A hint the check cannot read is
+ *   withheld, not shown unchecked.
  *
  * Case, accents and punctuation are ignored on both sides.
  */
@@ -519,6 +522,9 @@ export function hintRevealsAnswer(facts: AiItemFacts, hint: string): boolean {
       // Never asked: a dictation takes no AI hints (AI_HINT_TYPES).
       return false;
     default:
-      return false;
+      // Facts of a kind this check cannot read: the hint is withheld, not shown
+      // unchecked. A new kind of facts does not compile until it has a case.
+      everyBuiltInTypeHandled(facts);
+      return true;
   }
 }

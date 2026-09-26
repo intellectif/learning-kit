@@ -2,6 +2,7 @@ import type { ItemGroup, ItemOutcome } from '@intellectif/lk-core';
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { stubMediaElement } from '../../../test-support/media.js';
 import { InteractiveVideo } from '../index.js';
 
 /**
@@ -65,46 +66,6 @@ const scored = (passed: boolean): ItemOutcome => ({
 
 const deferred: ItemOutcome = { status: 'deferred', reason: 'requires_async_grading', maxScore: 1 };
 
-function stubVideo(): void {
-  const state = new WeakMap<HTMLMediaElement, { paused: boolean; time: number }>();
-  const get = (el: HTMLMediaElement) => {
-    let entry = state.get(el);
-    if (entry === undefined) {
-      entry = { paused: true, time: 0 };
-      state.set(el, entry);
-    }
-    return entry;
-  };
-  Object.defineProperty(HTMLMediaElement.prototype, 'paused', {
-    configurable: true,
-    get(this: HTMLMediaElement) {
-      return get(this).paused;
-    },
-  });
-  Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', {
-    configurable: true,
-    get(this: HTMLMediaElement) {
-      return get(this).time;
-    },
-    set(this: HTMLMediaElement, value: number) {
-      get(this).time = value;
-    },
-  });
-  Object.defineProperty(HTMLMediaElement.prototype, 'duration', {
-    configurable: true,
-    get: () => 100,
-  });
-  HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) {
-    get(this).paused = false;
-    this.dispatchEvent(new Event('play'));
-    return Promise.resolve();
-  };
-  HTMLMediaElement.prototype.pause = function pause(this: HTMLMediaElement) {
-    get(this).paused = true;
-    this.dispatchEvent(new Event('pause'));
-  };
-}
-
 const video = () => document.querySelector('video') as HTMLVideoElement;
 
 // A review shows the learner's own answers marked, so the host hands back both
@@ -139,7 +100,7 @@ async function mountReview(): Promise<void> {
 }
 
 beforeEach(() => {
-  stubVideo();
+  stubMediaElement({ duration: 100 });
   localStorage.clear();
 });
 

@@ -37,8 +37,8 @@ export function isDevelopment(): boolean {
 }
 
 /**
- * Activity components cannot know the learner's identity (Req 3.1 fixes the
- * prop set). They emit a structurally-valid statement with this anonymous
+ * Activity components cannot know the learner's identity: `ActivityProps`
+ * carries none. They emit a structurally-valid statement with this anonymous
  * actor; real identity is applied by the useXAPI/LRS layer (XAPIConfig.actor).
  */
 export const ANONYMOUS_ACTOR: XAPIActor = {
@@ -85,3 +85,12 @@ export function detailIsRight(detail: ScoringDetail): boolean {
   const outcome: unknown = detail.outcome;
   return outcome === undefined ? legacyCorrect(detail) === true : outcome === 'correct';
 }
+
+/**
+ * For the fallback of a dispatch over the built-in activity types — a
+ * `switch` default, or the end of an `if` chain: `value` has type `never`
+ * there only when every built-in type was handled above it, so a type lk-core
+ * gains fails to compile here until it has a component. At runtime it does
+ * nothing; what follows it decides what an unknown or custom type gets.
+ */
+export function everyBuiltInTypeHandled(_value: never): void {}

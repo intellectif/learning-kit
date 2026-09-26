@@ -1,4 +1,4 @@
-import { z } from 'zod/v4';
+import * as z from 'zod/v4';
 import { AiPermissionsSchema } from './ai.js';
 import { FeedbackSchema } from './feedback.js';
 import { MediaSchema } from './media.js';

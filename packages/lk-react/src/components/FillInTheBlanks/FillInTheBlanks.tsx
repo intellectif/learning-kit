@@ -21,7 +21,7 @@ import { useLkStrings } from '../../i18n/LkIntlProvider.js';
 import { ANONYMOUS_ACTOR, detailIsRight, isDevelopment, objectIdFor } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation, AiHints, useComponentAiHints } from '../shared/AiHelp.js';
-import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
+import { feedbackAnnouncement, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
 import { mintTake, stampTake } from '../shared/sequence-slot.js';
 import {
@@ -37,7 +37,7 @@ import type { ActivityProps } from '../types.js';
 export interface FillInTheBlanksProps extends ActivityProps<FillInTheBlanksData> {
   /**
    * After submission, replace each incorrectly-answered blank with its first
-   * accepted answer, styled distinctly (Req 5.7). Component-specific prop: it
+   * accepted answer, styled distinctly. Component-specific prop: it
    * is presentation, not activity data, and is outside the fixed Req-3.1 set.
    *
    * Ignored in `exam` mode — revealing the key is precisely what an exam must
@@ -128,7 +128,7 @@ export function FillInTheBlanks({
   const isExam = renderMode === 'exam';
   const isReview = renderMode === 'review';
 
-  // Dev-only boundary validation (Req 2.3); throws in render so the wrapping
+  // Dev-only boundary validation; throws in render so the wrapping
   // ActivityErrorBoundary catches it. Re-runs only when data changes.
   const s = useLkStrings(strings);
   const ai = useLearnerAi(aiProp);
@@ -214,7 +214,7 @@ export function FillInTheBlanks({
   // unlock or revert a restored answer — the pager already remounts a slot
   // whose activity actually changed, via its key.
   const lastDataRef = useRef(data);
-  // `data` is an intentional reset trigger (Req 3.7); it is already in the
+  // `data` is an intentional reset trigger; it is already in the
   // dependency list. The identity guard below skips the mount run.
   useEffect(() => {
     if (lastDataRef.current === data) {
@@ -668,7 +668,7 @@ export function FillInTheBlanks({
                       This is an accessible click-to-toggle disclosure that is
                       the input's aria-describedby target and is announced via
                       aria-live; the skin gives it a tooltip-like *visual*
-                      without the tooltip *semantics*. (Refines Task 15.3.)
+                      without the tooltip *semantics*.
                     */}
                     <span id={hintId} aria-live="polite">
                       {revealed.has(seg.id) ? hint : ''}
@@ -711,13 +711,15 @@ export function FillInTheBlanks({
         id={`${data.id}-feedback`}
         {...(scoringPolicy.retries > 0 ? { ref: feedbackRef } : {})}
       >
-        {isReview
-          ? policy.feedback || !outcomeShowsMarks(outcome)
-            ? reviewSummary
-            : null
-          : policy.feedback || summary === null
-            ? announced
-            : s.answerSubmitted}
+        {feedbackAnnouncement({
+          review: isReview,
+          feedback: policy.feedback,
+          outcome,
+          readBack: reviewSummary,
+          submitted: summary !== null,
+          result: announced,
+          received: s.answerSubmitted,
+        })}
       </FeedbackRegion>
       <TryActions
         tries={tries}

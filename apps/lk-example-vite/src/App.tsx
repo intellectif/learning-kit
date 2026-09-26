@@ -12,6 +12,7 @@ import { ActivitySequence } from '@intellectif/lk-react/components/ActivitySeque
 import { Dictation } from '@intellectif/lk-react/components/Dictation';
 import { FillInTheBlanks } from '@intellectif/lk-react/components/FillInTheBlanks';
 import { GapSelect } from '@intellectif/lk-react/components/GapSelect';
+import { InteractiveVideo } from '@intellectif/lk-react/components/InteractiveVideo';
 import { MultipleChoice } from '@intellectif/lk-react/components/MultipleChoice';
 import { PronunciationFeedback } from '@intellectif/lk-react/components/PronunciationFeedback';
 import { ReadAloud, type RecordingBinding } from '@intellectif/lk-react/components/ReadAloud';
@@ -28,6 +29,7 @@ import {
   sampleDictation,
   sampleGapSelect,
   sampleHintCostBlank,
+  sampleInteractiveVideo,
   sampleMultipleChoice,
   sampleQuestionSet,
   sampleReadAloud,
@@ -213,8 +215,8 @@ export function App(): React.JSX.Element {
   }, []);
 
   // Real learner identity is applied here, at the LRS layer — the activity
-  // components only emit an anonymous, structurally-valid statement (by design,
-  // Req 3.1: components cannot know who the learner is).
+  // components only emit an anonymous, structurally-valid statement (by design:
+  // components cannot know who the learner is).
   const { sendStatement } = useXAPI({
     endpoint: LRS_ENDPOINT,
     auth: { type: 'bearer', token: 'demo-token' },
@@ -427,6 +429,28 @@ export function App(): React.JSX.Element {
               onComplete={handleComplete('Hint cost')}
             />
           </section>
+        </section>
+
+        <section aria-labelledby="iv-heading">
+          <h2 id="iv-heading">Interactive video</h2>
+          <p>
+            Eight seconds of a test pattern: a question at 0:02, and a required one at 0:05 that has
+            to be answered before the video goes on.
+          </p>
+          <InteractiveVideo
+            group={sampleInteractiveVideo}
+            renderMode="practice"
+            onActivityComplete={(result, slot) =>
+              handleComplete(`Video question [slot ${slot.slotId}]`)(result)
+            }
+            onFinished={(summary) =>
+              append(
+                `Video finished: ${
+                  summary.slots.filter((slot) => slot.status === 'answered').length
+                } of ${summary.slots.length} answered`,
+              )
+            }
+          />
         </section>
 
         <section aria-labelledby="set-heading">

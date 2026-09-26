@@ -145,7 +145,7 @@ describe('FillInTheBlanks', () => {
     expect(onComplete).not.toHaveBeenCalled();
   });
 
-  it('resets when the data prop changes (Req 3.7)', async () => {
+  it('resets when the data prop changes', async () => {
     const user = userEvent.setup();
     const { rerender } = render(<FillInTheBlanks data={fib()} onComplete={vi.fn()} />);
     await user.type(screen.getByRole('textbox', { name: 'Fill in blank 1' }), 'typed');

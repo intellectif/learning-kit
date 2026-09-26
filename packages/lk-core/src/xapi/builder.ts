@@ -50,7 +50,7 @@ export interface AnsweredStatementParams {
 /**
  * Parameters for {@link xAPIBuilder.buildSubmittedStatement} (verb =
  * SUBMITTED — deferred-grading submissions). Carries NO score, success, or
- * completion: the grade does not exist yet (Req 22.7).
+ * completion: the grade does not exist yet.
  */
 export interface SubmittedStatementParams {
   actor: XAPIActor;

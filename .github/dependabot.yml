@@ -1,0 +1,42 @@
+# Dependency and action updates, weekly, as pull requests that CI checks like
+# any other. Minor and patch updates come grouped in one pull request; a major
+# comes alone, since it is the one that may need code.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # pnpm refuses a version younger than 30 hours (`minimumReleaseAge` in
+    # pnpm-workspace.yaml): waiting two days keeps every update installable.
+    cooldown:
+      default-days: 2
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+        # zod is lk-core's one runtime dependency, pinned exactly: it has
+        # changed what lk-core accepts without a line of lk-core changing. Its
+        # update comes alone, to follow "The validation corpus, and updating
+        # zod" in docs/releasing.md.
+        exclude-patterns: [zod]
+    ignore:
+      # The two packages this repository publishes.
+      - dependency-name: "@intellectif/*"
+      # TypeScript 7 no longer offers the compiler API that scripts/api-report.mjs
+      # and scripts/mutate.mjs read. It waits until they have a stable one to
+      # move to.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 2
+    # The workflows pin each action to a commit, commented with its release;
+    # Dependabot updates both.
+    groups:
+      actions:
+        patterns: ["*"]
