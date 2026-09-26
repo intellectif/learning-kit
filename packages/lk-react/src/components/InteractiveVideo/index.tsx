@@ -27,7 +27,7 @@ export { type CaptionTracks, resolveCaptionTracks } from './tracks.js';
  * A formative tool, for lessons and practice — not for official summative
  * exams, which `<ActivitySequence>` delivers.
  */
-export function InteractiveVideo(props: InteractiveVideoProps) {
+export function InteractiveVideo(props: InteractiveVideoProps): React.JSX.Element {
   const strings = useLkStrings(props.strings);
   return (
     <ActivityErrorBoundary

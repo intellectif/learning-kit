@@ -75,6 +75,14 @@ build broke. When the report changes, run `pnpm api-report`, read the diff, and
 commit it with the changeset that says whether it is a patch, a minor or a
 major. Doc comments are stripped, so rewording JSDoc never fails the gate.
 
+**Exported types are written, not inferred.** The check also fails on any type
+the report names through `import("…")`. That is how a build writes a type the
+source left to inference, and it names the type after the file in another
+package where TypeScript found it. That package's next release can then change
+our declarations with no change of ours: `@types/react` 19.3 did so to ten
+components' return type. Give the export an explicit type, e.g. a component's
+`: React.JSX.Element`.
+
 ### Mutation testing the scoring engine
 
 ```bash
