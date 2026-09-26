@@ -99,6 +99,21 @@ const REQUIRED_EXPORTS = [
   'checkAiCoaching',
   'AI_COACHING_MAX_WORDS',
   'AI_COACHING_MAX_TIP_LENGTH',
+  // assistants for authors: the item critic and drafts from a source
+  'critiqueDraft',
+  'critiqueDrafts',
+  'critiqueItemGroupDraft',
+  'aiCritiqueRequest',
+  'checkAiCritique',
+  'AI_CRITIQUE_MAX_FINDINGS',
+  'AI_CRITIQUE_MAX_FIELD_LENGTH',
+  'aiDraftsRequest',
+  'checkAiDrafts',
+  'aiDraftsRepairRequest',
+  'generateDrafts',
+  'AI_DRAFTS_MAX_COUNT',
+  'AI_DRAFTS_MAX_REPAIRS',
+  'interactiveVideoFromDrafts',
   // item scoring policies: tries and hint costs
   'resolveItemScoringPolicy',
   'validateItemScoringPolicy',
@@ -411,6 +426,112 @@ if (typeof core.aiCoachingRequest === 'function') {
   }
 }
 
+// The item critic finds a flaw in a valid item without making it invalid; a
+// model's critique that points at a field the item does not have is refused
+// whole; and drafts from a model take their ids from the host and read nothing
+// a model must not set. From the build.
+if (typeof core.critiqueDraft === 'function') {
+  const item = {
+    schemaVersion: '1.0',
+    type: 'multiple-choice',
+    id: 'probe-critic',
+    title: 'Tokyo or not',
+    question: 'Which city is the capital of Japan?',
+    mode: 'single',
+    scoringStrategy: 'all-or-nothing',
+    options: [
+      { id: 'a', text: 'Kyoto', isCorrect: false },
+      { id: 'b', text: 'Tokyo', isCorrect: true },
+    ],
+  };
+  const found = core.critiqueDraft('multiple-choice', item).map((one) => one.code);
+  if (found.join() !== 'mc_title_reveals_answer') {
+    failures.push(
+      `critiqueDraft() missed a title that gives the answer away: ${found.join() || 'nothing'}`,
+    );
+  }
+  if (core.validateDraft('multiple-choice', item).status !== 'complete') {
+    failures.push('a finding of the item critic changed what validateDraft() says');
+  }
+  const critique = core.aiCritiqueRequest({ type: 'multiple-choice', draft: item });
+  const invented =
+    critique &&
+    core.checkAiCritique(
+      { findings: [{ path: ['explanation'], kind: 'other', message: 'Add one.' }] },
+      critique,
+    );
+  if (invented?.ok !== false || invented.refusal !== 'contradicts-item') {
+    failures.push('checkAiCritique() listed a finding on a field the item does not have');
+  }
+  const request = core.aiDraftsRequest({
+    types: ['multiple-choice'],
+    source: { kind: 'passage', text: 'Maria lives in Seville.' },
+    count: 1,
+  });
+  let next = 0;
+  const drafted =
+    request &&
+    core.checkAiDrafts(
+      {
+        drafts: [
+          {
+            type: 'multiple-choice',
+            id: 'model-id',
+            media: { type: 'image', url: 'javascript:alert(1)' },
+            title: 'Maria',
+            question: 'Where does Maria live?',
+            mode: 'single',
+            options: [
+              { text: 'Seville', isCorrect: true },
+              { text: 'Madrid', isCorrect: false },
+            ],
+          },
+        ],
+      },
+      request,
+      {
+        newId: () => {
+          next += 1;
+          return `host-${next}`;
+        },
+      },
+    );
+  const draft = drafted?.ok ? drafted.drafts.drafts[0] : undefined;
+  if (
+    draft?.draft.id !== 'host-1' ||
+    'media' in draft.draft ||
+    draft.validation.status !== 'complete'
+  ) {
+    failures.push(
+      'checkAiDrafts() did not make a complete draft with the host ids and nothing else',
+    );
+  }
+  // From a script with no times, the questions of a video go in one quiz at its end.
+  const video =
+    drafted?.ok &&
+    core.interactiveVideoFromDrafts({
+      request,
+      drafts: drafted.drafts,
+      video: { type: 'video', url: 'https://example.test/video.mp4' },
+      durationSeconds: 42,
+      newId: () => {
+        next += 1;
+        return `host-${next}`;
+      },
+    });
+  const cues = video ? video.group.timeline.cues : [];
+  if (
+    cues.length !== 1 ||
+    cues[0].at !== 42 ||
+    cues[0].itemIds[0] !== 'host-1' ||
+    video.validation.status !== 'complete'
+  ) {
+    failures.push(
+      'interactiveVideoFromDrafts() did not put untimed questions in one quiz at the end of the video',
+    );
+  }
+}
+
 // The AI test kit is a subpath of its own, and a subpath is exactly what the
 // barrel check above cannot see: it is built from its own entry, so a rename
 // or a dropped re-export reaches a consumer's CI rather than ours. It also has
@@ -446,6 +567,12 @@ if (typeof aiCheck.runAiCheck === 'function') {
         .filter((word) => word.state === 'mispronounced' || word.state === 'omitted')
         .map((word) => ({ itemId: word.itemId, tip: `Practise "${word.word}".` })),
     }),
+    // Points at a field it was given, as a careful prompt does.
+    critique: (request) => ({
+      findings: [{ path: request.facts.fields[0].path, kind: 'other', message: 'Consider this.' }],
+    }),
+    // Drafts nothing: an empty reply is a reply the SDK reads.
+    drafts: () => ({ drafts: [] }),
   });
   if (good.shown !== cases.length || good.refused !== 0 || good.errors !== 0) {
     failures.push(
@@ -537,7 +664,7 @@ if (failures.length > 0) {
 
 console.log(
   `verify-dist OK: ${REQUIRED_EXPORTS.length} documented exports resolve from dist; redaction is fail-closed; ` +
-    'new drafts are incomplete; an unreadable delivery setting restricts; an unreadable scoring setting is refused; a writing correction must quote the draft; coaching keeps to the marks the engine made; ' +
+    'new drafts are incomplete; an unreadable delivery setting restricts; an unreadable scoring setting is refused; a writing correction must quote the draft; coaching keeps to the marks the engine made; the item critic advises without refusing, a model drafts content only, and a video puts untimed questions at its end; ' +
     'the AI check kit runs from its own subpath; ' +
     'no entry point exports a zod schema and no published type names zod; ' +
     `${corpus.vectors.length} grade vectors and ${validationCount} validation expectations replay identically against CJS and ESM.`,

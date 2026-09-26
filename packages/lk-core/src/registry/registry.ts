@@ -1,7 +1,7 @@
 import { isStandardSchema } from '../schemas/read-schema.js';
 import type { StandardSchemaV1 } from '../standard-schema.js';
 import type { DeferredScoringPartial, ScoringResult } from '../types/activity.js';
-import type { DraftContext, DraftIssue } from '../types/authoring.js';
+import type { DraftContext, DraftIssue, ItemFinding } from '../types/authoring.js';
 
 /** ScoringResult without `passed` — the public `score()` / `evaluate()` fill that in. */
 export type PartialScoringResult = Omit<ScoringResult, 'passed'>;
@@ -105,6 +105,19 @@ export interface ActivityTypeAuthoring<TData> {
    * reported as `invalid`.
    */
   readonly checkDraft?: (draft: Readonly<Record<string, unknown>>) => DraftIssue[];
+  /**
+   * The item critic for the type: what `critiqueDraft` reports about a draft
+   * that may be perfectly valid — a flaw a learner can exploit (`warning`), or
+   * an item-writing guideline it departs from (`advice`). Receives any plain
+   * object, finished or not, and must not throw on one: skip a rule whose
+   * fields are not there yet. Never a reason to refuse the item; that is
+   * `checkDraft`'s.
+   *
+   * A code documented in `docs/authoring.md` is reported with its documented
+   * severity. For a code of your own, a severity other than `'advice'` is
+   * reported as `warning`.
+   */
+  readonly critique?: (draft: Readonly<Record<string, unknown>>) => ItemFinding[];
 }
 
 /**

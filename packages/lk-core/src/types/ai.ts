@@ -8,6 +8,7 @@
  * the SDK reached; it never reaches one.
  */
 
+import type { DraftValidationResult, ItemFinding } from './authoring.js';
 import type { CriterionScore, GraderUsage, InlineCorrection } from './grading.js';
 
 /**
@@ -237,6 +238,8 @@ export interface AiTextResult {
  * corrects words the learner did not write: a correction whose quote is not in
  * the draft, or not where it claims to be. `contradicts-marks` is coaching on
  * a word the engine did not mark, or on a sound it did not report.
+ * `contradicts-item` is a critique of an item that points at a field the item
+ * does not have, or quotes words that field does not contain.
  */
 export type AiRefusal =
   | 'malformed'
@@ -245,7 +248,8 @@ export type AiRefusal =
   | 'contradicts-grade'
   | 'reveals-answer'
   | 'misquotes-answer'
-  | 'contradicts-marks';
+  | 'contradicts-marks'
+  | 'contradicts-item';
 
 // ── Feedback on writing ─────────────────────────────────────────────────
 
@@ -450,4 +454,261 @@ export interface AiCoaching {
   words: (AiCoachingWord & { word: string })[];
   provenance?: AiProvenance;
   usage?: GraderUsage;
+}
+
+// ── Reviewing an item with a model ─────────────────────────────────────
+
+/**
+ * What a model may find wrong with an item, in the SDK's words:
+ *
+ * - `ambiguous` — a stem, passage or blank that reads two ways;
+ * - `second-answer` — a distractor that is defensibly right, or an answer the
+ *   key does not accept;
+ * - `wrong-key` — the answer marked right is not;
+ * - `implausible-distractor` — an option nobody who read the question would pick;
+ * - `cue` — grammar or wording that points at the answer;
+ * - `level` — language above or below the level the item is for;
+ * - `language` — a mistake in the item's own language;
+ * - `sensitivity` — content a learner may find loaded or unfamiliar for
+ *   reasons that have nothing to do with what is assessed;
+ * - `other`.
+ */
+export type AiCritiqueKind =
+  | 'ambiguous'
+  | 'second-answer'
+  | 'wrong-key'
+  | 'implausible-distractor'
+  | 'cue'
+  | 'level'
+  | 'language'
+  | 'sensitivity'
+  | 'other';
+
+/** One field of an item a critique may point at, and what it says. */
+export interface AiCritiqueField {
+  path: string[];
+  text: string;
+}
+
+/**
+ * What a host's model is given to review an item. Built by
+ * `aiCritiqueRequest`; for an author, never a learner, so it carries the
+ * answer key.
+ */
+export interface AiCritiqueRequest {
+  feature: 'item-critique';
+  facts: {
+    activityType: string;
+    /** The item as the author wrote it, answer key included. */
+    item: Readonly<Record<string, unknown>>;
+    /** Every text field a finding may point at, with its text: the only paths a finding may name. */
+    fields: AiCritiqueField[];
+    /**
+     * What the SDK's own critic already found, so a model does not say it
+     * again: code, path and message.
+     */
+    findings: { path: string[]; code: string; message: string }[];
+    /** The level the item is for, as the host names it (`A2`, `B1`), when it gave one. */
+    level?: string;
+  };
+  /** The language to write findings in: the author's. */
+  authorLocale?: string;
+}
+
+/** One finding as a host's port returns it. */
+export interface AiCritiqueFindingResult {
+  /** A path from `facts.fields`, exactly. */
+  path: (string | number)[];
+  kind: AiCritiqueKind;
+  /** What is wrong, and what to do, addressed to the author. */
+  message: string;
+  /** Words copied from that field, when the finding is about some of them. */
+  quote?: string;
+}
+
+/** What a host's critique port returns. */
+export interface AiCritiqueResult {
+  findings: AiCritiqueFindingResult[];
+  provenance?: AiProvenance;
+  usage?: GraderUsage;
+}
+
+/**
+ * A model's finding, as the SDK accepted it: an `ItemFinding` — always
+ * `advice`, since it is a model's opinion — whose code is `ai_` and the kind
+ * (`ai_second_answer`), with the quote it pointed at.
+ */
+export interface AiCritiqueFinding extends ItemFinding {
+  severity: 'advice';
+  quote?: string;
+}
+
+/** A critique, as the SDK accepted it. */
+export interface AiCritique {
+  findings: AiCritiqueFinding[];
+  provenance?: AiProvenance;
+  usage?: GraderUsage;
+}
+
+// ── Drafts from a source ───────────────────────────────────────────────
+
+/**
+ * The types a model can draft from a source. An interactive video takes the
+ * first five; a written response is for a quiz of its own.
+ */
+export type AiDraftType =
+  | 'multiple-choice'
+  | 'fill-in-the-blanks'
+  | 'gap-select'
+  | 'dictation'
+  | 'read-aloud'
+  | 'written-response';
+
+/**
+ * What drafts are written from: a passage or a script as text — an item
+ * group's `stimulus.transcript` is one — or a video's captions, each with its
+ * start and end in seconds, so a question can be placed where its caption ends.
+ */
+export type AiDraftSource =
+  | { kind: 'passage' | 'transcript'; text: string }
+  | { kind: 'captions'; cues: { start: number; end: number; text: string }[] };
+
+/** A caption as a model is given it: numbered, so a draft can name the one it is about. */
+export interface AiDraftCaption {
+  index: number;
+  start: number;
+  end: number;
+  text: string;
+}
+
+/** One problem with a draft, as a model is told it on a repair. */
+export interface AiDraftProblem {
+  path: string[];
+  code: string;
+  message: string;
+  severity: 'incomplete' | 'invalid' | 'warning';
+}
+
+/**
+ * Fields of the host's for every draft of a type — settings a model never
+ * writes: a read-aloud's `recording`, `scoring` and region-tagged `locale`, a
+ * question's `shuffle` or `scoringStrategy`. They are put on each draft of
+ * that type before it is checked, and never override what the model wrote, nor
+ * the draft's `id`, `type` or `schemaVersion`.
+ */
+export type AiDraftSettings = Partial<Record<AiDraftType, Readonly<Record<string, unknown>>>>;
+
+/**
+ * What a host's model is given to draft items. Built by `aiDraftsRequest`, and
+ * by `aiDraftsRepairRequest` for a second pass over the drafts that came back
+ * unfinished or flawed in ways the model can fix.
+ */
+export interface AiDraftsRequest {
+  feature: 'draft-generation';
+  facts: {
+    /**
+     * The types the author chose, in the author's order: the ones to lean on
+     * first, and the order questions are shown in where several share a moment
+     * of a video — or share the end of one.
+     */
+    activityTypes: AiDraftType[];
+    source:
+      | { kind: 'passage' | 'transcript'; text: string }
+      | { kind: 'captions'; captions: AiDraftCaption[] };
+    /** How many drafts to write, at most. Absent: as many as the source is worth, up to `AI_DRAFTS_MAX_COUNT`. */
+    count?: number;
+    /** The language the items are written in. */
+    locale?: string;
+    /** The level they are for, as the host names it (`A2`, `B1`). */
+    level?: string;
+    /** What the author asked for, in their words. */
+    instructions?: string;
+  };
+  /**
+   * The JSON Schema of a reply — `{ drafts: [...] }` — for a model's structured
+   * output, or its prompt. Plain JSON Schema a model can follow: types, required
+   * fields, enums and descriptions, nothing a provider's structured output
+   * commonly refuses. Each draft names its `type`, and fills the fields that
+   * type uses.
+   */
+  shape: Readonly<Record<string, unknown>>;
+  /** The host's settings for every draft of a type. Not for the model; `checkAiDrafts` applies them. */
+  settings?: AiDraftSettings;
+  /**
+   * On a repair: the drafts to fix, each as the model wrote it, with what is
+   * wrong with it that the model can fix. The reply holds one draft for each,
+   * in this order.
+   */
+  repair?: {
+    index: number;
+    draft: Readonly<Record<string, unknown>>;
+    problems: AiDraftProblem[];
+  }[];
+}
+
+/** A draft as the SDK made it from a reply: ids minted, settings applied, checked, and critiqued. */
+export interface AiGeneratedDraft {
+  /** Its position in the first reply; a repaired draft keeps the position it replaces. */
+  index: number;
+  type: AiDraftType;
+  /** The draft, an activity of its type once `validation` says `complete`. */
+  draft: Record<string, unknown>;
+  /** What `validateDraft` says of it. `complete` means valid — never approved. */
+  validation: DraftValidationResult<unknown>;
+  /** What the item critic says of it. */
+  findings: ItemFinding[];
+  /**
+   * From captions: where the question goes, in seconds — the end of the
+   * caption it named. Absent when it named no caption the source has: it
+   * belongs at the end of the video.
+   */
+  at?: number;
+  /**
+   * A dictation from captions whose transcript is words of the caption it
+   * named: that caption's start and end, in seconds — the stretch of the
+   * video that says it, for a host that cuts the recording from the video.
+   */
+  clip?: { start: number; end: number };
+  /** The draft as the model wrote it, for a repair. */
+  generated: Readonly<Record<string, unknown>>;
+}
+
+/** What `checkAiDrafts` makes of a reply. */
+export interface AiDrafts {
+  /** The drafts in the author's order of types, and in the order the model wrote them within a type. */
+  drafts: AiGeneratedDraft[];
+  /** What only the set shows: every right option in one place (`set_key_position_same`). */
+  findings: ItemFinding[];
+  provenance?: AiProvenance;
+  usage?: GraderUsage;
+}
+
+/** One call `generateDrafts` made: what it cost, or why it went no further. */
+export type AiDraftsCall =
+  | { ok: true; provenance?: AiProvenance; usage?: GraderUsage }
+  | { ok: false; refusal?: AiRefusal; error?: string };
+
+/** What `generateDrafts` came to. */
+export interface AiDraftsRun {
+  /** The drafts, in the author's order of types, each the best pass of it. */
+  drafts: AiGeneratedDraft[];
+  /** What only the set shows, over the drafts as they ended. */
+  findings: ItemFinding[];
+  /** Every call, in order: the first, then each repair. */
+  calls: AiDraftsCall[];
+}
+
+/**
+ * An interactive video made of drafts: an item group whose stimulus is the
+ * video and whose timeline opens a quiz at each moment a draft was placed —
+ * and one at the end for every draft placed nowhere. A draft, like every
+ * draft: checked, critiqued, and approved by a person, never by the SDK.
+ */
+export interface AiVideoDraft {
+  /** The item group, an interactive video once `validation` says `complete`. */
+  group: Record<string, unknown>;
+  /** What `validateItemGroupDraft` says of it. */
+  validation: DraftValidationResult<unknown>;
+  /** What `critiqueItemGroupDraft` says of it. */
+  findings: ItemFinding[];
 }

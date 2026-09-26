@@ -1107,6 +1107,72 @@ and no items — `text` is the only kind that needs no uploaded file to be a val
 draft, so an author writing a passage can start typing and one building a
 listening item changes `kind` before uploading.
 
+### Reviewing an item: the critic (1.2)
+
+`validateDraft` says whether an item can be stored. The critic says what an
+experienced item writer would point out on review, about an item that may be
+perfectly valid: the right option much longer than the rest, an answer printed in
+the passage, a hint that gives the answer away, two options that read the same.
+
+```ts
+import { critiqueDraft, critiqueDrafts, critiqueItemGroupDraft, validateDraft } from '@intellectif/lk-core';
+
+const list = [...validateDraft(type, draft).issues, ...critiqueDraft(type, draft)];
+critiqueDrafts(quiz);           // a question set: each entry under its index, and the set's own findings
+critiqueItemGroupDraft(group);  // a testlet: each item under items.N, and the group's own findings
+```
+
+A finding is a `ValidationError` — `{ path, message, code }` — plus `severity`,
+like a draft issue, so an editor shows both in one list, sorted `invalid`,
+`incomplete`, `warning`, `advice`:
+
+- **`warning`** — a known flaw a learner can exploit or trip over.
+- **`advice`** — an item-writing guideline the item departs from.
+
+**A finding never refuses an item.** It does not change what `validateDraft`
+says, and nothing in the SDK reads it: an item with findings is stored and served
+like any other, and whether to change it is the author's call. The critic reads a
+draft, finished or not, and skips a rule whose fields are not written yet. The
+codes and their severities below are a contract; the rule behind each is advice,
+and a minor may refine it or add a code. The messages are English and address the
+author: translate by `code`.
+
+| Code | Severity | Path | When |
+|---|---|---|---|
+| `mc_title_reveals_answer` | warning | `title` | The title, which the learner sees, contains the text of a correct option, as whole words — case, accents and punctuation ignored |
+| `mc_options_duplicate` | warning | `options.N.text` | Two options read the same once case, accents and punctuation are ignored; reported at the later one. Options with media are left out: a neutral label ("Picture") beside a picture is right |
+| `mc_key_longest` | warning | `options.N.text` | A single-answer question with three or more options, all written and none with media: the correct option is at least half again as long as every other, and at least ten characters longer. Test-wise learners pick the longest |
+| `mc_every_option_correct` | warning | `options` | A `multi` question whose every option is correct: selecting them all scores full marks |
+| `mc_above_option_shuffled` | warning | `options.N.text` | `shuffle` is on and an option points at others by position: "…the above", "las anteriores", "as anteriores" (and `los`/`os`), or two letters joined — "A and B", "a y c", "b e d", "A or C" (letters a–h). After shuffling it points at the wrong options |
+| `mc_above_option` | advice | `options.N.text` | Without shuffle: "all of the above", "none of the above", "todas las anteriores", "ninguna de las anteriores", "todas as anteriores", "nenhuma das anteriores". A learner who spots two right options can choose "all" without knowing the third; "none" tests only what is wrong |
+| `fib_title_reveals_answer` | warning | `title` | The title contains an accepted answer, by the rule an AI hint is held to (below) |
+| `fib_hint_reveals_answer` | warning | `blanks.N.hint` | The blank's own hint contains one of its accepted answers, by the same rule |
+| `fib_answer_in_passage` | warning | `blanks.N.acceptedAnswers.M` | The passage, its blanks taken out, prints the answer as whole words. An answer of one short word ("is", "26") is not looked for: a passage is full of them |
+| `fib_accepted_answer_redundant` | advice | `blanks.N.acceptedAnswers.M` | The blank's own matching already accepts this answer as an earlier one — case, spacing, normalisation and accents as the blank sets them; typo tolerance aside, since two answers a typo apart still accept different inputs |
+| `gs_title_reveals_answer` | warning | `title` | The title contains a gap's correct choice, by the hint rule |
+| `gs_choices_duplicate` | warning | `gaps.N.choices.M.text`, `banks.N.choices.M.text` | Two choices in one list read the same |
+| `gs_bank_no_distractor` | warning | `banks.N.choices` | A bank drawn on by two or more gaps offers no more choices than it has gaps: the last gap is answered by elimination |
+| `gs_answer_in_passage` | warning | `gaps.N.correctChoiceId` | The passage, its gaps taken out, prints a gap's correct choice; short answers not looked for |
+| `wr_criterion_name_duplicate` | warning | `rubric.criteria.N.name` | Two criteria have one name once case, accents and punctuation are ignored. Feedback on writing and a grader's criteria name a criterion |
+| `ra_text_long_for_time` | warning | `recording.maxSeconds` | The text has more than 2.5 words a second of `maxSeconds` — 150 words a minute, a fluent adult reading aloud. A learner reads slower |
+| `set_key_position_same` | warning | the set: `''` for `critiqueDrafts`, `items` for a group | Four or more single-answer multiple-choice questions that do not shuffle, and every one keeps its correct option in the same position |
+
+**The hint rule** is the one `hintRevealsAnswer` holds an AI hint to: an answer
+written out as whole words, case, accents and punctuation ignored; an answer of
+one short word counts only where the text writes it beside a word that neighbours
+its gap in the passage — "name is", "is Rossi".
+
+**A reading group's passage is not searched** for its questions' answers: they are
+meant to be there. Dictation has no rules of its own yet — a title that gives the
+transcript away is already `dc_transcript_revealed`, a `validateDraft` issue.
+Stem-to-answer word echoes, negative stems, absolute words and reading level are
+left out on purpose: as rules they are language-bound and mostly wrong, and they
+are what the [AI critic](./ai.md#reviewing-an-item-with-a-model) is for.
+
+`critiqueDraft` throws `UnknownActivityTypeError` for a type that is not
+registered, as `validateDraft` does. `critiqueDrafts` and `critiqueItemGroupDraft`
+skip an entry of an unknown type, which `validateItemGroupDraft` already reports.
+
 ### Your own activity types
 
 Add `authoring` to a descriptor to give a registered type the same support:
@@ -1149,6 +1215,11 @@ receives any plain object and must not throw on one. A code from the tables abov
 is reported with the severity they give it, whatever your check says; for a code
 of your own, a severity other than `'incomplete'` is reported as `invalid`.
 Calling `createDraft` for a type with no `authoring.createDraft` throws.
+
+`authoring.critique` gives your type the item critic: it receives any plain
+object and returns findings, never throwing. A code from the critic's table is
+reported with the severity it gives; for a code of your own, a severity other
+than `'advice'` is reported as `warning`, so a misspelled one is seen.
 
 For TypeScript to accept your type's name in `validateDraft` and `createDraft`,
 add the type to `ActivityDataMap` too, as

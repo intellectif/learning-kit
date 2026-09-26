@@ -2,6 +2,7 @@ import type { ActivityTypeAuthoring } from '../registry/registry.js';
 import { PLACEHOLDER_RE, TextMatchPolicySchema } from '../schemas/fill-in-the-blanks.js';
 import type { FillInTheBlanksData } from '../types/activity.js';
 import type { DraftIssue } from '../types/authoring.js';
+import { critiqueFillInTheBlanks } from './critique.js';
 import {
   checkIdentity,
   checkScoringStrategy,
@@ -42,6 +43,7 @@ export const fillInTheBlanksAuthoring: ActivityTypeAuthoring<FillInTheBlanksData
     scoringStrategy: 'all-or-nothing',
   }),
   checkDraft: checkFillInTheBlanksDraft,
+  critique: critiqueFillInTheBlanks,
 };
 
 function checkFillInTheBlanksDraft(draft: DraftFields): DraftIssue[] {

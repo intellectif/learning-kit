@@ -2,8 +2,14 @@ import { UnknownActivityTypeError } from '../errors.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
 import { readSchema } from '../schemas/read-schema.js';
 import type { ActivityDataMap, ActivityType } from '../types/activity.js';
-import type { DraftContext, DraftIssue, DraftValidationResult } from '../types/authoring.js';
+import type {
+  DraftContext,
+  DraftIssue,
+  DraftValidationResult,
+  ItemFinding,
+} from '../types/authoring.js';
 import { withValidationScope } from '../validation-scope.js';
+import { normaliseFinding } from './findings.js';
 import {
   coveredPathsOf,
   DRAFT_ISSUE_SEVERITY,
@@ -194,8 +200,44 @@ function normalise(found: DraftIssue): DraftIssue {
   };
 }
 
+/**
+ * What an experienced item writer would point out on review: flaws a learner
+ * can exploit or trip over (`warning`) and item-writing guidelines the item
+ * departs from (`advice`) — the right option much longer than the rest, an
+ * answer printed in the passage, a hint that gives the answer away, two
+ * options that read the same, "all of the above" under shuffle.
+ *
+ * A finding is never a reason to refuse an item. It does not change what
+ * {@link validateDraft} says: a valid item with findings is still valid. The
+ * shape is a `DraftIssue`'s, so an editor shows both in one list.
+ *
+ * It reads a draft, finished or not, and skips any rule whose fields are not
+ * written yet. The codes are documented in `docs/authoring.md`, each with its
+ * severity; the rule behind a code is advice and may be refined in a minor.
+ *
+ * ```ts
+ * const list = [...validateDraft(type, draft).issues, ...critiqueDraft(type, draft)];
+ * ```
+ *
+ * @throws UnknownActivityTypeError when `type` has no registered descriptor —
+ *   including `'item-group'`: use {@link critiqueItemGroupDraft}.
+ */
+export function critiqueDraft(type: ActivityType, draft: unknown): ItemFinding[] {
+  const descriptor = getActivityTypeDescriptor(type);
+  if (descriptor === undefined) {
+    throw new UnknownActivityTypeError(String(type));
+  }
+  const critique = descriptor.authoring?.critique;
+  if (!isRecord(draft) || critique === undefined) {
+    return [];
+  }
+  return withValidationScope(() => critique(draft)).map(normaliseFinding);
+}
+
 export {
   createInteractiveVideoDraft,
   createItemGroupDraft,
+  critiqueDrafts,
+  critiqueItemGroupDraft,
   validateItemGroupDraft,
 } from './item-group.js';

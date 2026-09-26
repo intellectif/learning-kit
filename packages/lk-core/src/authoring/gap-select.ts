@@ -2,6 +2,7 @@ import type { ActivityTypeAuthoring } from '../registry/registry.js';
 import { PLACEHOLDER_RE } from '../schemas/fill-in-the-blanks.js';
 import type { GapSelectData } from '../types/activity.js';
 import type { DraftIssue } from '../types/authoring.js';
+import { critiqueGapSelect } from './critique.js';
 import {
   checkIdentity,
   checkScoringStrategy,
@@ -43,6 +44,7 @@ export const gapSelectAuthoring: ActivityTypeAuthoring<GapSelectData> = {
     scoringStrategy: 'all-or-nothing',
   }),
   checkDraft: checkGapSelectDraft,
+  critique: critiqueGapSelect,
 };
 
 function checkGapSelectDraft(draft: DraftFields): DraftIssue[] {

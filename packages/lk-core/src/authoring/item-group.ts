@@ -4,10 +4,16 @@ import { GROUP_CAPTIONS_REVEAL_DICTATION, groupCaptionsField } from '../schemas/
 import { ItemGroupSchema, validateItemGroup } from '../schemas/item-group.js';
 import { INTERACTIVE_VIDEO_ITEM_TYPES, isInteractiveVideoItemType } from '../timeline-limits.js';
 import type { ActivityType } from '../types/activity.js';
-import type { DraftContext, DraftIssue, DraftValidationResult } from '../types/authoring.js';
+import type {
+  DraftContext,
+  DraftIssue,
+  DraftValidationResult,
+  ItemFinding,
+} from '../types/authoring.js';
 import type { ItemGroup } from '../types/item-group.js';
 import { withValidationScope } from '../validation-scope.js';
-import { validateDraft } from './index.js';
+import { keyPositionFinding } from './critique.js';
+import { critiqueDraft, validateDraft } from './index.js';
 import {
   checkMedia,
   covers,
@@ -101,6 +107,61 @@ export function createInteractiveVideoDraft(context: DraftContext): ItemGroup {
  *   turned into an issue: a fault in a type's own code is not a problem with the
  *   draft, and reporting it as an unknown type would hide it.
  */
+/**
+ * The item critic over a testlet: each item's findings, under `items.N.…`, and
+ * what only the set shows — every single-answer question keeping its right
+ * option in one place. The stimulus is not searched for answers: a reading
+ * group's answers are meant to be in its passage.
+ *
+ * An item of a type that is not registered, or without a `type`, is skipped:
+ * {@link validateItemGroupDraft} already reports it.
+ */
+export function critiqueItemGroupDraft(draft: unknown): ItemFinding[] {
+  if (!isRecord(draft)) {
+    return [];
+  }
+  const items = Array.isArray(draft.items) ? draft.items : [];
+  return withValidationScope(() => [
+    ...items.flatMap((item, index) => repathed(critiqueItem(item), ['items', index])),
+    ...keyPositionFinding(items, ['items']),
+  ]);
+}
+
+/**
+ * The item critic over a question set, as `<ActivitySequence>` takes one: each
+ * entry's findings under its index — an item group's under `N.items.M.…` — and,
+ * over the entries that are items, what only the set shows (see
+ * {@link critiqueItemGroupDraft}). An entry of a type that is not registered is
+ * skipped.
+ */
+export function critiqueDrafts(entries: readonly unknown[]): ItemFinding[] {
+  return withValidationScope(() => [
+    ...entries.flatMap((entry, index) =>
+      repathed(
+        isRecord(entry) && entry.type === 'item-group'
+          ? critiqueItemGroupDraft(entry)
+          : critiqueItem(entry),
+        [index],
+      ),
+    ),
+    ...keyPositionFinding(entries, []),
+  ]);
+}
+
+/** One item's findings, or none for an item the critic cannot place. */
+function critiqueItem(item: unknown): ItemFinding[] {
+  if (!isRecord(item) || typeof item.type !== 'string') {
+    return [];
+  }
+  if (getActivityTypeDescriptor(item.type) === undefined) {
+    return [];
+  }
+  return critiqueDraft(item.type as ActivityType, item);
+}
+
+const repathed = (findings: ItemFinding[], prefix: (string | number)[]): ItemFinding[] =>
+  findings.map((found) => ({ ...found, path: [...prefix.map(String), ...found.path] }));
+
 export function validateItemGroupDraft(draft: unknown): DraftValidationResult<ItemGroup> {
   // Every item is checked as a draft and then again as part of the group: one
   // scope lets the expensive normalisation behind both run once.

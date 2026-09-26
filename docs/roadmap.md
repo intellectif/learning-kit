@@ -870,16 +870,52 @@ From 1.0 they ship as the minors they are.
 **Not shipped:** coaching on an unscripted answer, which waits for `speaking-response`; a model's own
 recording of how a word should sound; and coaching asked for again on the same take.
 
+✅ **Assistants for authors shipped** in lk-core 1.2.0 (2026-09-25), lk-core only: an item critic
+(`critiqueDraft`, `critiqueDrafts`, `critiqueItemGroupDraft`), a model's review of an item
+(`aiCritiqueRequest` / `checkAiCritique`), and drafts from a passage, a script or captions
+(`aiDraftsRequest`, `checkAiDrafts`, `aiDraftsRepairRequest`, `generateDrafts`) made into a video's
+quizzes by `interactiveVideoFromDrafts`, with critique and drafts cases in `ai-check`; see [docs/authoring.md](./authoring.md#reviewing-an-item-the-critic-12) and
+[docs/ai.md](./ai.md#drafts-from-a-source). The maintainer chose both halves, critic first, and then,
+before the release, set the video quiz as the goal of the drafts: the author ticks the types, orders
+them, may set a count, and adds a prompt of their own. Seven decisions shaped it:
+- **No registry v2 first.** The roadmap said the repair loop needed "named `semanticChecks`". It already
+  had them: `validateDraft`'s documented codes, each with a path, a message and a fixed severity. The
+  repair loop sends those back, and a registered type joins the critic through an optional
+  `authoring.critique`, as it joined drafts through `checkDraft`.
+- **Advice never refuses.** A finding is `warning` or `advice`, in `DraftIssue`'s shape so an editor
+  shows one list, and never changes what `validateDraft` says: a minor never makes valid content
+  invalid. The codes and severities are a contract; the rules are advice, documented beside them.
+- **Rules only where a rule is right.** A title, hint or passage that prints the answer (by the rule
+  AI hints are held to), options that read the same, the right option much longer, "all of the
+  above" under shuffle, a bank with no distractor, every key in one position. Stem echoes, negative
+  stems and reading level were left out: as rules they are language-bound and mostly wrong, and they
+  are what a model's review is for.
+- **A model's review is anchored.** It points at a field the item has and quotes words that field
+  holds, or it is refused whole as `contradicts-item`; every finding is `advice`.
+- **A model writes content only.** Drafts are read through a shape of the draft's own fields — no
+  ids, HTML, media, switches or scoring settings — and every id is the host's, since option ids reach
+  learners. Each draft is checked and critiqued alone; from captions it is placed where its caption
+  ends. `complete` means valid, never approved.
+- **A bounded repair.** Drafts with something wrong the model can fix go back once by default, three
+  times at most, with their problems at the paths the model wrote; a read-aloud's recording time or a
+  dictation's recording, which only the host can supply, are never sent back. A repair is kept only
+  when it is no worse, and a failed call ends the loop instead of throwing.
+- **Time places a question; the author's order arranges it.** From timed captions each question
+  opens where its caption ends; the types the author ordered decide the order of questions sharing a
+  moment, and are the model's preference. From a script with no times, every question goes to one
+  quiz at the end, in that order — at a duration the host passes, since the SDK never reads the video.
+
+**Not shipped:** suggestions while an author writes (distractors, accepted answers); a check that a
+generated question is true to its source; recordings for drafted dictations, which the host makes or
+cuts at `clip`; and anything in lk-react — the editor is the host's.
+
 1. **The AI line, in this order, after v1.0.** Explanations, hints, the groundwork above, feedback
-   on writing and coaching on a reading have shipped; what is left is ordered by what a learner or an author gets from
+   on writing, coaching on a reading and the assistants for authors have shipped; what is left is ordered by what a learner or an author gets from
    it, and each is admitted only on the rules below.
    1. ✅ **Feedback on writing, in practice** — shipped in 0.22.0 / 22.0.0, above.
    2. ✅ **Pronunciation coaching on a read-aloud** — shipped in 1.1.0 / 23.1.0, above.
-   3. **Assistants for authors** — drafts generated from a passage, a transcript or a video's
-      captions (for an interactive video, placed at caption times); a repair loop driven by the SDK's
-      own `validateDraft` issues; an item critic reporting in the same shape those checks do, so an
-      editor shows one list. Needs registry v2's named `semanticChecks`. Each output is a draft a
-      person approves. `analyzeItem` belongs beside it.
+   3. ✅ **Assistants for authors** — shipped in lk-core 1.2.0, above. `analyzeItem`, which belongs
+      beside it, is still its own milestone.
    4. **Assisted grading of open responses**, admitted to summative use only through a calibration
       against human marks — agreement, per criterion, with no default threshold — and a
       deterministic rule for which grades go to a person.

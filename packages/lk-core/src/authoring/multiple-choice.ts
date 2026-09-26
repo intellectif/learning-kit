@@ -2,6 +2,7 @@ import type { ActivityTypeAuthoring } from '../registry/registry.js';
 import { MultipleChoiceOptionMediaSchema } from '../schemas/multiple-choice.js';
 import type { MultipleChoiceData } from '../types/activity.js';
 import type { DraftIssue } from '../types/authoring.js';
+import { critiqueMultipleChoice } from './critique.js';
 import {
   checkIdentity,
   checkMedia,
@@ -47,6 +48,7 @@ export const multipleChoiceAuthoring: ActivityTypeAuthoring<MultipleChoiceData> 
     ],
   }),
   checkDraft: checkMultipleChoiceDraft,
+  critique: critiqueMultipleChoice,
 };
 
 function checkMultipleChoiceDraft(draft: DraftFields): DraftIssue[] {

@@ -1,8 +1,11 @@
 import { aiExplanationRequest, aiHintRequest } from '../ai.js';
 import { aiCoachingRequest } from '../ai-coaching.js';
+import { aiCritiqueRequest } from '../ai-critique.js';
+import { aiDraftsRequest } from '../ai-drafts.js';
 import { aiWritingFeedbackRequest } from '../ai-writing.js';
 import { gradeReadAloud } from '../scoring/speech/grade.js';
 import type {
+  ActivityType,
   DictationData,
   FillInTheBlanksData,
   GapSelectData,
@@ -13,6 +16,10 @@ import type {
 } from '../types/activity.js';
 import type {
   AiCoachingRequest,
+  AiCritiqueRequest,
+  AiDraftSource,
+  AiDraftsRequest,
+  AiDraftType,
   AiExplanationRequest,
   AiHintRequest,
   AiWritingFeedbackRequest,
@@ -196,11 +203,23 @@ export interface AiCheckCase {
   /** Stable across releases, so a host can name one in an allow-list or a report. */
   id: string;
   /** Which port the case is for. */
-  feature: 'explanation' | 'hint' | 'writing-feedback' | 'pronunciation-coaching';
+  feature:
+    | 'explanation'
+    | 'hint'
+    | 'writing-feedback'
+    | 'pronunciation-coaching'
+    | 'item-critique'
+    | 'draft-generation';
   /** What the learner did, in a few words, for a report a person reads. */
   about: string;
   /** The request, built by the SDK exactly as a component builds it. */
-  request: AiExplanationRequest | AiHintRequest | AiWritingFeedbackRequest | AiCoachingRequest;
+  request:
+    | AiExplanationRequest
+    | AiHintRequest
+    | AiWritingFeedbackRequest
+    | AiCoachingRequest
+    | AiCritiqueRequest
+    | AiDraftsRequest;
 }
 
 const chose = (ids: string[]): LearnerResponse => ({
@@ -221,6 +240,101 @@ const drafted = (text: string): LearnerResponse => ({
   text,
   wordCount: 0,
 });
+
+/**
+ * Items an author asks a model to review. Each is valid, and each but the last
+ * has a flaw a rule cannot see: a distractor that is botanically a right
+ * answer, and a task far above the level it is set for.
+ */
+const fruit: MultipleChoiceData = {
+  schemaVersion: '1.0',
+  type: 'multiple-choice',
+  id: 'ai-check-fruit',
+  title: 'Food words',
+  question: 'Which of these is a fruit?',
+  mode: 'single',
+  scoringStrategy: 'all-or-nothing',
+  options: [
+    { id: 'f1', text: 'Apple', isCorrect: true },
+    { id: 'f2', text: 'Carrot', isCorrect: false },
+    { id: 'f3', text: 'Tomato', isCorrect: false },
+  ],
+};
+
+const tooHard: WrittenResponseData = {
+  schemaVersion: '1.0',
+  type: 'written-response',
+  id: 'ai-check-too-hard',
+  title: 'Cities',
+  prompt: 'Discuss the socioeconomic ramifications of rapid urbanisation in developing economies.',
+  minWords: 40,
+  maxWords: 80,
+};
+
+const cleanCloze: FillInTheBlanksData = {
+  schemaVersion: '1.0',
+  type: 'fill-in-the-blanks',
+  id: 'ai-check-clean-cloze',
+  title: 'Daily routine',
+  passage: 'Every morning I {{1}} up at seven and {{2}} a shower.',
+  blanks: [
+    { id: '1', acceptedAnswers: ['get', 'wake'] },
+    { id: '2', acceptedAnswers: ['take', 'have'] },
+  ],
+  scoringStrategy: 'partial',
+};
+
+function critiqueCase(
+  id: string,
+  about: string,
+  type: ActivityType,
+  draft: unknown,
+  extra: { level?: string; authorLocale?: string } = {},
+): AiCheckCase {
+  const request = aiCritiqueRequest({ type, draft, ...extra });
+  if (request === null) {
+    throw new Error(`ai-check: no critique request for "${id}"`);
+  }
+  return { id, feature: 'item-critique', about, request };
+}
+
+/** A short reading to draft from: plain, and with facts a question can be asked about. */
+const MARKET =
+  'Maria lives in Seville, in the south of Spain. Every Saturday she walks to the market with her ' +
+  'grandmother. They buy oranges, fresh bread and a little cheese. On the way home they stop at a ' +
+  'café, where Maria drinks hot chocolate and her grandmother reads the newspaper.';
+
+/** The same reading as a video's captions, with times in seconds. */
+const MARKET_CAPTIONS = [
+  { start: 0, end: 4.2, text: 'Maria lives in Seville, in the south of Spain.' },
+  { start: 4.2, end: 8.9, text: 'Every Saturday she walks to the market with her grandmother.' },
+  { start: 8.9, end: 12.6, text: 'They buy oranges, fresh bread and a little cheese.' },
+  { start: 12.6, end: 18.1, text: 'On the way home they stop at a café.' },
+];
+
+function draftsCase(
+  id: string,
+  about: string,
+  types: AiDraftType[],
+  source: AiDraftSource,
+  extra: Omit<Parameters<typeof aiDraftsRequest>[0], 'types' | 'source'> = {},
+): AiCheckCase {
+  const request = aiDraftsRequest({ types, source, ...extra });
+  if (request === null) {
+    throw new Error(`ai-check: no drafts request for "${id}"`);
+  }
+  return { id, feature: 'draft-generation', about, request };
+}
+
+/**
+ * What a host sets on every read-aloud it drafts: the SDK has no default for a
+ * recording's length or the dimensions a reading is graded on.
+ */
+const READ_ALOUD_SETTINGS = {
+  locale: 'en-US',
+  recording: { maxSeconds: 20 },
+  scoring: { dimensions: [{ name: 'accuracy', weight: 1 }] },
+};
 
 /** Builds a case, failing loudly rather than shipping a case with no request. */
 function explanationCase(
@@ -418,6 +532,83 @@ export function aiCheckCases(): AiCheckCase[] {
       'The same slips, with coaching asked for in Spanish',
       { assessment: forecast(true) },
       'es',
+    ),
+    critiqueCase(
+      'critique-second-answer',
+      'A question whose distractor "Tomato" is botanically a fruit',
+      'multiple-choice',
+      fruit,
+      { level: 'A1' },
+    ),
+    critiqueCase(
+      'critique-level',
+      'A writing task far above the A1 level it is set for',
+      'written-response',
+      tooHard,
+      { level: 'A1' },
+    ),
+    critiqueCase(
+      'critique-clean',
+      'A cloze with nothing wrong in it',
+      'fill-in-the-blanks',
+      cleanCloze,
+      {
+        level: 'A2',
+      },
+    ),
+    critiqueCase(
+      'critique-in-spanish',
+      'The fruit question, reviewed in Spanish for its author',
+      'multiple-choice',
+      fruit,
+      { level: 'A1', authorLocale: 'es' },
+    ),
+    draftsCase(
+      'drafts-questions',
+      'Four multiple-choice questions on a short reading',
+      ['multiple-choice'],
+      { kind: 'passage', text: MARKET },
+      { count: 4, level: 'A2', locale: 'en' },
+    ),
+    draftsCase(
+      'drafts-cloze',
+      'A cloze on the same reading, from its transcript',
+      ['fill-in-the-blanks'],
+      { kind: 'transcript', text: MARKET },
+      { count: 1, level: 'A2', locale: 'en', instructions: 'Blank the verbs.' },
+    ),
+    draftsCase(
+      'drafts-gaps',
+      'A choose-the-word item on the same reading',
+      ['gap-select'],
+      { kind: 'passage', text: MARKET },
+      { count: 1, level: 'A2', locale: 'en' },
+    ),
+    draftsCase(
+      'drafts-writing',
+      'A writing task that follows on from the reading',
+      ['written-response'],
+      { kind: 'passage', text: MARKET },
+      { count: 1, level: 'A2', locale: 'en' },
+    ),
+    draftsCase(
+      'drafts-video',
+      'A video quiz from timed captions: multiple choice, then dictation, then read-aloud, as many as the video is worth',
+      ['multiple-choice', 'dictation', 'read-aloud'],
+      { kind: 'captions', cues: MARKET_CAPTIONS },
+      { level: 'A2', locale: 'en', settings: { 'read-aloud': READ_ALOUD_SETTINGS } },
+    ),
+    draftsCase(
+      'drafts-script',
+      'The same video from its script alone, with no times, and what the author asked for',
+      ['multiple-choice', 'dictation', 'read-aloud'],
+      { kind: 'transcript', text: MARKET },
+      {
+        level: 'A2',
+        locale: 'en',
+        instructions: 'Focus on what Maria and her grandmother buy.',
+        settings: { 'read-aloud': READ_ALOUD_SETTINGS },
+      },
     ),
   ];
 }

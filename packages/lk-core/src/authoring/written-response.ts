@@ -1,6 +1,7 @@
 import type { ActivityTypeAuthoring } from '../registry/registry.js';
 import type { WrittenResponseData } from '../types/activity.js';
 import type { DraftIssue } from '../types/authoring.js';
+import { critiqueWrittenResponse } from './critique.js';
 import {
   checkIdentity,
   checkSharedOptional,
@@ -47,6 +48,7 @@ export const writtenResponseAuthoring: ActivityTypeAuthoring<WrittenResponseData
     maxWords: 0,
   }),
   checkDraft: checkWrittenResponseDraft,
+  critique: critiqueWrittenResponse,
 };
 
 function checkWrittenResponseDraft(draft: DraftFields): DraftIssue[] {

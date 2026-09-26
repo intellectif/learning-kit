@@ -13,9 +13,10 @@ import type { PartialScoringResult } from './multiple-choice.js';
  * Resolves the effective match policy for a blank. The legacy
  * `caseSensitive` / `trimWhitespace` flags map onto the baseline policy
  * fields; an explicit `blank.match` policy takes precedence field-by-field.
- * With neither present, the result is the v1 semantics exactly.
+ * With neither present, the result is the v1 semantics exactly. The item
+ * critic reads it too, so what it calls redundant is what this scorer does.
  */
-function policyFor(blank: BlankConfig): TextMatchPolicy {
+export function policyFor(blank: BlankConfig): TextMatchPolicy {
   return {
     ...(blank.caseSensitive !== undefined ? { caseSensitive: blank.caseSensitive } : {}),
     ...(blank.trimWhitespace !== undefined ? { trim: blank.trimWhitespace } : {}),

@@ -10,6 +10,7 @@ import {
 import { CANONICAL_LOCALE_RE } from '../scoring/speech/locale.js';
 import type { ReadAloudData } from '../types/activity.js';
 import type { DraftIssue } from '../types/authoring.js';
+import { critiqueReadAloud } from './critique.js';
 import {
   checkIdentity,
   checkMedia,
@@ -51,6 +52,7 @@ export const readAloudAuthoring: ActivityTypeAuthoring<ReadAloudData> = {
     scoring: { dimensions: [] },
   }),
   checkDraft: checkReadAloudDraft,
+  critique: critiqueReadAloud,
 };
 
 function checkReadAloudDraft(draft: DraftFields): DraftIssue[] {
