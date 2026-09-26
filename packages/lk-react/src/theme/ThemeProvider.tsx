@@ -53,7 +53,7 @@ export interface ThemeProviderProps {
  * `prefers-color-scheme: dark` preference auto-applies {@link darkTheme}.
  * SSR-safe: the server snapshot is always light, so hydration never mismatches.
  */
-export function ThemeProvider({ theme, children }: ThemeProviderProps) {
+export function ThemeProvider({ theme, children }: ThemeProviderProps): React.JSX.Element {
   const prefersDark = useSyncExternalStore(subscribePrefersDark, getPrefersDark, () => false);
 
   const activeTheme = useMemo<ThemeTokens>(() => {

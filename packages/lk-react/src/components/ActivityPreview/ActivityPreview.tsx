@@ -148,7 +148,7 @@ export function ActivityPreview({
   strings,
   theme,
   locale,
-}: ActivityPreviewProps) {
+}: ActivityPreviewProps): React.JSX.Element {
   const s = useLkStrings(strings);
   const type = isRecord(draft) && typeof draft.type === 'string' ? draft.type : undefined;
 

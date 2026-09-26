@@ -16,7 +16,7 @@ export type { ReadAloudAssessResult, ReadAloudProps, RecordingBinding } from './
  * missing-`upload` guard) degrades to an accessible fallback instead of
  * crashing the host.
  */
-export function ReadAloud(props: ReadAloudProps) {
+export function ReadAloud(props: ReadAloudProps): React.JSX.Element {
   const strings = useLkStrings(props.strings);
   return (
     <ActivityErrorBoundary activityTitle={props.data?.title} strings={strings}>

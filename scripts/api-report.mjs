@@ -302,20 +302,22 @@ function proveDeclarationText() {
 }
 proveDeclarationText();
 
+/** How the report reads the first function declared in `text`, a probe `.d.ts`. */
+function readFunctionProbe(text) {
+  const source = ts.createSourceFile('probe.d.ts', text, ts.ScriptTarget.ES2022, true);
+  const declaration = source.statements.find((statement) => ts.isFunctionDeclaration(statement));
+  return declarationText(declaration);
+}
+
 /**
  * Two declaration bundlers' spellings of one function read the same: an
  * alias or `import("…")`, `export` or not, a trailing comma or none.
  */
 function proveBundlerNeutral() {
-  const read = (text) => {
-    const source = ts.createSourceFile('probe.d.ts', text, ts.ScriptTarget.ES2022, true);
-    const declaration = source.statements.find((statement) => ts.isFunctionDeclaration(statement));
-    return declarationText(declaration);
-  };
-  const aliased = read(
+  const aliased = readFunctionProbe(
     'import * as react_jsx_runtime from "react/jsx-runtime";\ndeclare function f({ a, b, }: P): react_jsx_runtime.JSX.Element;\ninterface P { }',
   );
-  const inline = read(
+  const inline = readFunctionProbe(
     'export declare function f({ a, b }: P): import("react/jsx-runtime").JSX.Element;\ninterface P {}',
   );
   if (aliased !== inline) {
@@ -323,6 +325,37 @@ function proveBundlerNeutral() {
   }
 }
 proveBundlerNeutral();
+
+/**
+ * The lines of a surface that name a type through `import("…")`, in either
+ * spelling a bundler writes it.
+ *
+ * A declaration build writes that for a type the source left to inference,
+ * and it names the type by the file it lives in, in ANOTHER package. So an
+ * upgrade of that package can change what we publish with no change of ours:
+ * `@types/react` 19.3 moved `JSX` out of `react/jsx-runtime`, and ten
+ * components' inferred return type went from `import("react/jsx-runtime")
+ * .JSX.Element` to `import("react").JSX.Element` in a dependency bump. A type
+ * the source writes is published the way the source wrote it.
+ */
+function inferredFromAnotherPackage(lines) {
+  return lines.filter((line) => line.includes('import("'));
+}
+
+/** Both spellings of a type named through its file are caught; a written type is not. */
+function proveInferredTypesFound() {
+  const caught = [
+    'import * as react_jsx_runtime from "react/jsx-runtime";\ndeclare function f(): react_jsx_runtime.JSX.Element;',
+    'declare function f(): import("react").JSX.Element;',
+    'declare function f(): React.JSX.Element;',
+  ].map((text) => inferredFromAnotherPackage([readFunctionProbe(text)]).length);
+  if (caught.join() !== '1,1,0') {
+    throw new Error(
+      `api-report: inferred types are misread (caught ${caught.join()}, expected 1,1,0).`,
+    );
+  }
+}
+proveInferredTypesFound();
 
 const PACKAGES = ['packages/lk-core', 'packages/lk-react'];
 const failures = [];
@@ -342,6 +375,17 @@ for (const packageDir of PACKAGES) {
   for (const { subpath, file } of entryPoints(absolute)) {
     const lines = surfaceOf(file);
     checked += lines.length;
+    const inferred = inferredFromAnotherPackage(lines);
+    if (inferred.length > 0) {
+      failures.push(
+        `${relative(ROOT, file)} names ${inferred.length} type(s) through import("…"), which a ` +
+          'build writes for a type the source left to inference:\n' +
+          inferred.map((line) => `  ${line}`).join('\n') +
+          '\nWrite the type in the source (e.g. a return type `: React.JSX.Element`): an ' +
+          "inferred one is spelled by another package's file layout, and its next release " +
+          'can change what we publish.',
+      );
+    }
     sections.push(`## ${subpath === '.' ? name : `${name}/${subpath.slice(2)}`}`, '');
     sections.push('```ts');
     sections.push(...lines);

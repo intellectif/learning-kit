@@ -19,7 +19,7 @@ export type { PronunciationFeedbackProps } from './PronunciationFeedback.js';
  * carries no title, so the production fallback is the unnamed one. Naming it
  * would mean inventing a title for a panel that never had one.
  */
-export function PronunciationFeedback(props: PronunciationFeedbackProps) {
+export function PronunciationFeedback(props: PronunciationFeedbackProps): React.JSX.Element {
   const strings = useLkStrings(props.strings);
   return (
     <ActivityErrorBoundary strings={strings}>
