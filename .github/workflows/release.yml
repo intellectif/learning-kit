@@ -77,7 +77,14 @@ jobs:
       # The very first publish of each package is done manually & interactively
       # by a maintainer (`npm login`, 2FA on) — see docs/releasing.md.
       - name: Create release PR or publish (OIDC, no stored token)
-        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        # v1, deliberately: its maintained line is the one for Changesets 2. v2
+        # is built for Changesets 3 — it renames every input below, ignores
+        # GITHUB_TOKEN (the App's token) for a `github-token` input, and learns
+        # what was published from a file (CHANGESETS_OUTPUT) that the 2.31 CLI
+        # this repository pins never writes. The 2.31 release plan is what
+        # `check-release-plan` proves: a lk-core minor releases no lk-react.
+        # Both move together, on purpose; dependabot.yml holds their majors back.
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           publish: pnpm release
           version: pnpm version-packages

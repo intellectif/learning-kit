@@ -469,22 +469,22 @@ describe('<ActivityPreview> with a recording that has a play limit', () => {
     stubMediaElement();
   });
 
-  it.each([
-    'practice',
-    'exam',
-  ] as const)('counts plays in memory in %s, so the author hears the limit a learner gets', async (renderMode) => {
-    const user = userEvent.setup();
-    render(<ActivityPreview draft={{ ...capital, media: budgeted }} renderMode={renderMode} />);
-    loadMetadata();
-    // Not the error boundary's fallback, in its development or production wording.
-    // (The transport has a live notice region of its own, so `role="alert"` would
-    // not tell the two apart.)
-    expect(document.body).not.toHaveTextContent(DEFAULT_STRINGS.activityFailed);
-    expect(document.body).not.toHaveTextContent(/could not be displayed/);
-    expect(plays()).toHaveTextContent('2 of 2 plays remaining');
-    await user.click(screen.getByRole('button', { name: 'Play' }));
-    expect(plays()).toHaveTextContent('1 of 2 plays remaining');
-  });
+  it.each(['practice', 'exam'] as const)(
+    'counts plays in memory in %s, so the author hears the limit a learner gets',
+    async (renderMode) => {
+      const user = userEvent.setup();
+      render(<ActivityPreview draft={{ ...capital, media: budgeted }} renderMode={renderMode} />);
+      loadMetadata();
+      // Not the error boundary's fallback, in its development or production wording.
+      // (The transport has a live notice region of its own, so `role="alert"` would
+      // not tell the two apart.)
+      expect(document.body).not.toHaveTextContent(DEFAULT_STRINGS.activityFailed);
+      expect(document.body).not.toHaveTextContent(/could not be displayed/);
+      expect(plays()).toHaveTextContent('2 of 2 plays remaining');
+      await user.click(screen.getByRole('button', { name: 'Play' }));
+      expect(plays()).toHaveTextContent('1 of 2 plays remaining');
+    },
+  );
 
   it('counts afresh for a different recording or play limit, and not for a new description', async () => {
     const user = userEvent.setup();
@@ -525,16 +525,19 @@ describe('<ActivityPreview> with a recording that has a play limit', () => {
       },
     ],
     ['written-response', { ...essay, media: budgeted }],
-  ])('renders a %s draft with a limited recording in exam, not the error fallback', (_type, draft) => {
-    render(<ActivityPreview draft={draft} renderMode="exam" />);
-    loadMetadata();
-    // Not the error boundary's fallback, in its development or production wording.
-    // (The transport has a live notice region of its own, so `role="alert"` would
-    // not tell the two apart.)
-    expect(document.body).not.toHaveTextContent(DEFAULT_STRINGS.activityFailed);
-    expect(document.body).not.toHaveTextContent(/could not be displayed/);
-    expect(plays()).toHaveTextContent('2 of 2 plays remaining');
-  });
+  ])(
+    'renders a %s draft with a limited recording in exam, not the error fallback',
+    (_type, draft) => {
+      render(<ActivityPreview draft={draft} renderMode="exam" />);
+      loadMetadata();
+      // Not the error boundary's fallback, in its development or production wording.
+      // (The transport has a live notice region of its own, so `role="alert"` would
+      // not tell the two apart.)
+      expect(document.body).not.toHaveTextContent(DEFAULT_STRINGS.activityFailed);
+      expect(document.body).not.toHaveTextContent(/could not be displayed/);
+      expect(plays()).toHaveTextContent('2 of 2 plays remaining');
+    },
+  );
 
   it('gives review the native bar and enforces nothing', () => {
     const { container } = render(
@@ -574,18 +577,17 @@ describe('<ActivityPreview> with a read-aloud draft', () => {
     speech = undefined;
   });
 
-  it.each([
-    'practice',
-    'exam',
-    'review',
-  ] as const)('renders the activity in %s, not the unsupported note or the error fallback', async (renderMode) => {
-    const { container } = render(<ActivityPreview draft={reading} renderMode={renderMode} />);
-    expect(screen.getByRole('form', { name: 'Read the sentence' })).toBeInTheDocument();
-    expect(screen.queryByRole('note')).toBeNull();
-    expect(document.body).not.toHaveTextContent(DEFAULT_STRINGS.activityFailed);
-    expect(document.body).not.toHaveTextContent(/could not be displayed/);
-    expect(await checkA11y(container)).toHaveNoViolations();
-  });
+  it.each(['practice', 'exam', 'review'] as const)(
+    'renders the activity in %s, not the unsupported note or the error fallback',
+    async (renderMode) => {
+      const { container } = render(<ActivityPreview draft={reading} renderMode={renderMode} />);
+      expect(screen.getByRole('form', { name: 'Read the sentence' })).toBeInTheDocument();
+      expect(screen.queryByRole('note')).toBeNull();
+      expect(document.body).not.toHaveTextContent(DEFAULT_STRINGS.activityFailed);
+      expect(document.body).not.toHaveTextContent(/could not be displayed/);
+      expect(await checkA11y(container)).toHaveNoViolations();
+    },
+  );
 
   it('records and submits a take, and says plainly that nothing will judge it', async () => {
     const user = userEvent.setup();

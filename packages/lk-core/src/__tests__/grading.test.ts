@@ -841,18 +841,16 @@ describe('gradeFromRubric() criterion scales', () => {
     expect('unscorable' in result).toBe(true);
   });
 
-  it.each([
-    0,
-    -100,
-    Number.NaN,
-    Number.POSITIVE_INFINITY,
-  ])('rejects a maxScore of %s rather than dividing by it', (maxScore) => {
-    const result = gradeFromRubric([{ name: 'A', score: 1, maxScore, weight: 1 }]);
-    expect('unscorable' in result).toBe(true);
-    if ('unscorable' in result) {
-      expect(result.reason).toContain('positive, finite');
-    }
-  });
+  it.each([0, -100, Number.NaN, Number.POSITIVE_INFINITY])(
+    'rejects a maxScore of %s rather than dividing by it',
+    (maxScore) => {
+      const result = gradeFromRubric([{ name: 'A', score: 1, maxScore, weight: 1 }]);
+      expect('unscorable' in result).toBe(true);
+      if ('unscorable' in result) {
+        expect(result.reason).toContain('positive, finite');
+      }
+    },
+  );
 
   it('ignores maxScore on a criterion that is not applicable', () => {
     const record = grade([

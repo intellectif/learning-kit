@@ -236,17 +236,15 @@ describe('matchText — review-pinned edge cases (v0.3 release review)', () => {
  * marks for work the learner never did. Reported by a consumer against 0.7.1.
  */
 describe('empty input never reaches the fuzzy stage', () => {
-  it.each([
-    'a',
-    'I',
-    'an',
-    'to',
-  ])('does not fuzzy-match an unanswered blank against the short answer %s', (accepted) => {
-    expect(matchText('', [accepted], { levenshtein: 1 })).toEqual({
-      matched: false,
-      via: 'none',
-    });
-  });
+  it.each(['a', 'I', 'an', 'to'])(
+    'does not fuzzy-match an unanswered blank against the short answer %s',
+    (accepted) => {
+      expect(matchText('', [accepted], { levenshtein: 1 })).toEqual({
+        matched: false,
+        via: 'none',
+      });
+    },
+  );
 
   it('does not fuzzy-match a whitespace-only answer', () => {
     expect(matchText('   ', ['a'], { levenshtein: 1 })).toEqual({ matched: false, via: 'none' });

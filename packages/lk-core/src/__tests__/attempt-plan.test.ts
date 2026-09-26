@@ -133,13 +133,12 @@ describe('planAttempt', () => {
     expect(plan.totalPoints).toBe(8);
   });
 
-  it.each([
-    Number.NaN,
-    Number.POSITIVE_INFINITY,
-    -1,
-  ])('refuses %s points rather than poisoning the total', (points) => {
-    expect(() => planAttempt(entries, { points: () => points })).toThrow(/finite, non-negative/);
-  });
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -1])(
+    'refuses %s points rather than poisoning the total',
+    (points) => {
+      expect(() => planAttempt(entries, { points: () => points })).toThrow(/finite, non-negative/);
+    },
+  );
 
   it('is deterministic: the same entries and seed produce an identical plan', () => {
     const a = planAttempt(entries, { shuffleEntries: true, seed: 'attempt-1' });
@@ -368,20 +367,18 @@ describe('scoredItemsFromPlan', () => {
     expect(items.map((i) => i.slotId)).toEqual(['0', '1', '2']);
   });
 
-  it.each([
-    'constructor',
-    'toString',
-    'valueOf',
-    '__proto__',
-  ])('does not resolve slot id %s through the prototype chain', (slotKey) => {
-    // A bare `outcomes[slotId]` returns a FUNCTION for these keys, which
-    // would reach composeAssessmentScore in place of an outcome.
-    const keyed = planAttempt([item('q1', { slotKey })]);
-    const items = scoredItemsFromPlan(keyed, {});
-    expect(items).toHaveLength(1);
-    expect(items[0]?.outcome.status).toBe('deferred');
-    expect(typeof items[0]?.outcome).toBe('object');
-  });
+  it.each(['constructor', 'toString', 'valueOf', '__proto__'])(
+    'does not resolve slot id %s through the prototype chain',
+    (slotKey) => {
+      // A bare `outcomes[slotId]` returns a FUNCTION for these keys, which
+      // would reach composeAssessmentScore in place of an outcome.
+      const keyed = planAttempt([item('q1', { slotKey })]);
+      const items = scoredItemsFromPlan(keyed, {});
+      expect(items).toHaveLength(1);
+      expect(items[0]?.outcome.status).toBe('deferred');
+      expect(typeof items[0]?.outcome).toBe('object');
+    },
+  );
 
   it('still reads a real outcome stored under such a key', () => {
     const keyed = planAttempt([item('q1', { slotKey: 'constructor' })]);
