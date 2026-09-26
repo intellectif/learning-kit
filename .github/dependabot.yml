@@ -28,6 +28,12 @@ updates:
       # move to.
       - dependency-name: typescript
         update-types: [version-update:semver-major]
+      # Changesets 3 drops the option that keeps a lk-core minor from releasing
+      # lk-react (docs/stability.md), and `pnpm verify-release` fails with it
+      # (#93). It moves together with changesets/action v2 (below), which is
+      # built for it, as a change of its own.
+      - dependency-name: "@changesets/cli"
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
@@ -36,7 +42,15 @@ updates:
     cooldown:
       default-days: 2
     # The workflows pin each action to a commit, commented with its release;
-    # Dependabot updates both.
+    # Dependabot updates both. Minor and patch updates come grouped; a major
+    # comes alone. CI runs the checkout and setup actions on the pull request,
+    # but nothing runs the release job before it is on main: a major merged in
+    # a group once broke it (changesets/action v2).
     groups:
       actions:
         patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      # v2 needs Changesets 3; see release.yml.
+      - dependency-name: changesets/action
+        update-types: [version-update:semver-major]
