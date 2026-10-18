@@ -914,9 +914,9 @@ generated question is true to its source; recordings for drafted dictations, whi
 cuts at `clip`; and anything in lk-react — the editor is the host's.
 
 1. **The AI line, in this order, after v1.0.** Explanations, hints, the groundwork above, feedback
-   on writing, coaching on a reading, the assistants for authors, and help that reads a question's
-   group have shipped; what is left is ordered by what a learner or an author gets from it, and each
-   is admitted only on the rules below.
+   on writing, coaching on a reading, the assistants for authors, help that reads a question's group,
+   and assisted grading have shipped; what is left is ordered by what a learner or an author gets
+   from it, and each is admitted only on the rules below.
    1. ✅ **Feedback on writing, in practice** — shipped in 0.22.0 / 22.0.0, above.
    2. ✅ **Pronunciation coaching on a read-aloud** — shipped in 1.1.0 / 23.1.0, above.
    3. ✅ **Assistants for authors** — shipped in lk-core 1.2.0, above. `analyzeItem`, which belongs
@@ -925,10 +925,9 @@ cuts at `clip`; and anything in lk-react — the editor is the host's.
       an explanation or feedback on writing for a question in an item group carries the group's
       `material`: the passage, or the instructions a run of questions shares, as the learner sees it,
       cut past 12,000 code points, and never the author's transcript or a media address.
-   5. **Assisted grading of open responses**, admitted to summative use only through a calibration
-      against human marks — agreement, per criterion, with no default threshold — and a
-      deterministic rule for which grades go to a person. Planned in
-      [After 1.4](#after-14--speaking-on-calibrated-grading).
+   5. ✅ **Assisted grading of open responses** — shipped in lk-core 1.5.0: admitted to summative
+      use only through a calibration against human marks, and a deterministic rule for which grades
+      go to a person. See [After 1.4](#after-14--speaking-on-calibrated-grading).
    6. **`speaking-response`**, built on that grading.
 
    **Not on this list, deliberately:** a chat tutor with memory (the checks hold for a bounded
@@ -958,9 +957,6 @@ cuts at `clip`; and anything in lk-react — the editor is the host's.
    - **the author's per-item switch** (`ai: { hints, explanations }`) is in content, classified
      public, and survives `redact()`. The educator's per-deployment switch joins it in the delivery
      policy, and a feature appears only where both say yes and the host supplied a port.
-
-   Still to settle in the milestone plan: calibration metrics shipped with no default threshold, as
-   rounding ships no default `dp`.
 
 ### v1.0 — "the stability promise"
 
@@ -1028,23 +1024,32 @@ Chosen by the maintainer on 2026-10-18. **`speaking-response` is the priority**:
 loud, after a text prompt or a picture and a prompt, and is graded on what they said and how they said
 it. It comes after the groundwork it needs, in this order.
 
-1. **Assisted grading of open responses, with a calibration gate.** This is the AI line's next item, on
-   written responses first. A model judges a response criterion by criterion; the SDK computes the
-   grade (`gradeFromRubric`); and a model's grade counts on a paper of record only once it has been
+1. ✅ **Assisted grading of open responses, with a calibration gate** — shipped in lk-core 1.5.0,
+   on written responses; see [docs/grading.md](./grading.md). A model judges a response criterion by
+   criterion, the SDK computes the grade, and in an exam a model's grade counts only once it has been
    measured against human marks on the host's own data.
-   - **A judgement contract, provider-neutral:** for each rubric criterion, a level or a score and,
-     optionally, the probability of each level. A model that returns one score fits it; a
-     [decision model](#decision-models) that returns probabilities fits it better, because its
-     uncertainty can be measured and used.
-   - **Calibration as a function, not a service.** Given a sample the host has marked twice, by the
-     model and by a person, the SDK reports agreement per criterion (for example exact and adjacent
-     agreement and quadratic-weighted kappa) and, where probabilities were given, how well they match
-     what people decided. **No default threshold**, as rounding ships no default `dp`; the metrics
-     settle in the milestone plan.
-   - **A deterministic rule for which grades go to a person.** The host's thresholds over that report
-     send a response to a person, for example a criterion with low agreement, or a judgement whose
-     likeliest level is not likely enough. What the rule read and what it decided go on the
-     `GradeRecord`, so an appeal can see why a person did or did not mark it.
+   - **Levels on a rubric criterion**, optional. Everything that grades reads them strictly;
+     `validateActivity` does not read them in 1.x, so a field of that name in a host's items stays
+     valid, and the critic says when levels cannot be read.
+   - **A judgement contract, provider-neutral:** `aiGradingRequest` / `checkAiGrading`. A grade
+     judges every criterion once (`misses-criteria`), each on its own scale, a level or a score,
+     with a probability for each level when the model gives them (`out-of-scale`), or it is refused
+     whole. `gradeFromJudgement` computes the total as `gradeFromRubric` does. A
+     [decision model](#decision-models) that returns probabilities fits it as it is.
+   - **Calibration as a function, not a service:** `calibrationReport` measures one configuration
+     (the model, the prompt revision, the rubric by its hash, and the target) against human marks:
+     exact and adjacent agreement, quadratic kappa, Pearson's r, mean absolute error, the
+     standardised mean difference, calibration error and the Brier score, and the degradation from
+     two people's agreement. **No default thresholds.** The guide cites Williamson, Xi and Breyer
+     (2012) for the framework and quotes none of its values, which were not checked against the
+     paper itself.
+   - **A deterministic rule for which grades go to a person:** `routeGrade`. An exam fails closed:
+     without a matching report, every model grade goes to a person. A report below the host's
+     thresholds, an unsure judgement (no probabilities counts as unsure), a model that asked, low
+     confidence, and an audit sample chosen by `inAuditSample` send one too. The decision and every
+     reason go on the `GradeRecord`, so an appeal can see why a person did or did not mark it.
+   - **Not shipped:** an analysis by subgroup (run a report on each group's pairs), and a marking
+     queue for teachers, which is the host's.
 2. **Real engine results.** The speech code is built from documented shapes; no real engine output
    has been captured into the SDK's fixtures, and the vendor documentation contradicts itself on
    details that decide grades. Capture scripted and unscripted results first, from synthesised speech
