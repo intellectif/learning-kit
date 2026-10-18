@@ -51,6 +51,8 @@ What changed in each release, and what to do about it: the [upgrading guide](./u
 | Weighted, sectioned totals with an explicit rounding policy | 0.4.0 / 3.0.0 | [Upgrading](./upgrading.md) |
 | Rubric grading from a grader's judgements (`gradeFromRubric`, `GradeRecord`) | 0.4.0 / 3.0.0 | [Upgrading](./upgrading.md) |
 | A returned grade whose numbers cannot be a grade is refused | 0.18.0 / 18.0.0 | [Upgrading](./upgrading.md) |
+| **A model's grade for the record** — every criterion judged on its own scale, on levels the author writes, and the total computed by the SDK (`aiGradingRequest`, `checkAiGrading`, `gradeFromJudgement`) | 1.5.0 / — | [Grading with a model](./grading.md) |
+| **A calibration gate** — a grader measured against your teachers (`calibrationReport`); in an exam no model's grade counts without one, and an audit sample keeps it current (`routeGrade`) | 1.5.0 / — | [Grading with a model](./grading.md#where-a-grade-goes) |
 | What tries and hints cost, reached the same way on a server (`scoreTries`, `evaluateTries`) | 0.21.0 / — | [Scoring policies](./scoring.md#scoring-on-your-server) |
 | Grade-stability vectors: every grading path frozen and replayed on each release | 0.8.2 / — | [Vectors](../packages/lk-core/vectors/README.md) |
 

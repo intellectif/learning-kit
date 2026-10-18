@@ -18,6 +18,7 @@ const AI_CRITIQUE_MAX_FINDINGS: AI_CRITIQUE_MAX_FINDINGS = 20
 const AI_DRAFTS_MAX_COUNT: AI_DRAFTS_MAX_COUNT = 50
 const AI_DRAFTS_MAX_REPAIRS: AI_DRAFTS_MAX_REPAIRS = 3
 const AI_EXPLANATION_TYPES: AI_EXPLANATION_TYPES: readonly AiSupportedActivityType[]
+const AI_GRADING_PROBABILITY_TOLERANCE: AI_GRADING_PROBABILITY_TOLERANCE = 0.000001
 const AI_HINT_TYPES: AI_HINT_TYPES: readonly AiSupportedActivityType[]
 const AI_MATERIAL_MAX_LENGTH: AI_MATERIAL_MAX_LENGTH = 12000
 const AI_TEXT_MAX_LENGTH: AI_TEXT_MAX_LENGTH = 2000
@@ -67,6 +68,7 @@ function aiDraftsRepairRequest: declare function aiDraftsRepairRequest(request: 
 function aiDraftsRequest: declare function aiDraftsRequest(input: { count?: number; instructions?: string; level?: string; locale?: string; settings?: AiDraftSettings; source: AiDraftSource; types: readonly AiDraftType[]; }): AiDraftsRequest | null;
 function aiExplanationRequest: declare function aiExplanationRequest(input: { data: AiActivityInput; group?: AiGroupInput; learnerLocale?: string; outcome?: ItemOutcome; response: LearnerResponse | null; }): AiExplanationRequest | null;
 function aiGradeOf: declare function aiGradeOf(result: { maxScore: number; passed: boolean; score: number; }): AiGrade;
+function aiGradingRequest: declare function aiGradingRequest(input: { data: AiActivityInput; group?: AiGroupInput; learnerLocale?: string; response: LearnerResponse | null; }): { ok: false; path?: (number | string)[]; problem: AiGradingRequestProblem; } | { ok: true; request: AiGradingRequest; };
 function aiHintRequest: declare function aiHintRequest(input: { data: AiActivityInput; group?: AiGroupInput; learnerLocale?: string; previousHints: readonly string[]; response: LearnerResponse | null; }): AiHintRequest | null;
 function aiSupports: declare function aiSupports(activityType: string, feature: AiFeature): boolean;
 function aiWritingFeedbackRequest: declare function aiWritingFeedbackRequest(input: { data: AiActivityInput; group?: AiGroupInput; learnerLocale?: string; previousFeedback?: readonly string[]; response: LearnerResponse | null; }): AiWritingFeedbackRequest | null;
@@ -75,11 +77,13 @@ function alignReadAloud: declare function alignReadAloud(data: Pick<ReadAloudDat
 function assertRedacted: declare function assertRedacted(data: unknown): asserts data is RedactedActivityData;
 function assertRedactedItemGroup: declare function assertRedactedItemGroup(data: unknown): asserts data is RedactedItemGroup;
 function buildAiFacts: declare function buildAiFacts(data: AiActivityInput, response: LearnerResponse | null, details: null | readonly ScoringDetail[]): AiItemFacts | null;
+function calibrationReport: declare function calibrationReport(pairs: readonly CalibrationPair[], scope: CalibrationScope): { ok: false; reason: string; } | { ok: true; report: CalibrationReport; };
 function canonicalJson: declare function canonicalJson(value: unknown, seen?: Set<object>): string;
 function checkAiCoaching: declare function checkAiCoaching(raw: unknown, request: AiCoachingRequest): { coaching: AiCoaching; ok: true; } | { ok: false; refusal: AiRefusal; };
 function checkAiCritique: declare function checkAiCritique(raw: unknown, request: AiCritiqueRequest): { critique: AiCritique; ok: true; } | { ok: false; refusal: AiRefusal; };
 function checkAiDrafts: declare function checkAiDrafts(raw: unknown, request: AiDraftsRequest, options: { newId: () => string; }): { drafts: AiDrafts; ok: true; } | { ok: false; refusal: AiRefusal; };
 function checkAiExplanation: declare function checkAiExplanation(raw: unknown, request: AiExplanationRequest): { ok: false; refusal: AiRefusal; } | { ok: true; result: AiTextResult; };
+function checkAiGrading: declare function checkAiGrading(raw: unknown, request: AiGradingRequest): Refused | { judgement: AiGradingJudgement; ok: true; };
 function checkAiHint: declare function checkAiHint(raw: unknown, request: AiHintRequest): { ok: false; refusal: AiRefusal; } | { ok: true; result: AiTextResult; };
 function checkAiWritingFeedback: declare function checkAiWritingFeedback(raw: unknown, request: AiWritingFeedbackRequest): { feedback: AiWritingFeedback; ok: true; } | { ok: false; refusal: AiRefusal; };
 function classifyBand: declare function classifyBand(value: number, bands: readonly Band[]): Band | null;
@@ -106,12 +110,15 @@ function fingerprint: declare function fingerprint(input: string): string;
 function flattenSequence: declare function flattenSequence<TItem extends { id: string; type: string; }>(entries: readonly SequenceEntry<TItem>[], options?: FlattenSequenceOptions): SequenceSlot<TItem>[];
 function generateDrafts: declare function generateDrafts(input: { newId: () => string; port: (request: AiDraftsRequest) => Promise<unknown> | unknown; repairs?: number; request: AiDraftsRequest; }): Promise<AiDraftsRun>;
 function getActivityTypeDescriptor: declare function getActivityTypeDescriptor(type: string): RegisteredActivityTypeDescriptor | undefined;
+function gradeFromJudgement: declare function gradeFromJudgement(judgement: AiGradingJudgement, data: WrittenResponseData, options?: GradeFromJudgementOptions): GradeRecord | { reason: string; unscorable: true; };
 function gradeFromRubric: declare function gradeFromRubric(criteria: readonly CriterionScore[], activityData?: ActivityData, options?: GradeFromRubricOptions): GradeRecord | { reason: string; unscorable: true; };
+function graderConfiguration: declare function graderConfiguration(grade: GradeRecord, scope: CalibrationScope): GraderConfiguration | null;
 function gradeReadAloud: declare function gradeReadAloud(data: ReadAloudData, response: ReadAloudLearnerResponse, assessment: SpeechAssessment | null, options: GradeReadAloudOptions): GradeRecord | SpeechUnscorable;
 function gte: declare function gte(value: number, threshold: number, policy: RoundingPolicy): boolean;
 function hasGrade: declare function hasGrade(outcome: ItemOutcome): outcome is Extract<ItemOutcome, { status: 'graded' | 'scored'; }>;
 function hashSeed: declare function hashSeed(input: string): number;
 function hintRevealsAnswer: declare function hintRevealsAnswer(facts: AiItemFacts, hint: string): boolean;
+function inAuditSample: declare function inAuditSample(key: string, rate: number, seed: string): boolean;
 function inspectWav: declare function inspectWav(bytes: Uint8Array, policy: WavInspectionPolicy): WavInspection;
 function interactiveVideoFromDrafts: declare function interactiveVideoFromDrafts(input: { drafts: AiDrafts | AiDraftsRun | readonly AiGeneratedDraft[]; durationSeconds?: number; newId: () => string; request: AiDraftsRequest; title?: string; video: ActivityMedia; }): AiVideoDraft;
 function isBuiltInActivityType: declare function isBuiltInActivityType(type: unknown): type is BuiltInActivityType;
@@ -121,6 +128,7 @@ function jsonSchemaFor: declare function jsonSchemaFor(type: string): Record<str
 function levenshteinDistance: declare function levenshteinDistance(a: string, b: string, max: number): number;
 function matchText: declare function matchText(input: string, accepted: readonly string[] | string, policy?: TextMatchPolicy): TextMatchResult;
 function outcomeFromGrade: declare function outcomeFromGrade(grade: GradeRecord): ItemOutcome;
+function outcomeFromRoutedGrade: declare function outcomeFromRoutedGrade(grade: GradeRecord, routing: GradeRouting): ItemOutcome;
 function outcomeFromUnscorable: declare function outcomeFromUnscorable(result: { code: string; reason: string; }): ItemOutcome;
 function planAttempt: declare function planAttempt<TItem extends { id: string; type: string; }>(entries: readonly SequenceEntry<TItem>[], options?: PlanAttemptOptions<TItem>): AttemptPlan;
 function planMediaBudgets: declare function planMediaBudgets(plan: AttemptPlan): Record<string, number>;
@@ -136,6 +144,7 @@ function resolvePlaybackPolicy: declare function resolvePlaybackPolicy(media: Ac
 function restoreAttemptState: declare function restoreAttemptState(plan: AttemptPlan, state: AttemptState): AttemptState;
 function restoreMediaPlayLedger: declare function restoreMediaPlayLedger(plan: AttemptPlan, stored: MediaPlayLedger): MediaPlayLedger;
 function roundGrade: declare function roundGrade(value: number, policy: RoundingPolicy): number;
+function routeGrade: declare function routeGrade(grade: GradeRecord, context: GradeRoutingContext): GradeRouting;
 function score: declare function score(activityType: ActivityType, activityData: ActivityData, learnerResponse: LearnerResponse, options?: ScoringOptions): ScoringResult;
 function scoredItemsFromPlan: declare function scoredItemsFromPlan(plan: AttemptPlan, outcomes: Readonly<Record<string, ItemOutcome>>, options?: { missing?: MissingOutcomePolicy; }): ScoredItem[];
 function scoreTries: declare function scoreTries(tries: readonly ItemTry[], policy?: ItemScoringPolicy | ResolvedItemScoringPolicy | null): ItemTriesScore;
@@ -188,6 +197,11 @@ interface AiGapFact: interface AiGapFact { id: string; position: number; choices
 interface AiGapSelectFacts: interface AiGapSelectFacts extends AiFactsBase { activityType: 'gap-select'; passage: string; gaps: AiGapFact[]; }
 interface AiGeneratedDraft: interface AiGeneratedDraft { index: number; type: AiDraftType; draft: Record<string, unknown>; validation: DraftValidationResult<unknown>; findings: ItemFinding[]; at?: number; clip?: { end: number; start: number; }; generated: Readonly<Record<string, unknown>>; }
 interface AiGrade: interface AiGrade { score: number; maxScore: number; passed: boolean; category: AiVerdict; }
+interface AiGradedCriterion: interface AiGradedCriterion { name: string; level?: string; score: number; probabilities?: number[]; comment?: string; }
+interface AiGradingCriterionFact: interface AiGradingCriterionFact { name: string; description?: string; weight: number; levels: null | { description?: string; label: string; }[]; }
+interface AiGradingFacts: interface AiGradingFacts { activityType: 'written-response'; activityId: string; title: string; locale?: string; prompt: string; text: string; wordCount: number; minWords: number; maxWords: number; withinWordBounds: boolean; rubric: AiGradingCriterionFact[]; languageTarget?: string; }
+interface AiGradingJudgement: interface AiGradingJudgement { criteria: AiGradedCriterion[]; feedback: null | string; corrections: InlineCorrection[]; rationale?: string; requiresHumanReview: boolean; provenance?: AiProvenance; usage?: GraderUsage; }
+interface AiGradingRequest: interface AiGradingRequest { feature: 'grading'; facts: AiGradingFacts; material?: AiMaterialFacts; learnerLocale?: string; }
 interface AiGroupInput: interface AiGroupInput { readonly title?: unknown; readonly stimulus?: unknown; }
 interface AiHintRequest: interface AiHintRequest { feature: 'hint'; facts: AiItemFacts; hintNumber: number; previousHints: string[]; material?: AiMaterialFacts; learnerLocale?: string; }
 interface AiMaterialFacts: interface AiMaterialFacts { kind: StimulusKind; title?: string; text?: string; truncated?: true; media?: { alt?: string; type: ActivityMedia['type']; }; attribution?: string; locale?: string; }
@@ -216,9 +230,14 @@ interface AttemptProgress: interface AttemptProgress { responses: Readonly<Recor
 interface AttemptState: interface AttemptState { stateVersion: '1.0'; planHash: string; responses: Record<string, LearnerResponse>; submittedSlotIds: string[]; index: number; savedAt?: string; }
 interface Band: interface Band { name: string; min: number; }
 interface BlankConfig: interface BlankConfig { id: string; acceptedAnswers: string[]; caseSensitive?: boolean; trimWhitespace?: boolean; match?: TextMatchPolicy; hint?: string; feedback?: string; }
+interface CalibrationPair: interface CalibrationPair { model: GradeRecord; person: GradeRecord; secondPerson?: GradeRecord; }
+interface CalibrationReport: interface CalibrationReport { configuration: GraderConfiguration; pairs: number; criteria: CriterionCalibration[]; total: TotalCalibration; reportHash: string; }
+interface CalibrationScope: interface CalibrationScope { rubric?: WrittenResponseRubric; languageTarget?: string; }
+interface CalibrationThresholds: interface CalibrationThresholds { minPairs?: number; minQuadraticKappa?: number; minExactAgreement?: number; minPearson?: number; maxMeanAbsoluteError?: number; maxAbsStandardizedMeanDifference?: number; maxDegradation?: number; maxCalibrationError?: number; }
 interface CompletedStatementParams: interface CompletedStatementParams { actor: XAPIActor; object: XAPIObjectParams; scoringResult?: ScoringResult; timeSpentMs: number; context?: XAPIContext; resultExtensions?: Record<string, unknown>; }
 interface CompositionPolicy: interface CompositionPolicy { passThreshold: number; sectionThreshold?: number; rounding: RoundingPolicy; }
-interface CriterionScore: interface CriterionScore { name: string; score?: number; maxScore?: number; band?: string; comment?: string; weight?: number; notApplicable?: boolean; }
+interface CriterionCalibration: interface CriterionCalibration { name: string; scale: 'levels' | 'score'; levels?: number; pairs: number; exactAgreement?: null | number; adjacentAgreement?: null | number; quadraticKappa?: null | number; confusion?: number[][]; pearson: null | number; meanAbsoluteError: null | number; standardizedMeanDifference: null | number; probabilityPairs?: number; calibrationError?: null | number; brierScore?: null | number; humanPairs?: number; humanQuadraticKappa?: null | number; humanPearson?: null | number; degradation?: null | number; }
+interface CriterionScore: interface CriterionScore { name: string; score?: number; maxScore?: number; band?: string; comment?: string; weight?: number; notApplicable?: boolean; levelProbabilities?: number[]; }
 interface DeferredScoringPartial: interface DeferredScoringPartial { withinWordBounds?: boolean; wordCount?: number; [key: string]: unknown; }
 interface DeliveryPolicy: interface DeliveryPolicy { feedback?: boolean | null; solutions?: boolean | null; hints?: boolean | null; ai?: boolean | null | { explanations?: boolean | null; hints?: boolean | null; }; }
 interface DeliveryPolicyIssue: interface DeliveryPolicyIssue { path: string; message: string; }
@@ -246,8 +265,12 @@ interface GapSelectGap: interface GapSelectGap { id: string; choices?: GapSelect
 interface GapSelectLearnerResponse: interface GapSelectLearnerResponse { type: 'gap-select'; selections: Record<string, string>; hintsRevealed?: number; }
 interface GradeFromRubricOptions: interface GradeFromRubricOptions { passThreshold?: number; feedback?: null | string; rounding?: RoundingPolicy; }
 interface Grader: interface Grader { kind: GraderKind; id?: string; model?: string; promptHash?: string; }
+interface GraderConfiguration: interface GraderConfiguration { model: string; promptHash: string; rubricHash: string; languageTarget: null | string; }
 interface GradeReadAloudOptions: interface GradeReadAloudOptions { measured: SpeechMeasurement | null; plausibility: SpeechPlausibilityPolicy; allowAiAssessor?: boolean; rounding?: RoundingPolicy; }
-interface GradeRecord: interface GradeRecord { score: number; maxScore: number; passed: boolean; feedback: null | string; criteria?: CriterionScore[]; details?: ScoringDetail[]; corrections?: InlineCorrection[]; evidence?: string[]; rationale?: string; confidence?: 'high' | 'low' | 'medium'; requiresHumanReview?: boolean; grader?: Grader; usage?: GraderUsage; gradedAt?: string; }
+interface GradeRecord: interface GradeRecord { score: number; maxScore: number; passed: boolean; feedback: null | string; criteria?: CriterionScore[]; details?: ScoringDetail[]; corrections?: InlineCorrection[]; evidence?: string[]; rationale?: string; confidence?: 'high' | 'low' | 'medium'; requiresHumanReview?: boolean; grader?: Grader; usage?: GraderUsage; gradedAt?: string; routing?: GradeRouting; }
+interface GradeRouting: interface GradeRouting { to: 'model' | 'person'; reasons: GradeRoutingReason[]; calibration?: { pairs: number; reportHash: string; }; }
+interface GradeRoutingContext: interface GradeRoutingContext { mode: 'exam' | 'practice'; item: CalibrationScope; calibration?: CalibrationReport; policy?: GradeRoutingPolicy; sampleKey?: string; }
+interface GradeRoutingPolicy: interface GradeRoutingPolicy { calibration?: CalibrationThresholds; minLevelProbability?: number; routeLowConfidence?: boolean; audit?: { rate: number; seed: string; }; }
 interface GraderUsage: interface GraderUsage { promptTokens?: number; completionTokens?: number; costUsd?: number; }
 interface InlineCorrection: interface InlineCorrection { original: string; corrected: string; explanation?: string; range?: { end: number; start: number; }; category?: string; }
 interface InteractionEvent: interface InteractionEvent { type: InteractionKind; activityId: string; timestamp: number; payload: Record<string, unknown>; }
@@ -295,7 +318,7 @@ interface RedactedMultipleChoiceOption: interface RedactedMultipleChoiceOption {
 interface RedactedMultipleChoiceOptionMedia: interface RedactedMultipleChoiceOptionMedia { type: 'audio' | 'image'; url: string; alt?: string | undefined; captionsUrl?: string | undefined; }
 interface RedactedReadAloudData: interface RedactedReadAloudData extends RedactedItem { type: 'read-aloud'; instructions?: string | undefined; referenceText: string; locale: string; slowMedia?: RedactedDictationSlowMedia | undefined; recording: { maxSeconds: number; maxTakes?: number | undefined; minSeconds?: number | undefined; }; scoring: { dimensions: { name: 'accuracy' | 'completeness' | 'fluency' | 'prosody'; weight: number; }[]; }; }
 interface RedactedStimulus: interface RedactedStimulus { id: string; kind: 'audio' | 'image' | 'mixed' | 'text' | 'video'; title?: string | undefined; body?: string | undefined; bodyHtml?: string | undefined; media?: Media | undefined; locale?: string | undefined; attribution?: string | undefined; }
-interface RedactedWrittenResponseData: interface RedactedWrittenResponseData extends RedactedItem { type: 'written-response'; prompt: string; promptHtml?: string | undefined; minWords: number; maxWords: number; rubric?: undefined | { criteria: { description?: string | undefined; name: string; weight: number; }[]; label?: string | undefined; }; languageTarget?: string | undefined; locale?: string | undefined; }
+interface RedactedWrittenResponseData: interface RedactedWrittenResponseData extends RedactedItem { type: 'written-response'; prompt: string; promptHtml?: string | undefined; minWords: number; maxWords: number; rubric?: undefined | { criteria: { description?: string | undefined; levels?: undefined | { description?: string | undefined; label: string; }[]; name: string; weight: number; }[]; label?: string | undefined; }; languageTarget?: string | undefined; locale?: string | undefined; }
 interface RedactOptions: interface RedactOptions { reveal?: 'after-submit' | 'none'; policy?: FieldPolicy; }
 interface RegisteredActivityTypeDescriptor: interface RegisteredActivityTypeDescriptor { readonly type: string; readonly schema: StandardSchemaV1; readonly jsonSchema?: Readonly<Record<string, unknown>>; readonly scoring: { readonly kind: 'deferred'; readonly partial?: (data: unknown, response: unknown) => DeferredScoringPartial; readonly reason: 'requires_async_grading'; } | { readonly kind: 'sync'; readonly score: (data: unknown, response: unknown) => PartialScoringResult; }; readonly isAnswered?: (response: unknown) => boolean; readonly fieldPolicy?: FieldPolicy; readonly redactedSchema?: StandardSchemaV1; readonly interop?: ActivityTypeInterop<unknown>; readonly interactions?: readonly string[]; readonly authoring?: ActivityTypeAuthoring<unknown>; }
 interface ResolvedDeliveryPolicy: interface ResolvedDeliveryPolicy { feedback: boolean; solutions: boolean; hints: boolean; ai: { explanations: boolean; hints: boolean; }; }
@@ -327,12 +350,14 @@ interface TextMatchResult: interface TextMatchResult { matched: boolean; via: 'e
 interface ThemeTokens: interface ThemeTokens { '--lk-color-primary': string; '--lk-color-primary-hover': string; '--lk-color-surface': string; '--lk-color-surface-raised': string; '--lk-color-border': string; '--lk-color-text': string; '--lk-color-text-muted': string; '--lk-color-success': string; '--lk-color-error': string; '--lk-color-warning': string; '--lk-color-focus-ring': string; '--lk-color-media-accent'?: string; '--lk-iv-caption-color'?: string; '--lk-iv-caption-secondary-color'?: string; '--lk-iv-caption-secondary-scale'?: string; '--lk-iv-caption-gap'?: string; '--lk-spacing-xs': string; '--lk-spacing-sm': string; '--lk-spacing-md': string; '--lk-spacing-lg': string; '--lk-spacing-xl': string; '--lk-font-family-base': string; '--lk-font-size-sm': string; '--lk-font-size-base': string; '--lk-font-size-lg': string; '--lk-font-weight-normal': string; '--lk-font-weight-bold': string; '--lk-line-height-base': string; '--lk-radius-sm': string; '--lk-radius-base': string; '--lk-radius-lg': string; '--lk-transition-fast': string; '--lk-transition-base': string; }
 interface TimelineChapter: interface TimelineChapter { at: number; title: string; }
 interface TimelineCue: interface TimelineCue { id: string; at: number; itemIds: string[]; title?: string; required?: boolean; }
+interface TotalCalibration: interface TotalCalibration { pairs: number; pearson: null | number; meanAbsoluteError: null | number; standardizedMeanDifference: null | number; passAgreement: null | number; humanPairs?: number; humanPearson?: null | number; degradation?: null | number; }
 interface ValidationError: interface ValidationError { path: string[]; message: string; code: string; }
 interface WavInspectionPolicy: interface WavInspectionPolicy { silenceDbfs: number; frameMs: number; }
 interface WrittenResponseData: interface WrittenResponseData { schemaVersion: '1.0'; type: 'written-response'; id: string; title: string; prompt: string; promptHtml?: string; minWords: number; maxWords: number; rubric?: WrittenResponseRubric; languageTarget?: string; media?: ActivityMedia; feedback?: ActivityFeedback; passThreshold?: number; locale?: string; learningObjectives?: string[]; difficultyLevel?: 1 | 2 | 3 | 4 | 5; ai?: ActivityAiPermissions; }
 interface WrittenResponseLearnerResponse: interface WrittenResponseLearnerResponse { type: 'written-response'; text: string; wordCount: number; }
 interface WrittenResponseRubric: interface WrittenResponseRubric { label?: string; criteria: WrittenResponseRubricCriterion[]; }
-interface WrittenResponseRubricCriterion: interface WrittenResponseRubricCriterion { name: string; description?: string; weight: number; }
+interface WrittenResponseRubricCriterion: interface WrittenResponseRubricCriterion { name: string; description?: string; weight: number; levels?: WrittenResponseRubricLevel[]; }
+interface WrittenResponseRubricLevel: interface WrittenResponseRubricLevel { label: string; description?: string; }
 interface XAPIActor: interface XAPIActor { objectType: 'Agent'; name?: string; mbox?: string; account?: { homePage: string; name: string; }; }
 interface XAPIConfig: interface XAPIConfig { endpoint: string; auth: { password: string; type: 'basic'; username: string; } | { token: string; type: 'bearer'; }; activityId: ((sdkObjectId: string) => string) | string; actor: XAPIActor; onError?: (err: XAPIError) => void; }
 interface XAPIContext: interface XAPIContext { platform?: string; language?: string; contextActivities?: XAPIContextActivities; extensions?: Record<string, unknown>; }
@@ -355,21 +380,24 @@ type AiDraftSettings: type AiDraftSettings = Partial<Record<AiDraftType, Readonl
 type AiDraftSource: type AiDraftSource = { cues: { end: number; start: number; text: string; }[]; kind: 'captions'; } | { kind: 'passage' | 'transcript'; text: string; };
 type AiDraftType: type AiDraftType = 'dictation' | 'fill-in-the-blanks' | 'gap-select' | 'multiple-choice' | 'read-aloud' | 'written-response';
 type AiFeature: type AiFeature = 'explanation' | 'hint' | 'pronunciation-coaching' | 'writing-feedback';
+type AiGradingRequestProblem: type AiGradingRequestProblem = 'duplicate-criteria' | 'empty-response' | 'no-rubric' | 'not-written-response' | 'redacted' | 'unreadable-levels';
 type AiItemFacts: type AiItemFacts = AiDictationFacts | AiFillInTheBlanksFacts | AiGapSelectFacts | AiMultipleChoiceFacts;
-type AiRefusal: type AiRefusal = 'contradicts-grade' | 'contradicts-item' | 'contradicts-marks' | 'empty' | 'malformed' | 'misquotes-answer' | 'reveals-answer' | 'too-long';
+type AiRefusal: type AiRefusal = 'contradicts-grade' | 'contradicts-item' | 'contradicts-marks' | 'empty' | 'malformed' | 'misquotes-answer' | 'misses-criteria' | 'out-of-scale' | 'reveals-answer' | 'too-long';
 type AiSupportedActivityType: type AiSupportedActivityType = 'dictation' | 'fill-in-the-blanks' | 'gap-select' | 'multiple-choice';
 type AiVerdict: type AiVerdict = 'correct' | 'incorrect' | 'partly-correct';
 type BuiltInActivityType: type BuiltInActivityType = (typeof BUILT_IN_ACTIVITY_TYPES)[number];
-type DeferredReason: type DeferredReason = 'grade_rejected' | 'no_response_recorded' | 'requires_async_grading';
+type DeferredReason: type DeferredReason = 'awaiting_human_review' | 'grade_rejected' | 'no_response_recorded' | 'requires_async_grading';
 type DictationReference: type DictationReference = Partial<Pick<DictationData, 'acceptedTranscripts' | 'tolerance' | 'transcript'>>;
 type DraftSeverity: type DraftSeverity = 'incomplete' | 'invalid';
 type DraftValidationResult: type DraftValidationResult<T> = DraftComplete<T> | DraftNotComplete;
+type GradeFromJudgementOptions: type GradeFromJudgementOptions = Omit<GradeFromRubricOptions, 'feedback'>;
 type GraderKind: type GraderKind = 'ai' | 'auto' | 'human';
+type GradeRoutingReason: type GradeRoutingReason = 'audit-sample' | 'calibration-below-policy' | 'low-confidence' | 'model-asked' | 'no-calibration' | 'unsure';
 type GradingState: type GradingState = 'failed' | 'graded' | 'queued' | 'running' | 'skipped';
 type InteractionKind: type InteractionKind = 'ai-coaching-shown' | 'ai-explanation-shown' | 'ai-help-refused' | 'ai-hint-shown' | 'ai-writing-feedback-shown' | 'assessment-failed' | 'assessment-requested' | 'blank-filled' | 'hint-requested' | 'media-play-consumed' | 'media-play-errored' | 'media-play-refunded' | 'media-play-refused' | 'option-deselected' | 'option-selected' | 'recording-discarded' | 'recording-started' | 'recording-stopped' | 'recording-upload-failed' | 'recording-uploaded' | 'submitted' | 'text-changed' | 'video-captions-changed' | 'video-ended' | 'video-fullscreen-changed' | 'video-paused' | 'video-pip-changed' | 'video-played' | 'video-quiz-closed' | 'video-quiz-opened' | 'video-quiz-question-shown' | 'video-quiz-skipped' | 'video-rate-changed' | 'video-seeked' | (string & {});
 type InteractiveVideoItemType: type InteractiveVideoItemType = (typeof INTERACTIVE_VIDEO_ITEM_TYPES)[number];
 type ItemFindingSeverity: type ItemFindingSeverity = 'advice' | 'warning';
-type ItemOutcome: type ItemOutcome = { code?: string; maxScore: number; reason: string; status: 'unscorable'; } | { details: ScoringDetail[]; feedback: null | string; maxScore: number; passed: boolean; score: number; status: 'scored'; } | { feedback: null | string; grade: GradeRecord; maxScore: number; passed: boolean; score: number; status: 'graded'; } | { maxScore: number; partial?: DeferredScoringPartial; reason: DeferredReason; rejectedGrade?: GradeRecord; status: 'deferred'; };
+type ItemOutcome: type ItemOutcome = { code?: string; maxScore: number; reason: string; status: 'unscorable'; } | { details: ScoringDetail[]; feedback: null | string; maxScore: number; passed: boolean; score: number; status: 'scored'; } | { feedback: null | string; grade: GradeRecord; maxScore: number; passed: boolean; score: number; status: 'graded'; } | { maxScore: number; partial?: DeferredScoringPartial; pendingGrade?: GradeRecord; reason: DeferredReason; rejectedGrade?: GradeRecord; status: 'deferred'; };
 type ItemScoringCount: type ItemScoringCount = 'best' | 'first' | 'last';
 type LearnerResponse: type LearnerResponse = LearnerResponseMap[keyof LearnerResponseMap];
 type MissingOutcomePolicy: type MissingOutcomePolicy = 'deferred' | 'zero' | ((slot: AttemptPlanSlot) => ItemOutcome);
@@ -401,11 +429,11 @@ type XAPIVerbKey: type XAPIVerbKey = keyof typeof XAPIVerb;
 function aiCheckCases: declare function aiCheckCases(): AiCheckCase[];
 function formatAiCheckReport: declare function formatAiCheckReport(report: AiCheckReport): string;
 function runAiCheck: declare function runAiCheck(ports: AiCheckPorts, options?: AiCheckOptions): Promise<AiCheckReport>;
-interface AiCheckCase: interface AiCheckCase { id: string; feature: 'draft-generation' | 'explanation' | 'hint' | 'item-critique' | 'pronunciation-coaching' | 'writing-feedback'; about: string; request: AiCoachingRequest | AiCritiqueRequest | AiDraftsRequest | AiExplanationRequest | AiHintRequest | AiWritingFeedbackRequest; }
+interface AiCheckCase: interface AiCheckCase { id: string; feature: 'draft-generation' | 'explanation' | 'grading' | 'hint' | 'item-critique' | 'pronunciation-coaching' | 'writing-feedback'; about: string; request: AiCoachingRequest | AiCritiqueRequest | AiDraftsRequest | AiExplanationRequest | AiGradingRequest | AiHintRequest | AiWritingFeedbackRequest; }
 interface AiCheckOptions: interface AiCheckOptions { cases?: readonly AiCheckCase[]; concurrency?: number; }
-interface AiCheckPorts: interface AiCheckPorts { explain?(request: AiExplanationRequest): Promise<unknown> | unknown; hint?(request: AiHintRequest): Promise<unknown> | unknown; writingFeedback?(request: AiWritingFeedbackRequest): Promise<unknown> | unknown; pronunciationCoaching?(request: AiCoachingRequest): Promise<unknown> | unknown; critique?(request: AiCritiqueRequest): Promise<unknown> | unknown; drafts?(request: AiDraftsRequest): Promise<unknown> | unknown; }
+interface AiCheckPorts: interface AiCheckPorts { explain?(request: AiExplanationRequest): Promise<unknown> | unknown; hint?(request: AiHintRequest): Promise<unknown> | unknown; writingFeedback?(request: AiWritingFeedbackRequest): Promise<unknown> | unknown; pronunciationCoaching?(request: AiCoachingRequest): Promise<unknown> | unknown; critique?(request: AiCritiqueRequest): Promise<unknown> | unknown; drafts?(request: AiDraftsRequest): Promise<unknown> | unknown; grading?(request: AiGradingRequest): Promise<unknown> | unknown; }
 interface AiCheckReport: interface AiCheckReport { total: number; shown: number; refused: number; errors: number; skipped: number; byRefusal: Record<AiRefusal, number>; results: AiCheckResult[]; }
-interface AiCheckResult: interface AiCheckResult { case: AiCheckCase; ok: boolean; refusal?: AiRefusal; error?: string; result?: AiTextResult; feedback?: AiWritingFeedback; coaching?: AiCoaching; critique?: AiCritique; drafts?: AiDrafts; ms: number; }
+interface AiCheckResult: interface AiCheckResult { case: AiCheckCase; ok: boolean; refusal?: AiRefusal; error?: string; result?: AiTextResult; feedback?: AiWritingFeedback; coaching?: AiCoaching; critique?: AiCritique; drafts?: AiDrafts; grading?: AiGradingJudgement; ms: number; }
 ```
 
 ## @intellectif/lk-core/schemas
@@ -437,7 +465,7 @@ interface RedactedMultipleChoiceOption: interface RedactedMultipleChoiceOption {
 interface RedactedMultipleChoiceOptionMedia: interface RedactedMultipleChoiceOptionMedia { type: 'audio' | 'image'; url: string; alt?: string | undefined; captionsUrl?: string | undefined; }
 interface RedactedReadAloudData: interface RedactedReadAloudData extends RedactedItem { type: 'read-aloud'; instructions?: string | undefined; referenceText: string; locale: string; slowMedia?: RedactedDictationSlowMedia | undefined; recording: { maxSeconds: number; maxTakes?: number | undefined; minSeconds?: number | undefined; }; scoring: { dimensions: { name: 'accuracy' | 'completeness' | 'fluency' | 'prosody'; weight: number; }[]; }; }
 interface RedactedStimulus: interface RedactedStimulus { id: string; kind: 'audio' | 'image' | 'mixed' | 'text' | 'video'; title?: string | undefined; body?: string | undefined; bodyHtml?: string | undefined; media?: Media | undefined; locale?: string | undefined; attribution?: string | undefined; }
-interface RedactedWrittenResponseData: interface RedactedWrittenResponseData extends RedactedItem { type: 'written-response'; prompt: string; promptHtml?: string | undefined; minWords: number; maxWords: number; rubric?: undefined | { criteria: { description?: string | undefined; name: string; weight: number; }[]; label?: string | undefined; }; languageTarget?: string | undefined; locale?: string | undefined; }
+interface RedactedWrittenResponseData: interface RedactedWrittenResponseData extends RedactedItem { type: 'written-response'; prompt: string; promptHtml?: string | undefined; minWords: number; maxWords: number; rubric?: undefined | { criteria: { description?: string | undefined; levels?: undefined | { description?: string | undefined; label: string; }[]; name: string; weight: number; }[]; label?: string | undefined; }; languageTarget?: string | undefined; locale?: string | undefined; }
 type RedactedActivity: type RedactedActivity = RedactedDictationData | RedactedFillInTheBlanksData | RedactedGapSelectData | RedactedMultipleChoiceData | RedactedReadAloudData | RedactedWrittenResponseData;
 ```
 
@@ -459,6 +487,7 @@ const READ_ALOUD_MAX_TAKES: READ_ALOUD_MAX_TAKES = 20
 const SPEECH_ASSESSMENT_MAX_WORDS: SPEECH_ASSESSMENT_MAX_WORDS = 1000
 function alignDictation: declare function alignDictation(data: DictationReference, text: string): DictationAlignment;
 function alignReadAloud: declare function alignReadAloud(data: Pick<ReadAloudData, 'referenceText'>, assessment: SpeechAssessment): ReadAloudWordAlignment[];
+function calibrationReport: declare function calibrationReport(pairs: readonly CalibrationPair[], scope: CalibrationScope): { ok: false; reason: string; } | { ok: true; report: CalibrationReport; };
 function classifyBand: declare function classifyBand(value: number, bands: readonly Band[]): Band | null;
 function composeAssessmentScore: declare function composeAssessmentScore(sections: readonly AssessmentSectionInput[], policy: CompositionPolicy): AssessmentScore;
 function computePassThreshold: declare function computePassThreshold(activityData: ActivityData, score: number, rounding?: RoundingPolicy): boolean;
@@ -466,14 +495,19 @@ function dictationReferenceWords: declare function dictationReferenceWords(data:
 function diffDictationChars: declare function diffDictationChars(reference: string, attempt: string): DictationCharOp[];
 function evaluate: declare function evaluate(data: ActivityData, response: LearnerResponse, options?: EvaluateOptions): ItemOutcome;
 function evaluateTries: declare function evaluateTries(data: ActivityData, responses: readonly LearnerResponse[], options?: EvaluateOptions): ItemTriesOutcome;
+function gradeFromJudgement: declare function gradeFromJudgement(judgement: AiGradingJudgement, data: WrittenResponseData, options?: GradeFromJudgementOptions): GradeRecord | { reason: string; unscorable: true; };
+function graderConfiguration: declare function graderConfiguration(grade: GradeRecord, scope: CalibrationScope): GraderConfiguration | null;
 function gradeReadAloud: declare function gradeReadAloud(data: ReadAloudData, response: ReadAloudLearnerResponse, assessment: SpeechAssessment | null, options: GradeReadAloudOptions): GradeRecord | SpeechUnscorable;
 function gte: declare function gte(value: number, threshold: number, policy: RoundingPolicy): boolean;
+function inAuditSample: declare function inAuditSample(key: string, rate: number, seed: string): boolean;
 function inspectWav: declare function inspectWav(bytes: Uint8Array, policy: WavInspectionPolicy): WavInspection;
 function levenshteinDistance: declare function levenshteinDistance(a: string, b: string, max: number): number;
 function matchText: declare function matchText(input: string, accepted: readonly string[] | string, policy?: TextMatchPolicy): TextMatchResult;
+function outcomeFromRoutedGrade: declare function outcomeFromRoutedGrade(grade: GradeRecord, routing: GradeRouting): ItemOutcome;
 function outcomeFromUnscorable: declare function outcomeFromUnscorable(result: { code: string; reason: string; }): ItemOutcome;
 function resolveItemScoringPolicy: declare function resolveItemScoringPolicy(policy: unknown): ResolvedItemScoringPolicy;
 function roundGrade: declare function roundGrade(value: number, policy: RoundingPolicy): number;
+function routeGrade: declare function routeGrade(grade: GradeRecord, context: GradeRoutingContext): GradeRouting;
 function score: declare function score(activityType: ActivityType, activityData: ActivityData, learnerResponse: LearnerResponse, options?: ScoringOptions): ScoringResult;
 function scoreTries: declare function scoreTries(tries: readonly ItemTry[], policy?: ItemScoringPolicy | ResolvedItemScoringPolicy | null): ItemTriesScore;
 function validateItemScoringPolicy: declare function validateItemScoringPolicy(policy: unknown): { data: ItemScoringPolicy; success: true; } | { issues: ItemScoringPolicyIssue[]; success: false; };
@@ -481,13 +515,20 @@ function validateSpeechAssessment: declare function validateSpeechAssessment(val
 interface AssessmentScore: interface AssessmentScore { sections: SectionScore[]; score: number; passed: boolean | null; passFailureReason: PassFailureReason; status: 'final' | 'provisional'; pendingSlotIds: string[]; rejectedSlotIds?: string[]; unscorableSlotIds: string[]; }
 interface AssessmentSectionInput: interface AssessmentSectionInput { id: string; title?: string; weight: number; passThresholdOverride?: number; items: ScoredItem[]; }
 interface Band: interface Band { name: string; min: number; }
+interface CalibrationPair: interface CalibrationPair { model: GradeRecord; person: GradeRecord; secondPerson?: GradeRecord; }
+interface CalibrationReport: interface CalibrationReport { configuration: GraderConfiguration; pairs: number; criteria: CriterionCalibration[]; total: TotalCalibration; reportHash: string; }
+interface CalibrationScope: interface CalibrationScope { rubric?: WrittenResponseRubric; languageTarget?: string; }
+interface CalibrationThresholds: interface CalibrationThresholds { minPairs?: number; minQuadraticKappa?: number; minExactAgreement?: number; minPearson?: number; maxMeanAbsoluteError?: number; maxAbsStandardizedMeanDifference?: number; maxDegradation?: number; maxCalibrationError?: number; }
 interface CompositionPolicy: interface CompositionPolicy { passThreshold: number; sectionThreshold?: number; rounding: RoundingPolicy; }
+interface CriterionCalibration: interface CriterionCalibration { name: string; scale: 'levels' | 'score'; levels?: number; pairs: number; exactAgreement?: null | number; adjacentAgreement?: null | number; quadraticKappa?: null | number; confusion?: number[][]; pearson: null | number; meanAbsoluteError: null | number; standardizedMeanDifference: null | number; probabilityPairs?: number; calibrationError?: null | number; brierScore?: null | number; humanPairs?: number; humanQuadraticKappa?: null | number; humanPearson?: null | number; degradation?: null | number; }
 interface DictationAlignment: interface DictationAlignment { candidateIndex: number; reference: string; attempt: string; truncated: boolean; similarity: number; words: DictationWordAlignment[]; }
 interface DictationCharOp: interface DictationCharOp { op: 'equal' | 'extra' | 'missing' | 'substitute'; reference: string; attempt: string; }
 interface DictationWordAlignment: interface DictationWordAlignment { itemId?: string; reference: string; attempt: string; similarity: number; status: 'correct' | 'extra' | 'incorrect' | 'missing'; }
 interface EvaluateOptions: interface EvaluateOptions extends ScoringOptions { scoring?: ItemScoringPolicy | null; }
 interface GradeReadAloudOptions: interface GradeReadAloudOptions { measured: SpeechMeasurement | null; plausibility: SpeechPlausibilityPolicy; allowAiAssessor?: boolean; rounding?: RoundingPolicy; }
-interface GradeRecord: interface GradeRecord { score: number; maxScore: number; passed: boolean; feedback: null | string; criteria?: CriterionScore[]; details?: ScoringDetail[]; corrections?: InlineCorrection[]; evidence?: string[]; rationale?: string; confidence?: 'high' | 'low' | 'medium'; requiresHumanReview?: boolean; grader?: Grader; usage?: GraderUsage; gradedAt?: string; }
+interface GradeRecord: interface GradeRecord { score: number; maxScore: number; passed: boolean; feedback: null | string; criteria?: CriterionScore[]; details?: ScoringDetail[]; corrections?: InlineCorrection[]; evidence?: string[]; rationale?: string; confidence?: 'high' | 'low' | 'medium'; requiresHumanReview?: boolean; grader?: Grader; usage?: GraderUsage; gradedAt?: string; routing?: GradeRouting; }
+interface GradeRoutingContext: interface GradeRoutingContext { mode: 'exam' | 'practice'; item: CalibrationScope; calibration?: CalibrationReport; policy?: GradeRoutingPolicy; sampleKey?: string; }
+interface GradeRoutingPolicy: interface GradeRoutingPolicy { calibration?: CalibrationThresholds; minLevelProbability?: number; routeLowConfidence?: boolean; audit?: { rate: number; seed: string; }; }
 interface ItemScoringPolicy: interface ItemScoringPolicy { hintPenalty?: null | number; retries?: null | number; retryPenalty?: null | number; counts?: ItemScoringCount | null; }
 interface ItemScoringPolicyIssue: interface ItemScoringPolicyIssue { path: string; message: string; }
 interface ItemTriesOutcome: interface ItemTriesOutcome { outcome: ItemOutcome; counted: null | number; tries: ItemTryScore[]; }
@@ -513,9 +554,11 @@ interface SpeechUnscorable: interface SpeechUnscorable { unscorable: true; code:
 interface SpeechWord: interface SpeechWord { text: string; accuracy?: number; error: SpeechWordError; vendorError?: string; startMs?: number; durationMs?: number; syllables?: SpeechSyllable[]; phonemes?: SpeechPhoneme[]; breaks?: { missing?: number; unexpected?: number; }; }
 interface TextMatchPolicy: interface TextMatchPolicy { caseSensitive?: boolean; trim?: boolean; normalize?: 'NFC' | 'NFKC' | 'none'; foldDiacritics?: boolean; collapseInnerWhitespace?: boolean; ignorePunctuation?: boolean; levenshtein?: number; locale?: string; }
 interface TextMatchResult: interface TextMatchResult { matched: boolean; via: 'exact' | 'folded' | 'fuzzy' | 'none' | 'normalized'; }
+interface TotalCalibration: interface TotalCalibration { pairs: number; pearson: null | number; meanAbsoluteError: null | number; standardizedMeanDifference: null | number; passAgreement: null | number; humanPairs?: number; humanPearson?: null | number; degradation?: null | number; }
 interface WavInspectionPolicy: interface WavInspectionPolicy { silenceDbfs: number; frameMs: number; }
 type DictationReference: type DictationReference = Partial<Pick<DictationData, 'acceptedTranscripts' | 'tolerance' | 'transcript'>>;
-type ItemOutcome: type ItemOutcome = { code?: string; maxScore: number; reason: string; status: 'unscorable'; } | { details: ScoringDetail[]; feedback: null | string; maxScore: number; passed: boolean; score: number; status: 'scored'; } | { feedback: null | string; grade: GradeRecord; maxScore: number; passed: boolean; score: number; status: 'graded'; } | { maxScore: number; partial?: DeferredScoringPartial; reason: DeferredReason; rejectedGrade?: GradeRecord; status: 'deferred'; };
+type GradeFromJudgementOptions: type GradeFromJudgementOptions = Omit<GradeFromRubricOptions, 'feedback'>;
+type ItemOutcome: type ItemOutcome = { code?: string; maxScore: number; reason: string; status: 'unscorable'; } | { details: ScoringDetail[]; feedback: null | string; maxScore: number; passed: boolean; score: number; status: 'scored'; } | { feedback: null | string; grade: GradeRecord; maxScore: number; passed: boolean; score: number; status: 'graded'; } | { maxScore: number; partial?: DeferredScoringPartial; pendingGrade?: GradeRecord; reason: DeferredReason; rejectedGrade?: GradeRecord; status: 'deferred'; };
 type ItemScoringCount: type ItemScoringCount = 'best' | 'first' | 'last';
 type PassFailureReason: type PassFailureReason = 'both' | 'overall_below_threshold' | 'section_below_threshold' | null;
 type ReadAloudWordState: type ReadAloudWordState = 'correct' | 'inserted' | 'mispronounced' | 'omitted';

@@ -58,6 +58,22 @@ export type {
   WavInspectionPolicy,
 } from '../types/speech.js';
 export type {
+  CalibrationPair,
+  CalibrationReport,
+  CalibrationScope,
+  CriterionCalibration,
+  TotalCalibration,
+} from './assisted/calibration.js';
+export { calibrationReport, graderConfiguration } from './assisted/calibration.js';
+export type { GradeFromJudgementOptions } from './assisted/grade-from-judgement.js';
+export { gradeFromJudgement } from './assisted/grade-from-judgement.js';
+export type {
+  CalibrationThresholds,
+  GradeRoutingContext,
+  GradeRoutingPolicy,
+} from './assisted/routing.js';
+export { inAuditSample, outcomeFromRoutedGrade, routeGrade } from './assisted/routing.js';
+export type {
   AssessmentScore,
   AssessmentSectionInput,
   CompositionPolicy,

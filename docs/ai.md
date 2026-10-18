@@ -8,6 +8,9 @@ SDK never calls one, never holds a key, and never writes a prompt. It builds the
 given, from the item, the learner's answer and its own scorer, and checks what comes back before
 anyone sees it.
 
+On your server, a model can also **grade a written response for the record**, with its agreement with
+your teachers measured before its grades count: see [Grading with a model](./grading.md).
+
 It describes `@intellectif/lk-core` 1.2.0 and `@intellectif/lk-react` 23.1.0.
 
 - [What a learner sees](#what-a-learner-sees)
@@ -654,6 +657,8 @@ the reason:
 | `misquotes-answer` | Feedback on writing that corrects words the draft does not contain |
 | `contradicts-marks` | Coaching on a word the speech engine did not mark, or a sound it did not report |
 | `contradicts-item` | A critique that points at a field the item does not have, or quotes words that field does not contain |
+| `misses-criteria` | A [grade](./grading.md#what-it-returns) that leaves a criterion of the rubric out, invents or renames one, judges one twice, or calls one not applicable |
+| `out-of-scale` | A grade off a criterion's scale: a level the criterion does not have, a score outside 0 to its maximum, or probabilities that are not a distribution whose likeliest is the level chosen |
 
 Text is always rendered as text, never as HTML.
 
@@ -734,9 +739,10 @@ const report = await runAiCheck({
   pronunciationCoaching: (request) => callMyModel(COACHING_PROMPT, request),
   critique: (request) => callMyModel(CRITIQUE_PROMPT, request),
   drafts: (request) => callMyModel(DRAFTS_PROMPT, request),
+  grading: (request) => callMyModel(GRADING_PROMPT, request),
 });
 console.log(formatAiCheckReport(report));
-// ai-check: 36/38 shown, 2 refused, 0 failed — slowest 1840 ms
+// ai-check: 41/43 shown, 2 refused, 0 failed — slowest 1840 ms
 //   reveals-answer: 1
 //   misquotes-answer: 1
 //   ✗ fib-hint-1 [hint] Both blanks empty: reveals-answer
@@ -771,6 +777,14 @@ expect(report.refused).toBe(0);
   `misquotes-answer`, from a prompt that corrects words the learner never wrote, and
   `contradicts-marks`, from one that coaches words the engine heard as right. For authors,
   `contradicts-item` is a prompt that points at fields the item does not have.
+- **Grading cases** (lk-core 1.5), built by `aiGradingRequest`, grade essays on a rubric of three
+  criteria, two on levels and one on a score: one on the task, one with mistakes to quote, one off
+  the task, a summary graded against its group's passage, and one with comments asked for in
+  Spanish. `misses-criteria` there is a prompt that names only the criteria it expects, and
+  `out-of-scale` one that grades on a scale the author did not write. A grading case that is shown
+  is a reply of the right shape, not a right grade: its `grading` holds the judgement, and whether
+  a model grades as your teachers do is what a [calibration](./grading.md#measuring-a-grader-against-people)
+  measures.
 - **A drafts case that is shown is a reply the SDK read, not a good one.** Its `result.drafts` holds
   each draft with what `validateDraft` and the critic say: count how many came back `complete` and
   without warnings.
@@ -783,6 +797,5 @@ expect(report.refused).toBe(0);
 
 - **Suggestions while an author writes:** distractors and accepted answers for the item being
   written.
-- **Assisted grading** with a calibration gate.
 
-Each is on the [roadmap](./roadmap.md#next--the-delivery-policy-then-ai), after v1.0.
+It is on the [roadmap](./roadmap.md#next--the-delivery-policy-then-ai), after v1.0.

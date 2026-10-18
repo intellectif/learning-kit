@@ -439,6 +439,18 @@ export interface FillInTheBlanksData {
   ai?: ActivityAiPermissions;
 }
 
+/**
+ * One level of a rubric criterion: what a response at this level does. Levels
+ * run from the lowest to the highest, and a grader judging against them names
+ * one.
+ */
+export interface WrittenResponseRubricLevel {
+  /** A short name, unique within its criterion: "Developing", "B1". */
+  label: string;
+  /** What a response at this level does, for the grader and the learner. */
+  description?: string;
+}
+
 /** A single criterion within a written-response grading rubric. */
 export interface WrittenResponseRubricCriterion {
   /** Criterion name (e.g. "Task achievement", "Grammar range"). */
@@ -447,6 +459,20 @@ export interface WrittenResponseRubricCriterion {
   description?: string;
   /** Non-negative weight of this criterion in the overall grade. */
   weight: number;
+  /**
+   * The criterion's levels, lowest first: 2 to 10, each with a label unique
+   * within the criterion once case and spacing are ignored. A grader judging
+   * against levels names one, and the criterion scores the level's place on
+   * the scale, `index / (levels.length - 1)`: 0 for the lowest, 1 for the
+   * highest.
+   *
+   * Read by the grading functions (`aiGradingRequest`, `gradeFromJudgement`,
+   * `calibrationReport`), which report levels they cannot use. In 1.x
+   * `validateActivity` does not check it: your own fields pass through it, and
+   * a field of yours named `levels` stays valid. The item critic warns about
+   * levels the grading functions cannot read.
+   */
+  levels?: WrittenResponseRubricLevel[];
 }
 
 /** Grading rubric attached to a written-response activity. */
@@ -922,8 +948,16 @@ export interface DeferredScoringPartial {
  *   a finite number, a `maxScore` of 0 or less, or a score outside 0 to
  *   `maxScore`). The record is kept on `rejectedGrade`. A real grade is still
  *   owed, so re-grade the slot: waiting will not bring one.
+ * - `awaiting_human_review` — a model graded the response, and a routing rule
+ *   (`routeGrade`) sent it to a person: the grade does not count until a
+ *   person marks it. The model's grade is kept on `pendingGrade`, for the
+ *   person and for the next calibration.
  */
-export type DeferredReason = 'requires_async_grading' | 'no_response_recorded' | 'grade_rejected';
+export type DeferredReason =
+  | 'requires_async_grading'
+  | 'no_response_recorded'
+  | 'grade_rejected'
+  | 'awaiting_human_review';
 
 /**
  * The outcome of evaluating a learner response against an activity — the
@@ -959,6 +993,13 @@ export type ItemOutcome =
        * is mirrored onto the outcome, and nothing reads it as a grade.
        */
       rejectedGrade?: GradeRecord;
+      /**
+       * The model's grade a routing rule held for a person, when `reason` is
+       * `awaiting_human_review`, with the decision on its `routing`. Kept for
+       * the person and for the next calibration; nothing on it is mirrored
+       * onto the outcome, and nothing reads it as a grade.
+       */
+      pendingGrade?: GradeRecord;
     }
   | {
       status: 'graded';

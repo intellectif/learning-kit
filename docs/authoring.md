@@ -124,6 +124,7 @@ Free-text writing graded **asynchronously** — by your AI grader or a human. Th
 - **The component** (`@intellectif/lk-react/components/WrittenResponse`) renders prompt + textarea + live word counter and completes via `onSubmitted({ text, wordCount, withinWordBounds, timeSpent, xapiStatement })` — no fake score is ever emitted for ungraded work. The xAPI statement uses the **`submitted`** verb (`http://activitystrea.ms/schema/1.0/submit`) with no `score`/`success`/`completion`.
 - **The rubric reaches the learner.** `redact()` classifies it `public`: a rubric tells the learner what they are being graded on, which is the point of publishing one. A deployment that wants it hidden can tighten it per call with `redact(data, { policy: { rubric: 'author-only' } })`.
 - **Unknown keys survive.** All v0.3 schemas are loose — sidecars like `promptHtml` or your own fields pass through `validateActivity` verbatim (no more merge workarounds).
+- **A criterion can be judged on levels** (1.5.0): `levels`, lowest first, from 2 to 10, each a `label` and an optional `description`. A level scores its place on the scale, `index / (levels − 1)`. `validateActivity` does not check them in 1.x, so a field of that name you already use stays valid. The critic warns `wr_levels_unreadable` when the grading functions cannot read them. See [Grading with a model](./grading.md#levels-on-a-rubric).
 
 ### Getting a deferred grade back (v0.4)
 
@@ -198,6 +199,9 @@ mode `<WrittenResponse>` renders four: the per-criterion `criteria` scores, the
 inline `corrections`, the grade `feedback`, and — when `requiresHumanReview` is
 true — a **learner-visible** notice that the grade is awaiting a teacher. If your
 deployment treats "awaiting review" as internal, that last one is not internal.
+
+To have a model grade the response, with its agreement with your teachers measured before its grades
+count, see [Grading with a model](./grading.md).
 `evidence`, `rationale`, `confidence`, `grader` and `usage` are never rendered;
 they are carried for your own UI, audit trail and review queue. Use `hasGrade(outcome)` rather than `status === 'scored'`, or you
 will silently miss asynchronously graded work.
@@ -1154,6 +1158,7 @@ author: translate by `code`.
 | `gs_bank_no_distractor` | warning | `banks.N.choices` | A bank drawn on by two or more gaps offers no more choices than it has gaps: the last gap is answered by elimination |
 | `gs_answer_in_passage` | warning | `gaps.N.correctChoiceId` | The passage, its gaps taken out, prints a gap's correct choice; short answers not looked for |
 | `wr_criterion_name_duplicate` | warning | `rubric.criteria.N.name` | Two criteria have one name once case, accents and punctuation are ignored. Feedback on writing and a grader's criteria name a criterion |
+| `wr_levels_unreadable` | warning | `rubric.criteria.N.levels` | A criterion's `levels` cannot be used by the grading functions: not a list, fewer than 2 or more than 10, a level with no label or a description that is not text, or two labels the same once case and spacing are ignored. `validateActivity` does not check `levels` in 1.x, so this warning is how an author learns of it |
 | `ra_text_long_for_time` | warning | `recording.maxSeconds` | The text has more than 2.5 words a second of `maxSeconds` — 150 words a minute, a fluent adult reading aloud. A learner reads slower |
 | `set_key_position_same` | warning | the set: `''` for `critiqueDrafts`, `items` for a group | Four or more single-answer multiple-choice questions that do not shuffle, and every one keeps its correct option in the same position |
 

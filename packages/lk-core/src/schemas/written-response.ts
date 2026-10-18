@@ -1,4 +1,5 @@
 import * as z from 'zod/v4';
+import { RUBRIC_LEVELS_MAX, RUBRIC_LEVELS_MIN } from '../rubric-levels.js';
 import { AiPermissionsSchema } from './ai.js';
 import { FeedbackSchema } from './feedback.js';
 import { MediaSchema } from './media.js';
@@ -30,6 +31,13 @@ export const RedactedWrittenResponseRubricCriterionSchema = z.strictObject({
   name: z.string().min(1),
   description: z.string().optional(),
   weight: z.number().min(0),
+  // Only levels the grading functions can read reach a learner: redaction drops
+  // any others, so this accepts exactly what it lets through.
+  levels: z
+    .array(z.strictObject({ label: z.string().min(1), description: z.string().optional() }))
+    .min(RUBRIC_LEVELS_MIN)
+    .max(RUBRIC_LEVELS_MAX)
+    .optional(),
 });
 
 export const RedactedWrittenResponseRubricSchema = z.strictObject({

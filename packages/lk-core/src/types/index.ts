@@ -48,6 +48,7 @@ export type {
   WrittenResponseLearnerResponse,
   WrittenResponseRubric,
   WrittenResponseRubricCriterion,
+  WrittenResponseRubricLevel,
 } from './activity.js';
 export type {
   ActivityAiPermissions,
@@ -82,6 +83,12 @@ export type {
   AiGapSelectFacts,
   AiGeneratedDraft,
   AiGrade,
+  AiGradedCriterion,
+  AiGradingCriterionFact,
+  AiGradingFacts,
+  AiGradingJudgement,
+  AiGradingRequest,
+  AiGradingRequestProblem,
   AiGroupInput,
   AiHintRequest,
   AiItemFacts,
@@ -125,7 +132,10 @@ export type {
 export type {
   CriterionScore,
   GradeRecord,
+  GradeRouting,
+  GradeRoutingReason,
   Grader,
+  GraderConfiguration,
   GraderKind,
   GraderUsage,
   GradingState,

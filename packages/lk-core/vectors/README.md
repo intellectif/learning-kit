@@ -143,7 +143,26 @@ a known hazard carry a `note` saying why they exist.
   when an outcome is missing, and **`composeAssessmentScore`** across weights,
   points, provisional, rejected and unscorable items, and section thresholds —
   including the outcomes earlier releases stored for a grade that was never
-  one, which now hold a result provisional instead of finalising it.
+  one, which now hold a result provisional instead of finalising it, and a grade
+  held for a person (`awaiting_human_review`), which does too.
+- **Assisted grading.**
+  - **`gradeFromJudgement`**: the total from a model's checked judgement with
+    the rubric's own weights, a level scored by its place on the scale, the pass
+    line with and without rounding, the record it keeps, and each judgement it
+    refuses as one of another rubric.
+  - **`calibrationReport`**: agreement, kappa, correlation, error and mean
+    difference on pairs worked by hand; calibration error and the Brier score,
+    over bins several grades share; a second person's agreement and the
+    degradation from it; every metric that is undefined given as `null`; the
+    scores it will not read; and each reason it measures nothing.
+  - **`graderConfiguration`**, and the rubric hash a stored report is matched
+    on.
+  - **`routeGrade`**: every reason in its order; an exam failing closed without
+    a matching report, or with one of another prompt, rubric or target; each
+    threshold at its line, past it, and missing the metric it needs; and each
+    policy it refuses.
+  - **`inAuditSample`**, which pins who is audited, and
+    **`outcomeFromRoutedGrade`**.
 
 ## What it does not cover
 
@@ -155,6 +174,10 @@ a known hazard carry a `note` saying why they exist.
   for `missing`; a function cannot be stored as data, so only the built-in
   policies are pinned.
 - **xAPI statements**, and **anything `@intellectif/lk-react` renders**.
+- **What a model is told, and what is accepted from it** (`aiGradingRequest`,
+  `checkAiGrading` and the other AI checks). They decide whether there is a
+  grade, not what it is, and their own tests cover them. What a checked
+  judgement grades, `gradeFromJudgement`, is covered, above.
 - **Your own arithmetic.** If you round, aggregate or canonicalise answers
   yourself, this corpus says nothing about that code.
 - **Text of developer-facing diagnostics.** A vector can mark a field such as an

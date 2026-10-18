@@ -87,6 +87,63 @@ export interface CriterionScore {
   weight?: number;
   /** Not applicable to this submission (e.g. interaction on a monologue task). */
   notApplicable?: boolean;
+  /**
+   * How likely each of the criterion's levels was, lowest first, when the
+   * grader said: a distribution, whose likeliest level is `band`. Kept on the
+   * record as the evidence a routing rule read (`routeGrade`) and a
+   * calibration measures (`calibrationReport`).
+   */
+  levelProbabilities?: number[];
+}
+
+/**
+ * What one calibration certifies: a model, a prompt revision, a rubric and a
+ * target language. A change to any of them is a different grader, measured
+ * afresh. Built by `graderConfiguration`.
+ */
+export interface GraderConfiguration {
+  /** The model's identifier, from the grade's `grader.model`. */
+  model: string;
+  /** The prompt revision, from the grade's `grader.promptHash`. */
+  promptHash: string;
+  /** `contentHash` of the item's rubric, levels and descriptors included. */
+  rubricHash: string;
+  /** The item's `languageTarget`, or `null` when it has none. */
+  languageTarget: string | null;
+}
+
+/**
+ * Why `routeGrade` sent a grade to a person, in this order:
+ *
+ * - `no-calibration` — in `exam`, no calibration report for this grader's exact
+ *   configuration was supplied: a model's grade counts on a paper of record
+ *   only once it has been measured;
+ * - `calibration-below-policy` — the report misses one of the policy's
+ *   thresholds, for a criterion or for the total;
+ * - `unsure` — a criterion's likeliest level is less likely than the policy's
+ *   `minLevelProbability`;
+ * - `model-asked` — the grader set `requiresHumanReview`;
+ * - `low-confidence` — the grader's own `confidence` is `low`, and the policy
+ *   routes on it;
+ * - `audit-sample` — the response is in the audit sample: a person marks it
+ *   too, without the model's grade, to keep the calibration current.
+ */
+export type GradeRoutingReason =
+  | 'no-calibration'
+  | 'calibration-below-policy'
+  | 'unsure'
+  | 'model-asked'
+  | 'low-confidence'
+  | 'audit-sample';
+
+/** Where a grade went, and why: the record an appeal reads. */
+export interface GradeRouting {
+  /** `model` when its grade counts; `person` when a person must mark it first. */
+  to: 'model' | 'person';
+  /** Every reason it went to a person, in {@link GradeRoutingReason}'s order; empty when it did not. */
+  reasons: GradeRoutingReason[];
+  /** The calibration report the decision read, by its hash and size, when one matched. */
+  calibration?: { reportHash: string; pairs: number };
 }
 
 /** A suggested correction anchored in the learner's own text. */
@@ -141,4 +198,6 @@ export interface GradeRecord {
   usage?: GraderUsage;
   /** ISO 8601 timestamp of when the grade was produced. */
   gradedAt?: string;
+  /** Where `routeGrade` sent this grade, and why, when it was routed. */
+  routing?: GradeRouting;
 }

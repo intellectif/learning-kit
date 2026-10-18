@@ -4,6 +4,7 @@ import type {
   AiCritiqueRequest,
   AiDraftsRequest,
   AiExplanationRequest,
+  AiGradingRequest,
   AiHintRequest,
   AiTextResult,
   AiWritingFeedbackRequest,
@@ -59,9 +60,19 @@ describe('aiCheckCases', () => {
 
   it("puts a grouped question's material in its request: a passage, and a part's instructions", () => {
     const material = (id: string) =>
-      (find(id).request as AiExplanationRequest | AiHintRequest | AiWritingFeedbackRequest)
-        .material;
-    for (const id of ['mc-reading-wrong', 'mc-reading-hint', 'writing-summary']) {
+      (
+        find(id).request as
+          | AiExplanationRequest
+          | AiHintRequest
+          | AiWritingFeedbackRequest
+          | AiGradingRequest
+      ).material;
+    for (const id of [
+      'mc-reading-wrong',
+      'mc-reading-hint',
+      'writing-summary',
+      'grading-summary',
+    ]) {
       expect(material(id)?.title).toBe('Tides');
       expect(material(id)?.text).toContain('when the sun and the moon line up');
     }
@@ -76,6 +87,7 @@ describe('aiCheckCases', () => {
       'mc-reading-hint',
       'fib-formation-hint',
       'writing-summary',
+      'grading-summary',
     ];
     for (const one of cases.filter((c) => !grouped.includes(c.id))) {
       expect(one.request).not.toHaveProperty('material');
@@ -186,6 +198,35 @@ describe('aiCheckCases', () => {
     const stored = find('coaching-from-grade').request as AiCoachingRequest;
     expect(stored.facts.words.some((word) => word.sounds !== undefined)).toBe(false);
     expect((find('coaching-in-spanish').request as AiCoachingRequest).learnerLocale).toBe('es');
+  });
+
+  it('grades an essay on the task, one with mistakes to quote, one off the task, a summary against its passage, and in Spanish', () => {
+    const grading = cases.filter((one) => one.feature === 'grading');
+    expect(grading.map((one) => one.id)).toEqual([
+      'grading-on-task',
+      'grading-mistakes',
+      'grading-off-task',
+      'grading-summary',
+      'grading-in-spanish',
+    ]);
+    const exam = find('grading-mistakes').request as AiGradingRequest;
+    // Three criteria, two on levels and one on a score.
+    expect(
+      exam.facts.rubric.map((criterion) => [
+        criterion.name,
+        criterion.levels?.map((level) => level.label) ?? null,
+      ]),
+    ).toEqual([
+      ['Task', ['Not met', 'Partly met', 'Met']],
+      ['Grammar', ['Limited', 'Basic', 'Good', 'Very good']],
+      ['Vocabulary', null],
+    ]);
+    expect(exam.facts.text).toContain("don't");
+    expect(exam.facts.withinWordBounds).toBe(true);
+    for (const one of grading) {
+      expect((one.request as AiGradingRequest).facts.withinWordBounds, one.id).toBe(true);
+    }
+    expect((find('grading-in-spanish').request as AiGradingRequest).learnerLocale).toBe('es');
   });
 
   it('hands out a fresh list, so one caller cannot change another’s', () => {
@@ -342,6 +383,27 @@ describe('runAiCheck', () => {
       };
     });
 
+    // Judges every criterion on its own scale, the top level the likeliest,
+    // and quotes the essay's first word.
+    const ODDS: Record<number, number[]> = { 3: [0.2, 0.2, 0.6], 4: [0.2, 0.2, 0.2, 0.4] };
+    const grading = vi.fn(async (request: AiGradingRequest) => {
+      const first = request.facts.text.split(' ')[0] as string;
+      return {
+        criteria: request.facts.rubric.map((criterion) =>
+          criterion.levels === null
+            ? { name: criterion.name, score: 7, maxScore: 10, comment: 'Mostly right.' }
+            : {
+                name: criterion.name,
+                level: criterion.levels[criterion.levels.length - 1]?.label,
+                probabilities: ODDS[criterion.levels.length],
+              },
+        ),
+        feedback: 'A clear essay.',
+        corrections: [{ original: first, corrected: first.toUpperCase() }],
+        requiresHumanReview: false,
+      };
+    });
+
     const report = await runAiCheck({
       explain,
       hint,
@@ -349,6 +411,7 @@ describe('runAiCheck', () => {
       pronunciationCoaching,
       critique,
       drafts,
+      grading,
     });
 
     expect(report.total).toBe(cases.length);
@@ -379,6 +442,14 @@ describe('runAiCheck', () => {
       completionTokens: 40,
       costUsd: 0.0004,
     });
+    const graded = report.results.find((one) => one.case.id === 'grading-mistakes');
+    expect(graded?.grading?.criteria).toEqual([
+      { name: 'Task', level: 'Met', score: 1, probabilities: [0.2, 0.2, 0.6] },
+      { name: 'Grammar', level: 'Very good', score: 1, probabilities: [0.2, 0.2, 0.2, 0.4] },
+      { name: 'Vocabulary', score: 0.7, comment: 'Mostly right.' },
+    ]);
+    expect(graded?.grading?.corrections[0]?.range).toEqual({ start: 0, end: 4 });
+    expect(grading).toHaveBeenCalledTimes(cases.filter((c) => c.feature === 'grading').length);
     expect(formatAiCheckReport(report)).toContain(`${cases.length}/${cases.length} shown`);
   });
 
@@ -449,6 +520,40 @@ describe('runAiCheck', () => {
     expect(report.total).toBe(critiques.length);
     expect(report.byRefusal['contradicts-item']).toBe(critiques.length);
     expect(formatAiCheckReport(report)).toContain('contradicts-item');
+  });
+
+  it('names the prompt that drops a criterion, and the one that leaves its scale', async () => {
+    const grading = cases.filter((one) => one.feature === 'grading');
+    // Judges only the criteria it expects: the exam's Vocabulary goes ungraded.
+    const dropping = await runAiCheck({
+      grading: async () => ({
+        criteria: [
+          { name: 'Task', level: 'Met' },
+          { name: 'Grammar', level: 'Good' },
+        ],
+        feedback: null,
+      }),
+    });
+    expect(dropping.total).toBe(grading.length);
+    expect(dropping.byRefusal['misses-criteria']).toBe(grading.length);
+    expect(formatAiCheckReport(dropping)).toContain('misses-criteria');
+
+    // Grades out of 100 on a criterion judged on a score, and says so nowhere.
+    const offScale = await runAiCheck(
+      {
+        grading: async () => ({
+          criteria: [
+            { name: 'Task', level: 'Met' },
+            { name: 'Grammar', level: 'Good' },
+            { name: 'Vocabulary', score: 85 },
+          ],
+          feedback: null,
+        }),
+      },
+      { cases: [find('grading-on-task')] },
+    );
+    expect(offScale.byRefusal['out-of-scale']).toBe(1);
+    expect(formatAiCheckReport(offScale)).toContain('out-of-scale');
   });
 
   it('names the prompt that coaches words the engine did not mark', async () => {

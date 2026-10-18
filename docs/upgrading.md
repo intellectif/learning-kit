@@ -37,6 +37,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.20.0 | 20.0.0 | Delivery policies: `delivery` on every activity and both pagers switches off feedback, solutions, hints or AI help per paper; `resolveDeliveryPolicy`, `validateDeliveryPolicy`, `combineDeliveryPolicies`; `planAttempt(…, { delivery })` records it in the plan and its hash, and `verifyAttemptPlan` reports `deliveryChanged`. **No grade changes, and an absent policy changes nothing** — the major is the peer bump, plus a required `delivery` on `InteractiveVideoQuestion` |
 | 0.21.0 | 21.0.0 | Scoring policies: `scoring` on every activity and both pagers — "Try again" in `practice` (`retries`), which try `counts`, and what tries and hints cost (`retryPenalty`, `hintPenalty`); `scoreTries`, `evaluateTries` and `evaluate(…, { scoring })`; `resolveItemScoringPolicy` / `validateItemScoringPolicy`; `planAttempt(…, { scoring })` and `scoringChanged`; `hintsRevealed` on multiple-choice, fill-in-the-blanks and gap-select responses. **No grade changes without a policy.** One fix to 0.20's `solutions: false` on a dictation, and one possible type error — see [0.20 → 0.21](#020--021-lk-core--20x--21x-lk-react) |
 | 0.22.0 | 22.0.0 | Feedback on writing: a `writingFeedback` port gives `<WrittenResponse>` "Get feedback on my draft" in `practice`; `useAiWritingFeedback` for a written response you draw; `aiWritingFeedbackRequest` and `checkAiWritingFeedback` in lk-core, which refuses a correction of words the draft does not contain (`misquotes-answer`) and computes the rubric's indicative score itself; four writing cases in `ai-check`. **Additive, and nothing changes without the port** — the major is the peer bump, plus eight strings and the type errors in [0.21 → 0.22](#021--022-lk-core--21x--22x-lk-react) |
+| 1.5.0 | — | Assisted grading: a model grades a written response for the record. `aiGradingRequest` / `checkAiGrading`, whose grade must judge every criterion (`misses-criteria`) on its own scale (`out-of-scale`); `levels` on a rubric criterion; `gradeFromJudgement`; `calibrationReport`, which measures a grader configuration against people; `routeGrade`, `outcomeFromRoutedGrade` and `inAuditSample`, which in an exam send every grade to a person until a matching calibration is supplied (`awaiting_human_review`). **Additive**, lk-core only |
 | 1.4.0 | 23.2.0 | AI help reads a question's group: hints, explanations and feedback on writing carry the passage, or the instructions a run of questions shares, as `material`; an optional `group` on `aiExplanationRequest`, `aiHintRequest`, `aiWritingFeedbackRequest` and the AI hooks, which both pagers fill in themselves. **Additive** |
 | 1.3.0 | 23.1.1 | Smaller bundles — one function imported no longer brings all of zod — `BUILT_IN_ACTIVITY_TYPES` / `isBuiltInActivityType`, `hintRevealsAnswer` withholding a hint it cannot check, built-in types registered however a bundler splits lk-core; a blank's `caseSensitive` / `trimWhitespace` and `seededShuffle` without `version` deprecated. lk-react 23.1.1: a multiple choice under `feedback: false` silent before an answer. See [1.2 → 1.3](#12--13-lk-core--231--2311-lk-react) |
 | 1.2.0 | — | Assistants for authors: `critiqueDraft`, `critiqueDrafts` and `critiqueItemGroupDraft`, an item critic whose findings (`warning`, `advice`) sit beside `validateDraft`'s issues and never refuse an item; `aiCritiqueRequest` / `checkAiCritique`, a model's review whose findings must point at the item's own fields (`contradicts-item`); `aiDraftsRequest`, `checkAiDrafts`, `aiDraftsRepairRequest` and `generateDrafts`, drafts of the types an author chooses, in the author's order, from a passage, a script or captions; `interactiveVideoFromDrafts`, a video quiz with each question where its caption ends, or at the end. **lk-core only** — no lk-react release; see [1.1 → 1.2](#11--12-lk-core) |
@@ -73,6 +74,34 @@ you record stay exactly what they were.
 - On **23.0.x**? See [1.0 → 1.1](#10--11-lk-core--230--231-lk-react) — additive: coaching appears only once you pass a `pronunciationCoaching` port.
 - On **lk-core 1.1.x**? See [1.1 → 1.2](#11--12-lk-core) — additive, lk-core only: nothing runs until you call it.
 - On **lk-core 1.3.x / 23.1.x**? See [1.3 → 1.4](#13--14-lk-core--231--232-lk-react) — additive: a grouped question's material reaches your port, and your prompt decides what to do with it.
+- On **lk-core 1.4.x**? See [1.4 → 1.5](#14--15-lk-core) — additive, lk-core only: nothing grades until you call it; three new union members.
+
+---
+
+## 1.4 → 1.5 (`lk-core`)
+
+Assisted grading. A model grades a written response for the record, on your server: lk-core builds
+what it is told, checks what it says, computes the total, and measures how its grades agree with your
+teachers'. In an exam, no model's grade counts until you supply a calibration of that model, prompt,
+rubric and target. See [Grading with a model](./grading.md). **No grade changes**, and nothing runs
+until you call it. lk-core only: lk-react 23.2 works with 1.5 unchanged, and shows a grade held for a
+person as it shows any deferred one, "Not graded yet."
+
+What can change for your code:
+
+- **Three union members.** `DeferredReason` gains `awaiting_human_review`, and `AiRefusal` gains
+  `misses-criteria` and `out-of-scale`. A `switch` over either without a `default` branch, or a
+  `Record<AiRefusal, …>` you write out, stops compiling until it has them
+  ([Stability](./stability.md#the-public-api)).
+- **`levels` on a rubric criterion is read** by the critic, by `redact()` and by the grading
+  functions, never by `validateActivity`. A field of that name of your own stays valid. The critic
+  warns `wr_levels_unreadable` when it is not a list of levels it can read. `redact()` now passes a
+  readable list to the learner, each level's `label` and `description` only, where it used to drop
+  the field as a key it did not know.
+- **`aiCheckCases()` returns five more cases**, for a `grading` port. A run without that port skips
+  them. A test that pins the number of cases changes with it.
+- **New optional fields**, which nothing you already call sets: `levelProbabilities` on a
+  `CriterionScore`, `routing` on a `GradeRecord`, and `pendingGrade` on a deferred outcome.
 
 ---
 
