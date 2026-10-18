@@ -1,5 +1,24 @@
 # @intellectif/lk-react
 
+## 23.2.1
+
+### Patch Changes
+
+- [#111](https://github.com/intellectif/learning-kit/pull/111) [`1742365`](https://github.com/intellectif/learning-kit/commit/1742365ab3a9a16cb279c6a4aae05b0bf82a1b9f) Thanks [@diego28e](https://github.com/diego28e)! - **Readable on any page**: every surface the skin paints now sets the text on it, so AI help, a grade and a question set's passage no longer take the host page's text colour.
+
+  **Action required:** none. Only the skin changes. On a page whose text colour follows the theme, these surfaces change by a shade at most.
+
+  - `<ThemeProvider>` applies the dark tokens when the system prefers dark. On a page that stays light, a surface that painted the theme's background but left the text to the page drew black on near-black, about 1.1:1. That hit the feedback on a draft, a written response's grade, a group's passage in `<ActivitySequence>`, and the AI hints and explanation in a gap select. A dark page under the light theme gave the reverse.
+  - `.lk-ai-panel`, `.lk-ai-hint`, `.lk-stimulus`, `.lk-wr-outcome` and the SDK's audio transport (`.lk-media[data-controls="minimal"]`) now set `color: var(--lk-color-text)` beside their background, as the multiple-choice, dictation and read-aloud cards already did.
+
+- [#109](https://github.com/intellectif/learning-kit/pull/109) [`a2de425`](https://github.com/intellectif/learning-kit/commit/a2de425279b5a05a7fff9bad366fddfd86bd3262) Thanks [@diego28e](https://github.com/diego28e)! - **Written response fits its column**: the answer box no longer runs past the form's edge on a page without a `box-sizing` reset.
+
+  **Action required:** none. Only the skin changes: no markup, prop or string. A page with a global `* { box-sizing: border-box }` reset sees no change.
+
+  - `.lk-wr-textarea` is `width: 100%` with padding and a border, and nothing made it `border-box`, so the padding and border sat outside the 100%: in a 680 px form the box measured 714 px. It is now `box-sizing: border-box`, as the answer fields of the other activity components already were.
+  - Media in a `<WrittenResponse>`, a `<GapSelect>` or a `<StimulusPanel>` ran 2 px past its frame the same way: every embedded player, and an image or video wider than the column. `.lk-media-el` is now `border-box` too; media in the other components already was.
+  - An end-to-end test measures both in a browser, the answer box in light and in dark.
+
 ## 23.2.0
 
 ### Minor Changes
