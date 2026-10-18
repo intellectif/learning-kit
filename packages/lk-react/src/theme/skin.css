@@ -111,11 +111,14 @@
     cursor: default;
   }
 
-  /* ── Shared stimulus (an item group's passage / recording / image) ──── */
+  /* ── Shared stimulus (an item group's passage / recording / image) ────
+     It paints its own surface, so it sets its own text: the pager around it
+     has no card, and the passage would take the host page's colour. */
   .lk-stimulus {
     margin: 0 0 var(--lk-spacing-lg);
     padding: var(--lk-spacing-md) var(--lk-spacing-lg);
     background: var(--lk-color-surface-raised);
+    color: var(--lk-color-text);
     border: 1px solid var(--lk-color-border);
     border-radius: var(--lk-radius-base);
   }
@@ -659,6 +662,7 @@
     border: 1px solid var(--lk-color-border);
     border-radius: var(--lk-radius-base);
     background: var(--lk-color-surface);
+    color: var(--lk-color-text);
   }
 
   .lk-wr-outcome[data-passed="true"] {
@@ -735,6 +739,7 @@
     margin: 0 0 var(--lk-spacing-md);
     padding: var(--lk-spacing-sm) var(--lk-spacing-md);
     background: var(--lk-color-surface-raised);
+    color: var(--lk-color-text);
     border: 1px solid var(--lk-color-border);
     border-radius: var(--lk-radius-base);
   }
@@ -3382,12 +3387,17 @@
     cursor: progress;
   }
 
+  /* A panel or a hint paints its own surface, so it sets the text on it as
+     well. A component with no card of its own, a written response or a gap
+     select, would otherwise draw the host page's text colour on the theme's
+     surface: black on the dark surface when the page stays light. */
   .lk-ai-panel {
     align-self: stretch;
     padding: var(--lk-spacing-sm) var(--lk-spacing-md);
     border: 1px dashed var(--lk-color-border);
     border-radius: var(--lk-radius-base);
     background: var(--lk-color-surface);
+    color: var(--lk-color-text);
   }
 
   .lk-ai-heading {
@@ -3423,6 +3433,7 @@
     padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
     border-inline-start: 3px dashed var(--lk-color-primary);
     background: var(--lk-color-surface);
+    color: var(--lk-color-text);
   }
 
   .lk-ai-hint-label {
