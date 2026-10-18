@@ -49,7 +49,11 @@
     margin: 0 0 var(--lk-spacing-lg);
   }
 
+  /* Border-box of its own: a written response, a gap select and a stimulus
+     panel do not make what they hold border-box, and the border would sit
+     outside the 100% and past the frame's edge. */
   .lk-media-el {
+    box-sizing: border-box;
     display: block;
     max-width: 100%;
     height: auto;
@@ -578,7 +582,10 @@
     line-height: 1.6;
   }
 
+  /* `.lk-wr` makes nothing it holds border-box, so the answer box does: the
+     padding and border then sit inside the 100%, not past the form's edge. */
   .lk-wr-textarea {
+    box-sizing: border-box;
     width: 100%;
     padding: var(--lk-spacing-sm) var(--lk-spacing-md);
     border: 1px solid var(--lk-color-border);
