@@ -1,3 +1,4 @@
+import { materialFacts } from './ai-material.js';
 import { cleanText, provenanceOf, usageOf } from './ai-text.js';
 import { numberedPassage, placeholderOrder, revealsAnswer } from './answer-leak.js';
 import { everyBuiltInTypeHandled } from './built-in-types.js';
@@ -19,6 +20,7 @@ import type {
   AiExplanationRequest,
   AiFeature,
   AiGrade,
+  AiGroupInput,
   AiHintRequest,
   AiItemFacts,
   AiRefusal,
@@ -47,6 +49,8 @@ export const AI_HINT_TYPES: readonly AiSupportedActivityType[] = [
 
 /** The longest AI text shown, in code points. Longer is refused, not cut. */
 export const AI_TEXT_MAX_LENGTH = 2000;
+
+export { AI_MATERIAL_MAX_LENGTH } from './ai-material.js';
 
 /**
  * Whether the SDK supports `feature` for this activity type: explanations and
@@ -325,11 +329,16 @@ function gradeLocally(
  * positive and finite, `score` finite from 0 to it) gets no explanation at all:
  * explaining 85 "out of 1" would tell the model a wrong answer was correct, and
  * grading locally instead would speak to a grade the screen does not show.
+ *
+ * `group` is the item group the question sits in: its material — the passage,
+ * or the instructions the group's questions share — goes with the request as
+ * `material`, as the learner sees it.
  */
 export function aiExplanationRequest(input: {
   data: AiActivityInput;
   response: LearnerResponse | null;
   outcome?: ItemOutcome;
+  group?: AiGroupInput;
   learnerLocale?: string;
 }): AiExplanationRequest | null {
   const { data, response, outcome, learnerLocale } = input;
@@ -360,10 +369,12 @@ export function aiExplanationRequest(input: {
   if (facts === null) {
     return null;
   }
+  const material = materialFacts(input.group);
   return {
     feature: 'explanation',
     facts,
     grade,
+    ...(material !== null ? { material } : {}),
     ...(learnerLocale !== undefined ? { learnerLocale } : {}),
   };
 }
@@ -375,12 +386,17 @@ export function aiExplanationRequest(input: {
  *
  * The facts carry the key, and which parts the learner has right so far, so a
  * model can hint where it helps. The learner never sees them; a hint that
- * contains an answer is refused by {@link checkAiHint}.
+ * contains an answer is refused by {@link checkAiHint}, whatever it quotes —
+ * the group's material included.
+ *
+ * `group` is the item group the question sits in, as for
+ * {@link aiExplanationRequest}.
  */
 export function aiHintRequest(input: {
   data: AiActivityInput;
   response: LearnerResponse | null;
   previousHints: readonly string[];
+  group?: AiGroupInput;
   learnerLocale?: string;
 }): AiHintRequest | null {
   const { data, previousHints, learnerLocale } = input;
@@ -397,11 +413,13 @@ export function aiHintRequest(input: {
   if (facts === null) {
     return null;
   }
+  const material = materialFacts(input.group);
   return {
     feature: 'hint',
     facts,
     hintNumber: previousHints.length + 1,
     previousHints: [...previousHints],
+    ...(material !== null ? { material } : {}),
     ...(learnerLocale !== undefined ? { learnerLocale } : {}),
   };
 }

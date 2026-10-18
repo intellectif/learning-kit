@@ -21,9 +21,11 @@ import type {
   AiDraftsRequest,
   AiDraftType,
   AiExplanationRequest,
+  AiGroupInput,
   AiHintRequest,
   AiWritingFeedbackRequest,
 } from '../types/ai.js';
+import type { ItemGroup } from '../types/item-group.js';
 import type { SpeechAssessment, SpeechWord } from '../types/speech.js';
 
 /**
@@ -38,7 +40,10 @@ import type { SpeechAssessment, SpeechWord } from '../types/speech.js';
  * - a passage with more than one blank, so a hint can be about the wrong one;
  * - a short essay whose mistakes a model must quote exactly as the learner
  *   wrote them — straight apostrophes a model likes to curl, a mistake made
- *   twice — so a correction of words nobody wrote is caught.
+ *   twice — so a correction of words nobody wrote is caught;
+ * - questions in item groups: a reading passage that prints a question's
+ *   answer, which a hint must point to without quoting, and a run of blanks
+ *   whose instructions only the group states.
  */
 const capital: MultipleChoiceData = {
   schemaVersion: '1.0',
@@ -102,6 +107,75 @@ const listening: DictationData = {
   id: 'ai-check-dictation',
   title: 'Listen and type',
   transcript: 'The train leaves at half past nine.',
+};
+
+/**
+ * A reading group: a passage, a question it answers word for word, and a
+ * summary of it. The question's answer is printed in the passage, so a hint
+ * that quotes the passage where it answers is refused.
+ */
+const TIDES =
+  'Along most coasts the tide comes in twice a day. It is pulled by the moon: as the Earth ' +
+  'turns, the ocean nearest the moon bulges towards it, and so does the ocean on the far side. ' +
+  'The highest tides, called spring tides, come when the sun and the moon line up.';
+
+const springTides: MultipleChoiceData = {
+  schemaVersion: '1.0',
+  type: 'multiple-choice',
+  id: 'ai-check-tides',
+  title: 'Spring tides',
+  question: 'When do the highest tides come?',
+  mode: 'single',
+  scoringStrategy: 'all-or-nothing',
+  options: [
+    { id: 'line-up', text: 'When the sun and the moon line up', isCorrect: true },
+    { id: 'full-moon', text: 'Only at full moon', isCorrect: false },
+    { id: 'winter', text: 'In winter', isCorrect: false },
+  ],
+};
+
+const tidesSummary: WrittenResponseData = {
+  schemaVersion: '1.0',
+  type: 'written-response',
+  id: 'ai-check-tides-summary',
+  title: 'Summary',
+  prompt: 'Summarise the text in one or two sentences.',
+  minWords: 10,
+  maxWords: 60,
+  languageTarget: 'en-B1',
+};
+
+const tides: ItemGroup = {
+  schemaVersion: '1.0',
+  type: 'item-group',
+  id: 'ai-check-tides-group',
+  title: 'Part 2 — Reading',
+  stimulus: { id: 'ai-check-tides-text', kind: 'text', title: 'Tides', body: TIDES },
+  items: [springTides, tidesSummary],
+};
+
+/** A part whose questions share instructions the questions themselves never state. */
+const formation: FillInTheBlanksData = {
+  schemaVersion: '1.0',
+  type: 'fill-in-the-blanks',
+  id: 'ai-check-formation',
+  title: 'Word formation',
+  passage: 'She smiled {{a}} when she heard the news. (HAPPY)',
+  blanks: [{ id: 'a', acceptedAnswers: ['happily'] }],
+  scoringStrategy: 'all-or-nothing',
+};
+
+const formationPart: ItemGroup = {
+  schemaVersion: '1.0',
+  type: 'item-group',
+  id: 'ai-check-formation-part',
+  title: 'Part 1 — Word formation',
+  stimulus: {
+    id: 'ai-check-formation-instructions',
+    kind: 'text',
+    body: 'Use the word in capitals at the end of each sentence to form a word that fits the gap.',
+  },
+  items: [formation],
 };
 
 const weekend: WrittenResponseData = {
@@ -342,8 +416,9 @@ function explanationCase(
   about: string,
   data: Parameters<typeof aiExplanationRequest>[0]['data'],
   response: LearnerResponse,
+  group?: AiGroupInput,
 ): AiCheckCase {
-  const request = aiExplanationRequest({ data, response });
+  const request = aiExplanationRequest({ data, response, ...(group ? { group } : {}) });
   if (request === null) {
     throw new Error(`ai-check: no explanation request for "${id}"`);
   }
@@ -356,8 +431,9 @@ function hintCase(
   data: Parameters<typeof aiHintRequest>[0]['data'],
   response: LearnerResponse,
   previousHints: string[] = [],
+  group?: AiGroupInput,
 ): AiCheckCase {
-  const request = aiHintRequest({ data, response, previousHints });
+  const request = aiHintRequest({ data, response, previousHints, ...(group ? { group } : {}) });
   if (request === null) {
     throw new Error(`ai-check: no hint request for "${id}"`);
   }
@@ -370,11 +446,13 @@ function writingCase(
   text: string,
   previousFeedback: string[] = [],
   learnerLocale?: string,
+  task: { data: WrittenResponseData; group?: AiGroupInput } = { data: weekend },
 ): AiCheckCase {
   const request = aiWritingFeedbackRequest({
-    data: weekend,
+    data: task.data,
     response: drafted(text),
     previousFeedback,
+    ...(task.group ? { group: task.group } : {}),
     ...(learnerLocale !== undefined ? { learnerLocale } : {}),
   });
   if (request === null) {
@@ -473,6 +551,13 @@ export function aiCheckCases(): AiCheckCase[] {
       listening,
       wrote('The train leaves at half past nine.'),
     ),
+    explanationCase(
+      'mc-reading-wrong',
+      "Chose 'Only at full moon', on a question about its group's passage",
+      springTides,
+      chose(['full-moon']),
+      tides,
+    ),
     hintCase('mc-hint-1', 'Has not answered yet', capital, chose([])),
     hintCase('mc-hint-2', 'Asked again after choosing Seville', capital, chose(['seville']), [
       'Think about where the government sits.',
@@ -492,6 +577,22 @@ export function aiCheckCases(): AiCheckCase[] {
       landscape,
       picked({ g1: 'campo' }),
       ['Piensa en la forma del terreno.'],
+    ),
+    hintCase(
+      'mc-reading-hint',
+      "Has not answered a question whose answer its group's passage prints",
+      springTides,
+      chose([]),
+      [],
+      tides,
+    ),
+    hintCase(
+      'fib-formation-hint',
+      'A word-formation blank, under the instructions its group gives',
+      formation,
+      typed({}),
+      [],
+      formationPart,
     ),
     writingCase(
       'writing-mistakes',
@@ -515,6 +616,14 @@ export function aiCheckCases(): AiCheckCase[] {
       'Last weekend I visit my grandmother. She cook a big lunch and we eat together in the garden.',
       [],
       'es',
+    ),
+    writingCase(
+      'writing-summary',
+      "A summary of its group's passage that gets the spring tides wrong",
+      'The tide comes in twice a day because the moon pulls the ocean. The highest tides come only at full moon.',
+      [],
+      undefined,
+      { data: tidesSummary, group: tides },
     ),
     coachingCase('coaching-slips', 'A reading with a mispronounced "th" and a word left out', {
       assessment: forecast(true),

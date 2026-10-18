@@ -2,6 +2,7 @@
 
 import {
   type AiCoaching,
+  type AiGroupInput,
   type AiTextResult,
   type AiWritingFeedback,
   aiCoachingRequest,
@@ -30,6 +31,7 @@ import {
   coachingOffered,
   explanationKey,
   explanationOffered,
+  groupOf,
   hintLimit,
   hintOffered,
   localeOf,
@@ -74,6 +76,14 @@ export interface AiHelpSituation {
    * here, whatever is passed — so leaving it out never turns anything on.
    */
   delivery?: DeliveryPolicy | null;
+  /**
+   * The item group your question sits in — an `ItemGroup`, a redacted one, or
+   * your own object with its `title` and `stimulus` — so its material goes
+   * with a request: the passage, or the instructions its questions share.
+   * Inside `<ActivitySequence>` or `<InteractiveVideo>` the paper's own group
+   * is used, as its mode is, and this is not read.
+   */
+  group?: AiGroupInput;
 }
 
 export interface AiExplanationInput extends AiHelpSituation {
@@ -219,8 +229,8 @@ export function useAiExplanation(input: AiExplanationInput): AiExplanationHelp {
   // What `ask` reads, as of this render, so `ask` itself can keep one identity
   // for the life of the question. The state goes in too: an event handler runs
   // after the render that set it, so the ref is what the learner last saw.
-  const latest = useRef({ input, renderMode, ai, resetKey, offered, current });
-  latest.current = { input, renderMode, ai, resetKey, offered, current };
+  const latest = useRef({ input, around, renderMode, ai, resetKey, offered, current });
+  latest.current = { input, around, renderMode, ai, resetKey, offered, current };
 
   // Another answer, or the caller going away: abandon the call in flight.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the key is the trigger — its cleanup runs when the answer changes
@@ -245,6 +255,7 @@ export function useAiExplanation(input: AiExplanationInput): AiExplanationHelp {
       ...(now.renderMode === 'review' && now.input.outcome !== undefined
         ? { outcome: now.input.outcome }
         : {}),
+      ...groupOf(now.around, now.input.group),
       ...localeOf(now.ai, now.input.locale),
     });
     if (request === null) {
@@ -343,8 +354,8 @@ export function useAiHints(input: AiHintsInput): AiHintsHelp {
     ai?.hint !== undefined && hintOffered({ data, renderMode, submitted, disabled, delivery });
   const limit = hintLimit(ai);
 
-  const latest = useRef({ input, renderMode, ai, offered, limit, current });
-  latest.current = { input, renderMode, ai, offered, limit, current };
+  const latest = useRef({ input, around, renderMode, ai, offered, limit, current });
+  latest.current = { input, around, renderMode, ai, offered, limit, current };
 
   // Another question, or the caller going away: abandon the call in flight.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the key is the trigger — its cleanup runs when the question changes
@@ -386,6 +397,7 @@ export function useAiHints(input: AiHintsInput): AiHintsHelp {
       data: now.input.data,
       response: now.input.response,
       previousHints: held.hints.map((hint) => hint.text),
+      ...groupOf(now.around, now.input.group),
       ...localeOf(now.ai, now.input.locale),
     });
     if (request === null) {
@@ -537,8 +549,8 @@ export function useAiWritingFeedback(input: AiWritingFeedbackInput): AiWritingFe
     writingFeedbackOffered({ data, renderMode, submitted, disabled, delivery });
   const limit = writingFeedbackLimit(ai);
 
-  const latest = useRef({ input, ai, offered, limit, current });
-  latest.current = { input, ai, offered, limit, current };
+  const latest = useRef({ input, around, ai, offered, limit, current });
+  latest.current = { input, around, ai, offered, limit, current };
 
   // Another question, or the caller going away: abandon the call in flight.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the key is the trigger — its cleanup runs when the question changes
@@ -581,6 +593,7 @@ export function useAiWritingFeedback(input: AiWritingFeedbackInput): AiWritingFe
       data: now.input.data,
       response: now.input.response,
       previousFeedback: held.shown.map((one) => one.feedback.text),
+      ...groupOf(now.around, now.input.group),
       ...localeOf(now.ai, now.input.locale),
     });
     if (request === null) {

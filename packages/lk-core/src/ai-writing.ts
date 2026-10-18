@@ -1,10 +1,12 @@
 import { aiAllowedByContent, aiSupports, readAiTextResult } from './ai.js';
+import { materialFacts } from './ai-material.js';
 import { cleanText, folded, needle } from './ai-text.js';
 import { countWords } from './count-words.js';
 import { gradeFromRubric } from './grading.js';
 import type { LearnerResponse, WrittenResponseData } from './types/activity.js';
 import type {
   AiActivityInput,
+  AiGroupInput,
   AiRefusal,
   AiRubricCriterionFact,
   AiWritingFeedback,
@@ -30,12 +32,15 @@ const MAX_TAG_LENGTH = 40;
  * The facts are the task as the learner saw it, the draft verbatim with its
  * word count recomputed as the grader will count it, and the rubric the answer
  * will be graded on. `previousFeedback` is the text of the feedback already
- * shown on earlier drafts, so a model can speak to what changed.
+ * shown on earlier drafts, so a model can speak to what changed. `group` is the
+ * item group the task sits in: its material, the text a summary is of, goes
+ * with the request as `material`.
  */
 export function aiWritingFeedbackRequest(input: {
   data: AiActivityInput;
   response: LearnerResponse | null;
   previousFeedback?: readonly string[];
+  group?: AiGroupInput;
   learnerLocale?: string;
 }): AiWritingFeedbackRequest | null {
   const { data, response, learnerLocale } = input;
@@ -66,6 +71,7 @@ export function aiWritingFeedbackRequest(input: {
           weight: criterion.weight,
         }));
   const previousFeedback = [...(input.previousFeedback ?? [])];
+  const material = materialFacts(input.group);
   return {
     feature: 'writing-feedback',
     facts: {
@@ -84,6 +90,7 @@ export function aiWritingFeedbackRequest(input: {
     },
     draftNumber: previousFeedback.length + 1,
     previousFeedback,
+    ...(material !== null ? { material } : {}),
     ...(learnerLocale !== undefined ? { learnerLocale } : {}),
   };
 }

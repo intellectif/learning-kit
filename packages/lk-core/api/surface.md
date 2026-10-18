@@ -19,6 +19,7 @@ const AI_DRAFTS_MAX_COUNT: AI_DRAFTS_MAX_COUNT = 50
 const AI_DRAFTS_MAX_REPAIRS: AI_DRAFTS_MAX_REPAIRS = 3
 const AI_EXPLANATION_TYPES: AI_EXPLANATION_TYPES: readonly AiSupportedActivityType[]
 const AI_HINT_TYPES: AI_HINT_TYPES: readonly AiSupportedActivityType[]
+const AI_MATERIAL_MAX_LENGTH: AI_MATERIAL_MAX_LENGTH = 12000
 const AI_TEXT_MAX_LENGTH: AI_TEXT_MAX_LENGTH = 2000
 const AI_WRITING_MAX_CORRECTIONS: AI_WRITING_MAX_CORRECTIONS = 20
 const AI_WRITING_MAX_FIELD_LENGTH: AI_WRITING_MAX_FIELD_LENGTH = 500
@@ -64,11 +65,11 @@ function aiCoachingRequest: declare function aiCoachingRequest(input: { assessme
 function aiCritiqueRequest: declare function aiCritiqueRequest(input: { authorLocale?: string; draft: unknown; level?: string; type: ActivityType; }): AiCritiqueRequest | null;
 function aiDraftsRepairRequest: declare function aiDraftsRepairRequest(request: AiDraftsRequest, drafts: AiDrafts | readonly AiGeneratedDraft[]): AiDraftsRequest | null;
 function aiDraftsRequest: declare function aiDraftsRequest(input: { count?: number; instructions?: string; level?: string; locale?: string; settings?: AiDraftSettings; source: AiDraftSource; types: readonly AiDraftType[]; }): AiDraftsRequest | null;
-function aiExplanationRequest: declare function aiExplanationRequest(input: { data: AiActivityInput; learnerLocale?: string; outcome?: ItemOutcome; response: LearnerResponse | null; }): AiExplanationRequest | null;
+function aiExplanationRequest: declare function aiExplanationRequest(input: { data: AiActivityInput; group?: AiGroupInput; learnerLocale?: string; outcome?: ItemOutcome; response: LearnerResponse | null; }): AiExplanationRequest | null;
 function aiGradeOf: declare function aiGradeOf(result: { maxScore: number; passed: boolean; score: number; }): AiGrade;
-function aiHintRequest: declare function aiHintRequest(input: { data: AiActivityInput; learnerLocale?: string; previousHints: readonly string[]; response: LearnerResponse | null; }): AiHintRequest | null;
+function aiHintRequest: declare function aiHintRequest(input: { data: AiActivityInput; group?: AiGroupInput; learnerLocale?: string; previousHints: readonly string[]; response: LearnerResponse | null; }): AiHintRequest | null;
 function aiSupports: declare function aiSupports(activityType: string, feature: AiFeature): boolean;
-function aiWritingFeedbackRequest: declare function aiWritingFeedbackRequest(input: { data: AiActivityInput; learnerLocale?: string; previousFeedback?: readonly string[]; response: LearnerResponse | null; }): AiWritingFeedbackRequest | null;
+function aiWritingFeedbackRequest: declare function aiWritingFeedbackRequest(input: { data: AiActivityInput; group?: AiGroupInput; learnerLocale?: string; previousFeedback?: readonly string[]; response: LearnerResponse | null; }): AiWritingFeedbackRequest | null;
 function alignDictation: declare function alignDictation(data: DictationReference, text: string): DictationAlignment;
 function alignReadAloud: declare function alignReadAloud(data: Pick<ReadAloudData, 'referenceText'>, assessment: SpeechAssessment): ReadAloudWordAlignment[];
 function assertRedacted: declare function assertRedacted(data: unknown): asserts data is RedactedActivityData;
@@ -181,13 +182,15 @@ interface AiDraftProblem: interface AiDraftProblem { path: string[]; code: strin
 interface AiDrafts: interface AiDrafts { drafts: AiGeneratedDraft[]; findings: ItemFinding[]; provenance?: AiProvenance; usage?: GraderUsage; }
 interface AiDraftsRequest: interface AiDraftsRequest { feature: 'draft-generation'; facts: { activityTypes: AiDraftType[]; count?: number; instructions?: string; level?: string; locale?: string; source: { captions: AiDraftCaption[]; kind: 'captions'; } | { kind: 'passage' | 'transcript'; text: string; }; }; shape: Readonly<Record<string, unknown>>; settings?: AiDraftSettings; repair?: { draft: Readonly<Record<string, unknown>>; index: number; problems: AiDraftProblem[]; }[]; }
 interface AiDraftsRun: interface AiDraftsRun { drafts: AiGeneratedDraft[]; findings: ItemFinding[]; calls: AiDraftsCall[]; }
-interface AiExplanationRequest: interface AiExplanationRequest { feature: 'explanation'; facts: AiItemFacts; grade: AiGrade; learnerLocale?: string; }
+interface AiExplanationRequest: interface AiExplanationRequest { feature: 'explanation'; facts: AiItemFacts; grade: AiGrade; material?: AiMaterialFacts; learnerLocale?: string; }
 interface AiFillInTheBlanksFacts: interface AiFillInTheBlanksFacts extends AiFactsBase { activityType: 'fill-in-the-blanks'; passage: string; blanks: AiBlankFact[]; }
 interface AiGapFact: interface AiGapFact { id: string; position: number; choices: string[]; chosen: null | string; answer: null | string; correct: boolean | null; feedback?: string; }
 interface AiGapSelectFacts: interface AiGapSelectFacts extends AiFactsBase { activityType: 'gap-select'; passage: string; gaps: AiGapFact[]; }
 interface AiGeneratedDraft: interface AiGeneratedDraft { index: number; type: AiDraftType; draft: Record<string, unknown>; validation: DraftValidationResult<unknown>; findings: ItemFinding[]; at?: number; clip?: { end: number; start: number; }; generated: Readonly<Record<string, unknown>>; }
 interface AiGrade: interface AiGrade { score: number; maxScore: number; passed: boolean; category: AiVerdict; }
-interface AiHintRequest: interface AiHintRequest { feature: 'hint'; facts: AiItemFacts; hintNumber: number; previousHints: string[]; learnerLocale?: string; }
+interface AiGroupInput: interface AiGroupInput { readonly title?: unknown; readonly stimulus?: unknown; }
+interface AiHintRequest: interface AiHintRequest { feature: 'hint'; facts: AiItemFacts; hintNumber: number; previousHints: string[]; material?: AiMaterialFacts; learnerLocale?: string; }
+interface AiMaterialFacts: interface AiMaterialFacts { kind: StimulusKind; title?: string; text?: string; truncated?: true; media?: { alt?: string; type: ActivityMedia['type']; }; attribution?: string; locale?: string; }
 interface AiMultipleChoiceFacts: interface AiMultipleChoiceFacts extends AiFactsBase { activityType: 'multiple-choice'; question: string; mode: 'multi' | 'single'; options: AiOptionFact[]; }
 interface AiOptionFact: interface AiOptionFact { id: string; text: string; chosen: boolean; correct: boolean | null; feedback?: string; }
 interface AiProvenance: interface AiProvenance { model?: string; promptHash?: string; generatedAt?: string; }
@@ -201,7 +204,7 @@ interface AiWordFact: interface AiWordFact { expected: string; typed: string; st
 interface AiWritingCorrection: interface AiWritingCorrection { original: string; corrected: string; explanation?: string; category?: string; range?: { end: number; start: number; }; }
 interface AiWritingFacts: interface AiWritingFacts { activityType: 'written-response'; activityId: string; title: string; locale?: string; prompt: string; text: string; wordCount: number; minWords: number; maxWords: number; withinWordBounds: boolean; rubric: AiRubricCriterionFact[] | null; languageTarget?: string; }
 interface AiWritingFeedback: interface AiWritingFeedback { text: string; corrections: InlineCorrection[]; criteria: CriterionScore[]; indicativeScore: null | number; provenance?: AiProvenance; usage?: GraderUsage; }
-interface AiWritingFeedbackRequest: interface AiWritingFeedbackRequest { feature: 'writing-feedback'; facts: AiWritingFacts; draftNumber: number; previousFeedback: string[]; learnerLocale?: string; }
+interface AiWritingFeedbackRequest: interface AiWritingFeedbackRequest { feature: 'writing-feedback'; facts: AiWritingFacts; draftNumber: number; previousFeedback: string[]; material?: AiMaterialFacts; learnerLocale?: string; }
 interface AiWritingFeedbackResult: interface AiWritingFeedbackResult { text: string; corrections?: AiWritingCorrection[]; criteria?: AiCriterionJudgement[]; provenance?: AiProvenance; usage?: GraderUsage; }
 interface AnsweredStatementParams: interface AnsweredStatementParams { actor: XAPIActor; object: XAPIObjectParams; scoringResult: ScoringResult; timeSpentMs: number; response?: string; context?: XAPIContext; resultExtensions?: Record<string, unknown>; }
 interface AssessmentScore: interface AssessmentScore { sections: SectionScore[]; score: number; passed: boolean | null; passFailureReason: PassFailureReason; status: 'final' | 'provisional'; pendingSlotIds: string[]; rejectedSlotIds?: string[]; unscorableSlotIds: string[]; }

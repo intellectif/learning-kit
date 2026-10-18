@@ -890,6 +890,7 @@ describe('<ReadAloud> events and lifecycle', () => {
           renderMode: 'practice',
           delivery: OPEN_DELIVERY_POLICY,
           scoring: undefined,
+          group: undefined,
           triesClosed: false,
           triesState: () => {},
           takeState: () => {},

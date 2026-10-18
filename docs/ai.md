@@ -209,6 +209,12 @@ words in reading order, each with its `word`, `tip` and, where the engine report
   that drops that line passes a model's words off as the course's. Render `text` as text, never as
   HTML.
 - **`ai` beats the provider**, exactly as it does on a component: pass the ports you were handed.
+- **In an item group, pass the group** *(lk-react 23.2.0)*: `group` on `useAiHints`,
+  `useAiExplanation` or `useAiWritingFeedback`, as the question's group was given to you: an
+  `ItemGroup`, a redacted one, or your own object with its `title` and `stimulus`. Its material goes
+  with the request: see [A question in an item group](#a-question-in-an-item-group-140). Inside
+  `<ActivitySequence>` or `<InteractiveVideo>` the paper's own group is used, as the paper's mode
+  is, and `group` is not read.
 
 ## Where help appears, and who can switch it off
 
@@ -267,6 +273,34 @@ each part:
   `answer` and `transcript` are `null` except where the server's outcome supplies them. A port that
   needs the key loads the item on its server by `facts.activityId`.
 
+### A question in an item group *(1.4.0)*
+
+A question in an [item group](./authoring.md#shared-stimulus--item-groups-v05) is read beside the
+group's material: a reading question beside its passage, or one of a run of questions beside the
+instructions they share. Its request also carries `material`, what the learner reads and sees there:
+
+| Field | |
+|---|---|
+| `kind` | `text`, `audio`, `video`, `image` or `mixed`, as the author set it |
+| `title` | The material's heading, or the group's title when it has none |
+| `text` | The passage, or the instructions above a recording or an image, as plain text |
+| `truncated` | `true` when `text` was cut. Past `AI_MATERIAL_MAX_LENGTH` (12,000 code points) the text is cut at the last word boundary, so the model is given only its start |
+| `media` | `{ type, alt? }`: the recording, video or image, never its address |
+| `attribution`, `locale` | The source credit and the material's language, when the author gave them |
+
+- **Only what the learner sees goes.** The author-only `transcript` never does, so a whole group and
+  a [redacted](./authoring.md#shared-stimulus--item-groups-v05) one give the same material. A media
+  address never does either: a model cannot open one, and a signed one must not end up in a prompt.
+- **Hints, explanations and feedback on writing carry it.** Coaching on a reading does not: it
+  speaks only to the engine's marks on the learner's own reading. A question in no group carries no
+  `material`, and its request is as before.
+- **An interactive video's questions** carry the video group's title and text, not its captions.
+- **The SDK finds the group itself** inside `<ActivitySequence>` and `<InteractiveVideo>`. A question
+  you draw yourself passes it: see [A question you draw yourself](#a-question-you-draw-yourself).
+- **Tell your model what the material is for.** A hint may send the learner back to the text ("read
+  the last sentence again"), but one that quotes the passage where it prints the answer is refused
+  like any other hint that gives the answer away.
+
 ## Feedback on writing
 
 In `practice`, a learner writing a written response can ask for feedback on the draft before
@@ -282,7 +316,9 @@ from your grader after submit, as a [`GradeRecord`](./authoring.md#getting-a-def
 - `rubric`: each criterion's `name`, `description` and `weight`, or `null` on an item without one.
 
 `draftNumber` counts from 1, and `previousFeedback` holds the text of the feedback on earlier
-drafts, oldest first, so a model can speak to what changed. Write `text`, `explanation` and
+drafts, oldest first, so a model can speak to what changed. A task inside an item group also carries
+the group's `material`, the text a summary is of: see
+[A question in an item group](#a-question-in-an-item-group-140). Write `text`, `explanation` and
 `comment` in `learnerLocale`. A `corrected` stays in the language of the draft.
 
 **It returns** the feedback, and optionally corrections and a judgement per criterion:
@@ -669,10 +705,14 @@ prompt should forbid giving the answer, and this check catches the model that do
   one place every call passes through, which makes it the place to count them.
 - **A hint changes a score only under a [scoring policy](./scoring.md) that charges for hints**, and
   then costs what any hint costs. Feedback on writing and coaching on a reading change no score.
-- **Cost:** a call happens only when a learner presses a button. Two calls asking the same thing have
+- **Cost:** a call happens only when a learner presses a button. A question in an item group sends
+  its material too, up to 12,000 code points, so a reading question costs more per call than a
+  question on its own. Two calls asking the same thing have
   the same request, so `contentHash(request)` from lk-core is a cache key: canonical, key-order
   independent, and the same on your server as in the browser.
-- **Privacy:** a request carries the learner's answer and nothing that identifies them. It leaves the
+- **Privacy:** a request carries the learner's answer and nothing that identifies them. A question's
+  group material is what the learner already sees beside it, never the author's transcript or a
+  media address. It leaves the
   browser only through your port, under your agreements with your provider. A draft is the learner's
   own writing, though, and a task like "Describe your weekend" invites them to write about
   themselves.
@@ -696,7 +736,7 @@ const report = await runAiCheck({
   drafts: (request) => callMyModel(DRAFTS_PROMPT, request),
 });
 console.log(formatAiCheckReport(report));
-// ai-check: 32/34 shown, 2 refused, 0 failed — slowest 1840 ms
+// ai-check: 36/38 shown, 2 refused, 0 failed — slowest 1840 ms
 //   reveals-answer: 1
 //   misquotes-answer: 1
 //   ✗ fib-hint-1 [hint] Both blanks empty: reveals-answer
@@ -711,7 +751,10 @@ expect(report.refused).toBe(0);
   wrong and partly right; every type it hints for, before an answer and after a wrong one; drafts of a
   written response with mistakes, without any, revised after feedback, and asked about in Spanish;
   a reading with a mispronounced "th" and a word left out, one read cleanly, the same slips from
-  a stored grade without sounds, and coaching asked for in Spanish. For authors, built by
+  a stored grade without sounds, and coaching asked for in Spanish. Four sit in item groups: a
+  reading question explained, and hinted at, from a passage that prints its answer; a
+  word-formation blank under the instructions its group gives; and a summary of the passage. For
+  authors, built by
   `aiCritiqueRequest` and `aiDraftsRequest`: items to review — a question whose distractor is
   botanically a right answer, a writing task far above its level, a clean cloze, and a review asked
   for in Spanish — and drafts from a short reading, one case per text type, plus a video quiz of

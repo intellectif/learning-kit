@@ -1475,6 +1475,8 @@ function Player(props: InteractiveVideoProps) {
         get scoring() {
           return reportTo.current.scoring;
         },
+        // Every question of the video sits in its one group, fixed for this mount.
+        group,
         get triesClosed() {
           return finishedOnce.current;
         },
