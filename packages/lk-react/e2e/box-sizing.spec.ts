@@ -17,7 +17,7 @@ import { expect, test } from '@playwright/test';
  * media 2 px past its frame. jsdom has no layout, so only a measurement shows
  * it.
  */
-test("a written response's answer box is as wide as its form, in light and in dark", async ({
+test("a written response's answer box is as wide as its form's content, in light and in dark", async ({
   page,
 }) => {
   const backgrounds: string[] = [];
@@ -28,18 +28,27 @@ test("a written response's answer box is as wide as its form, in light and in da
     await expect(answer).toBeVisible();
     const box = await answer.evaluate((element) => {
       const own = element.getBoundingClientRect();
-      const form = element.closest('.lk-wr')?.getBoundingClientRect();
+      const form = element.closest('.lk-wr');
+      const frame = form?.getBoundingClientRect();
+      const style = form ? getComputedStyle(form) : undefined;
+      // The form is a card: what it gives its content is its box less its
+      // border and padding on each side.
+      const inset = (side: 'left' | 'right') =>
+        style === undefined
+          ? 0
+          : Number.parseFloat(style.getPropertyValue(`border-${side}-width`)) +
+            Number.parseFloat(style.getPropertyValue(`padding-${side}`));
       return {
         width: own.width,
         right: own.right,
-        formWidth: form?.width ?? 0,
-        formRight: form?.right ?? 0,
+        contentWidth: (frame?.width ?? 0) - inset('left') - inset('right'),
+        contentRight: (frame?.right ?? 0) - inset('right'),
         background: getComputedStyle(element).backgroundColor,
       };
     });
-    expect(box.formWidth).toBeGreaterThan(0);
-    expect(box.width).toBeCloseTo(box.formWidth, 0);
-    expect(box.right).toBeLessThanOrEqual(box.formRight + 0.5);
+    expect(box.contentWidth).toBeGreaterThan(0);
+    expect(box.width).toBeCloseTo(box.contentWidth, 0);
+    expect(box.right).toBeLessThanOrEqual(box.contentRight + 0.5);
     backgrounds.push(box.background);
   }
   // `<ThemeProvider>` follows `prefers-color-scheme`. A page that stayed light

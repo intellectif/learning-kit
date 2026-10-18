@@ -82,7 +82,7 @@ inside a right-to-left page. See [Internationalisation](./i18n.md).
 | `.lk-pf-audio` | The take the per-word play buttons drive. No controls, never played whole; the skin hides it, which does not stop it playing |
 | `.lk-visually-hidden` | Present for assistive technology, invisible on screen (the dictation's and the read-aloud's per-word sentences). The component hides it with an inline style, so it stays hidden without the skin; the class is there to select it. A Content Security Policy that refuses inline styles can stop that style applying; there, load the skin or give this class a visually-hidden rule of your own |
 | `.lk-media`, `.lk-media-el`, `.lk-media-embed` | Activity media (image/audio/video / iframe wrapper) |
-| `.lk-wr`, `.lk-wr-prompt`, `.lk-wr-textarea`, `.lk-wr-counter`, `.lk-wr-submit` | Written Response container / prompt / input / word counter / submit |
+| `.lk-wr`, `.lk-wr-prompt`, `.lk-wr-textarea`, `.lk-wr-counter`, `.lk-wr-submit` | Written Response card / prompt / input / word counter / submit |
 | `.lk-wr-outcome`, `.lk-wr-grade`, `.lk-wr-grade-feedback`, `.lk-wr-review-flag` | Submitted-but-ungraded notice, and the returned grade block |
 | `.lk-wr-criteria`, `.lk-wr-criterion`, `.lk-wr-criterion-name`, `.lk-wr-criterion-score`, `.lk-wr-criterion-comment` | Per-criterion rubric breakdown in `review` mode |
 | `.lk-wr-corrections`, `.lk-wr-correction`, `.lk-wr-correction-original`, `.lk-wr-correction-corrected`, `.lk-wr-correction-explanation` | Inline corrections anchored in the learner's text |
