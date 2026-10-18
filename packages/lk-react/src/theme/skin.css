@@ -76,11 +76,20 @@
   }
 
   /* ── Activity sequence (question-set pager) ──────────────────────────── */
+  /* "Question 3 of 5" is in the theme's muted colour, so it sits on the
+     theme's surface, as the nav buttons do: the pager paints no card, and on
+     the host page itself the line measured 2.5:1 wherever the page and the
+     theme disagreed. */
   .lk-seq-progress {
+    width: fit-content;
     margin-bottom: var(--lk-spacing-sm);
+    padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
     font-size: var(--lk-font-size-sm);
     font-weight: var(--lk-font-weight-bold);
     color: var(--lk-color-text-muted);
+    background: var(--lk-color-surface);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
   }
 
   .lk-seq-question:focus {
@@ -571,10 +580,22 @@
   }
 
   /* ── Written Response ────────────────────────────────────────────────── */
+  /* A card, like every other activity. Its prompt, counter and status are in
+     the theme's colours, so they sit on the theme's surface: without a card
+     they were drawn on the host page, and wherever the page and the theme
+     disagreed the prompt measured 1.04:1. */
   .lk-wr {
     display: flex;
     flex-direction: column;
     gap: var(--lk-spacing-md);
+    font-family: var(--lk-font-family-base);
+    font-size: var(--lk-font-size-base);
+    line-height: var(--lk-line-height-base);
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    padding: var(--lk-spacing-lg);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-lg);
   }
 
   .lk-wr-prompt {
@@ -2748,7 +2769,7 @@
   }
 
   /* One box, not a box in a box: the panel is the question's card. */
-  .lk-iv-question :is(.lk-mc, .lk-fib, .lk-dc, .lk-ra) {
+  .lk-iv-question :is(.lk-mc, .lk-fib, .lk-dc, .lk-ra, .lk-wr) {
     padding: 0;
     border: 0;
     border-radius: 0;

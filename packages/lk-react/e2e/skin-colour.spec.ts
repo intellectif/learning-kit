@@ -144,3 +144,104 @@ test('every surface the skin paints sets the text on it, inside a component with
   );
   expect(await inPageColour(page)).toEqual([]);
 });
+
+/**
+ * The other way round: text in the skin's colours sits on a surface the SDK
+ * paints, never on the host's own page. A written response had no card, and
+ * the question set's progress line sits outside the questions' cards, so
+ * their text was drawn straight on the page: where the page and the theme
+ * disagreed, the theme's text vanished into it. The prompt measured 1.04:1 on
+ * a light page under the dark theme, and the word counter, the status line and
+ * "Question 3 of 5" about 2.5:1.
+ *
+ * Each text in a colour other than the page's, inside the SDK's markup, must
+ * have a background painted by the SDK behind it: an element of the SDK's own
+ * markup, or inside it, before the page's.
+ */
+function onThePage(page: Page): Promise<string[]> {
+  return page.evaluate((pageColour) => {
+    const sdk = (element: Element | null): boolean => {
+      for (let e = element; e !== null; e = e.parentElement) {
+        if ([...e.classList].some((c) => c.startsWith('lk-'))) return true;
+      }
+      return false;
+    };
+    const name = (element: Element): string => {
+      const classes = [...element.classList].filter((c) => c.startsWith('lk-'));
+      return [element.tagName.toLowerCase(), ...classes].join('.');
+    };
+    const found: string[] = [];
+    for (const element of document.querySelectorAll('body *')) {
+      if (element.closest('svg, video, select, script, style, [aria-hidden="true"]')) continue;
+      const text = [...element.childNodes].some(
+        (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim(),
+      );
+      if (!text || !sdk(element)) continue;
+      const style = getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      if (style.visibility !== 'visible' || box.width <= 1 || box.height <= 1) continue;
+      if (style.color === pageColour) continue;
+      let painter: Element | null = element;
+      while (
+        painter !== null &&
+        painter !== document.body &&
+        getComputedStyle(painter).backgroundColor === 'rgba(0, 0, 0, 0)'
+      ) {
+        painter = painter.parentElement;
+      }
+      if (painter === null || painter === document.body || !sdk(painter)) {
+        found.push(name(element));
+      }
+    }
+    return found;
+  }, PAGE_COLOUR);
+}
+
+test("on the example page, no text in the skin's colours is drawn on the page itself", async ({
+  page,
+}) => {
+  await page.goto('/');
+  await expect(page.getByRole('radio', { name: 'Tokyo' })).toBeVisible();
+  await page.addStyleTag({ content: PAGE_STYLE });
+
+  const writing = page.getByLabel('Feedback on writing', { exact: true });
+  await writing.getByRole('textbox').fill('Last weekend I went to the market and bought bread.');
+  await writing.getByRole('button', { name: 'Submit' }).click();
+  await expect(writing.getByText(/Response submitted/)).toBeVisible();
+
+  const set = page.locator('section[aria-labelledby="set-heading"]');
+  await set.getByRole('button', { name: 'Next' }).click();
+  await set.getByRole('button', { name: 'Next' }).click();
+  await expect(set.getByText('Question 3 of 5')).toBeVisible();
+
+  expect(await onThePage(page)).toEqual([]);
+});
+
+/**
+ * A written response and the question set's progress, as the components
+ * render them, on their own and inside a video's quiz panel, where the panel
+ * is the question's card.
+ */
+const ON_THE_PAGE = `
+  <form class="lk-wr">
+    <p class="lk-wr-prompt">Describe your weekend.</p>
+    <textarea class="lk-wr-textarea">Last weekend I went to the market.</textarea>
+    <div class="lk-wr-counter">7 words (5–80 words)</div>
+    <div aria-live="polite">Response submitted.</div>
+  </form>
+  <div class="lk-seq">
+    <div class="lk-seq-progress" role="status">Question 3 of 5</div>
+  </div>
+  <div class="lk-iv"><div class="lk-iv-quiz"><div class="lk-iv-question">
+    <form class="lk-wr"><p class="lk-wr-prompt">Describe the scene.</p></form>
+  </div></div></div>
+`;
+
+test('a written response and the question set draw their text on their own surface', async ({
+  page,
+}) => {
+  await page.setContent(
+    `<!doctype html><meta charset="utf-8"><style>${SHEETS}\n${PAGE_STYLE}</style>${ON_THE_PAGE}`,
+  );
+  expect(await onThePage(page)).toEqual([]);
+});
