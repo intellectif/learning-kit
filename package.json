@@ -29,16 +29,16 @@
   "type": "module",
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
-    "@biomejs/biome": "^2.5.14",
+    "@biomejs/biome": "^2.5.15",
     "@changesets/changelog-github": "^1.0.1",
     "@changesets/cli": "2.31.1",
-    "@playwright/test": "^1.63.0",
+    "@playwright/test": "^1.64.1",
     "@size-limit/preset-small-lib": "^13.1.1",
     "@vitest/coverage-v8": "^4.1.6",
     "esbuild": "^0.28.2",
-    "publint": "^0.3.24",
+    "publint": "^0.3.25",
     "size-limit": "^13.1.1",
-    "turbo": "^2.11.3",
+    "turbo": "^2.11.8",
     "typescript": "^6.0.3",
     "vitest": "^4.1.6"
   }
