@@ -1,6 +1,10 @@
 'use client';
 
-import type { ResolvedDeliveryPolicy, ResolvedItemScoringPolicy } from '@intellectif/lk-core';
+import type {
+  AiGroupInput,
+  ResolvedDeliveryPolicy,
+  ResolvedItemScoringPolicy,
+} from '@intellectif/lk-core';
 import { createContext } from 'react';
 import type { RenderMode } from '../types.js';
 
@@ -65,6 +69,13 @@ export interface SequenceSlotChannel {
    * `undefined` when the paper has none, so a question's own applies.
    */
   readonly scoring: ResolvedItemScoringPolicy | undefined;
+  /**
+   * The item group this question sits in, read live, or `undefined` for a
+   * question on its own. The AI hooks send its material with a request — the
+   * passage, or the instructions the group's questions share — as the learner
+   * sees it beside the question.
+   */
+  readonly group: AiGroupInput | undefined;
   /**
    * Whether the paper has closed every question's tries: it reported its set,
    * or its learner finished. A "Try again" after that would change a grade the

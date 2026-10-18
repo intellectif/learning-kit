@@ -8,8 +8,10 @@
  * the SDK reached; it never reaches one.
  */
 
+import type { ActivityMedia } from './activity.js';
 import type { DraftValidationResult, ItemFinding } from './authoring.js';
 import type { CriterionScore, GraderUsage, InlineCorrection } from './grading.js';
+import type { StimulusKind } from './item-group.js';
 
 /**
  * What an author allows AI to do for one item. Absent, or a feature left out,
@@ -173,6 +175,45 @@ export type AiItemFacts =
   | AiDictationFacts;
 
 /**
+ * The item group a question sits in, as a renderer holds it: an `ItemGroup`,
+ * a redacted one, a sequence slot's `group`, or a host's own object with the
+ * same two fields. Structural, and read defensively, like
+ * {@link AiActivityInput}: a group whose material cannot be read gives none.
+ */
+export interface AiGroupInput {
+  readonly title?: unknown;
+  readonly stimulus?: unknown;
+}
+
+/**
+ * What a model is told about the material of the group a question sits in:
+ * what the learner reads and sees beside the question — a passage, or the
+ * instructions a run of questions shares. Never a media address, and never
+ * the author-only transcript: the same facts whether the group is whole or
+ * redacted.
+ */
+export interface AiMaterialFacts {
+  /** What the material primarily is. */
+  kind: StimulusKind;
+  /** The material's heading, or the group's title when it has none. */
+  title?: string;
+  /**
+   * The text beside the questions, as plain text: the passage, or the
+   * instructions above a recording or image. Cut past `AI_MATERIAL_MAX_LENGTH`
+   * code points, at a word boundary where there is one.
+   */
+  text?: string;
+  /** Present when `text` was cut: the model is given only its start. */
+  truncated?: true;
+  /** The recording, video or image, without its address. An image's `alt` says what it shows. */
+  media?: { type: ActivityMedia['type']; alt?: string };
+  /** The source credit the learner sees after the material. */
+  attribution?: string;
+  /** The language of the material, when the author gave one. */
+  locale?: string;
+}
+
+/**
  * Asks for an explanation of a graded answer. Sent after the SDK has graded
  * it, so `grade` is always present, and an explanation that contradicts
  * `grade.category` is refused.
@@ -181,6 +222,8 @@ export interface AiExplanationRequest {
   feature: 'explanation';
   facts: AiItemFacts;
   grade: AiGrade;
+  /** The material of the group the question sits in; absent outside a group. */
+  material?: AiMaterialFacts;
   /** The language to answer in: the learner's interface language, when known. */
   learnerLocale?: string;
 }
@@ -197,6 +240,8 @@ export interface AiHintRequest {
   hintNumber: number;
   /** The hints already shown for this item, oldest first. */
   previousHints: string[];
+  /** The material of the group the question sits in; absent outside a group. */
+  material?: AiMaterialFacts;
   learnerLocale?: string;
 }
 
@@ -295,6 +340,11 @@ export interface AiWritingFeedbackRequest {
   draftNumber: number;
   /** The text of the feedback already shown on earlier drafts, oldest first. */
   previousFeedback: string[];
+  /**
+   * The material of the group the task sits in — the text a summary is of —
+   * absent outside a group.
+   */
+  material?: AiMaterialFacts;
   /** The language to write in: the learner's interface language, when known. */
   learnerLocale?: string;
 }

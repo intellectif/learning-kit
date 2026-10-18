@@ -1,5 +1,6 @@
 import type {
   ActivityResult,
+  AiHintRequest,
   ItemGroup,
   ItemOutcome,
   LearnerResponse,
@@ -1014,6 +1015,31 @@ describe('InteractiveVideo: AI ports', () => {
     expect(mine.every((button) => button.textContent === 'Mine: hints off')).toBe(true);
     await user.click(mine[0] as HTMLElement);
     expect(ai.hint).not.toHaveBeenCalled();
+  });
+
+  it("sends the video group's title and media with a question's hint, never its address", async () => {
+    const user = userEvent.setup();
+    const ai = fakePorts();
+    // The read-aloud is left to nobody; the multiple choice is the SDK's own.
+    await start(
+      <InteractiveVideo
+        group={group()}
+        ai={ai}
+        renderQuestion={(question) => (question.activity.type === 'read-aloud' ? null : undefined)}
+      />,
+    );
+    await openFirstQuiz();
+    await user.click(screen.getByRole('button', { name: 'Next question' }));
+    await user.click(within(quizPanel()).getByRole('button', { name: 'Get a hint' }));
+
+    await waitFor(() => expect(ai.hint).toHaveBeenCalledTimes(1));
+    const [request] = ai.hint.mock.calls[0] as unknown as [AiHintRequest];
+    expect(request.material).toEqual({
+      kind: 'video',
+      title: 'Lección',
+      media: { type: 'video', alt: 'Vídeo de la lección' },
+    });
+    expect(JSON.stringify(request)).not.toContain(VIDEO);
   });
 });
 

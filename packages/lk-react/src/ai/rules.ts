@@ -7,6 +7,7 @@
  */
 import {
   type AiActivityInput,
+  type AiGroupInput,
   type AiRefusal,
   aiAllowedByContent,
   aiSupports,
@@ -178,6 +179,18 @@ export function warnRefused(
 }
 
 /** The language to write in: the host's choice for the learner, else the interface language. */
+/**
+ * The group a request is about: the paper's own inside a pager, as the mode
+ * is, and otherwise the one the caller passed.
+ */
+export const groupOf = (
+  paper: { readonly group: AiGroupInput | undefined } | null,
+  given: AiGroupInput | undefined,
+): { group?: AiGroupInput } => {
+  const group = paper !== null ? paper.group : given;
+  return group === undefined ? {} : { group };
+};
+
 export const localeOf = (
   ai: LearnerAi | undefined,
   locale: string | undefined,

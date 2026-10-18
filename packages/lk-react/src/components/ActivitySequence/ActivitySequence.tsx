@@ -781,6 +781,8 @@ export function ActivitySequence({
   // The channel each slot pane hands its content, one per slot per set, so it
   // keeps one identity for as long as its set is on screen.
   const channelsRef = useRef<Map<string, SequenceSlotChannel>>(new Map());
+  // Each slot's group as of this render, which its channel reads live.
+  const groupsRef = useRef<Map<string, SequenceSlotGroup | undefined>>(new Map());
   // The calls each slot makes, on the same terms and for the same reason: a
   // host renderer may hold them in an effect, and a new identity each render
   // would re-run it.
@@ -1460,6 +1462,9 @@ export function ActivitySequence({
         get scoring() {
           return scoringRef.current;
         },
+        get group() {
+          return groupsRef.current.get(key);
+        },
         get triesClosed() {
           return reportedRef.current;
         },
@@ -1472,6 +1477,7 @@ export function ActivitySequence({
       };
       channelsRef.current.set(key, channel);
     }
+    groupsRef.current.set(key, slot.group);
     return channel;
   };
 

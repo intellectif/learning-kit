@@ -57,6 +57,39 @@ describe('aiCheckCases', () => {
     expect(grade('fib-partly').score).toBeLessThan(grade('fib-partly').maxScore);
   });
 
+  it("puts a grouped question's material in its request: a passage, and a part's instructions", () => {
+    const material = (id: string) =>
+      (find(id).request as AiExplanationRequest | AiHintRequest | AiWritingFeedbackRequest)
+        .material;
+    for (const id of ['mc-reading-wrong', 'mc-reading-hint', 'writing-summary']) {
+      expect(material(id)?.title).toBe('Tides');
+      expect(material(id)?.text).toContain('when the sun and the moon line up');
+    }
+    expect(material('fib-formation-hint')).toEqual({
+      kind: 'text',
+      title: 'Part 1 — Word formation',
+      text: 'Use the word in capitals at the end of each sentence to form a word that fits the gap.',
+    });
+    // Every other case is a question on its own, and carries none.
+    const grouped = [
+      'mc-reading-wrong',
+      'mc-reading-hint',
+      'fib-formation-hint',
+      'writing-summary',
+    ];
+    for (const one of cases.filter((c) => !grouped.includes(c.id))) {
+      expect(one.request).not.toHaveProperty('material');
+    }
+  });
+
+  it('refuses a hint that quotes the passage where it answers its question', async () => {
+    const report = await runAiCheck(
+      { hint: says('The text says the highest tides come when the sun and the moon line up.') },
+      { cases: [find('mc-reading-hint')] },
+    );
+    expect(report.byRefusal['reveals-answer']).toBe(1);
+  });
+
   it('numbers a hint by the hints before it', () => {
     expect((find('mc-hint-1').request as AiHintRequest).hintNumber).toBe(1);
     expect((find('mc-hint-2').request as AiHintRequest).hintNumber).toBe(2);
@@ -70,6 +103,7 @@ describe('aiCheckCases', () => {
       'writing-clean',
       'writing-revised',
       'writing-feedback-in-spanish',
+      'writing-summary',
     ]);
     const revised = find('writing-revised').request as AiWritingFeedbackRequest;
     expect(revised.draftNumber).toBe(2);
@@ -179,11 +213,14 @@ describe('runAiCheck', () => {
       return {
         text: 'A clear start.',
         corrections: [{ original: first, corrected: first.toUpperCase() }],
+        // Judges the rubric it was given, and only that one.
         criteria: [
           { name: 'Grammar', score: 3, maxScore: 4 },
           { name: 'Vocabulary', score: 1 },
           { name: 'Task', score: 1 },
-        ],
+        ].filter((judged) =>
+          request.facts.rubric?.some((criterion) => criterion.name === judged.name),
+        ),
       };
     });
 
