@@ -34,6 +34,15 @@ function assertPalette(t: ThemeTokens, label: string): void {
     contrast(t['--lk-color-text-muted'], surface),
     `${label}: text-muted/surface`,
   ).toBeGreaterThanOrEqual(4.5);
+  // A raised surface (a group's passage, a hint, a result) carries the same text.
+  const raised = t['--lk-color-surface-raised'];
+  expect(contrast(t['--lk-color-text'], raised), `${label}: text/raised`).toBeGreaterThanOrEqual(
+    4.5,
+  );
+  expect(
+    contrast(t['--lk-color-text-muted'], raised),
+    `${label}: text-muted/raised`,
+  ).toBeGreaterThanOrEqual(4.5);
   // Primary is a button background; its label uses the surface colour.
   expect(
     contrast(surface, t['--lk-color-primary']),
