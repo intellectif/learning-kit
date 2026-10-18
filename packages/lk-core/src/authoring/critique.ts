@@ -8,6 +8,7 @@ import {
   revealsAnswer,
 } from '../answer-leak.js';
 import { countWords } from '../count-words.js';
+import { type RubricLevelsProblem, readRubricLevels } from '../rubric-levels.js';
 import { policyFor } from '../scoring/activity-scorers/fill-in-the-blanks.js';
 import { matchText } from '../scoring/text-match.js';
 import type { BlankConfig } from '../types/activity.js';
@@ -416,10 +417,23 @@ export function critiqueGapSelect(draft: DraftFields): ItemFinding[] {
 
 // ── Written response ───────────────────────────────────────────────────
 
+/** Why a criterion's levels cannot be graded on, said to the author. */
+const LEVELS_PROBLEM: Record<RubricLevelsProblem, (criterion: number, level: number) => string> = {
+  'not-a-list': (criterion) => `Criterion ${criterion}'s levels are not a list`,
+  'too-few': (criterion) => `Criterion ${criterion} has fewer than 2 levels`,
+  'too-many': (criterion) => `Criterion ${criterion} has more than 10 levels`,
+  'not-a-level': (criterion, level) => `Level ${level} of criterion ${criterion} is not a level`,
+  'no-label': (criterion, level) => `Level ${level} of criterion ${criterion} has no label`,
+  'bad-description': (criterion, level) =>
+    `Level ${level} of criterion ${criterion} has a description that is not text`,
+  'duplicate-label': (criterion, level) =>
+    `Level ${level} of criterion ${criterion} has the label of an earlier level`,
+};
+
 export function critiqueWrittenResponse(draft: DraftFields): ItemFinding[] {
   const rubric = isRecord(draft.rubric) ? draft.rubric : undefined;
   const criteria = rubric === undefined ? [] : listOf(rubric.criteria);
-  return duplicates(criteria, (criterion) =>
+  const names = duplicates(criteria, (criterion) =>
     isRecord(criterion) ? written(criterion.name) : undefined,
   ).map(({ first, second }) =>
     finding(
@@ -428,6 +442,26 @@ export function critiqueWrittenResponse(draft: DraftFields): ItemFinding[] {
       `Criteria ${ordinal(first)} and ${ordinal(second)} have the same name. Feedback and grades name a criterion, so one of them cannot be told apart.`,
     ),
   );
+  // `validateActivity` does not check `levels` in 1.x, so this is where an
+  // author learns that the grading functions cannot use them.
+  const levels = criteria.flatMap((criterion, index) => {
+    if (!isRecord(criterion)) {
+      return [];
+    }
+    const read = readRubricLevels(criterion.levels);
+    if (read.ok) {
+      return [];
+    }
+    const level = ordinal(read.index ?? 0);
+    return [
+      finding(
+        'wr_levels_unreadable',
+        ['rubric', 'criteria', index, 'levels'],
+        `${LEVELS_PROBLEM[read.problem](ordinal(index), level)}, so a grader cannot judge against them.`,
+      ),
+    ];
+  });
+  return [...names, ...levels];
 }
 
 // ── Read aloud ─────────────────────────────────────────────────────────

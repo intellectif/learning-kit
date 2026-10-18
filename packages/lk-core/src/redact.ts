@@ -1,6 +1,7 @@
 import { ActivitySchemaError, UnknownActivityTypeError } from './errors.js';
 import { MEDIA_FIELD_POLICY } from './registry/builtins.js';
 import { getActivityTypeDescriptor } from './registry/index.js';
+import { guardOf } from './registry/keep-when.js';
 import type { FieldPolicy, Sensitivity } from './registry/registry.js';
 import { RedactedItemGroupSchema } from './schemas/item-group.js';
 import { readSchema } from './schemas/read-schema.js';
@@ -127,6 +128,12 @@ function redactValue(
       if (keepField(classification, reveal)) {
         output[key] = fieldValue;
       }
+      continue;
+    }
+    // A guarded policy drops a value its test refuses: the field is left out,
+    // as an unclassified one is. It can only remove, never add.
+    const guard = guardOf(classification);
+    if (guard !== undefined && !guard(fieldValue)) {
       continue;
     }
     const nested = redactValue(fieldValue, classification, reveal);

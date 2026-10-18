@@ -6,6 +6,7 @@ import { readAloudAuthoring } from '../authoring/read-aloud.js';
 import { writtenResponseAuthoring } from '../authoring/written-response.js';
 import type { BuiltInActivityType } from '../built-in-types.js';
 import { countWords } from '../count-words.js';
+import { readRubricLevels } from '../rubric-levels.js';
 import { DictationDataSchema } from '../schemas/dictation.js';
 import { FillInTheBlanksDataSchema } from '../schemas/fill-in-the-blanks.js';
 import { GapSelectDataSchema } from '../schemas/gap-select.js';
@@ -45,6 +46,7 @@ import type {
   WrittenResponseLearnerResponse,
 } from '../types/activity.js';
 import { defineActivityType } from './define.js';
+import { keepWhen } from './keep-when.js';
 import type { FieldPolicy } from './registry.js';
 
 /**
@@ -274,6 +276,14 @@ export const RUBRIC_FIELD_POLICY: FieldPolicy = {
     name: 'public',
     description: 'public',
     weight: 'public',
+    // Public like the rest of the rubric, and kept only when the grading
+    // functions can read them: `validateActivity` does not check `levels` in
+    // 1.x, and a malformed value reaching the strict redacted schema would make
+    // `redact()` throw on content it accepted before.
+    levels: keepWhen(
+      { label: 'public', description: 'public' },
+      (value) => readRubricLevels(value).ok,
+    ),
   },
 };
 

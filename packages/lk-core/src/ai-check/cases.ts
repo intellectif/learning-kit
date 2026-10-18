@@ -2,6 +2,7 @@ import { aiExplanationRequest, aiHintRequest } from '../ai.js';
 import { aiCoachingRequest } from '../ai-coaching.js';
 import { aiCritiqueRequest } from '../ai-critique.js';
 import { aiDraftsRequest } from '../ai-drafts.js';
+import { aiGradingRequest } from '../ai-grading.js';
 import { aiWritingFeedbackRequest } from '../ai-writing.js';
 import { gradeReadAloud } from '../scoring/speech/grade.js';
 import type {
@@ -21,6 +22,7 @@ import type {
   AiDraftsRequest,
   AiDraftType,
   AiExplanationRequest,
+  AiGradingRequest,
   AiGroupInput,
   AiHintRequest,
   AiWritingFeedbackRequest,
@@ -43,7 +45,10 @@ import type { SpeechAssessment, SpeechWord } from '../types/speech.js';
  *   twice — so a correction of words nobody wrote is caught;
  * - questions in item groups: a reading passage that prints a question's
  *   answer, which a hint must point to without quoting, and a run of blanks
- *   whose instructions only the group states.
+ *   whose instructions only the group states;
+ * - essays to grade on a rubric of three criteria, two judged on levels and
+ *   one on a score, so a grade that drops a criterion or leaves a scale is
+ *   caught.
  */
 const capital: MultipleChoiceData = {
   schemaVersion: '1.0',
@@ -196,6 +201,87 @@ const weekend: WrittenResponseData = {
   },
 };
 
+/**
+ * The weekend task set as an exam question: graded on three criteria, two on
+ * levels and one on a score. Three, so a prompt that names only the ones it
+ * expects drops one; two scales, so a grade must keep to each.
+ */
+const weekendExam: WrittenResponseData = {
+  schemaVersion: '1.0',
+  type: 'written-response',
+  id: 'ai-check-writing-exam',
+  title: 'Your weekend',
+  prompt: 'Write a few sentences about what you did last weekend.',
+  minWords: 15,
+  maxWords: 120,
+  languageTarget: 'en-A2',
+  rubric: {
+    criteria: [
+      {
+        name: 'Task',
+        description: 'Says what the learner did last weekend, in order',
+        weight: 1,
+        levels: [
+          { label: 'Not met', description: 'Not about last weekend' },
+          { label: 'Partly met', description: 'About the weekend, but thin or out of order' },
+          { label: 'Met', description: 'Says what they did, in order' },
+        ],
+      },
+      {
+        name: 'Grammar',
+        description: 'Past tenses, articles, agreement',
+        weight: 2,
+        levels: [
+          { label: 'Limited', description: 'Errors in most sentences, some blocking meaning' },
+          { label: 'Basic', description: 'Frequent errors in past tenses and articles' },
+          { label: 'Good', description: 'Some errors, none that blocks meaning' },
+          {
+            label: 'Very good',
+            description: 'Past tenses, articles and agreement almost always right',
+          },
+        ],
+      },
+      { name: 'Vocabulary', description: 'Everyday words, used correctly', weight: 1 },
+    ],
+  },
+};
+
+/** The tides summary set as an exam question, graded against its group's passage. */
+const tidesSummaryExam: WrittenResponseData = {
+  schemaVersion: '1.0',
+  type: 'written-response',
+  id: 'ai-check-tides-summary-exam',
+  title: 'Summary',
+  prompt: 'Summarise the text in one or two sentences.',
+  minWords: 10,
+  maxWords: 60,
+  languageTarget: 'en-B1',
+  rubric: {
+    criteria: [
+      {
+        name: 'Content',
+        description: 'What the text says, and nothing it does not',
+        weight: 2,
+        levels: [
+          { label: 'Wrong', description: 'Misstates what the text says' },
+          { label: 'Partly right', description: 'Gets one of its points wrong, or leaves it out' },
+          { label: 'Right', description: 'States its points as the text does' },
+        ],
+      },
+      { name: 'Language', description: "Clear sentences, in the learner's own words", weight: 1 },
+    ],
+  },
+};
+
+const tidesExam: ItemGroup = {
+  schemaVersion: '1.0',
+  type: 'item-group',
+  id: 'ai-check-tides-exam',
+  title: 'Part 2 — Reading',
+  stimulus: { id: 'ai-check-tides-exam-text', kind: 'text', title: 'Tides', body: TIDES },
+  items: [springTides, tidesSummaryExam],
+};
+
 const weather: ReadAloudData = {
   schemaVersion: '1.0',
   type: 'read-aloud',
@@ -283,7 +369,8 @@ export interface AiCheckCase {
     | 'writing-feedback'
     | 'pronunciation-coaching'
     | 'item-critique'
-    | 'draft-generation';
+    | 'draft-generation'
+    | 'grading';
   /** What the learner did, in a few words, for a report a person reads. */
   about: string;
   /** The request, built by the SDK exactly as a component builds it. */
@@ -293,7 +380,8 @@ export interface AiCheckCase {
     | AiWritingFeedbackRequest
     | AiCoachingRequest
     | AiCritiqueRequest
-    | AiDraftsRequest;
+    | AiDraftsRequest
+    | AiGradingRequest;
 }
 
 const chose = (ids: string[]): LearnerResponse => ({
@@ -461,6 +549,24 @@ function writingCase(
   return { id, feature: 'writing-feedback', about, request };
 }
 
+function gradingCase(
+  id: string,
+  about: string,
+  text: string,
+  extra: { data?: WrittenResponseData; group?: AiGroupInput; learnerLocale?: string } = {},
+): AiCheckCase {
+  const built = aiGradingRequest({
+    data: extra.data ?? weekendExam,
+    response: drafted(text),
+    ...(extra.group ? { group: extra.group } : {}),
+    ...(extra.learnerLocale !== undefined ? { learnerLocale: extra.learnerLocale } : {}),
+  });
+  if (!built.ok) {
+    throw new Error(`ai-check: no grading request for "${id}": ${built.problem}`);
+  }
+  return { id, feature: 'grading', about, request: built.request };
+}
+
 function coachingCase(
   id: string,
   about: string,
@@ -495,8 +601,9 @@ function coachingCase(
 /**
  * The cases {@link runAiCheck} runs: every type the SDK explains, answered
  * right, wrong and — where a type can be — partly right; every type it hints
- * for, before an answer and after a wrong one; and drafts of an essay, with
- * mistakes, without, and revised.
+ * for, before an answer and after a wrong one; drafts of an essay, with
+ * mistakes, without, and revised; and essays to grade, on the task, with
+ * mistakes to quote, off the task, and against a passage.
  *
  * They are ordinary calls. What makes them a test is that the SDK knows the
  * answer to each, so it can check what your model writes about it.
@@ -718,6 +825,33 @@ export function aiCheckCases(): AiCheckCase[] {
         instructions: 'Focus on what Maria and her grandmother buy.',
         settings: { 'read-aloud': READ_ALOUD_SETTINGS },
       },
+    ),
+    gradingCase(
+      'grading-on-task',
+      'An essay that does the task, with one slip in its tenses',
+      'Last weekend I went to the market with my sister and we bought some apples. In the afternoon we watched a film at home, and on Sunday I visit my grandmother.',
+    ),
+    gradingCase(
+      'grading-mistakes',
+      'An essay with tense, article and agreement mistakes, each to quote as written',
+      "Last weekend I go to the market and buyed a apple. My friends was there too, so we don't go home early. Then I go to the cinema.",
+    ),
+    gradingCase(
+      'grading-off-task',
+      'An essay about something other than last weekend',
+      'My favourite food is pizza. I like it with cheese and tomato, and I eat it every Friday with my family at a small restaurant near our house.',
+    ),
+    gradingCase(
+      'grading-summary',
+      "A summary graded against its group's passage, getting the spring tides wrong",
+      'The tide comes in twice a day because the moon pulls the ocean. The highest tides come only at full moon.',
+      { data: tidesSummaryExam, group: tidesExam },
+    ),
+    gradingCase(
+      'grading-in-spanish',
+      'The essay with mistakes, with comments asked for in Spanish',
+      "Last weekend I go to the market and buyed a apple. My friends was there too, so we don't go home early. Then I go to the cinema.",
+      { learnerLocale: 'es' },
     ),
   ];
 }

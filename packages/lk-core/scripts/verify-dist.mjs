@@ -577,6 +577,15 @@ if (typeof aiCheck.runAiCheck === 'function') {
     }),
     // Drafts nothing: an empty reply is a reply the SDK reads.
     drafts: () => ({ drafts: [] }),
+    // Judges every criterion on its own scale, as a careful prompt does.
+    grading: (request) => ({
+      criteria: request.facts.rubric.map((criterion) =>
+        criterion.levels === null
+          ? { name: criterion.name, score: 1 }
+          : { name: criterion.name, level: criterion.levels[0].label },
+      ),
+      feedback: null,
+    }),
   });
   if (good.shown !== cases.length || good.refused !== 0 || good.errors !== 0) {
     failures.push(
@@ -596,6 +605,20 @@ if (typeof aiCheck.runAiCheck === 'function') {
     failures.push(
       'dist/ai-check.js did not refuse a hint that gives the answer away: ' +
         `${leaking.shown} shown, ${caught} of ${leaking.total} caught`,
+    );
+  }
+  // A grade that leaves its criteria out grades a different task: every
+  // grading case must refuse one.
+  const gradingCases = cases.filter((one) => one.feature === 'grading');
+  const dropping = await aiCheck.runAiCheck(
+    { grading: () => ({ criteria: [], feedback: null }) },
+    { cases: gradingCases },
+  );
+  const dropped = dropping.byRefusal['misses-criteria'];
+  if (gradingCases.length === 0 || dropped !== dropping.total || dropping.shown !== 0) {
+    failures.push(
+      'dist/ai-check.js did not refuse a grade that leaves its criteria out: ' +
+        `${dropping.shown} shown, ${dropped} of ${dropping.total} caught`,
     );
   }
 }

@@ -285,6 +285,13 @@ export interface AiTextResult {
  * a word the engine did not mark, or on a sound it did not report.
  * `contradicts-item` is a critique of an item that points at a field the item
  * does not have, or quotes words that field does not contain.
+ * `misses-criteria` is a grade that leaves a rubric criterion out, renames
+ * one, judges one twice, or calls one not applicable: judging fewer criteria
+ * is judging a different task, and the total would be renormalised over the
+ * rest. `out-of-scale` is a judgement off its criterion's scale: a level the
+ * criterion does not have, a score outside 0 to 1, or level probabilities that
+ * are not a distribution over its levels, or whose likeliest level is not the
+ * one chosen.
  */
 export type AiRefusal =
   | 'malformed'
@@ -294,7 +301,9 @@ export type AiRefusal =
   | 'reveals-answer'
   | 'misquotes-answer'
   | 'contradicts-marks'
-  | 'contradicts-item';
+  | 'contradicts-item'
+  | 'misses-criteria'
+  | 'out-of-scale';
 
 // ── Feedback on writing ─────────────────────────────────────────────────
 
@@ -406,6 +415,115 @@ export interface AiWritingFeedback {
    * learner was shown.
    */
   indicativeScore: number | null;
+  provenance?: AiProvenance;
+  usage?: GraderUsage;
+}
+
+// ── Grading a written response ──────────────────────────────────────────
+
+/** One criterion of the rubric a model grades against, as the author wrote it. */
+export interface AiGradingCriterionFact {
+  name: string;
+  description?: string;
+  weight: number;
+  /**
+   * The levels to choose from, lowest first, as the author wrote them; `null`
+   * when the criterion is judged on a score from 0 to 1.
+   */
+  levels: { label: string; description?: string }[] | null;
+}
+
+/**
+ * What a model is told about a submitted written response it grades: the task
+ * as the learner saw it, the response verbatim, and the rubric with its levels.
+ */
+export interface AiGradingFacts {
+  activityType: 'written-response';
+  activityId: string;
+  title: string;
+  /** The language the item is written in, when the author gave one. */
+  locale?: string;
+  prompt: string;
+  /** The response, exactly as submitted. Every correction quotes it. */
+  text: string;
+  /** Recomputed with `countWords`, as the grader counts it. */
+  wordCount: number;
+  minWords: number;
+  maxWords: number;
+  withinWordBounds: boolean;
+  /** Every criterion of the item's rubric, in its order. */
+  rubric: AiGradingCriterionFact[];
+  /** The target language and level, when the author gave one (e.g. `"en-B1"`). */
+  languageTarget?: string;
+}
+
+/**
+ * Asks a model to grade a submitted written response. Built on the server,
+ * from the whole item: grading needs the rubric, never the learner's view.
+ */
+export interface AiGradingRequest {
+  feature: 'grading';
+  facts: AiGradingFacts;
+  /** The material of the group the task sits in; absent outside a group. */
+  material?: AiMaterialFacts;
+  /** The language to write comments and feedback in, when known. */
+  learnerLocale?: string;
+}
+
+/**
+ * Why `aiGradingRequest` built no request:
+ *
+ * - `not-written-response` — the item is another type;
+ * - `redacted` — a `redact()` projection: grading is done on the server, from
+ *   the whole item;
+ * - `no-rubric` — no rubric, or a criterion without a name and a weight: a
+ *   model has nothing to be held to;
+ * - `duplicate-criteria` — two criteria with one name once case and spacing are
+ *   ignored: a model cannot judge them apart (`path` names the later one);
+ * - `unreadable-levels` — a criterion's `levels` are there but cannot be used
+ *   (`path` names them; the item critic's `wr_levels_unreadable` says why);
+ * - `empty-response` — nothing was written, so there is nothing to judge.
+ */
+export type AiGradingRequestProblem =
+  | 'not-written-response'
+  | 'redacted'
+  | 'no-rubric'
+  | 'duplicate-criteria'
+  | 'unreadable-levels'
+  | 'empty-response';
+
+/** A model's judgement of one criterion, as `checkAiGrading` accepted it. */
+export interface AiGradedCriterion {
+  /** The criterion's name, as the author wrote it. */
+  name: string;
+  /** The level chosen, as the author labelled it, on a criterion with levels. */
+  level?: string;
+  /**
+   * From 0 to 1: the level's place on the scale, `index / (levels - 1)`, or the
+   * model's score on a criterion without levels.
+   */
+  score: number;
+  /** How likely each level is, lowest first, when the model said: a distribution. */
+  probabilities?: number[];
+  comment?: string;
+}
+
+/**
+ * A model's grade of a written response as `checkAiGrading` accepted it: every
+ * criterion of the rubric judged, on its own scale. The total is not here —
+ * `gradeFromJudgement` computes it.
+ */
+export interface AiGradingJudgement {
+  /** Every criterion of the rubric, once, in the rubric's order. */
+  criteria: AiGradedCriterion[];
+  /** Narrative feedback addressed to the learner. */
+  feedback: string | null;
+  /** Corrections, each anchored in the response, as on feedback on writing. */
+  corrections: InlineCorrection[];
+  /** How the model reached its verdict; for the record, never shown. */
+  rationale?: string;
+  /** The model asked for a person to mark this response. */
+  requiresHumanReview: boolean;
   provenance?: AiProvenance;
   usage?: GraderUsage;
 }

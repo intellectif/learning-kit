@@ -5,7 +5,7 @@ import type {
   LearnerResponse,
   WrittenResponseData,
 } from '@intellectif/lk-core';
-import { gradeFromRubric, outcomeFromGrade } from '@intellectif/lk-core';
+import { gradeFromRubric, outcomeFromGrade, outcomeFromRoutedGrade } from '@intellectif/lk-core';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
@@ -432,6 +432,33 @@ describe('WrittenResponse — ungraded outcomes stay ungraded', () => {
     expect(container.textContent).not.toMatch(/\d+%/);
     expect(container.textContent).not.toContain('Passed');
     expect(container.textContent).not.toContain('Excellent.');
+  });
+
+  it("shows a grade held for a teacher as still awaiting its grade, never the model's numbers", () => {
+    // routeGrade sent a model's grade to a person, and lk-core holds it as
+    // `deferred` / `awaiting_human_review`, the grade kept on `pendingGrade`.
+    // It is not a verdict until a person marks it: none of it may show.
+    const held = grade({
+      score: 0.92,
+      feedback: 'Excellent work.',
+      criteria: [{ name: 'Task', score: 1, band: 'Met', comment: 'All three, in order.' }],
+      corrections: [{ original: 'submitted', corrected: 'handed in' }],
+    });
+    const outcome = outcomeFromRoutedGrade(held, { to: 'person', reasons: ['no-calibration'] });
+    expect(outcome).toMatchObject({ status: 'deferred', reason: 'awaiting_human_review' });
+
+    const { container } = renderReview(outcome);
+    expect(feedbackRegion(container)).toHaveTextContent(
+      'Not graded yet. This response is waiting for its grade.',
+    );
+    expect(outcomeBlock(container)).toHaveAttribute('data-status', 'deferred');
+    expect(container.textContent).not.toMatch(/\d+%/);
+    expect(container.textContent).not.toContain('Passed');
+    for (const shown of ['Excellent work.', 'All three, in order.', 'handed in', 'Met']) {
+      expect(container.textContent).not.toContain(shown);
+    }
+    expect(criterionRows(container)).toEqual([]);
+    expect(correctionRows(container)).toEqual([]);
   });
 
   it('renders the could-not-be-graded state for an unscorable outcome', () => {

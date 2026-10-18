@@ -27,6 +27,7 @@ export const ITEM_FINDING_SEVERITY = {
   gs_answer_in_passage: 'warning',
   // written-response
   wr_criterion_name_duplicate: 'warning',
+  wr_levels_unreadable: 'warning',
   // read-aloud
   ra_text_long_for_time: 'warning',
   // a set of items: a quiz, or an item group's items

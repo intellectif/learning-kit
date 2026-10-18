@@ -22,6 +22,7 @@
  *   pronunciationCoaching: (request) => callMyModel(COACHING_PROMPT, request),
  *   critique: (request) => callMyModel(CRITIQUE_PROMPT, request),
  *   drafts: (request) => callMyModel(DRAFTS_PROMPT, request),
+ *   grading: (request) => callMyModel(GRADING_PROMPT, request),
  * });
  * console.log(formatAiCheckReport(report));
  * if (report.refused > 0 || report.errors > 0) {
@@ -34,12 +35,20 @@
  * to take most seriously — that prompt gives answers away. Next come
  * `misquotes-answer` on a writing case — that prompt corrects words the learner
  * never wrote — and `contradicts-marks` on a coaching case: that prompt coaches
- * words the engine heard as right, or sounds it never reported.
+ * words the engine heard as right, or sounds it never reported. On a grading
+ * case, `misses-criteria` and `out-of-scale` mean a grade nobody can use: one
+ * that leaves a criterion out grades a different task, and one off a
+ * criterion's scale grades on a scale the author did not write.
+ *
+ * A grading case the SDK accepts is a reply of the right shape, not a right
+ * grade: whether a model grades as your teachers do is what a calibration
+ * measures (`calibrationReport`), on your own responses.
  */
 import { checkAiExplanation, checkAiHint } from '../ai.js';
 import { checkAiCoaching } from '../ai-coaching.js';
 import { checkAiCritique } from '../ai-critique.js';
 import { checkAiDrafts } from '../ai-drafts.js';
+import { checkAiGrading } from '../ai-grading.js';
 import { checkAiWritingFeedback } from '../ai-writing.js';
 import type {
   AiCoaching,
@@ -49,6 +58,8 @@ import type {
   AiDrafts,
   AiDraftsRequest,
   AiExplanationRequest,
+  AiGradingJudgement,
+  AiGradingRequest,
   AiHintRequest,
   AiRefusal,
   AiTextResult,
@@ -75,6 +86,8 @@ export interface AiCheckPorts {
   critique?(request: AiCritiqueRequest): Promise<unknown> | unknown;
   /** Drafts items from a source, for an author to approve. */
   drafts?(request: AiDraftsRequest): Promise<unknown> | unknown;
+  /** Grades a submitted essay on its rubric: a server's port, which no component calls. */
+  grading?(request: AiGradingRequest): Promise<unknown> | unknown;
 }
 
 /** What happened on one case. */
@@ -104,6 +117,11 @@ export interface AiCheckResult {
    * many came back `complete` and without warnings.
    */
   drafts?: AiDrafts;
+  /**
+   * For a grading case the SDK accepted: the judgement, as checked. A reply of
+   * the right shape, not a right grade — `gradeFromJudgement` turns it into one.
+   */
+  grading?: AiGradingJudgement;
   /** How long the call took, in milliseconds. */
   ms: number;
 }
@@ -140,16 +158,25 @@ export interface AiCheckOptions {
   concurrency?: number;
 }
 
-const REFUSALS: AiRefusal[] = [
-  'malformed',
-  'empty',
-  'too-long',
-  'contradicts-grade',
-  'reveals-answer',
-  'misquotes-answer',
-  'contradicts-marks',
-  'contradicts-item',
-];
+/**
+ * Every refusal, in the order a report lists them. A map rather than a list, so
+ * a refusal added to `AiRefusal` and not here fails to compile instead of going
+ * uncounted.
+ */
+const REFUSAL_ORDER = {
+  malformed: true,
+  empty: true,
+  'too-long': true,
+  'contradicts-grade': true,
+  'reveals-answer': true,
+  'misquotes-answer': true,
+  'contradicts-marks': true,
+  'contradicts-item': true,
+  'misses-criteria': true,
+  'out-of-scale': true,
+} as const satisfies Record<AiRefusal, true>;
+
+const REFUSALS = Object.keys(REFUSAL_ORDER) as AiRefusal[];
 
 /** The port a case is for. */
 function portFor(
@@ -167,6 +194,8 @@ function portFor(
       return ports.critique as never;
     case 'draft-generation':
       return ports.drafts as never;
+    case 'grading':
+      return ports.grading as never;
     default:
       return ports.writingFeedback as never;
   }
@@ -194,6 +223,12 @@ async function runCase(ports: AiCheckPorts, one: AiCheckCase): Promise<AiCheckRe
     };
   }
   const ms = now() - started;
+  if (one.request.feature === 'grading') {
+    const checked = checkAiGrading(raw, one.request);
+    return checked.ok
+      ? { case: one, ok: true, grading: checked.judgement, ms }
+      : refused(one, raw, checked.refusal, ms);
+  }
   if (one.request.feature === 'draft-generation') {
     let next = 0;
     const checked = checkAiDrafts(raw, one.request, {

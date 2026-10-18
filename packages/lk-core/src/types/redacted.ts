@@ -116,7 +116,12 @@ export interface RedactedWrittenResponseData extends RedactedItem {
   maxWords: number;
   rubric?:
     | {
-        criteria: { name: string; weight: number; description?: string | undefined }[];
+        criteria: {
+          name: string;
+          weight: number;
+          description?: string | undefined;
+          levels?: { label: string; description?: string | undefined }[] | undefined;
+        }[];
         label?: string | undefined;
       }
     | undefined;

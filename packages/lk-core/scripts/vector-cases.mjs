@@ -691,6 +691,196 @@ const STEREO_TWO_WINDOWS = [...quiet(200), ...tone(60).flatMap((sample) => [samp
 
 // -- Cases -------------------------------------------------------------------
 
+// -- Assisted grading ----------------------------------------------------------
+
+/** Two criteria: one judged on three levels, one on a score from 0 to 1. */
+const EXAM_LEVELS = ['Not met', 'Partly met', 'Met'];
+const EXAM_RUBRIC = {
+  criteria: [
+    { name: 'Task', weight: 2, levels: EXAM_LEVELS.map((label) => ({ label })) },
+    { name: 'Grammar', weight: 1 },
+  ],
+};
+/**
+ * `contentHash(EXAM_RUBRIC)`, written out. A calibration report records the
+ * rubric's hash, so a hash that moved would stop every stored report matching
+ * its grades: the vectors that route on a report pin it.
+ */
+const EXAM_RUBRIC_HASH = '42daa309d822beef';
+
+const wrExam = (over = {}) =>
+  wr({
+    minWords: 1,
+    maxWords: 80,
+    passThreshold: 0.7,
+    languageTarget: 'en-A2',
+    rubric: EXAM_RUBRIC,
+    ...over,
+  });
+
+/** A judgement as `checkAiGrading` accepts one: Task on a level, Grammar on a score. */
+const examJudgement = (task, grammar, over = {}) => ({
+  criteria: [
+    { name: 'Task', level: EXAM_LEVELS[task], score: task / 2 },
+    { name: 'Grammar', score: grammar },
+  ],
+  feedback: null,
+  corrections: [],
+  requiresHumanReview: false,
+  provenance: { model: 'grader-1', promptHash: 'p1' },
+  ...over,
+});
+
+/** A grade of the exam rubric, as `gradeFromJudgement` makes one, by the model or by a person. */
+const examGrade = (by, task, grammar, over = {}) => {
+  const score = (2 * (task / 2) + grammar) / 3;
+  return {
+    score,
+    maxScore: 1,
+    passed: score >= 0.7,
+    feedback: null,
+    criteria: [
+      { name: 'Task', band: EXAM_LEVELS[task], score: task / 2, weight: 2 },
+      { name: 'Grammar', score: grammar, weight: 1 },
+    ],
+    grader:
+      by === 'ai'
+        ? { kind: 'ai', model: 'grader-1', promptHash: 'p1' }
+        : { kind: 'human', id: 'teacher-1' },
+    ...over,
+  };
+};
+
+/** Five responses marked by the model and by a person. Task's kappa is 9/14, worked by hand. */
+const CAL_PERSON_TASK = [0, 1, 2, 2, 1];
+const CAL_MODEL_TASK = [0, 2, 2, 1, 1];
+const CAL_PERSON_GRAMMAR = [0.2, 0.4, 0.6, 0.8, 1];
+const CAL_MODEL_GRAMMAR = [0.3, 0.5, 0.7, 0.9, 1];
+const CAL_SECOND_TASK = [0, 1, 2, 2, 2];
+const calibrationPairs = (extra = () => ({})) =>
+  CAL_PERSON_TASK.map((level, i) => ({
+    model: examGrade('ai', CAL_MODEL_TASK[i], CAL_MODEL_GRAMMAR[i]),
+    person: examGrade('human', level, CAL_PERSON_GRAMMAR[i]),
+    ...extra(i),
+  }));
+
+/** A calibration report of the exam rubric's configuration, as a host would have stored one. */
+const examReport = (over = {}) => ({
+  configuration: {
+    model: 'grader-1',
+    promptHash: 'p1',
+    rubricHash: EXAM_RUBRIC_HASH,
+    languageTarget: 'en-A2',
+  },
+  pairs: 120,
+  criteria: [
+    {
+      name: 'Task',
+      scale: 'levels',
+      levels: 3,
+      pairs: 120,
+      exactAgreement: 0.72,
+      adjacentAgreement: 0.98,
+      quadraticKappa: 0.78,
+      confusion: [
+        [30, 5, 0],
+        [6, 30, 4],
+        [0, 9, 36],
+      ],
+      pearson: 0.79,
+      meanAbsoluteError: 0.14,
+      standardizedMeanDifference: 0.05,
+      probabilityPairs: 120,
+      calibrationError: 0.06,
+      brierScore: 0.31,
+      humanPairs: 40,
+      humanQuadraticKappa: 0.84,
+      humanPearson: 0.85,
+      degradation: 0.06,
+    },
+    {
+      name: 'Grammar',
+      scale: 'score',
+      pairs: 120,
+      pearson: 0.81,
+      meanAbsoluteError: 0.09,
+      standardizedMeanDifference: -0.04,
+      humanPairs: 40,
+      humanPearson: 0.86,
+      degradation: 0.05,
+    },
+  ],
+  total: {
+    pairs: 120,
+    pearson: 0.83,
+    meanAbsoluteError: 0.08,
+    standardizedMeanDifference: 0.02,
+    passAgreement: 0.91,
+    humanPairs: 40,
+    humanPearson: 0.88,
+    degradation: 0.05,
+  },
+  reportHash: 'report-1',
+  ...over,
+});
+
+const routedTo = (to, reasons) => ({ to, reasons });
+
+/** The calibration pairs with the first model grade's judgement of Grammar replaced, or left out with `null`. */
+const withModelGrammar = (judged) =>
+  calibrationPairs((i) =>
+    i === 0
+      ? {
+          model: examGrade('ai', CAL_MODEL_TASK[0], CAL_MODEL_GRAMMAR[0], {
+            criteria: [
+              { name: 'Task', band: EXAM_LEVELS[CAL_MODEL_TASK[0]], score: 0, weight: 2 },
+              ...(judged === null ? [] : [judged]),
+            ],
+          }),
+        }
+      : {},
+  );
+
+/** A model grade of the exam rubric whose Task carries `levelProbabilities`. */
+const examGradeWithOdds = (task, grammar, odds) =>
+  examGrade('ai', task, grammar, {
+    criteria: [
+      {
+        name: 'Task',
+        band: EXAM_LEVELS[task],
+        score: task / 2,
+        weight: 2,
+        levelProbabilities: odds,
+      },
+      { name: 'Grammar', score: grammar, weight: 1 },
+    ],
+  });
+
+/** The calibration pairs with a second person: varied, or on one level and score throughout. */
+const CAL_SECOND_GRAMMAR = [0.2, 0.4, 0.6, 0.6, 1];
+const variedModel = (i) => examGrade('ai', CAL_MODEL_TASK[i], CAL_MODEL_GRAMMAR[i]);
+const variedPerson = (i) => examGrade('human', CAL_PERSON_TASK[i], CAL_PERSON_GRAMMAR[i]);
+const variedSecond = (i) => examGrade('human', CAL_SECOND_TASK[i], CAL_SECOND_GRAMMAR[i]);
+const flatModel = () => examGrade('ai', 1, 0.5);
+const flatPerson = () => examGrade('human', 1, 0.5);
+const threeMarkers = (model, person, second) =>
+  CAL_PERSON_TASK.map((_, i) => ({ model: model(i), person: person(i), secondPerson: second(i) }));
+
+/** A grade out of 100 rather than 1, for a host that stores its grades that way. */
+const outOf100 = (grade) => ({ ...grade, score: grade.score * 100, maxScore: 100 });
+
+/** Practice routing under `policy`, for the vectors that check a policy before any grade. */
+const routeInPractice = (policy) => [
+  examGrade('ai', 2, 0.9),
+  { mode: 'practice', item: wrExam(), policy, sampleKey: 'attempt-1:essay' },
+];
+
+/** Exam routing on the stored report under `calibration` thresholds. */
+const routeOnReport = (calibration, report = examReport()) => [
+  examGrade('ai', 2, 0.9),
+  { mode: 'exam', item: wrExam(), calibration: report, policy: { calibration } },
+];
+
 export const CASES = [
   // Multiple choice -- all-or-nothing is literal.
   {
@@ -4810,4 +5000,873 @@ export const CASES = [
     fn: 'evaluateTries',
     args: [mc(), [pick('a'), pick('a', 'c')]],
   },
+
+  // Assisted grading -- a model's judgement made a grade, measured against
+  // people, and routed: to count, or to a person first.
+  {
+    id: 'gradeFromJudgement/levels-and-a-score',
+    fn: 'gradeFromJudgement',
+    args: [
+      examJudgement(2, 0.6, {
+        criteria: [
+          { name: 'Task', level: 'Met', score: 1, probabilities: [0.1, 0.2, 0.7] },
+          { name: 'Grammar', score: 0.6, comment: 'Two slips.' },
+        ],
+      }),
+      wrExam(),
+    ],
+    note: 'The weights are the rubric weights (2 and 1), joined by name: unlike gradeFromRubric, which reads only the weights on each CriterionScore.',
+  },
+  {
+    id: 'gradeFromJudgement/partly-met-fails',
+    fn: 'gradeFromJudgement',
+    args: [examJudgement(1, 0.6), wrExam()],
+  },
+  {
+    id: 'gradeFromJudgement/names-as-authored',
+    fn: 'gradeFromJudgement',
+    args: [
+      examJudgement(2, 1, {
+        criteria: [
+          { name: ' TASK ', level: 'Met', score: 1 },
+          { name: 'grammar', score: 1 },
+        ],
+      }),
+      wrExam(),
+    ],
+  },
+  {
+    id: 'gradeFromJudgement/option-pass-threshold',
+    fn: 'gradeFromJudgement',
+    args: [examJudgement(2, 0.6), wrExam(), { passThreshold: 0.9 }],
+  },
+  {
+    id: 'gradeFromJudgement/unrounded-tie-fails',
+    fn: 'gradeFromJudgement',
+    args: [examJudgement(2, 0.0988), wrExam()],
+    note: '(2 x 1 + 0.0988) / 3 = 0.6996: below 0.7 unrounded.',
+  },
+  {
+    id: 'gradeFromJudgement/rounding/tie-passes',
+    fn: 'gradeFromJudgement',
+    args: [examJudgement(2, 0.0988), wrExam(), { rounding: HALF_UP_2 }],
+    note: '0.6996 shows as 70%, and with rounding passes as shown.',
+  },
+  {
+    id: 'gradeFromJudgement/carries-the-record',
+    fn: 'gradeFromJudgement',
+    args: [
+      examJudgement(1, 0.5, {
+        feedback: 'Watch your tenses.',
+        corrections: [{ original: 'buyed', corrected: 'bought', range: { start: 10, end: 15 } }],
+        rationale: 'Thin on the task.',
+        requiresHumanReview: true,
+        provenance: { model: 'grader-1', promptHash: 'p1', generatedAt: '2026-10-18T09:00:00Z' },
+        usage: { promptTokens: 900, completionTokens: 120 },
+      }),
+      wrExam(),
+    ],
+  },
+  {
+    id: 'gradeFromJudgement/leaves-one-out',
+    fn: 'gradeFromJudgement',
+    args: [examJudgement(2, 1, { criteria: [{ name: 'Task', level: 'Met', score: 1 }] }), wrExam()],
+    ignore: ['reason'],
+  },
+  {
+    id: 'gradeFromJudgement/rubric-names-a-criterion-twice',
+    fn: 'gradeFromJudgement',
+    args: [
+      examJudgement(2, 1),
+      wrExam({ rubric: { criteria: [...EXAM_RUBRIC.criteria, { name: ' grammar ', weight: 3 }] } }),
+    ],
+    ignore: ['reason'],
+  },
+  {
+    id: 'calibrationReport/hand-computed',
+    fn: 'calibrationReport',
+    args: [calibrationPairs(), wrExam()],
+    note: 'Task: quadratic kappa 9/14 = 0.642857..., exact agreement 3/5, adjacent 1. Worked by hand in src/scoring/__tests__/assisted-grading.test.ts. The reportHash is contentHash of the rest, so it pins contentHash too.',
+  },
+  {
+    id: 'calibrationReport/level-probabilities',
+    fn: 'calibrationReport',
+    args: [
+      calibrationPairs((i) =>
+        i === 0
+          ? {
+              model: examGrade('ai', 0, 0.3, {
+                criteria: [
+                  {
+                    name: 'Task',
+                    band: 'Not met',
+                    score: 0,
+                    weight: 2,
+                    levelProbabilities: [0.7, 0.2, 0.1],
+                  },
+                  { name: 'Grammar', score: 0.3, weight: 1 },
+                ],
+              }),
+            }
+          : i === 1
+            ? {
+                model: examGrade('ai', 2, 0.5, {
+                  criteria: [
+                    {
+                      name: 'Task',
+                      band: 'Met',
+                      score: 1,
+                      weight: 2,
+                      levelProbabilities: [0.1, 0.3, 0.6],
+                    },
+                    { name: 'Grammar', score: 0.5, weight: 1 },
+                  ],
+                }),
+              }
+            : {},
+      ),
+      wrExam(),
+    ],
+    note: 'Calibration error 0.45 and Brier score 0.5 on Task, worked by hand.',
+  },
+  {
+    id: 'calibrationReport/second-person',
+    fn: 'calibrationReport',
+    args: [
+      calibrationPairs((i) => ({
+        secondPerson: examGrade('human', CAL_SECOND_TASK[i], CAL_PERSON_GRAMMAR[i]),
+      })),
+      wrExam(),
+    ],
+    note: 'Human kappa on Task is 1 - 0.25/1.55; the degradation is that minus 9/14.',
+  },
+  {
+    id: 'calibrationReport/nothing-measurable',
+    fn: 'calibrationReport',
+    args: [
+      calibrationPairs((i) => ({
+        model: examGrade('ai', CAL_MODEL_TASK[i], 0.5, {
+          criteria: [{ name: 'Task', score: 0.5, weight: 2 }],
+        }),
+      })),
+      wrExam(),
+    ],
+    note: 'No model grade judges Task on a level or Grammar at all: every metric is null, never a made-up number.',
+  },
+  {
+    id: 'calibrationReport/no-pairs',
+    fn: 'calibrationReport',
+    args: [[], wrExam()],
+    ignore: ['reason'],
+  },
+  {
+    id: 'calibrationReport/mixed-configurations',
+    fn: 'calibrationReport',
+    args: [
+      calibrationPairs((i) =>
+        i === 1
+          ? {
+              model: examGrade('ai', 2, 0.5, {
+                grader: { kind: 'ai', model: 'grader-1', promptHash: 'p2' },
+              }),
+            }
+          : {},
+      ),
+      wrExam(),
+    ],
+    ignore: ['reason'],
+  },
+  {
+    id: 'routeGrade/exam/no-calibration',
+    fn: 'routeGrade',
+    args: [examGrade('ai', 2, 0.9), { mode: 'exam', item: wrExam() }],
+  },
+  {
+    id: 'routeGrade/practice/counts',
+    fn: 'routeGrade',
+    args: [examGrade('ai', 2, 0.9), { mode: 'practice', item: wrExam() }],
+  },
+  {
+    id: 'routeGrade/exam/matching-report',
+    fn: 'routeGrade',
+    args: [examGrade('ai', 2, 0.9), { mode: 'exam', item: wrExam(), calibration: examReport() }],
+  },
+  {
+    id: 'routeGrade/exam/report-of-another-prompt',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9, { grader: { kind: 'ai', model: 'grader-1', promptHash: 'p2' } }),
+      { mode: 'exam', item: wrExam(), calibration: examReport() },
+    ],
+  },
+  {
+    id: 'routeGrade/exam/report-of-an-edited-rubric',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9),
+      {
+        mode: 'exam',
+        item: wrExam({
+          rubric: {
+            criteria: [
+              {
+                name: 'Task',
+                weight: 2,
+                levels: [
+                  { label: 'Not met' },
+                  { label: 'Partly met' },
+                  { label: 'Met', description: 'Edited.' },
+                ],
+              },
+              { name: 'Grammar', weight: 1 },
+            ],
+          },
+        }),
+        calibration: examReport(),
+      },
+    ],
+  },
+  {
+    id: 'routeGrade/exam/report-of-another-target',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9),
+      { mode: 'exam', item: wrExam({ languageTarget: 'en-B1' }), calibration: examReport() },
+    ],
+  },
+  {
+    id: 'routeGrade/exam/report-meets-policy',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9),
+      {
+        mode: 'exam',
+        item: wrExam(),
+        calibration: examReport(),
+        policy: {
+          calibration: {
+            minPairs: 100,
+            minQuadraticKappa: 0.75,
+            minExactAgreement: 0.7,
+            minPearson: 0.8,
+            maxMeanAbsoluteError: 0.15,
+            maxAbsStandardizedMeanDifference: 0.15,
+            maxDegradation: 0.1,
+            maxCalibrationError: 0.1,
+          },
+        },
+      },
+    ],
+  },
+  {
+    id: 'routeGrade/exam/report-below-policy',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9),
+      {
+        mode: 'exam',
+        item: wrExam(),
+        calibration: examReport(),
+        policy: { calibration: { minQuadraticKappa: 0.8 } },
+      },
+    ],
+  },
+  {
+    id: 'routeGrade/exam/undefined-metric-fails-its-threshold',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9),
+      {
+        mode: 'exam',
+        item: wrExam(),
+        calibration: examReport({
+          total: {
+            pairs: 120,
+            pearson: 0.83,
+            meanAbsoluteError: 0.08,
+            standardizedMeanDifference: 0.02,
+            passAgreement: 0.91,
+          },
+        }),
+        policy: { calibration: { maxDegradation: 0.1 } },
+      },
+    ],
+    note: 'The total has no second person, so no degradation: a threshold on it cannot be shown to hold, and fails.',
+  },
+  {
+    id: 'routeGrade/unsure/below-the-minimum',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9, {
+        criteria: [
+          { name: 'Task', band: 'Met', score: 1, weight: 2, levelProbabilities: [0.3, 0.3, 0.4] },
+          { name: 'Grammar', score: 0.9, weight: 1 },
+        ],
+      }),
+      { mode: 'practice', item: wrExam(), policy: { minLevelProbability: 0.5 } },
+    ],
+  },
+  {
+    id: 'routeGrade/unsure/at-the-minimum-is-sure',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9, {
+        criteria: [
+          { name: 'Task', band: 'Met', score: 1, weight: 2, levelProbabilities: [0.25, 0.25, 0.5] },
+          { name: 'Grammar', score: 0.9, weight: 1 },
+        ],
+      }),
+      { mode: 'practice', item: wrExam(), policy: { minLevelProbability: 0.5 } },
+    ],
+  },
+  {
+    id: 'routeGrade/unsure/no-probabilities',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9),
+      { mode: 'practice', item: wrExam(), policy: { minLevelProbability: 0.5 } },
+    ],
+    note: 'A grade that shows no probability for a criterion on levels cannot be shown to be sure enough.',
+  },
+  {
+    id: 'routeGrade/model-asked',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9, { requiresHumanReview: true }),
+      { mode: 'practice', item: wrExam() },
+    ],
+  },
+  {
+    id: 'routeGrade/low-confidence/routed-when-asked',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9, { confidence: 'low' }),
+      { mode: 'practice', item: wrExam(), policy: { routeLowConfidence: true } },
+    ],
+  },
+  {
+    id: 'routeGrade/low-confidence/not-routed-unless-asked',
+    fn: 'routeGrade',
+    args: [examGrade('ai', 2, 0.9, { confidence: 'low' }), { mode: 'practice', item: wrExam() }],
+  },
+  {
+    id: 'routeGrade/audit/in-the-sample',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9),
+      {
+        mode: 'practice',
+        item: wrExam(),
+        policy: { audit: { rate: 0.25, seed: 'term-1' } },
+        sampleKey: 'attempt-11:essay',
+      },
+    ],
+  },
+  {
+    id: 'routeGrade/audit/out-of-the-sample',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9),
+      {
+        mode: 'practice',
+        item: wrExam(),
+        policy: { audit: { rate: 0.25, seed: 'term-1' } },
+        sampleKey: 'attempt-1:essay',
+      },
+    ],
+  },
+  {
+    id: 'routeGrade/every-reason-in-order',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9, {
+        criteria: [
+          { name: 'Task', band: 'Met', score: 1, weight: 2, levelProbabilities: [0.3, 0.3, 0.4] },
+          { name: 'Grammar', score: 0.9, weight: 1 },
+        ],
+        requiresHumanReview: true,
+        confidence: 'low',
+      }),
+      {
+        mode: 'exam',
+        item: wrExam(),
+        calibration: examReport(),
+        policy: {
+          calibration: { minQuadraticKappa: 0.8 },
+          minLevelProbability: 0.5,
+          routeLowConfidence: true,
+          audit: { rate: 0.25, seed: 'term-1' },
+        },
+        sampleKey: 'attempt-11:essay',
+      },
+    ],
+  },
+  {
+    id: 'routeGrade/policy-out-of-range-throws',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9),
+      { mode: 'practice', item: wrExam(), policy: { minLevelProbability: 1.5 } },
+    ],
+  },
+  {
+    id: 'routeGrade/unknown-mode-throws',
+    fn: 'routeGrade',
+    args: [examGrade('ai', 2, 0.9), { mode: 'Exam', item: wrExam() }],
+  },
+  {
+    id: 'routeGrade/audit-without-a-key-throws',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9),
+      { mode: 'practice', item: wrExam(), policy: { audit: { rate: 0.25, seed: 'term-1' } } },
+    ],
+  },
+  ...Array.from({ length: 12 }, (_, i) => ({
+    id: `inAuditSample/term-1/attempt-${i + 1}`,
+    fn: 'inAuditSample',
+    args: [`attempt-${i + 1}:essay`, 0.25, 'term-1'],
+  })),
+  {
+    id: 'inAuditSample/same-attempt-other-slot',
+    fn: 'inAuditSample',
+    args: ['attempt-11:summary', 0.25, 'term-1'],
+  },
+  {
+    id: 'inAuditSample/new-seed',
+    fn: 'inAuditSample',
+    args: ['attempt-11:essay', 0.25, 'term-2'],
+  },
+  { id: 'inAuditSample/rate-0', fn: 'inAuditSample', args: ['attempt-11:essay', 0, 'term-1'] },
+  { id: 'inAuditSample/rate-1', fn: 'inAuditSample', args: ['attempt-1:essay', 1, 'term-1'] },
+  {
+    id: 'outcomeFromRoutedGrade/to-the-model',
+    fn: 'outcomeFromRoutedGrade',
+    args: [examGrade('ai', 2, 0.9), routedTo('model', [])],
+  },
+  {
+    id: 'outcomeFromRoutedGrade/to-a-person',
+    fn: 'outcomeFromRoutedGrade',
+    args: [examGrade('ai', 2, 0.9), routedTo('person', ['no-calibration'])],
+  },
+  {
+    id: 'outcomeFromRoutedGrade/to-the-model-out-of-range',
+    fn: 'outcomeFromRoutedGrade',
+    args: [examGrade('ai', 2, 0.9, { score: 85 }), routedTo('model', [])],
+  },
+  {
+    id: 'composeAssessmentScore/awaiting-human-review-is-pending',
+    fn: 'composeAssessmentScore',
+    args: [
+      [
+        section('writing', 1, [
+          item('quiz', 1, scoredOutcome(1)),
+          item('essay', 1, {
+            status: 'deferred',
+            reason: 'awaiting_human_review',
+            maxScore: 1,
+            pendingGrade: examGrade('ai', 2, 0.9),
+          }),
+        ]),
+      ],
+      policy(),
+    ],
+    note: 'A grade held for a person keeps the attempt provisional: its passed is never read as a verdict.',
+  },
+  {
+    id: 'gradeFromJudgement/names-a-criterion-the-rubric-lacks',
+    fn: 'gradeFromJudgement',
+    args: [
+      examJudgement(2, 1, {
+        criteria: [
+          { name: 'Task', level: 'Met', score: 1 },
+          { name: 'Grammar', score: 1 },
+          { name: 'Style', score: 1 },
+        ],
+      }),
+      wrExam(),
+    ],
+    ignore: ['reason'],
+  },
+  {
+    id: 'gradeFromJudgement/judges-a-criterion-twice',
+    fn: 'gradeFromJudgement',
+    args: [
+      examJudgement(2, 1, {
+        criteria: [
+          { name: 'Task', level: 'Met', score: 1 },
+          { name: 'task', level: 'Not met', score: 0 },
+          { name: 'Grammar', score: 1 },
+        ],
+      }),
+      wrExam(),
+    ],
+    ignore: ['reason'],
+  },
+  ...[
+    ['no-score', { name: 'Grammar', band: 'Good', weight: 1 }],
+    ['not-a-number', { name: 'Grammar', score: Number.NaN, weight: 1 }],
+    ['out-of-zero', { name: 'Grammar', score: 0, maxScore: 0, weight: 1 }],
+    ['negative-maximum', { name: 'Grammar', score: -0.5, maxScore: -1, weight: 1 }],
+    [
+      'infinite-maximum',
+      { name: 'Grammar', score: 0, maxScore: Number.POSITIVE_INFINITY, weight: 1 },
+    ],
+    ['out-of-ten', { name: 'Grammar', score: 3, maxScore: 10, weight: 1 }],
+    ['above-one', { name: 'Grammar', score: 1.5, weight: 1 }],
+    ['below-zero', { name: 'Grammar', score: -0.1, weight: 1 }],
+    ['at-the-upper-noise-limit', { name: 'Grammar', score: 1 + 1e-9, weight: 1 }],
+    ['at-the-lower-noise-limit', { name: 'Grammar', score: -1e-9, weight: 1 }],
+    ['not-applicable', { name: 'Grammar', score: 0.3, weight: 1, notApplicable: true }],
+    ['not-judged', null],
+  ].map(([name, judged]) => ({
+    id: `calibrationReport/score/${name}`,
+    fn: 'calibrationReport',
+    args: [withModelGrammar(judged), wrExam()],
+  })),
+  {
+    id: 'calibrationReport/level-probabilities/shared-bins',
+    fn: 'calibrationReport',
+    args: [
+      calibrationPairs((i) => ({
+        model: examGradeWithOdds(
+          CAL_MODEL_TASK[i],
+          CAL_MODEL_GRAMMAR[i],
+          [
+            [0.7, 0.2, 0.1],
+            [0.1, 0.15, 0.75],
+            [0.05, 0.05, 0.9],
+            [0.2, 0.6, 0.2],
+            [0.1, 0.8, 0.1],
+          ][i],
+        ),
+      })),
+      wrExam(),
+    ],
+    note: 'Calibration error 0.27 (two grades share bin 7) and Brier score 0.51, worked by hand in the unit tests.',
+  },
+  {
+    id: 'calibrationReport/two-pairs',
+    fn: 'calibrationReport',
+    args: [calibrationPairs().slice(0, 2), wrExam()],
+    note: 'Two pairs are the fewest a correlation is defined on.',
+  },
+  {
+    id: 'calibrationReport/no-variance',
+    fn: 'calibrationReport',
+    args: [CAL_PERSON_TASK.map(() => ({ model: flatModel(), person: flatPerson() })), wrExam()],
+    note: 'Every grade the same: no kappa, no correlation and no standardised difference can be computed, so each is null.',
+  },
+  {
+    id: 'calibrationReport/one-side-flat',
+    fn: 'calibrationReport',
+    args: [
+      CAL_PERSON_TASK.map((_, i) => ({ model: variedModel(i), person: flatPerson() })),
+      wrExam(),
+    ],
+  },
+  {
+    id: 'calibrationReport/two-levels',
+    fn: 'calibrationReport',
+    args: [
+      CAL_PERSON_TASK.map((_, i) => ({
+        model: examGrade('ai', 0, 0.5, {
+          criteria: [
+            { name: 'Pass', band: ['No', 'Yes', 'Yes', 'No', 'Yes'][i], score: 0, weight: 1 },
+          ],
+        }),
+        person: examGrade('human', 0, 0.5, {
+          criteria: [
+            { name: 'Pass', band: ['No', 'Yes', 'No', 'No', 'Yes'][i], score: 0, weight: 1 },
+          ],
+        }),
+      })),
+      wrExam({
+        rubric: {
+          criteria: [{ name: 'Pass', weight: 1, levels: [{ label: 'No' }, { label: 'Yes' }] }],
+        },
+      }),
+    ],
+  },
+  {
+    id: 'calibrationReport/one-criterion',
+    fn: 'calibrationReport',
+    args: [calibrationPairs(), wrExam({ rubric: { criteria: [{ name: 'Grammar', weight: 1 }] } })],
+  },
+  {
+    id: 'calibrationReport/out-of-100',
+    fn: 'calibrationReport',
+    args: [
+      CAL_PERSON_TASK.map((_, i) => ({
+        model: outOf100(variedModel(i)),
+        person: outOf100(variedPerson(i)),
+        secondPerson: outOf100(variedSecond(i)),
+      })),
+      wrExam(),
+    ],
+    note: 'Totals are compared as fractions of their maxScore.',
+  },
+  {
+    id: 'calibrationReport/second-person/one-pair',
+    fn: 'calibrationReport',
+    args: [
+      calibrationPairs((i) => (i === 1 ? { secondPerson: examGrade('human', 2, 0.6) } : {})),
+      wrExam(),
+    ],
+    note: 'One response marked by a second person, who disagrees on Task.',
+  },
+  {
+    id: 'calibrationReport/second-person/never-varies',
+    fn: 'calibrationReport',
+    args: [threeMarkers(variedModel, variedPerson, flatPerson), wrExam()],
+  },
+  {
+    id: 'calibrationReport/second-person/both-people-on-one-level',
+    fn: 'calibrationReport',
+    args: [threeMarkers(variedModel, flatPerson, flatPerson), wrExam()],
+  },
+  {
+    id: 'calibrationReport/second-person/model-never-varies',
+    fn: 'calibrationReport',
+    args: [threeMarkers(flatModel, variedPerson, variedSecond), wrExam()],
+  },
+  {
+    id: 'calibrationReport/second-person/model-and-person-on-one-level',
+    fn: 'calibrationReport',
+    args: [threeMarkers(flatModel, flatPerson, variedSecond), wrExam()],
+  },
+  {
+    id: 'calibrationReport/second-person/leaves-a-criterion-out',
+    fn: 'calibrationReport',
+    args: [
+      calibrationPairs((i) => ({
+        secondPerson: examGrade('human', CAL_SECOND_TASK[i], CAL_SECOND_GRAMMAR[i], {
+          ...(i === 0
+            ? { criteria: [{ name: 'Task', band: 'Not met', score: 0, weight: 2 }] }
+            : {}),
+        }),
+      })),
+      wrExam(),
+    ],
+  },
+  {
+    id: 'calibrationReport/no-rubric',
+    fn: 'calibrationReport',
+    args: [calibrationPairs(), wrExam({ rubric: { criteria: [] } })],
+    ignore: ['reason'],
+  },
+  {
+    id: 'calibrationReport/unreadable-levels',
+    fn: 'calibrationReport',
+    args: [
+      calibrationPairs(),
+      wrExam({ rubric: { criteria: [{ name: 'Task', weight: 1, levels: [{ label: 'Only' }] }] } }),
+    ],
+    ignore: ['reason'],
+  },
+  {
+    id: 'calibrationReport/grade-out-of-range',
+    fn: 'calibrationReport',
+    args: [
+      calibrationPairs((i) => (i === 1 ? { model: { ...variedModel(1), score: 85 } } : {})),
+      wrExam(),
+    ],
+    ignore: ['reason'],
+  },
+  {
+    id: 'calibrationReport/person-graded-by-a-model',
+    fn: 'calibrationReport',
+    args: [calibrationPairs((i) => (i === 1 ? { person: examGrade('ai', 1, 0.4) } : {})), wrExam()],
+    ignore: ['reason'],
+  },
+  {
+    id: 'calibrationReport/model-grade-without-names',
+    fn: 'calibrationReport',
+    args: [
+      calibrationPairs((i) =>
+        i === 1 ? { model: examGrade('ai', 2, 0.5, { grader: { kind: 'ai' } }) } : {},
+      ),
+      wrExam(),
+    ],
+    ignore: ['reason'],
+  },
+  ...[
+    ['names-both', { kind: 'ai', model: 'grader-1', promptHash: 'p1' }],
+    ['no-model', { kind: 'ai', promptHash: 'p1' }],
+    ['empty-model', { kind: 'ai', model: '', promptHash: 'p1' }],
+    ['no-prompt-hash', { kind: 'ai', model: 'grader-1' }],
+    ['empty-prompt-hash', { kind: 'ai', model: 'grader-1', promptHash: '' }],
+  ].map(([name, grader]) => ({
+    id: `graderConfiguration/${name}`,
+    fn: 'graderConfiguration',
+    args: [examGrade('ai', 2, 0.9, { grader }), wrExam()],
+  })),
+  {
+    id: 'graderConfiguration/no-rubric-no-target',
+    fn: 'graderConfiguration',
+    args: [examGrade('ai', 2, 0.9), {}],
+  },
+  {
+    id: 'routeGrade/exam/every-threshold-met-exactly',
+    fn: 'routeGrade',
+    args: routeOnReport({
+      minPairs: 120,
+      minQuadraticKappa: 0.78,
+      minExactAgreement: 0.72,
+      minPearson: 0.81,
+      maxMeanAbsoluteError: 0.14,
+      maxAbsStandardizedMeanDifference: 0.05,
+      maxDegradation: 0.06,
+      maxCalibrationError: 0.06,
+    }),
+    note: "Each threshold equals the report's least favourable value for it: at the line is through.",
+  },
+  {
+    id: 'routeGrade/exam/mean-absolute-error-above-its-maximum',
+    fn: 'routeGrade',
+    args: routeOnReport({ maxMeanAbsoluteError: 0.1 }),
+  },
+  {
+    id: 'routeGrade/exam/mean-difference-above-its-maximum',
+    fn: 'routeGrade',
+    args: routeOnReport({ maxAbsStandardizedMeanDifference: 0.045 }),
+  },
+  {
+    id: 'routeGrade/exam/degradation-above-its-maximum',
+    fn: 'routeGrade',
+    args: routeOnReport({ maxDegradation: 0.055 }),
+  },
+  {
+    id: 'routeGrade/exam/too-few-pairs',
+    fn: 'routeGrade',
+    args: routeOnReport({ minPairs: 121 }),
+  },
+  {
+    id: 'routeGrade/exam/exact-agreement-below-its-minimum',
+    fn: 'routeGrade',
+    args: routeOnReport({ minExactAgreement: 0.75 }),
+  },
+  {
+    id: 'routeGrade/exam/a-score-criterion-below-min-pearson',
+    fn: 'routeGrade',
+    args: routeOnReport({ minPearson: 0.82 }),
+    note: 'Grammar, judged on a score, has r 0.81; the total has 0.83.',
+  },
+  {
+    id: 'routeGrade/exam/the-total-below-min-pearson',
+    fn: 'routeGrade',
+    args: routeOnReport(
+      { minPearson: 0.82 },
+      examReport({ total: { ...examReport().total, pearson: 0.8 } }),
+    ),
+  },
+  {
+    id: 'routeGrade/exam/calibration-error-above-its-maximum',
+    fn: 'routeGrade',
+    args: routeOnReport({ maxCalibrationError: 0.05 }),
+  },
+  {
+    id: 'routeGrade/exam/calibration-error-unchecked-without-probabilities',
+    fn: 'routeGrade',
+    args: routeOnReport(
+      { maxCalibrationError: 0.05 },
+      examReport({
+        criteria: examReport().criteria.map((criterion) =>
+          criterion.scale === 'levels'
+            ? { ...criterion, probabilityPairs: 0, calibrationError: null, brierScore: null }
+            : criterion,
+        ),
+      }),
+    ),
+    note: 'No grade carried probabilities, so there is no calibration error to hold to a maximum.',
+  },
+  {
+    id: 'routeGrade/policy/thresholds-that-are-not-rates-may-leave-0-to-1',
+    fn: 'routeGrade',
+    args: routeInPractice({
+      calibration: {
+        minPairs: 30,
+        minQuadraticKappa: -0.2,
+        minPearson: -0.5,
+        maxAbsStandardizedMeanDifference: 1.5,
+        maxDegradation: 1.5,
+      },
+    }),
+  },
+  ...[
+    ['exact-agreement-above-1', { calibration: { minExactAgreement: 1.5 } }],
+    ['mean-absolute-error-above-1', { calibration: { maxMeanAbsoluteError: 1.5 } }],
+    ['calibration-error-above-1', { calibration: { maxCalibrationError: 1.5 } }],
+    ['audit-rate-above-1', { audit: { rate: 1.5, seed: 'term-1' } }],
+    ['threshold-not-a-number', { calibration: { minPearson: Number.NaN } }],
+    ['threshold-infinite', { calibration: { maxDegradation: Number.POSITIVE_INFINITY } }],
+    ['threshold-a-string', { calibration: { minQuadraticKappa: '0.7' } }],
+    ['audit-seed-not-a-string', { audit: { rate: 0.1, seed: 7 } }],
+  ].map(([name, policy]) => ({
+    id: `routeGrade/policy/${name}-throws`,
+    fn: 'routeGrade',
+    args: routeInPractice(policy),
+  })),
+  {
+    id: 'routeGrade/unsure/unreadable-levels',
+    fn: 'routeGrade',
+    args: [
+      examGradeWithOdds(2, 0.9, [0.1, 0.1, 0.8]),
+      {
+        mode: 'practice',
+        item: wrExam({
+          rubric: { criteria: [{ name: 'Task', weight: 1, levels: [{ label: 'Only' }] }] },
+        }),
+        policy: { minLevelProbability: 0.5 },
+      },
+    ],
+  },
+  {
+    id: 'routeGrade/unsure/not-applicable',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9, {
+        criteria: [
+          { name: 'Task', weight: 2, notApplicable: true },
+          { name: 'Grammar', score: 0.9, weight: 1 },
+        ],
+      }),
+      { mode: 'practice', item: wrExam(), policy: { minLevelProbability: 0.5 } },
+    ],
+  },
+  {
+    id: 'routeGrade/unsure/criterion-not-judged',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9, { criteria: [{ name: 'Grammar', score: 0.9, weight: 1 }] }),
+      { mode: 'practice', item: wrExam(), policy: { minLevelProbability: 0.5 } },
+    ],
+  },
+  {
+    id: 'routeGrade/unsure/a-rubric-of-scores',
+    fn: 'routeGrade',
+    args: [
+      examGrade('ai', 2, 0.9),
+      {
+        mode: 'practice',
+        item: wrExam({ rubric: { criteria: [{ name: 'Grammar', weight: 1 }] } }),
+        policy: { minLevelProbability: 0.5 },
+      },
+    ],
+  },
+  {
+    id: 'routeGrade/unsure/sure-enough',
+    fn: 'routeGrade',
+    args: [
+      examGradeWithOdds(2, 0.9, [0.1, 0.1, 0.8]),
+      { mode: 'practice', item: wrExam(), policy: { minLevelProbability: 0.5 } },
+    ],
+  },
+  ...[
+    ['rate-above-1', ['attempt-1:essay', 1.5, 'term-1']],
+    ['rate-below-0', ['attempt-1:essay', -0.1, 'term-1']],
+    ['rate-not-a-number', ['attempt-1:essay', Number.NaN, 'term-1']],
+    ['seed-not-a-string', ['attempt-1:essay', 0.25, 7]],
+    ['key-not-a-string', [undefined, 0.25, 'term-1']],
+  ].map(([name, args]) => ({ id: `inAuditSample/${name}-throws`, fn: 'inAuditSample', args })),
 ];
