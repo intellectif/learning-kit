@@ -1,7 +1,7 @@
 # learning-kit — SDK Roadmap
 
 **Status:** living document — the roadmap of record for `@intellectif/lk-core` and `@intellectif/lk-react`.
-**Last updated:** 2026-09-23
+**Last updated:** 2026-10-18
 
 This plan is grounded in a defect audit of the published `lk-core@0.2.1` / `lk-react@1.0.1` packages and in
 production feedback from an integrating application: a CEFR-aligned EN/ES/PT language school running real
@@ -435,8 +435,9 @@ consumer migration notes (replace `written-response.ts` shim with SDK imports �
 
 **Shipped in the v0.5 line:** `gap-select` (0.10.0 core / 0.11.0 renderer), media on multiple-choice
 options (0.10.0), `dictation` (0.13.0), `read-aloud` (0.14.0) and interactive video (0.15.0, with its
-follow-ups through lk-react 16.1.0). The remaining types below wait on evidence of demand. What comes
-next is the [delivery policy, then AI](#next--the-delivery-policy-then-ai).
+follow-ups through lk-react 16.1.0). The remaining types below wait on evidence of demand. What came
+next was the [delivery policy, then AI](#next--the-delivery-policy-then-ai); what comes now is
+[After 1.4](#after-14--speaking-on-calibrated-grading).
 
 > **Reordered 2026-08-19 from evidence in a production corpus**, not from a theoretical gap analysis. The
 > earlier ordering (matching first, true/false retired as "a UI variant of MC") did not survive contact with
@@ -710,9 +711,12 @@ next is the [delivery policy, then AI](#next--the-delivery-policy-then-ai).
   timeline still pages as a testlet, which is documented), provider embeds, in-video branching, drawing or
   hotspot overlays, and an editor timeline UI — the SDK ships the model and the codes, the editor stays the
   application's.
-- **`mark-the-words`, `ordering`, `short-answer` — P1/P2**, on evidence of demand.
-- **`matching` — demoted to P2.** No production evidence of use; build it when an item bank asks for it.
-- `speaking-response` remains high value-to-effort where a CEFR speaking grader already exists.
+- **`mark-the-words`, `ordering` and `matching` — next after `speaking-response`.** Re-ranked by the
+  maintainer on 2026-10-18 as the types an item bank may ask for soon; `matching` had been demoted to
+  P2 for want of production evidence. See [After 1.4](#after-14--speaking-on-calibrated-grading).
+- **`short-answer` — on evidence of demand.**
+- **`speaking-response` — the next activity type**, on the groundwork in
+  [After 1.4](#after-14--speaking-on-calibrated-grading).
 - `@intellectif/lk-interop`: H5P import is worth more than first estimated — a real corpus is dominated by
   `H5P.QuestionSet` containers, which map onto the item-group primitive below. Word/PDF/CSV/paste import first.
 
@@ -910,16 +914,22 @@ generated question is true to its source; recordings for drafted dictations, whi
 cuts at `clip`; and anything in lk-react — the editor is the host's.
 
 1. **The AI line, in this order, after v1.0.** Explanations, hints, the groundwork above, feedback
-   on writing, coaching on a reading and the assistants for authors have shipped; what is left is ordered by what a learner or an author gets from
-   it, and each is admitted only on the rules below.
+   on writing, coaching on a reading, the assistants for authors, and help that reads a question's
+   group have shipped; what is left is ordered by what a learner or an author gets from it, and each
+   is admitted only on the rules below.
    1. ✅ **Feedback on writing, in practice** — shipped in 0.22.0 / 22.0.0, above.
    2. ✅ **Pronunciation coaching on a read-aloud** — shipped in 1.1.0 / 23.1.0, above.
    3. ✅ **Assistants for authors** — shipped in lk-core 1.2.0, above. `analyzeItem`, which belongs
       beside it, is still its own milestone.
-   4. **Assisted grading of open responses**, admitted to summative use only through a calibration
+   4. ✅ **Help that reads a question's group** — shipped in lk-core 1.4.0 / lk-react 23.2.0. A hint,
+      an explanation or feedback on writing for a question in an item group carries the group's
+      `material`: the passage, or the instructions a run of questions shares, as the learner sees it,
+      cut past 12,000 code points, and never the author's transcript or a media address.
+   5. **Assisted grading of open responses**, admitted to summative use only through a calibration
       against human marks — agreement, per criterion, with no default threshold — and a
-      deterministic rule for which grades go to a person.
-   5. **`speaking-response`**, built on that grading.
+      deterministic rule for which grades go to a person. Planned in
+      [After 1.4](#after-14--speaking-on-calibrated-grading).
+   6. **`speaking-response`**, built on that grading.
 
    **Not on this list, deliberately:** a chat tutor with memory (the checks hold for a bounded
    answer, not a conversation, and it is the host's product rather than an activity's); streamed
@@ -1011,6 +1021,85 @@ grade changes.** The plan took the list this section used to hold item by item; 
   ships no default `dp`, a standing decision.
 - **Web components / `lk-embed`.** They rest on a headless layer that does not exist yet; after 1.0
   that is a minor.
+
+### After 1.4 — speaking, on calibrated grading
+
+Chosen by the maintainer on 2026-10-18. **`speaking-response` is the priority**: a learner answers out
+loud, after a text prompt or a picture and a prompt, and is graded on what they said and how they said
+it. It comes after the groundwork it needs, in this order.
+
+1. **Assisted grading of open responses, with a calibration gate.** This is the AI line's next item, on
+   written responses first. A model judges a response criterion by criterion; the SDK computes the
+   grade (`gradeFromRubric`); and a model's grade counts on a paper of record only once it has been
+   measured against human marks on the host's own data.
+   - **A judgement contract, provider-neutral:** for each rubric criterion, a level or a score and,
+     optionally, the probability of each level. A model that returns one score fits it; a
+     [decision model](#decision-models) that returns probabilities fits it better, because its
+     uncertainty can be measured and used.
+   - **Calibration as a function, not a service.** Given a sample the host has marked twice, by the
+     model and by a person, the SDK reports agreement per criterion (for example exact and adjacent
+     agreement and quadratic-weighted kappa) and, where probabilities were given, how well they match
+     what people decided. **No default threshold**, as rounding ships no default `dp`; the metrics
+     settle in the milestone plan.
+   - **A deterministic rule for which grades go to a person.** The host's thresholds over that report
+     send a response to a person, for example a criterion with low agreement, or a judgement whose
+     likeliest level is not likely enough. What the rule read and what it decided go on the
+     `GradeRecord`, so an appeal can see why a person did or did not mark it.
+2. **Real engine results.** The speech code is built from documented shapes; no real engine output
+   has been captured into the SDK's fixtures, and the vendor documentation contradicts itself on
+   details that decide grades. Capture scripted and unscripted results first, from synthesised speech
+   or the maintainer's own voice, never a learner's, and commit JSON only.
+3. **The unscripted assessment.** `SpeechAssessment` already names `task: 'unscripted'`, which
+   `gradeReadAloud` refuses. It gains what an open answer carries: the recogniser's transcript and
+   word timings, and the engine's pronunciation, fluency and prosody measures. There is no reference
+   text, so nothing is aligned to one.
+4. **`speaking-response`**, as the September plan drew it: a prompt and optional media as on
+   `written-response`, a rubric, recording limits, and a deferred grade.
+   - **`gradeSpeakingResponse`, pure.** Content and language criteria come from the judge, on the
+     transcript; pronunciation and fluency criteria come from the engine's measures, never from a
+     model, since zero-shot models score pronunciation far below engines. `gradeFromRubric` computes
+     the total.
+   - **`<SpeakingResponse>`:** the prompt, the picture, the recorder (`useSpeechRecorder`) and the
+     feedback, with headless hooks for a host that draws its own.
+   - **Summative use only through the calibration gate** of step 1.
+   - **Then the help it unlocks,** on the rules of the AI line: coaching on an unscripted answer, and
+     feedback on a spoken draft in practice.
+5. **Then the types an item bank may ask for soon:** `mark-the-words`, `ordering` and `matching`.
+   `short-answer` waits on evidence of demand.
+
+Everything else open stays unordered until it is chosen: `analyzeItem` (statistics, no AI), the
+headless layer with CSS dark mode and a reduced-motion pass (web components rest on it), registry
+v2's content migrations, `lk-interop` imports, and suggestions while an author writes.
+
+#### Decision models
+
+A decision model answers typed questions (yes or no, one of a set, a level on an ordered rubric) with
+a probability for each answer, instead of writing text. TypeSafe's Jev, in early access since
+September 2026, is one; its early documentation describes text and JSON input, not audio. The SDK
+takes such a model as it takes any model: **through a port the host supplies**, with no client, key
+or dependency in `lk-*`, a standing decision. Where its shape helps:
+
+| Where | What it decides | Why a probability helps |
+|---|---|---|
+| Assisted grading, step 1 | Each rubric criterion's level, as a distribution | Calibration is measured, not assumed, and an unsure judgement goes to a person |
+| `speaking-response`, step 4 | The content and language criteria, on the transcript and the engine's measures as JSON | The same judgement contract; the audio stays with the speech engine |
+| Checks on learner-facing AI text | A second opinion that can only **withhold**: does this hint give the answer away, does this explanation agree with the SDK's verdict | It can catch an answer described rather than written, which the SDK's own checks cannot; it adds refusals above them and never replaces them |
+| Assistants for authors | A structured critique ("is distractor B also defensible?"), and accepted answers suggested from learners' answers, for a person to approve | Advice an editor can sort by confidence; nothing reaches scoring without a person |
+
+Not for scoring the types the SDK scores itself (multiple choice, the gap types, dictation, and
+read-aloud's measured marks), which no model decides; and not for adaptive sequencing, which stays the
+host's. A vendor's calibration is not taken on trust: the gate in step 1 is how a host measures it on
+its own marks.
+
+#### Held for the next major (2.0)
+
+Changes the 1.x promise rules out, collected so a 2.0 can be weighed on them:
+- **zod 4.6.6 or later.** It checks a list's size before its elements, so a list refused for its
+  length no longer also reports what a check on its elements found (duplicate option ids, caption
+  tracks sharing a kind and a language): one derivative error fewer, a changed list of `path` and
+  `code`. zod stays pinned at 4.6.5 until then (PR #105, closed 2026-10-18).
+- **`seededShuffle` version 2 as the default**, and removing a blank's deprecated `caseSensitive` and
+  `trimWhitespace`; see [Deprecation](./stability.md#deprecation).
 
 ---
 
