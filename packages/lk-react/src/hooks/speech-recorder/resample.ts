@@ -113,7 +113,7 @@ function lowPass(samples: Float32Array, inputRate: number): Float32Array {
     let total = 0;
     for (let tap = 0; tap < taps.length; tap += 1) {
       const at = index + tap - half;
-      total += taps[tap] * samples[at < 0 ? 0 : at > last ? last : at];
+      total += taps[tap] * samples[Math.min(Math.max(at, 0), last)];
     }
     filtered[index] = total;
   }

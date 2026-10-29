@@ -57,7 +57,7 @@ export function encodeWav16(samples: Float32Array, sampleRate: number): Uint8Arr
 
   for (let index = 0; index < samples.length; index += 1) {
     const sample = samples[index];
-    const clamped = sample < -1 ? -1 : sample > 1 ? 1 : sample;
+    const clamped = Math.min(Math.max(sample, -1), 1);
     view.setInt16(
       HEADER_BYTES + index * 2,
       Math.round(clamped * (clamped < 0 ? 0x8000 : 0x7fff)),
@@ -76,7 +76,7 @@ export function peakOf(samples: Float32Array): number {
       peak = magnitude;
     }
   }
-  return peak > 1 ? 1 : peak;
+  return Math.min(peak, 1);
 }
 
 /**
@@ -97,5 +97,5 @@ export function rmsOf(samples: Float32Array): number {
     total += samples[index] * samples[index];
   }
   const rms = Math.sqrt(total / samples.length);
-  return rms > 1 ? 1 : rms;
+  return Math.min(rms, 1);
 }
