@@ -91,6 +91,38 @@ describe('aiCritiqueRequest', () => {
   });
 });
 
+describe('aiCritiqueRequest and a recording', () => {
+  it('reads what the recording says, and none of its addresses or speaker labels', () => {
+    const built = aiCritiqueRequest({
+      type: 'multiple-choice',
+      draft: {
+        ...item,
+        media: {
+          type: 'video',
+          url: 'https://cdn.example/v.mp4?signature=abc',
+          poster: 'https://cdn.example/p.jpg?signature=abc',
+          tracks: [
+            {
+              kind: 'captions',
+              src: 'https://cdn.example/c.vtt?signature=abc',
+              srclang: 'es',
+              label: 'Español',
+            },
+          ],
+          transcript: 'Ella está cansada hoy.',
+          script: [{ speaker: 'Narradora', text: 'Ella está cansada hoy.' }],
+        },
+      },
+    });
+    const paths = built?.facts.fields.map((field) => field.path.join('.')) ?? [];
+    expect(paths).toEqual(
+      expect.arrayContaining(['media.transcript', 'media.script.0.text', 'media.tracks.0.label']),
+    );
+    expect(paths.filter((path) => /url|poster|src|speaker/.test(path))).toEqual([]);
+    expect(JSON.stringify(built?.facts.fields)).not.toContain('signature');
+  });
+});
+
 describe('aiCritiqueRequest on a type nobody registered', () => {
   it('refuses the type before it looks at the draft', () => {
     expect(() => aiCritiqueRequest({ type: 'nope' as 'dictation', draft: 'text' })).toThrow(

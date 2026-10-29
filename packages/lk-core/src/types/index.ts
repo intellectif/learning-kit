@@ -42,6 +42,7 @@ export type {
   ScoringDetail,
   ScoringOutcome,
   ScoringResult,
+  ScriptTurn,
   ValidationError,
   ValidationResult,
   WrittenResponseData,

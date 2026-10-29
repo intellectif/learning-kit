@@ -47,7 +47,21 @@ import type {
 } from '../types/activity.js';
 import { defineActivityType } from './define.js';
 import { keepWhen } from './keep-when.js';
-import type { FieldPolicy } from './registry.js';
+import type { FieldPolicy, MediaSlot } from './registry.js';
+
+/**
+ * Where the built-in types keep their files (`mediaSlots`). Every type has its
+ * `media`; dictation and read-aloud add a slower recording; a multiple-choice
+ * option may carry a picture or a recording of its own.
+ */
+const MAIN_MEDIA: readonly MediaSlot[] = [{ path: ['media'] }];
+const MAIN_AND_SLOW_MEDIA: readonly MediaSlot[] = [{ path: ['media'] }, { path: ['slowMedia'] }];
+
+function multipleChoiceMediaSlots(data: MultipleChoiceData): readonly MediaSlot[] {
+  // Read from stored data, drafts included: `options` may not be a list yet.
+  const options: readonly unknown[] = Array.isArray(data.options) ? data.options : [];
+  return [...MAIN_MEDIA, ...options.map((_, index) => ({ path: ['options', index, 'media'] }))];
+}
 
 /**
  * Field-sensitivity policies for the built-in types (R7). Fail-closed:
@@ -69,10 +83,11 @@ import type { FieldPolicy } from './registry.js';
  * documents ("a field the policy does not classify is removed") stopped at the
  * media boundary. It no longer does.
  *
- * Everything here is public by necessity: the client is the thing that renders
- * and enforces the policy, and "1 play remaining" is text the learner has to
- * read. None of it is an answer key — a listening paper's answer key is
- * `stimulus.transcript`, which stays `author-only`.
+ * Public by necessity, except what the recording says: the client is the thing
+ * that renders and enforces the policy, and "1 play remaining" is text the
+ * learner has to read. `transcript` and `script` are the exception, and
+ * `author-only`: what a listening question's recording says is that question's
+ * answer, as `stimulus.transcript` is a listening paper's.
  */
 export const MEDIA_FIELD_POLICY: FieldPolicy = {
   type: 'public',
@@ -95,6 +110,8 @@ export const MEDIA_FIELD_POLICY: FieldPolicy = {
     rate: 'public',
     nativeControlHints: 'public',
   },
+  transcript: 'author-only',
+  script: 'author-only',
 };
 
 const SHARED_PUBLIC_FIELDS: FieldPolicy = {
@@ -179,6 +196,8 @@ const MULTIPLE_CHOICE_FIELD_POLICY: FieldPolicy = {
       url: 'public',
       alt: 'public',
       captionsUrl: 'public',
+      transcript: 'author-only',
+      script: 'author-only',
     },
   },
 };
@@ -330,6 +349,7 @@ export const multipleChoiceType = defineActivityType<
   },
   interactions: ['option-selected', 'option-deselected', 'submitted'],
   authoring: multipleChoiceAuthoring,
+  mediaSlots: multipleChoiceMediaSlots,
 });
 
 /** Built-in Fill-in-the-Blanks descriptor. */
@@ -356,6 +376,7 @@ export const fillInTheBlanksType = defineActivityType<
   },
   interactions: ['blank-filled', 'hint-requested', 'submitted'],
   authoring: fillInTheBlanksAuthoring,
+  mediaSlots: () => MAIN_MEDIA,
 });
 
 /**
@@ -393,6 +414,7 @@ export const writtenResponseType = defineActivityType<
   },
   interactions: ['text-changed', 'submitted'],
   authoring: writtenResponseAuthoring,
+  mediaSlots: () => MAIN_MEDIA,
 });
 
 /** Built-in Gap Select descriptor. */
@@ -419,6 +441,7 @@ export const gapSelectType = defineActivityType<GapSelectData, GapSelectLearnerR
   },
   interactions: ['gap-selected', 'submitted'],
   authoring: gapSelectAuthoring,
+  mediaSlots: () => MAIN_MEDIA,
 });
 
 /**
@@ -454,6 +477,7 @@ export const dictationType = defineActivityType<DictationData, DictationLearnerR
   },
   interactions: ['text-changed', 'hint-requested', 'submitted'],
   authoring: dictationAuthoring,
+  mediaSlots: () => MAIN_AND_SLOW_MEDIA,
 });
 
 /**
@@ -531,6 +555,7 @@ export const readAloudType = defineActivityType<ReadAloudData, ReadAloudLearnerR
   },
   interactions: ['recording-started', 'recording-stopped', 'recording-uploaded', 'submitted'],
   authoring: readAloudAuthoring,
+  mediaSlots: () => MAIN_AND_SLOW_MEDIA,
 });
 
 /**

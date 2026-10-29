@@ -1,7 +1,7 @@
 import * as z from 'zod/v4';
 import { AiPermissionsSchema } from './ai.js';
 import { FeedbackSchema } from './feedback.js';
-import { MediaSchema, MediaUrlSchema } from './media.js';
+import { MediaSchema, MediaUrlSchema, ScriptSchema } from './media.js';
 
 /**
  * Zod schema for a single Multiple Choice option. Loose: unknown keys are
@@ -34,6 +34,9 @@ export const MultipleChoiceOptionMediaSchema = z
     url: MediaUrlSchema,
     alt: z.string().min(1).optional(),
     captionsUrl: MediaUrlSchema.optional(),
+    // Author-only, as on any media: a listening option's transcript is its answer.
+    transcript: z.string().optional(),
+    script: ScriptSchema.optional(),
   })
   // The same rule MediaSchema applies, so there is one rule to learn: a picture
   // needs a text alternative (WCAG 1.1.1), a recording's label is optional.

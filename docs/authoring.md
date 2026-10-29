@@ -222,6 +222,52 @@ Optional `media` on either activity, rendered above the question/passage:
 - `video`/`audio` use native controls; provide `captionsUrl` (WebVTT) for captions.
 - **URL-only**: the SDK never hosts media. Hosting/CDN is yours.
 
+### What a recording says: `transcript` and `script` (1.6)
+
+A recording can carry what it says, for the author's side only: item generation,
+review, grading and casting voices. Both fields are optional and author-only, and
+they work wherever a recording sits: an item's `media`, a multiple-choice option's
+`media`, and a group's stimulus (on the stimulus itself, beside its `transcript`).
+
+```jsonc
+{
+  "media": {
+    "type": "audio",
+    "url": "https://cdn.example/station.mp3",
+    "transcript": "Anna: Where does the train leave from? Ben: Platform four.",
+    "script": [
+      { "speaker": "Anna", "text": "Where does the train leave from?" },
+      { "speaker": "Ben", "text": "Platform four." }
+    ]
+  }
+}
+```
+
+- **`transcript`** is plain text, and it is what AI facts read. **`script`** is the
+  same recording as turns, one per speaker: a `speaker` label (1–60 characters, the
+  same label for every turn of one voice) and its `text`. At most 500 turns. A turn
+  keeps any field of your own beside them, such as the voice you cast.
+- **They never reach a learner.** `redact()` and `redactItemGroup()` remove both at
+  every reveal level, `assertRedacted()` refuses a payload that still carries one, and
+  no request for a learner's AI help reads them. A listening question's recording is
+  that question's answer.
+- **`transcriptOf(holder)`** gives the author-side text of a media object, a stimulus
+  or an item: its `transcript`, or else its script as `Speaker: text` lines, or
+  `null`. Pass it as the `source` of
+  [`aiDraftsRequest`](./ai.md#drafts-from-a-source).
+- **When both are given,** the critic warns (`media_script_differs`) if they say
+  different words, case, punctuation and speaker labels aside. A dictation's
+  `transcript` and a read-aloud's `referenceText` already say what their recording
+  says; a recording transcript that disagrees with them is `media_transcript_differs`.
+  On a picture or an embed, nothing reads either field (`media_transcript_unused`).
+
+**Practice you score in the browser.** If you send practice items with their key,
+send them through `withoutAuthorOnly(item)` rather than as stored. It returns a copy
+without every author-only field (these two, and a stimulus's `transcript`) and keeps
+the rest, the key and your own fields included. Unlike `redact()`, whose output every
+scorer refuses, the copy scores exactly as the stored item. It is not a learner-safe
+projection: an exam goes through `redact()`.
+
 ### Gap Select — the dropdown cloze (v0.10 / 0.11)
 
 A passage whose gaps the learner fills by **choosing**, not typing:
@@ -1160,6 +1206,9 @@ author: translate by `code`.
 | `wr_criterion_name_duplicate` | warning | `rubric.criteria.N.name` | Two criteria have one name once case, accents and punctuation are ignored. Feedback on writing and a grader's criteria name a criterion |
 | `wr_levels_unreadable` | warning | `rubric.criteria.N.levels` | A criterion's `levels` cannot be used by the grading functions: not a list, fewer than 2 or more than 10, a level with no label or a description that is not text, or two labels the same once case and spacing are ignored. `validateActivity` does not check `levels` in 1.x, so this warning is how an author learns of it |
 | `ra_text_long_for_time` | warning | `recording.maxSeconds` | The text has more than 2.5 words a second of `maxSeconds` — 150 words a minute, a fluent adult reading aloud. A learner reads slower |
+| `media_transcript_unused` | advice | `….media.transcript`, `….media.script` | A picture or an embedded player carries a `transcript` or a `script`. Nothing reads one there: it belongs on the recording it describes |
+| `media_script_differs` | warning | `….script` | A recording (an item's, an option's, a group's stimulus or its media) has a `transcript` and a `script` that say different words, once case, accents, punctuation and each speaker's `Name:` label are ignored. AI facts read the transcript and a voice reads the script |
+| `media_transcript_differs` | warning | `media.transcript`, `media.script` | A dictation's or a read-aloud's recording says other words than the item's own `transcript` (or one of its `acceptedTranscripts`) or `referenceText`, by the same comparison |
 | `set_key_position_same` | warning | the set: `''` for `critiqueDrafts`, `items` for a group | Four or more single-answer multiple-choice questions that do not shuffle, and every one keeps its correct option in the same position |
 
 **The hint rule** is the one `hintRevealsAnswer` holds an AI hint to: an answer
@@ -1168,8 +1217,9 @@ one short word counts only where the text writes it beside a word that neighbour
 its gap in the passage — "name is", "is Rossi".
 
 **A reading group's passage is not searched** for its questions' answers: they are
-meant to be there. Dictation has no rules of its own yet — a title that gives the
-transcript away is already `dc_transcript_revealed`, a `validateDraft` issue.
+meant to be there. Dictation has no rules of its own beyond the recording rules
+(`media_…`, which every type's media gets) — a title that gives the transcript away
+is already `dc_transcript_revealed`, a `validateDraft` issue.
 Stem-to-answer word echoes, negative stems, absolute words and reading level are
 left out on purpose: as rules they are language-bound and mostly wrong, and they
 are what the [AI critic](./ai.md#reviewing-an-item-with-a-model) is for.
@@ -1394,7 +1444,66 @@ import { asRenderableSequence } from '@intellectif/lk-react';
 
 **Rendering a stimulus on its own.** `<StimulusPanel stimulus={…} range={{ first: 3, last: 8 }} sanitizeHtml={…} />` is the panel the sequence uses — a landmark region named by the stimulus title (or its kind), showing media, body and attribution. In a sequence it is rendered as a **sibling** of the question region, not inside it, so navigation puts focus on the question while the passage stays a landmark the learner can jump back to. Reach for it in a custom runner that lays out passage and question side by side.
 
-**JSON Schema.** `stimulusJsonSchema` and `itemGroupJsonSchema` describe the container; items appear only as `{ type, id }` there. Each item's contract stays `jsonSchemaFor(type)`, so a generation pipeline asks for the group and its items separately instead of from a copied nested schema.
+**JSON Schema.** `stimulusJsonSchema` and `itemGroupJsonSchema` describe the container; items appear only as `{ type, id }` there. Each item's contract stays `jsonSchemaFor(type)`, so a generation pipeline asks for the group and its items separately instead of from a copied nested schema. For one document with the items typed, use `contentJsonSchema()` (below).
+
+## Exporting and importing content (1.6)
+
+An export can hold each entry verbatim: an activity or an item group, author-only
+fields included, since an export is for the author's side. Four helpers cover the
+rest of what an export and an import need.
+
+**Every file an entry uses: `listMediaRefs(entry)`.** It reads an activity or an item
+group (the stimulus first, then each item in authored order), drafts included, and
+returns one `MediaRef` per address:
+
+| Field | What it holds |
+|---|---|
+| `path` | From the entry to the field, e.g. `['items', 2, 'options', 1, 'media', 'url']`. Authored positions: a shuffle never moves it |
+| `kind` | `audio`, `video`, `image` or `embed` for a main file, by its media's `type`; `captions` for `captionsUrl`, `track` for a track's `src`, `poster` |
+| `url` | The address, or `null` for a recording with no file yet |
+| `holder` | The object holding the address, as stored, to read and never change: the recording's `transcript` and `script` are on it |
+| `activityId`, `stimulusId` | Whose file it is |
+| `srclang` | A track's language |
+
+It reads an item's `media`, each multiple-choice option's `media`, a dictation's and
+a read-aloud's `slowMedia`, and a group's stimulus `media`, and in each the main
+file, `captionsUrl`, every track and `poster`. A test builds that list from the
+published JSON Schemas, so a media field added to a schema cannot be missed. Not
+read: addresses inside an `…Html` sidecar (the SDK does not parse HTML) and a
+learner's recordings, which are responses, not content.
+
+```ts
+const files = entries.flatMap(listMediaRefs).filter((ref) => ref.url !== null);
+```
+
+**Re-pointing files: `mapMediaRefs(entry, fn)`.** A copy with each address replaced by
+what `fn` returns for it. Nothing else changes and the entry is never modified: with
+`(ref) => ref.url` the copy is deep-equal to it, with the same `canonicalJson`. For a
+recording with no file yet, a string attaches one and `null` leaves it empty; for an
+address that is there, `null` throws, since removing a file is not mapping.
+
+```ts
+const imported = mapMediaRefs(entry, (ref) => (ref.url === null ? null : storedUrlFor(ref.url)));
+```
+
+The copy validates as the original did as long as every address follows the media
+rule: `https:`, `http:`, `data:`, `blob:` or root-relative (`/exams/b1/part1.mp3`). A
+bundle-relative `media/part1.mp3` is refused: keep a bundle's file names in its
+manifest, and map them to real addresses on import. A type you register says where it
+keeps files with `mediaSlots` on its descriptor; without that, its `media` is read.
+
+**A schema for tools that write content: `contentJsonSchema()`.** One JSON Schema
+document, draft 2020-12 (`{ target: 'draft-7' }` for the older draft), whose root is a
+`SequenceEntry`: an activity of any registered type, or an item group whose items are
+typed too. Each type, the stimulus and the item group also sit under `$defs`. Like
+every exported schema it is structural: rules across fields (one key in a
+single-answer question, a blank for each marker) cannot be written in JSON Schema, so
+on import `validateDraft` and `validateItemGroupDraft` decide. `jsonSchemaFor(type,
+{ target })` gives one type's schema in either draft; draft 7 stays its default.
+
+**A round trip that loses nothing.** Compare `canonicalJson(entry)` before an export
+and after an import that changed nothing, or `contentHash` for a short form. A
+re-pointed address changes both, as it should.
 
 ## Freezing an attempt (v0.6)
 

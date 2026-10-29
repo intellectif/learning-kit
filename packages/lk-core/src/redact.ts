@@ -263,7 +263,7 @@ export function assertRedacted(data: unknown): asserts data is RedactedActivityD
 
 /**
  * Sensitivity of a stimulus. Everything is learner-visible — that is what a
- * stimulus IS — except the author transcript. Fail-closed like every other
+ * stimulus IS — except the author's transcript and script. Fail-closed like every other
  * policy: a field added to `Stimulus` without a classification here is
  * dropped, never leaked.
  */
@@ -277,6 +277,7 @@ const STIMULUS_FIELD_POLICY: FieldPolicy = {
   locale: 'public',
   attribution: 'public',
   transcript: 'author-only',
+  script: 'author-only',
 };
 
 /** The group container's own fields. `items` is handled separately, per item type. */
@@ -406,4 +407,83 @@ export function assertRedactedItemGroup(data: unknown): asserts data is Redacted
       throw error;
     }
   });
+}
+
+/** A deep copy of plain data with every field its policy calls `author-only` left out. */
+function withoutAuthorOnlyValue(value: unknown, policy: FieldPolicy | undefined): unknown {
+  if (Array.isArray(value)) {
+    return value.map((element) => withoutAuthorOnlyValue(element, policy));
+  }
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  const output: Record<string, unknown> = {};
+  for (const [key, field] of Object.entries(value as Record<string, unknown>)) {
+    const classification = policy?.[key];
+    if (classification === 'author-only') {
+      continue;
+    }
+    output[key] = withoutAuthorOnlyValue(
+      field,
+      classification === undefined || isSensitivity(classification) ? undefined : classification,
+    );
+  }
+  return output;
+}
+
+/** The policy an activity is stripped under; the same one `redact()` reads. */
+function policyOf(type: unknown): FieldPolicy {
+  const descriptor = typeof type === 'string' ? getActivityTypeDescriptor(type) : undefined;
+  if (descriptor === undefined) {
+    throw new UnknownActivityTypeError(String(type));
+  }
+  if (descriptor.fieldPolicy === undefined) {
+    throw new Error(
+      `Activity type "${descriptor.type}" has no fieldPolicy; withoutAuthorOnly() cannot tell which of its fields are author-only.`,
+    );
+  }
+  return descriptor.fieldPolicy;
+}
+
+/**
+ * A copy of an activity or an item group without its `author-only` fields:
+ * a recording's `transcript` and `script`, on an item's media, a
+ * multiple-choice option's recording, a stimulus or its media. Everything
+ * else is kept as stored, the answer key and your own fields included, and
+ * the copy is not marked redacted, so it scores exactly as the stored item.
+ *
+ * For practice an app scores in the browser, where the learner may hold the
+ * key but not the author's material. It is NOT a learner-safe projection: an
+ * exam, or anything a learner must not be able to answer from the payload,
+ * goes through {@link redact} / {@link redactItemGroup}, whose output a scorer
+ * refuses.
+ *
+ * ```ts
+ * res.json(withoutAuthorOnly(practiceItem));
+ * ```
+ *
+ * @throws UnknownActivityTypeError when an activity's type is not registered,
+ *   and Error when it declares no `fieldPolicy`.
+ */
+export function withoutAuthorOnly<T>(entry: T): T {
+  if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+    throw new TypeError('withoutAuthorOnly: expects an activity or an item group.');
+  }
+  const record = entry as Record<string, unknown>;
+  if (record.type !== 'item-group') {
+    return withoutAuthorOnlyValue(entry, policyOf(record.type)) as T;
+  }
+  const { items, ...container } = record;
+  return {
+    ...(withoutAuthorOnlyValue(container, ITEM_GROUP_FIELD_POLICY) as Record<string, unknown>),
+    ...(Array.isArray(items)
+      ? {
+          items: items.map((item) =>
+            withoutAuthorOnlyValue(item, policyOf((item as { type?: unknown } | null)?.type)),
+          ),
+        }
+      : items !== undefined
+        ? { items }
+        : {}),
+  } as T;
 }

@@ -157,6 +157,7 @@ export function isStandardSchema(value: unknown): value is StandardSchemaV1 {
  */
 export function standardJsonSchemaOf(
   schema: StandardSchemaV1,
+  target: 'draft-07' | 'draft-2020-12' = 'draft-07',
 ): Record<string, unknown> | undefined {
   const converter = (
     schema['~standard'] as { jsonSchema?: { output?: (options: { target: string }) => unknown } }
@@ -164,7 +165,7 @@ export function standardJsonSchemaOf(
   if (typeof converter?.output !== 'function') {
     return undefined;
   }
-  const generated = converter.output({ target: 'draft-07' });
+  const generated = converter.output({ target });
   return generated !== null && typeof generated === 'object' && !Array.isArray(generated)
     ? (generated as Record<string, unknown>)
     : undefined;

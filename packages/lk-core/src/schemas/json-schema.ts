@@ -1,6 +1,6 @@
 import * as z from 'zod/v4';
 import { UnknownActivityTypeError } from '../errors.js';
-import { getActivityTypeDescriptor } from '../registry/index.js';
+import { getActivityTypeDescriptor, registeredActivityTypes } from '../registry/index.js';
 import { DictationDataSchema } from './dictation.js';
 import { FillInTheBlanksDataSchema } from './fill-in-the-blanks.js';
 import { GapSelectDataSchema } from './gap-select.js';
@@ -107,40 +107,107 @@ export const writtenResponseJsonSchema: Record<string, unknown> = z.toJSONSchema
   },
 );
 
+/** The JSON Schema drafts the SDK writes. */
+export type JsonSchemaTarget = 'draft-2020-12' | 'draft-7';
+
+/** What the Standard JSON Schema converter calls each draft. */
+const STANDARD_TARGET = { 'draft-7': 'draft-07', 'draft-2020-12': 'draft-2020-12' } as const;
+
 /**
- * Derives the JSON Schema (Draft 7) for any REGISTERED activity type — the
- * live, registry-backed replacement for the static per-type exports above,
- * and the building block for AI generation pipelines (R6.1): pass the result
- * as a structured-output schema so a model can only emit valid items.
+ * Derives the JSON Schema for any REGISTERED activity type — the live,
+ * registry-backed replacement for the static per-type exports above, and the
+ * building block for AI generation pipelines (R6.1): pass the result as a
+ * structured-output schema so a model can only emit valid items.
  *
- * For a type you registered, it is the descriptor's `jsonSchema` when you gave
- * one, or else what the schema produces through the Standard JSON Schema
- * converter (`'~standard'.jsonSchema`) — a zod 4.6 schema has one. A fresh copy
- * every call.
+ * Draft 7 unless `target` says `'draft-2020-12'`. For a type you registered,
+ * it is the descriptor's `jsonSchema` when you gave one, in whatever draft you
+ * wrote it, or else what the schema produces through the Standard JSON Schema
+ * converter (`'~standard'.jsonSchema`) in the draft asked for — a zod 4.6
+ * schema has one. A fresh copy every call.
  *
  * @throws UnknownActivityTypeError when `type` has no registered descriptor.
  * @throws Error when a registered type has neither a `jsonSchema` nor a schema
  *   that can produce one.
  */
-export function jsonSchemaFor(type: string): Record<string, unknown> {
+export function jsonSchemaFor(
+  type: string,
+  options: { target?: JsonSchemaTarget } = {},
+): Record<string, unknown> {
+  const target = options.target ?? 'draft-7';
   const descriptor = getActivityTypeDescriptor(type);
   if (descriptor === undefined) {
     throw new UnknownActivityTypeError(type);
   }
   if (isOwnSchema(descriptor.schema)) {
-    return z.toJSONSchema(descriptor.schema as never, { target: 'draft-7' }) as Record<
-      string,
-      unknown
-    >;
+    return z.toJSONSchema(descriptor.schema as never, { target }) as Record<string, unknown>;
   }
   if (descriptor.jsonSchema !== undefined) {
     return structuredClone(descriptor.jsonSchema) as Record<string, unknown>;
   }
-  const generated = standardJsonSchemaOf(descriptor.schema);
+  const generated = standardJsonSchemaOf(descriptor.schema, STANDARD_TARGET[target]);
   if (generated === undefined) {
     throw new Error(
       `Activity type "${descriptor.type}" has no JSON Schema: its schema implements no Standard JSON Schema converter ('~standard'.jsonSchema). Give its descriptor a \`jsonSchema\`.`,
     );
   }
   return generated;
+}
+
+/** A schema without its `$schema`, to sit inside another document. */
+function body(schema: Record<string, unknown>): Record<string, unknown> {
+  const { $schema: _draft, ...rest } = schema;
+  return rest;
+}
+
+/**
+ * One JSON Schema document for content an outside tool writes: the root is a
+ * `SequenceEntry` — an activity of any registered type, or an item group whose
+ * items are typed too. Each type, the stimulus and the item group sit under
+ * `$defs` (`definitions` in draft 7), so a tool can also point at one of them.
+ * Draft 2020-12 unless `target` says `'draft-7'`.
+ *
+ * Structural, as every exported schema is: rules that span fields (one key in
+ * a single-answer question, a blank for each marker, a slow recording that is
+ * another file) cannot be written in JSON Schema. On import, `validateDraft`
+ * and `validateItemGroupDraft` decide. It includes the author-only fields
+ * (`transcript`, `script`), so a tool can write them.
+ *
+ * ```ts
+ * writeFileSync('schema.json', JSON.stringify(contentJsonSchema(), null, 2));
+ * ```
+ */
+export function contentJsonSchema(
+  options: { target?: JsonSchemaTarget } = {},
+): Record<string, unknown> {
+  const target = options.target ?? 'draft-2020-12';
+  const definitions = target === 'draft-7' ? 'definitions' : '$defs';
+  const ref = (name: string) => ({ $ref: `#/${definitions}/${name}` });
+  const types = registeredActivityTypes();
+  const anyActivity = { oneOf: types.map(ref) };
+
+  const group = body(z.toJSONSchema(ItemGroupSchema, { target }) as Record<string, unknown>);
+  const properties = group.properties as Record<string, Record<string, unknown>>;
+  group.properties = {
+    ...properties,
+    stimulus: ref('stimulus'),
+    // The container's own rule for an item (a `type`, an `id`, a `slotKey`),
+    // and the item's type's whole contract.
+    items: { ...properties.items, items: { allOf: [properties.items?.items, anyActivity] } },
+  };
+
+  return {
+    $schema:
+      target === 'draft-7'
+        ? 'http://json-schema.org/draft-07/schema#'
+        : 'https://json-schema.org/draft/2020-12/schema',
+    title: 'SequenceEntry',
+    description:
+      'One entry of a question set or an exam section: an activity, or an item group. Structural only: validateDraft and validateItemGroupDraft decide.',
+    oneOf: [...types.map(ref), ref('item-group')],
+    [definitions]: {
+      ...Object.fromEntries(types.map((type) => [type, body(jsonSchemaFor(type, { target }))])),
+      stimulus: body(z.toJSONSchema(StimulusSchema, { target }) as Record<string, unknown>),
+      'item-group': group,
+    },
+  };
 }

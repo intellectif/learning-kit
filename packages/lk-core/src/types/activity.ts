@@ -80,6 +80,34 @@ export interface ActivityMedia {
    * browser's own control bar, unlimited plays, free seeking and free speed.
    */
   playback?: MediaPlaybackPolicy;
+  /**
+   * Author-only: what the recording says, as plain text. For item generation,
+   * review and grading; never shown to the learner, and removed by `redact()`
+   * and `redactItemGroup()`, as a stimulus's `transcript` is. Meant for
+   * `audio` and `video`.
+   */
+  transcript?: string;
+  /**
+   * Author-only: the recording as turns, one per speaker, for casting voices
+   * and reading a dialogue. Removed by redaction, as `transcript` is. Where
+   * both are given, `transcript` is the text AI facts read; see
+   * {@link transcriptOf}.
+   */
+  script?: ScriptTurn[];
+}
+
+/**
+ * One speaker's turn in a recording's author-only `script`.
+ *
+ * `speaker` is a label the author chooses ("Anna", "Narrator", "Speaker 2"),
+ * the same one for every turn that voice speaks. Which voice reads it is the
+ * consuming application's choice; the SDK never names a voice.
+ */
+export interface ScriptTurn {
+  /** Non-empty after trimming; at most 60 characters. */
+  speaker: string;
+  /** What the speaker says. Non-empty after trimming. */
+  text: string;
 }
 
 /**
@@ -181,6 +209,14 @@ export interface MultipleChoiceOptionMedia {
   alt?: string;
   /** WebVTT captions for an audio option, rendered as a `<track>`. */
   captionsUrl?: string;
+  /**
+   * Author-only: what an audio option says. In a listening option this is the
+   * option's answer, so it is removed by `redact()` like every author-only
+   * field. See {@link ActivityMedia.transcript}.
+   */
+  transcript?: string;
+  /** Author-only: the option's recording as speaker turns. See {@link ActivityMedia.script}. */
+  script?: ScriptTurn[];
 }
 
 export interface MultipleChoiceOption {

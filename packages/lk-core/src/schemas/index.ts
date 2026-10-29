@@ -30,16 +30,19 @@ export type {
 } from '../types/redacted.js';
 export { validateItemGroup } from './item-group.js';
 export {
+  contentJsonSchema,
   dictationJsonSchema,
   fillInTheBlanksJsonSchema,
   gapSelectJsonSchema,
   itemGroupJsonSchema,
+  type JsonSchemaTarget,
   jsonSchemaFor,
   multipleChoiceJsonSchema,
   readAloudJsonSchema,
   stimulusJsonSchema,
   writtenResponseJsonSchema,
 } from './json-schema.js';
+export { SCRIPT_MAX_TURNS } from './media.js';
 
 /**
  * Checks a piece of activity media — an item's `media`, a stimulus's, a
