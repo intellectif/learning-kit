@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -81,8 +81,36 @@
           }
         }
       }
+    },
+    {
+      // Tests, and only tests: a test defines the component it renders inside
+      // its own callback, closing over that test's fixtures. The callback runs
+      // once, so the component keeps one identity for the whole test, and the
+      // state loss this rule guards against cannot happen. In the packages'
+      // source the rule stays on.
+      "includes": ["**/__tests__/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noComponentHookFactories": "off"
+          }
+        }
+      }
     }
   ],
+  // Biome reads JavaScript, TypeScript and JSON here, and nothing else. From
+  // 2.6 it also formats Markdown and YAML, which would fight the tools that
+  // write some of them (pnpm writes `pnpm-lock.yaml`, Changesets writes the
+  // CHANGELOGs), and would change what the docs render: it removes the blank
+  // lines that make a list loose, and pads every table row to its widest cell.
+  "markdown": {
+    "formatter": { "enabled": false },
+    "linter": { "enabled": false }
+  },
+  "yaml": {
+    "formatter": { "enabled": false },
+    "linter": { "enabled": false }
+  },
   "javascript": {
     "formatter": {
       "quoteStyle": "single",
