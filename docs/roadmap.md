@@ -1050,6 +1050,29 @@ it. It comes after the groundwork it needs, in this order.
      reason go on the `GradeRecord`, so an appeal can see why a person did or did not mark it.
    - **Not shipped:** an analysis by subgroup (run a report on each group's pairs), and a marking
      queue for teachers, which is the host's.
+
+   **Inserted 2026-10-29, on a consumer's request: exam export, import and parallel versions.**
+   - ✅ **lk-core 1.6.0, content that travels:**
+     - `listMediaRefs` / `mapMediaRefs` list and re-point every file an entry uses, read from
+       each type's `mediaSlots`; a test derives the fields from the JSON Schemas;
+     - an author-only `transcript` and `script` on any recording, removed by redaction;
+     - `withoutAuthorOnly` for practice scored in the browser, proven on the grade-stability
+       corpus;
+     - `contentJsonSchema`, draft 2020-12, with a sequence entry as its root.
+
+     See [docs/authoring.md](./authoring.md#exporting-and-importing-content-16).
+   - **Next, lk-core 1.7.0: parallel versions.**
+     - `aiVariantsRequest` with its check, repair and run: one variant per exemplar, settings
+       copied by the SDK, and no recording address copied;
+     - paper-level checks in `critiqueDrafts`;
+     - `critiqueVersions(v1, v2)`.
+
+     Difficulty is an instruction the SDK does not claim to check; measuring it is `analyzeItem`'s.
+   - **Declined: a `meta` field on activities.**
+     - `learningObjectives` and `difficultyLevel` already exist.
+     - A measured difficulty belongs outside the item, keyed by its content hash: inside it, the
+       measurement would survive an edit, and updating it would change the plan hash of every
+       attempt in progress.
 2. **Real engine results.** The speech code is built from documented shapes; no real engine output
    has been captured into the SDK's fixtures, and the vendor documentation contradicts itself on
    details that decide grades. Capture scripted and unscripted results first, from synthesised speech

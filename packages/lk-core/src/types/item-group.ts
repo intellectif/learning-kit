@@ -1,4 +1,4 @@
-import type { ActivityData, ActivityMedia } from './activity.js';
+import type { ActivityData, ActivityMedia, ScriptTurn } from './activity.js';
 
 /** What a stimulus primarily is. Drives validation and layout, never scoring. */
 export type StimulusKind = 'text' | 'audio' | 'video' | 'image' | 'mixed';
@@ -10,8 +10,8 @@ export type StimulusKind = 'text' | 'audio' | 'video' | 'image' | 'mixed';
  * section alike, and needs no blueprint to exist.
  *
  * Learner-visible by definition: the point of a stimulus is that the learner
- * reads or hears it. The one exception is `transcript`, an author asset that
- * `redactItemGroup` removes.
+ * reads or hears it. The exceptions are `transcript` and `script`, author
+ * assets that `redactItemGroup` removes.
  */
 export interface Stimulus {
   id: string;
@@ -35,6 +35,12 @@ export interface Stimulus {
    * never shown to the learner. Removed by `redactItemGroup`.
    */
   transcript?: string;
+  /**
+   * Author-only: the recording as speaker turns, for casting voices. Removed
+   * by `redactItemGroup`, as `transcript` is. A stimulus keeps both here, not
+   * on its `media`; `transcriptOf` reads these first.
+   */
+  script?: ScriptTurn[];
   /** BCP 47 language tag of the material, when it differs from the items'. */
   locale?: string;
   /** Source credit, shown to the learner after the material. */

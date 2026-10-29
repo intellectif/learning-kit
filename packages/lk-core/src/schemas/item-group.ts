@@ -11,7 +11,7 @@ import {
 import type { ActivityData, ValidationError, ValidationResult } from '../types/activity.js';
 import type { ItemGroup, StimulusKind } from '../types/item-group.js';
 import { GROUP_CAPTIONS_REVEAL_DICTATION, groupCaptionsField } from './dictation.js';
-import { MediaSchema, RedactedMediaSchema } from './media.js';
+import { MediaSchema, RedactedMediaSchema, ScriptSchema } from './media.js';
 import { readSchema } from './read-schema.js';
 import { maxUnits } from './text-length.js';
 
@@ -69,6 +69,7 @@ export const StimulusSchema = z
     bodyHtml: z.string().optional(),
     media: MediaSchema.optional(),
     transcript: z.string().optional(),
+    script: ScriptSchema.optional(),
     locale: z.string().optional(),
     attribution: z.string().optional(),
   })

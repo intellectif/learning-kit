@@ -25,6 +25,7 @@ import {
   isUnwritten,
   refusesEmpty,
 } from './issues.js';
+import { stimulusFindings } from './recordings.js';
 
 /**
  * A new, empty reading or listening testlet for an editor to start from.
@@ -122,6 +123,7 @@ export function critiqueItemGroupDraft(draft: unknown): ItemFinding[] {
   }
   const items = Array.isArray(draft.items) ? draft.items : [];
   return withValidationScope(() => [
+    ...stimulusFindings(draft.stimulus),
     ...items.flatMap((item, index) => repathed(critiqueItem(item), ['items', index])),
     ...keyPositionFinding(items, ['items']),
   ]);

@@ -19,6 +19,7 @@ import {
   pathKey,
   refusesEmpty,
 } from './issues.js';
+import { recordingFindings } from './recordings.js';
 
 /**
  * Tells a draft that is not finished from a draft that is wrong.
@@ -227,11 +228,15 @@ export function critiqueDraft(type: ActivityType, draft: unknown): ItemFinding[]
   if (descriptor === undefined) {
     throw new UnknownActivityTypeError(String(type));
   }
-  const critique = descriptor.authoring?.critique;
-  if (!isRecord(draft) || critique === undefined) {
+  if (!isRecord(draft)) {
     return [];
   }
-  return withValidationScope(() => critique(draft)).map(normaliseFinding);
+  const critique = descriptor.authoring?.critique;
+  return withValidationScope(() => [
+    ...(critique === undefined ? [] : critique(draft)),
+    // Every type's recordings, wherever its type keeps media.
+    ...recordingFindings(draft),
+  ]).map(normaliseFinding);
 }
 
 export {

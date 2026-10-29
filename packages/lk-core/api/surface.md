@@ -50,6 +50,7 @@ const READ_ALOUD_MAX_SECONDS: READ_ALOUD_MAX_SECONDS = 300
 const READ_ALOUD_MAX_TAKES: READ_ALOUD_MAX_TAKES = 20
 const readAloudJsonSchema: readAloudJsonSchema: Record<string, unknown>
 const readAloudType: readAloudType: ActivityTypeDescriptor<ReadAloudData, ReadAloudLearnerResponse>
+const SCRIPT_MAX_TURNS: SCRIPT_MAX_TURNS = 500
 const SPEECH_ASSESSMENT_MAX_WORDS: SPEECH_ASSESSMENT_MAX_WORDS = 1000
 const stimulusJsonSchema: stimulusJsonSchema: Record<string, unknown>
 const TIMELINE_MAX_CHAPTERS: TIMELINE_MAX_CHAPTERS = 100
@@ -92,6 +93,7 @@ function composeAssessmentScore: declare function composeAssessmentScore(section
 function composeTimelineScore: declare function composeTimelineScore(entryKey: string, items: readonly ScoredItem[], policy: CompositionPolicy): AssessmentScore;
 function computePassThreshold: declare function computePassThreshold(activityData: ActivityData, score: number, rounding?: RoundingPolicy): boolean;
 function contentHash: declare function contentHash(value: unknown): string;
+function contentJsonSchema: declare function contentJsonSchema(options?: { target?: JsonSchemaTarget; }): Record<string, unknown>;
 function countWords: declare function countWords(text: string): number;
 function createDraft: declare function createDraft<T extends ActivityType>(type: T, context: DraftContext): ActivityDataMap[T];
 function createInteractiveVideoDraft: declare function createInteractiveVideoDraft(context: DraftContext): ItemGroup;
@@ -124,8 +126,10 @@ function interactiveVideoFromDrafts: declare function interactiveVideoFromDrafts
 function isBuiltInActivityType: declare function isBuiltInActivityType(type: unknown): type is BuiltInActivityType;
 function isInteractiveVideoItemType: declare function isInteractiveVideoItemType(type: unknown): type is InteractiveVideoItemType;
 function isItemGroup: declare function isItemGroup<TItem extends { type: string; }>(entry: SequenceEntry<TItem>): entry is ItemGroup<TItem>;
-function jsonSchemaFor: declare function jsonSchemaFor(type: string): Record<string, unknown>;
+function jsonSchemaFor: declare function jsonSchemaFor(type: string, options?: { target?: JsonSchemaTarget; }): Record<string, unknown>;
 function levenshteinDistance: declare function levenshteinDistance(a: string, b: string, max: number): number;
+function listMediaRefs: declare function listMediaRefs(entry: unknown): MediaRef[];
+function mapMediaRefs: declare function mapMediaRefs<T>(entry: T, fn: (ref: MediaRef) => null | string): T;
 function matchText: declare function matchText(input: string, accepted: readonly string[] | string, policy?: TextMatchPolicy): TextMatchResult;
 function outcomeFromGrade: declare function outcomeFromGrade(grade: GradeRecord): ItemOutcome;
 function outcomeFromRoutedGrade: declare function outcomeFromRoutedGrade(grade: GradeRecord, routing: GradeRouting): ItemOutcome;
@@ -153,6 +157,7 @@ function serializeAttemptState: declare function serializeAttemptState(plan: Att
 function serializeMediaPlayLedger: declare function serializeMediaPlayLedger(plan: AttemptPlan, entries: Readonly<Record<string, MediaPlayLedgerEntry>>, options?: { savedAt?: string; }): MediaPlayLedger;
 function slotMediaKey: declare function slotMediaKey(slotId: string): string;
 function stimulusMediaKey: declare function stimulusMediaKey(slotId: string): string;
+function transcriptOf: declare function transcriptOf(holder: unknown): null | string;
 function validateActivity: declare function validateActivity<T extends ActivityType>(type: T, data: unknown): ValidationResult<ActivityDataMap[T]>;
 function validateDeliveryPolicy: declare function validateDeliveryPolicy(policy: unknown): { data: DeliveryPolicy; success: true; } | { issues: DeliveryPolicyIssue[]; success: false; };
 function validateDraft: declare function validateDraft<T extends ActivityType>(type: T, draft: unknown): DraftValidationResult<ActivityDataMap[T]>;
@@ -164,14 +169,15 @@ function validateOptionMedia: declare function validateOptionMedia(value: unknow
 function validateSpeechAssessment: declare function validateSpeechAssessment(value: unknown): ValidationResult<SpeechAssessment>;
 function validateXAPIStatement: declare function validateXAPIStatement(statement: XAPIStatement): void;
 function verifyAttemptPlan: declare function verifyAttemptPlan(plan: AttemptPlan, current: AttemptPlan): AttemptPlanDrift;
+function withoutAuthorOnly: declare function withoutAuthorOnly<T>(entry: T): T;
 function xapiDefinitionFor: declare function xapiDefinitionFor(data: { type: string; }): Partial<XAPIObjectParams>;
 interface ActivityAiPermissions: interface ActivityAiPermissions { explanations?: boolean; hints?: boolean; }
 interface ActivityDataMap: interface ActivityDataMap { 'multiple-choice': MultipleChoiceData; 'fill-in-the-blanks': FillInTheBlanksData; 'written-response': WrittenResponseData; 'gap-select': GapSelectData; dictation: DictationData; 'read-aloud': ReadAloudData; }
 interface ActivityFeedback: interface ActivityFeedback { correct?: string; incorrect?: string; }
-interface ActivityMedia: interface ActivityMedia { type: 'audio' | 'embed' | 'image' | 'video'; url: string; alt?: string; captionsUrl?: string; tracks?: MediaTrack[]; poster?: string; playback?: MediaPlaybackPolicy; }
+interface ActivityMedia: interface ActivityMedia { type: 'audio' | 'embed' | 'image' | 'video'; url: string; alt?: string; captionsUrl?: string; tracks?: MediaTrack[]; poster?: string; playback?: MediaPlaybackPolicy; transcript?: string; script?: ScriptTurn[]; }
 interface ActivityResult: interface ActivityResult { score: number; maxScore: number; passed: boolean; timeSpent: number; xapiStatement: XAPIStatement; }
 interface ActivityTypeAuthoring: interface ActivityTypeAuthoring<TData> { readonly createDraft?: (context: DraftContext) => TData; readonly checkDraft?: (draft: Readonly<Record<string, unknown>>) => DraftIssue[]; readonly critique?: (draft: Readonly<Record<string, unknown>>) => ItemFinding[]; }
-interface ActivityTypeDescriptor: interface ActivityTypeDescriptor<TData extends { type: string; }, TResponse> { readonly type: TData['type']; readonly schema: StandardSchemaV1<unknown, TData>; readonly jsonSchema?: Readonly<Record<string, unknown>>; readonly scoring: ActivityTypeScoring<TData, TResponse>; readonly isAnswered?: (response: TResponse | undefined) => boolean; readonly fieldPolicy?: FieldPolicy; readonly redactedSchema?: StandardSchemaV1; readonly interop?: ActivityTypeInterop<TData>; readonly interactions?: readonly string[]; readonly authoring?: ActivityTypeAuthoring<TData>; }
+interface ActivityTypeDescriptor: interface ActivityTypeDescriptor<TData extends { type: string; }, TResponse> { readonly type: TData['type']; readonly schema: StandardSchemaV1<unknown, TData>; readonly jsonSchema?: Readonly<Record<string, unknown>>; readonly scoring: ActivityTypeScoring<TData, TResponse>; readonly isAnswered?: (response: TResponse | undefined) => boolean; readonly fieldPolicy?: FieldPolicy; readonly redactedSchema?: StandardSchemaV1; readonly interop?: ActivityTypeInterop<TData>; readonly interactions?: readonly string[]; readonly authoring?: ActivityTypeAuthoring<TData>; readonly mediaSlots?: (data: TData) => readonly MediaSlot[]; }
 interface ActivityTypeInterop: interface ActivityTypeInterop<TData> { readonly xapiActivityTypeIri?: string; readonly xapiInteractionType?: XAPIInteractionType; readonly correctResponsesPattern?: (data: TData) => string[]; }
 interface AiActivityInput: interface AiActivityInput { readonly type: string; readonly id: string; readonly title: string; readonly locale?: unknown; readonly redacted?: unknown; readonly ai?: unknown; }
 interface AiBlankFact: interface AiBlankFact { id: string; position: number; typed: string; accepted: null | string[]; correct: boolean | null; hint?: string; feedback?: string; }
@@ -290,12 +296,14 @@ interface MediaPlayGrant: interface MediaPlayGrant { playsUsed: number; }
 interface MediaPlayLedger: interface MediaPlayLedger { ledgerVersion: '1.0'; planHash: string; entries: Record<string, MediaPlayLedgerEntry>; savedAt?: string; }
 interface MediaPlayLedgerEntry: interface MediaPlayLedgerEntry { plays: number; at?: number; }
 interface MediaProgress: interface MediaProgress { progressVersion: '1.0'; at: number; furthest: number; }
+interface MediaRef: interface MediaRef { readonly path: readonly (number | string)[]; readonly kind: MediaRefKind; readonly url: null | string; readonly holder: Readonly<Record<string, unknown>>; readonly activityId?: string; readonly stimulusId?: string; readonly srclang?: string; }
+interface MediaSlot: interface MediaSlot { readonly path: readonly (number | string)[]; readonly kind?: 'audio' | 'embed' | 'image' | 'video'; }
 interface MediaTimeline: interface MediaTimeline { cues: TimelineCue[]; chapters?: TimelineChapter[]; navigation?: 'free' | 'no-skip-ahead'; }
 interface MediaTrack: interface MediaTrack { kind: 'captions' | 'subtitles'; src: string; srclang: string; label: string; default?: boolean; }
 interface MultipleChoiceData: interface MultipleChoiceData { schemaVersion: '1.0'; type: 'multiple-choice'; id: string; title: string; question: string; questionHtml?: string; mode: 'multi' | 'single'; options: MultipleChoiceOption[]; scoringStrategy: 'all-or-nothing' | 'partial'; media?: ActivityMedia; feedback?: ActivityFeedback; passThreshold?: number; shuffle?: boolean; locale?: string; learningObjectives?: string[]; difficultyLevel?: 1 | 2 | 3 | 4 | 5; ai?: ActivityAiPermissions; }
 interface MultipleChoiceLearnerResponse: interface MultipleChoiceLearnerResponse { type: 'multiple-choice'; selectedOptionIds: string[]; hintsRevealed?: number; }
 interface MultipleChoiceOption: interface MultipleChoiceOption { id: string; text: string; isCorrect: boolean; feedback?: string; media?: MultipleChoiceOptionMedia; }
-interface MultipleChoiceOptionMedia: interface MultipleChoiceOptionMedia { type: 'audio' | 'image'; url: string; alt?: string; captionsUrl?: string; }
+interface MultipleChoiceOptionMedia: interface MultipleChoiceOptionMedia { type: 'audio' | 'image'; url: string; alt?: string; captionsUrl?: string; transcript?: string; script?: ScriptTurn[]; }
 interface PlanAttemptOptions: interface PlanAttemptOptions<TItem> { shuffleEntries?: boolean; seed?: string; points?: (slot: SequenceSlot<TItem>) => number; delivery?: DeliveryPolicy | null; scoring?: ItemScoringPolicy | null; }
 interface ReadAloudData: interface ReadAloudData { schemaVersion: '1.0'; type: 'read-aloud'; id: string; title: string; instructions?: string; referenceText: string; locale: string; media?: ActivityMedia; slowMedia?: ReadAloudSlowMedia; recording: RecordingBounds; scoring: { dimensions: ReadAloudDimensionWeight[]; }; passThreshold?: number; feedback?: ActivityFeedback; learningObjectives?: string[]; difficultyLevel?: 1 | 2 | 3 | 4 | 5; ai?: ActivityAiPermissions; }
 interface ReadAloudDimensionWeight: interface ReadAloudDimensionWeight { name: ReadAloudDimension; weight: number; }
@@ -320,7 +328,7 @@ interface RedactedReadAloudData: interface RedactedReadAloudData extends Redacte
 interface RedactedStimulus: interface RedactedStimulus { id: string; kind: 'audio' | 'image' | 'mixed' | 'text' | 'video'; title?: string | undefined; body?: string | undefined; bodyHtml?: string | undefined; media?: Media | undefined; locale?: string | undefined; attribution?: string | undefined; }
 interface RedactedWrittenResponseData: interface RedactedWrittenResponseData extends RedactedItem { type: 'written-response'; prompt: string; promptHtml?: string | undefined; minWords: number; maxWords: number; rubric?: undefined | { criteria: { description?: string | undefined; levels?: undefined | { description?: string | undefined; label: string; }[]; name: string; weight: number; }[]; label?: string | undefined; }; languageTarget?: string | undefined; locale?: string | undefined; }
 interface RedactOptions: interface RedactOptions { reveal?: 'after-submit' | 'none'; policy?: FieldPolicy; }
-interface RegisteredActivityTypeDescriptor: interface RegisteredActivityTypeDescriptor { readonly type: string; readonly schema: StandardSchemaV1; readonly jsonSchema?: Readonly<Record<string, unknown>>; readonly scoring: { readonly kind: 'deferred'; readonly partial?: (data: unknown, response: unknown) => DeferredScoringPartial; readonly reason: 'requires_async_grading'; } | { readonly kind: 'sync'; readonly score: (data: unknown, response: unknown) => PartialScoringResult; }; readonly isAnswered?: (response: unknown) => boolean; readonly fieldPolicy?: FieldPolicy; readonly redactedSchema?: StandardSchemaV1; readonly interop?: ActivityTypeInterop<unknown>; readonly interactions?: readonly string[]; readonly authoring?: ActivityTypeAuthoring<unknown>; }
+interface RegisteredActivityTypeDescriptor: interface RegisteredActivityTypeDescriptor { readonly type: string; readonly schema: StandardSchemaV1; readonly jsonSchema?: Readonly<Record<string, unknown>>; readonly scoring: { readonly kind: 'deferred'; readonly partial?: (data: unknown, response: unknown) => DeferredScoringPartial; readonly reason: 'requires_async_grading'; } | { readonly kind: 'sync'; readonly score: (data: unknown, response: unknown) => PartialScoringResult; }; readonly isAnswered?: (response: unknown) => boolean; readonly fieldPolicy?: FieldPolicy; readonly redactedSchema?: StandardSchemaV1; readonly interop?: ActivityTypeInterop<unknown>; readonly interactions?: readonly string[]; readonly authoring?: ActivityTypeAuthoring<unknown>; readonly mediaSlots?: (data: unknown) => readonly MediaSlot[]; }
 interface ResolvedDeliveryPolicy: interface ResolvedDeliveryPolicy { feedback: boolean; solutions: boolean; hints: boolean; ai: { explanations: boolean; hints: boolean; }; }
 interface ResolvedItemScoringPolicy: interface ResolvedItemScoringPolicy { hintPenalty: number; retries: number; retryPenalty: number; counts: ItemScoringCount; }
 interface ResolvedPlaybackPolicy: interface ResolvedPlaybackPolicy { controls: 'minimal' | 'native'; maxPlays: null | number; seek: 'allow' | 'none'; rate: 'allow' | 'fixed'; nativeControlHints: readonly NativeControlHint[]; }
@@ -330,6 +338,7 @@ interface ScoredItem: interface ScoredItem { slotId: string; activityId?: string
 interface ScoringDetail: interface ScoringDetail { itemId: string; outcome: ScoringOutcome; learnerResponse: string | string[]; correctResponse: string | string[]; weight?: number; score?: number; }
 interface ScoringOptions: interface ScoringOptions { rounding?: RoundingPolicy; }
 interface ScoringResult: interface ScoringResult { score: number; maxScore: number; passed: boolean; feedback: null | string; details: ScoringDetail[]; }
+interface ScriptTurn: interface ScriptTurn { speaker: string; text: string; }
 interface SectionScore: interface SectionScore { id: string; title?: string; weight: number; normalizedWeight: number; earnedPoints: number; gradedMaxPoints: number; maxPoints: number; score: number; passed: boolean; appliedThreshold: null | number; pendingSlotIds: string[]; rejectedSlotIds?: string[]; unscorableSlotIds: string[]; }
 interface SeededShuffleOptions: interface SeededShuffleOptions { version?: ShuffleVersion; }
 interface SequenceSlot: interface SequenceSlot<TItem = ActivityData> { slotId: string; index: number; activity: TItem; group?: SequenceSlotGroup; }
@@ -343,7 +352,7 @@ interface SpeechSyllable: interface SpeechSyllable { text: string; grapheme?: st
 interface SpeechUnscorable: interface SpeechUnscorable { unscorable: true; code: SpeechUnscorableCode; reason: string; }
 interface SpeechWord: interface SpeechWord { text: string; accuracy?: number; error: SpeechWordError; vendorError?: string; startMs?: number; durationMs?: number; syllables?: SpeechSyllable[]; phonemes?: SpeechPhoneme[]; breaks?: { missing?: number; unexpected?: number; }; }
 interface StandardSchemaV1: interface StandardSchemaV1<Input = unknown, Output = Input> { readonly '~standard': StandardSchemaV1.Props<Input, Output>; } declare namespace StandardSchemaV1 { interface Props<Input = unknown, Output = Input> { readonly version: 1; readonly vendor: string; readonly validate: (value: unknown, options?: StandardSchemaV1.Options | undefined) => Promise<Result<Output>> | Result<Output>; readonly types?: Types<Input, Output> | undefined; } type Result<Output> = FailureResult | SuccessResult<Output>; interface SuccessResult<Output> { readonly value: Output; readonly issues?: undefined; } interface Options { readonly libraryOptions?: Record<string, unknown> | undefined; } interface FailureResult { readonly issues: ReadonlyArray<Issue>; } interface Issue { readonly message: string; readonly path?: ReadonlyArray<PathSegment | PropertyKey> | undefined; } interface PathSegment { readonly key: PropertyKey; } interface Types<Input = unknown, Output = Input> { readonly input: Input; readonly output: Output; } type InferInput<Schema extends StandardSchemaV1> = NonNullable<Schema['~standard']['types']>['input']; type InferOutput<Schema extends StandardSchemaV1> = NonNullable<Schema['~standard']['types']>['output']; }
-interface Stimulus: interface Stimulus { id: string; kind: StimulusKind; title?: string; body?: string; bodyHtml?: string; media?: ActivityMedia; transcript?: string; locale?: string; attribution?: string; }
+interface Stimulus: interface Stimulus { id: string; kind: StimulusKind; title?: string; body?: string; bodyHtml?: string; media?: ActivityMedia; transcript?: string; script?: ScriptTurn[]; locale?: string; attribution?: string; }
 interface SubmittedStatementParams: interface SubmittedStatementParams { actor: XAPIActor; object: XAPIObjectParams; timeSpentMs: number; response?: string; context?: XAPIContext; resultExtensions?: Record<string, unknown>; }
 interface TextMatchPolicy: interface TextMatchPolicy { caseSensitive?: boolean; trim?: boolean; normalize?: 'NFC' | 'NFKC' | 'none'; foldDiacritics?: boolean; collapseInnerWhitespace?: boolean; ignorePunctuation?: boolean; levenshtein?: number; locale?: string; }
 interface TextMatchResult: interface TextMatchResult { matched: boolean; via: 'exact' | 'folded' | 'fuzzy' | 'none' | 'normalized'; }
@@ -399,7 +408,9 @@ type InteractiveVideoItemType: type InteractiveVideoItemType = (typeof INTERACTI
 type ItemFindingSeverity: type ItemFindingSeverity = 'advice' | 'warning';
 type ItemOutcome: type ItemOutcome = { code?: string; maxScore: number; reason: string; status: 'unscorable'; } | { details: ScoringDetail[]; feedback: null | string; maxScore: number; passed: boolean; score: number; status: 'scored'; } | { feedback: null | string; grade: GradeRecord; maxScore: number; passed: boolean; score: number; status: 'graded'; } | { maxScore: number; partial?: DeferredScoringPartial; pendingGrade?: GradeRecord; reason: DeferredReason; rejectedGrade?: GradeRecord; status: 'deferred'; };
 type ItemScoringCount: type ItemScoringCount = 'best' | 'first' | 'last';
+type JsonSchemaTarget: type JsonSchemaTarget = 'draft-2020-12' | 'draft-7';
 type LearnerResponse: type LearnerResponse = LearnerResponseMap[keyof LearnerResponseMap];
+type MediaRefKind: type MediaRefKind = 'audio' | 'captions' | 'embed' | 'image' | 'poster' | 'track' | 'video';
 type MissingOutcomePolicy: type MissingOutcomePolicy = 'deferred' | 'zero' | ((slot: AttemptPlanSlot) => ItemOutcome);
 type NativeControlHint: type NativeControlHint = 'hide-download' | 'hide-rate';
 type PartialScoringResult: type PartialScoringResult = Omit<ScoringResult, 'passed'>;
@@ -445,9 +456,11 @@ const gapSelectJsonSchema: gapSelectJsonSchema: Record<string, unknown>
 const itemGroupJsonSchema: itemGroupJsonSchema: Record<string, unknown>
 const multipleChoiceJsonSchema: multipleChoiceJsonSchema: Record<string, unknown>
 const readAloudJsonSchema: readAloudJsonSchema: Record<string, unknown>
+const SCRIPT_MAX_TURNS: SCRIPT_MAX_TURNS = 500
 const stimulusJsonSchema: stimulusJsonSchema: Record<string, unknown>
 const writtenResponseJsonSchema: writtenResponseJsonSchema: Record<string, unknown>
-function jsonSchemaFor: declare function jsonSchemaFor(type: string): Record<string, unknown>;
+function contentJsonSchema: declare function contentJsonSchema(options?: { target?: JsonSchemaTarget; }): Record<string, unknown>;
+function jsonSchemaFor: declare function jsonSchemaFor(type: string, options?: { target?: JsonSchemaTarget; }): Record<string, unknown>;
 function validateActivity: declare function validateActivity<T extends ActivityType>(type: T, data: unknown): ValidationResult<ActivityDataMap[T]>;
 function validateItemGroup: declare function validateItemGroup(data: unknown): ValidationResult<ItemGroup>;
 function validateMedia: declare function validateMedia(value: unknown): ValidationResult<ActivityMedia>;
@@ -466,6 +479,7 @@ interface RedactedMultipleChoiceOptionMedia: interface RedactedMultipleChoiceOpt
 interface RedactedReadAloudData: interface RedactedReadAloudData extends RedactedItem { type: 'read-aloud'; instructions?: string | undefined; referenceText: string; locale: string; slowMedia?: RedactedDictationSlowMedia | undefined; recording: { maxSeconds: number; maxTakes?: number | undefined; minSeconds?: number | undefined; }; scoring: { dimensions: { name: 'accuracy' | 'completeness' | 'fluency' | 'prosody'; weight: number; }[]; }; }
 interface RedactedStimulus: interface RedactedStimulus { id: string; kind: 'audio' | 'image' | 'mixed' | 'text' | 'video'; title?: string | undefined; body?: string | undefined; bodyHtml?: string | undefined; media?: Media | undefined; locale?: string | undefined; attribution?: string | undefined; }
 interface RedactedWrittenResponseData: interface RedactedWrittenResponseData extends RedactedItem { type: 'written-response'; prompt: string; promptHtml?: string | undefined; minWords: number; maxWords: number; rubric?: undefined | { criteria: { description?: string | undefined; levels?: undefined | { description?: string | undefined; label: string; }[]; name: string; weight: number; }[]; label?: string | undefined; }; languageTarget?: string | undefined; locale?: string | undefined; }
+type JsonSchemaTarget: type JsonSchemaTarget = 'draft-2020-12' | 'draft-7';
 type RedactedActivity: type RedactedActivity = RedactedDictationData | RedactedFillInTheBlanksData | RedactedGapSelectData | RedactedMultipleChoiceData | RedactedReadAloudData | RedactedWrittenResponseData;
 ```
 

@@ -19,6 +19,7 @@ export * from './errors.js';
 export * from './grading.js';
 export * from './item-group.js';
 export * from './media-budget.js';
+export * from './media-refs.js';
 export * from './redact.js';
 export * from './registry/index.js';
 export * from './schemas/index.js';

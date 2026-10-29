@@ -104,6 +104,27 @@ export const MediaTrackSchema = z.strictObject({
 
 const MAX_TRACKS = 12;
 
+/** The most turns a recording's `script` may hold. */
+export const SCRIPT_MAX_TURNS = 500;
+
+/**
+ * One speaker's turn in an author-only `script`. Loose, as content is: a host
+ * may keep its own fields on a turn (the voice it cast, a direction for it).
+ * Unlike a track's, both fields are required, so a misspelt one is still
+ * caught.
+ */
+export const ScriptTurnSchema = z.looseObject({
+  speaker: maxUnits(z.string(), 60).refine((speaker) => speaker.trim().length > 0, {
+    error: 'A script turn needs a speaker.',
+  }),
+  text: z.string().refine((text) => text.trim().length > 0, {
+    error: 'A script turn needs words.',
+  }),
+});
+
+/** An author-only `script`: one turn or more, in the order they are spoken. */
+export const ScriptSchema = z.array(ScriptTurnSchema).min(1).max(SCRIPT_MAX_TURNS);
+
 /** `poster` on anything but a video: an image with nothing to stand in for. */
 function posterFits(m: { type: string; poster?: string | undefined }): boolean {
   return m.poster === undefined || m.type === 'video';
@@ -146,6 +167,11 @@ export const MediaSchema = z
     tracks: z.array(MediaTrackSchema).min(1).max(MAX_TRACKS).optional(),
     poster: MediaUrlSchema.optional(),
     playback: MediaPlaybackSchema.optional(),
+    // Author-only. Allowed on any type, so content stored before 1.6.0 with
+    // such a field keeps validating; the critic says when it sits on media
+    // that has nothing to say.
+    transcript: z.string().optional(),
+    script: ScriptSchema.optional(),
   })
   .refine(
     (m) =>

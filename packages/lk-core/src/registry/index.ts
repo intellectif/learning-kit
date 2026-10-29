@@ -16,6 +16,7 @@ export {
   defineActivityType,
   type FieldPolicy,
   getActivityTypeDescriptor,
+  type MediaSlot,
   type PartialScoringResult,
   type RegisteredActivityTypeDescriptor,
   registerActivityType,

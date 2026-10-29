@@ -177,6 +177,28 @@ export interface ActivityTypeDescriptor<TData extends { type: string }, TRespons
   readonly interactions?: readonly string[];
   /** Draft support for authoring tools. See {@link ActivityTypeAuthoring}. */
   readonly authoring?: ActivityTypeAuthoring<TData>;
+  /**
+   * Where the type keeps its files, for `listMediaRefs` and `mapMediaRefs`.
+   * See {@link MediaSlot}. Called with whatever is stored, drafts included, so
+   * it must not assume a field is there. Left out, only a top-level `media`
+   * is read, which is where every built-in type keeps its main media.
+   */
+  readonly mediaSlots?: (data: TData) => readonly MediaSlot[];
+}
+
+/**
+ * One object in an activity that holds a file's address: an `ActivityMedia`,
+ * a multiple-choice option's `media`, a slow recording. The walker reads its
+ * `url`, and its `captionsUrl`, `tracks[].src` and `poster` where present.
+ */
+export interface MediaSlot {
+  /** From the activity to the object, e.g. `['options', 2, 'media']`. */
+  readonly path: readonly (string | number)[];
+  /**
+   * The kind of the object's main file, for an object with no `type` of its
+   * own. Where the object says (`type: 'audio'`), its own word is used.
+   */
+  readonly kind?: 'audio' | 'video' | 'image' | 'embed';
 }
 
 /**
@@ -203,6 +225,7 @@ export interface RegisteredActivityTypeDescriptor {
   readonly interop?: ActivityTypeInterop<unknown>;
   readonly interactions?: readonly string[];
   readonly authoring?: ActivityTypeAuthoring<unknown>;
+  readonly mediaSlots?: (data: unknown) => readonly MediaSlot[];
 }
 
 /**

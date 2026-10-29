@@ -47,6 +47,13 @@ const NOT_WORDS: ReadonlySet<string> = new Set([
   'bankId',
   'url',
   'captionsUrl',
+  // A caption track's address and language, and a video's still: addresses
+  // and settings, as `url` is.
+  'src',
+  'srclang',
+  'poster',
+  // Who speaks a turn of a recording's script: a label for casting, not words.
+  'speaker',
   'match',
   'playback',
   'recording',

@@ -30,6 +30,10 @@ export const ITEM_FINDING_SEVERITY = {
   wr_levels_unreadable: 'warning',
   // read-aloud
   ra_text_long_for_time: 'warning',
+  // what a recording says: any item's media, and a group's material
+  media_transcript_unused: 'advice',
+  media_script_differs: 'warning',
+  media_transcript_differs: 'warning',
   // a set of items: a quiz, or an item group's items
   set_key_position_same: 'warning',
 } as const satisfies Readonly<Record<string, ItemFindingSeverity>>;
