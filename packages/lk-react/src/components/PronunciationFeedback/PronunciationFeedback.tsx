@@ -89,7 +89,8 @@ export interface PronunciationFeedbackProps {
    * Confidence above which a break note is shown, 0..1. **No default**: how
    * confident an engine has to be before a pause is worth telling a learner
    * about is a calibration, and the SDK has no calibrated answer. Without it no
-   * break note is shown at all.
+   * break note is shown at all. Measure it on your own engine's results: Azure's
+   * raw break confidences are not 0..1.
    */
   breakThreshold?: number;
   /** The same, for the monotone note read off `assessment.prosody`. */
@@ -232,8 +233,6 @@ export function markSentence(entry: ReadAloudWordAlignment, s: LkStrings): strin
  *   assessment={assessment}
  *   grade={grade}
  *   audioUrl={takeUrl}
- *   breakThreshold={0.75}
- *   monotoneThreshold={0.6}
  *   ai={{ pronunciationCoaching: (request, { signal }) => api.coach(request, signal) }}
  * />
  * ```
