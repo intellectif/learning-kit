@@ -19,9 +19,10 @@
  * - overall: Microsoft's PronScore formula over those.
  *
  * On the captures, the same arithmetic over one result reproduces Azure's own
- * accuracy and completeness on every single-shot scripted take in a script
- * written with spaces, and the formula its PronScore on every single-shot
- * take. Fluency is Azure's model, which the formula matches within a point on
+ * completeness on every single-shot scripted take in a script written with
+ * spaces, and its accuracy on all but one: word scores averaging exactly 14.5,
+ * which Azure reported as 14 and this rounds to 15. The formula reproduces
+ * its PronScore on every single-shot take. Fluency is Azure's model, which the formula matches within a point on
  * most takes and not on all, so a single result keeps Azure's numbers.
  * Accuracy, fluency and completeness are whole numbers, and prosody and
  * overall have one decimal, as Azure reports them.

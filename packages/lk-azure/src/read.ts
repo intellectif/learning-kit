@@ -2,7 +2,7 @@
  * One Azure recognition result, read into the pieces a `SpeechAssessment` is
  * made of.
  *
- * Every rule here comes from a real response: 48 cases captured in October
+ * Every rule here comes from a real response: 59 cases captured in October
  * 2026 on the Speech SDK for JavaScript 1.51.0 and the REST short-audio API,
  * kept under `src/__tests__/fixtures`. The SDK's JSON nests each score under
  * `PronunciationAssessment`; REST puts it directly on the result, the word,
@@ -40,8 +40,8 @@ export interface Utterance {
 /** What one raw result reads as. */
 export type ReadResult =
   | { kind: 'utterance'; utterance: Utterance }
-  /** A status that says nothing was heard: no words to add. */
-  | { kind: 'silent' }
+  /** A status in which no word was recognised: no words to add. */
+  | { kind: 'no_words' }
   | { kind: 'refused'; code: AzureRefusalCode; message: string };
 
 type Fields = Record<string, unknown>;
@@ -206,8 +206,13 @@ function textOf(result: Fields, best: Fields): string | undefined {
   return undefined;
 }
 
-/** Statuses that say nothing was heard. Neither appeared in the captures. */
-const SILENT = new Set(['InitialSilenceTimeout', 'BabbleTimeout']);
+/**
+ * Statuses in which Azure recognised no word: silence, noise, and speech that
+ * matched no word (`NoMatch`). None appeared in the captures. They add no
+ * words, so a take of them is `no_speech`, as a take of silence or noise is
+ * when Azure answers it with every word omitted.
+ */
+const NO_WORDS = new Set(['InitialSilenceTimeout', 'BabbleTimeout', 'NoMatch']);
 
 /** Reads one result: a string as the SDK's `SpeechServiceResponse_JsonResult` gives it, or a parsed body. */
 export function readResult(raw: AzureResult): ReadResult {
@@ -223,15 +228,8 @@ export function readResult(raw: AzureResult): ReadResult {
     return { kind: 'refused', code: 'not_a_result', message: 'it is not a JSON object.' };
   }
   const status = result.RecognitionStatus;
-  if (typeof status === 'string' && SILENT.has(status)) {
-    return { kind: 'silent' };
-  }
-  if (status === 'NoMatch') {
-    return {
-      kind: 'refused',
-      code: 'no_match',
-      message: 'Azure heard speech that matched no words (NoMatch).',
-    };
+  if (typeof status === 'string' && NO_WORDS.has(status)) {
+    return { kind: 'no_words' };
   }
   // The SDK's JSON writes the status as a name; Microsoft's examples show 0.
   if (status !== 'Success' && status !== 0) {

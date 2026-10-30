@@ -1087,7 +1087,9 @@ it. It comes after the groundwork it needs, in this order.
    **`@intellectif/lk-azure` 1.0.0** reads Azure's results into a `SpeechAssessment`, tested against 30
    of the captures (JSON only), and scores a take Azure splits into segments as single-shot
    recognition would. It is a separate package, decided on 2026-10-30, so that lk-core names no
-   vendor.
+   vendor. **2.0.0** reads a `NoMatch` result as `no_speech`, not as a refusal: in 1.0.0 it was the
+   one refusal about the take, and a platform that sent refusals to a person had no person to send
+   it to.
 3. **The unscripted assessment.** `SpeechAssessment` already names `task: 'unscripted'`, which
    `gradeReadAloud` refuses. It gains what an open answer carries: the recogniser's transcript and
    word timings, and the engine's pronunciation, fluency and prosody measures. There is no reference

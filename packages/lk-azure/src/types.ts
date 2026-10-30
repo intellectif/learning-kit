@@ -40,17 +40,18 @@ export interface AzureAssessmentRequest {
  *   Continuous recognition does not judge miscues; send it with `miscue: false`;
  * - `not_a_result`: a result is not JSON, not an object, or carries no
  *   pronunciation assessment;
- * - `no_match`: Azure heard speech that matched no words. Route the take to
- *   review or a re-record, not to a retry;
- * - `recognition_failed`: a status other than success or silence;
+ * - `recognition_failed`: any other status, such as `Error`;
  * - `invalid_assessment`: lk-core refused the assessment the results make,
  *   for the reasons in `errors`.
+ *
+ * None of them is about the take: each is the request, the service or the
+ * response. A take in which Azure recognised no word is an assessment,
+ * `status: 'no_speech'`, never a refusal.
  */
 export type AzureRefusalCode =
   | 'five_point_scale'
   | 'miscue_across_results'
   | 'not_a_result'
-  | 'no_match'
   | 'recognition_failed'
   | 'invalid_assessment';
 

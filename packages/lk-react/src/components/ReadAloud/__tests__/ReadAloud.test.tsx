@@ -407,19 +407,66 @@ describe('<ReadAloud> practice', () => {
     expect(record()).toHaveTextContent('Record again');
   });
 
-  it('falls back to the general message for a code the SDK does not name', async () => {
+  // The names an object inherits are codes the SDK does not name too: looked up
+  // as table keys, they would find a function rather than a message.
+  it.each(['house_policy', 'constructor', 'toString', '__proto__'])(
+    'falls back to the general message for %s, a code the SDK does not name',
+    async (code) => {
+      const user = userEvent.setup();
+      const assess = vi.fn(async () => ({ status: 'unscorable' as const, code }));
+      const { container } = render(
+        <ReadAloud data={data} recordingBinding={{ ...storeOnly(), assess }} />,
+      );
+      await makeTake(user);
+      await user.click(submit());
+      await flush();
+      expect(
+        screen.getByText('This recording could not be assessed. Try recording it again.'),
+      ).toBeInTheDocument();
+      expect(container.textContent).not.toContain(code);
+    },
+  );
+
+  it('asks for another take when the speech rate is implausible, which another take can fix', async () => {
     const user = userEvent.setup();
-    const assess = vi.fn(async () => ({ status: 'unscorable' as const, code: 'house_policy' }));
-    const { container } = render(
-      <ReadAloud data={data} recordingBinding={{ ...storeOnly(), assess }} />,
-    );
+    const assess = vi.fn(async () => ({
+      status: 'unscorable' as const,
+      code: 'implausible_speech_rate',
+    }));
+    render(<ReadAloud data={data} recordingBinding={{ ...storeOnly(), assess }} />);
     await makeTake(user);
     await user.click(submit());
     await flush();
     expect(
       screen.getByText('This recording could not be assessed. Try recording it again.'),
     ).toBeInTheDocument();
-    expect(container.textContent).not.toContain('house_policy');
+  });
+
+  it.each([
+    'invalid_assessment',
+    'task_mismatch',
+    'locale_mismatch',
+    'reference_mismatch',
+    'recording_mismatch',
+    'assessor_not_accepted',
+    'missing_dimension',
+  ])('asks for no new take for %s, which another take does not fix', async (code) => {
+    const user = userEvent.setup();
+    const assess = vi.fn(async () => ({ status: 'unscorable' as const, code }));
+    const { container } = render(
+      <ReadAloud data={data} recordingBinding={{ ...storeOnly(), assess }} />,
+    );
+    await makeTake(user);
+    await user.click(submit());
+    await flush();
+    expect(screen.getByText('Your pronunciation could not be checked.')).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/try recording it again/i);
+    expect(container.textContent).not.toContain(code);
+    // A refusal, not a failed call: there is nothing to retry and no alert, and
+    // the learner may still record again.
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(record()).toHaveTextContent('Record again');
   });
 
   it('retries a retryable assessment failure without uploading the take again', async () => {

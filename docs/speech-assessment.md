@@ -163,20 +163,22 @@ Steps 1 to 5 run for a blank too, so a blank still needs a plausibility policy i
 
 **A blank** (`recording: null`, submitted without recording) grades 0, with every reference word marked omitted and no `grader`, because nobody measured it. No assessment is needed, and `measured` is not read. `evaluate()` still returns `deferred` for it, so call `gradeReadAloud` at submit time.
 
-**Otherwise the checks run in this order**, and the first that fails decides the code:
+**Otherwise the checks run in this order**, and the first that fails decides the code. The last column says whether recording again can make the take gradable:
 
-| Code | When |
-|---|---|
-| `invalid_assessment` | `validateSpeechAssessment` refuses the evidence |
-| `task_mismatch` | the assessment is not scripted |
-| `locale_mismatch` | `assessment.locale` differs from the item's `locale` |
-| `reference_mismatch` | `assessment.referenceText` differs from the item's `referenceText` (exact) |
-| `recording_mismatch` | `assessment.recordingKey` differs from the response's key |
-| `assessor_not_accepted` | `assessor.kind` is `'ai'` without `allowAiAssessor` |
-| `no_speech` | the assessor found no speech |
-| `insufficient_voiced_time` | `measured.voicedMs` is below `plausibility.minVoicedMs` |
-| `implausible_speech_rate` | more words per second of voiced time than `maxWordsPerSecond` allows — exactly the limit is still plausible — and any word at all when `voicedMs` is 0 |
-| `missing_dimension` | a dimension weighted above 0 has no score |
+| Code | When | Another take helps |
+|---|---|---|
+| `invalid_assessment` | `validateSpeechAssessment` refuses the evidence | No: the adapter, or the engine's response |
+| `task_mismatch` | the assessment is not scripted | No: the server that grades |
+| `locale_mismatch` | `assessment.locale` differs from the item's `locale` | No: the server that grades |
+| `reference_mismatch` | `assessment.referenceText` differs from the item's `referenceText` (exact) | No: the server that grades |
+| `recording_mismatch` | `assessment.recordingKey` differs from the response's key | No: the server that grades |
+| `assessor_not_accepted` | `assessor.kind` is `'ai'` without `allowAiAssessor` | No: the server's configuration |
+| `no_speech` | the assessor found no speech | **Yes** |
+| `insufficient_voiced_time` | `measured.voicedMs` is below `plausibility.minVoicedMs` | **Yes** |
+| `implausible_speech_rate` | more words per second of voiced time than `maxWordsPerSecond` allows — exactly the limit is still plausible — and any word at all when `voicedMs` is 0 | **Yes**, and a person should listen if it repeats: the evidence does not fit the recording |
+| `missing_dimension` | a dimension weighted above 0 has no score | Usually not: the assessor was not asked for that dimension, or does not score it in this locale. Azure's one case that depends on the take, no prosody score when it heard no word, is reported as `no_speech`, which is checked first (see the [appendix](#status-and-silence)) |
+
+**Only the takes marked yes can be fixed by the learner.** For every other code, this take and the next one get the same refusal until the server or the item is fixed. Tell the learner the take could not be checked, alert whoever maintains the server, and promise a score only if a person or a job will produce one. Store the raw response, so the take can be regraded once the cause is fixed.
 
 **How the words of the speech-rate check are counted.** From `recognizedText` with `countWords` when the assessor reported recognised text that is not blank; otherwise from the words it kept — `text` joined by a space, omissions and insertions excluded, counted the same way. An omission was not spoken, and an insertion is not in the text. The count is never taken from a number the assessor reports, and `countWords` is the counter the SDK counts a written response with, so a rate compared against your policy is counted the same way every time. Both paths are pinned by grade vectors.
 
@@ -293,7 +295,12 @@ export function ReadAloudItem(props: {
 - **`upload(take)`** receives a `RecordedTake` — `{ blob, mimeType, durationMs, peakLevel }` — and returns the `RecordingRef` the learner response carries. It is required in `practice` and `exam`, and a missing one throws at render, in production too: a recorder whose take is stored nowhere looks like a working activity the whole way through. A rejection offers the learner a retry and submits nothing, so a take that failed to upload never becomes a blank answer.
 - **`assess(ref)`** is `practice` only, and optional. It returns a `ReadAloudAssessResult`:
   - `{ status: 'graded', assessment, grade }` shows the score and the marks, and calls `onComplete`;
-  - `{ status: 'unscorable', code, assessment? }` tells the learner "We could not hear you. Record again somewhere quieter." for `no_speech` and `insufficient_voiced_time`, and "This recording could not be assessed. Try recording it again." for any other code, and offers another take if one remains. The code is never shown. It is a `string` rather than `SpeechUnscorableCode`, so your own assessor may refuse for reasons the SDK has no name for;
+  - `{ status: 'unscorable', code, assessment? }` tells the learner what another take can do, following the [table above](#grading-gradereadaloud), and offers another take if one remains. The code is never shown:
+    - `no_speech` and `insufficient_voiced_time`: "We could not hear you. Record again somewhere quieter.";
+    - `implausible_speech_rate`, and any code the SDK does not name: "This recording could not be assessed. Try recording it again.";
+    - the SDK's other codes, which another take does not fix: "Your pronunciation could not be checked.", with no request to record again.
+
+    `code` is a `string` rather than `SpeechUnscorableCode`, so your own assessor may refuse for reasons the SDK has no name for. Report a problem of your own that no take can fix, such as an lk-azure refusal, as `failed` instead: the learner gets the same "could not be checked";
   - `{ status: 'failed', retryable }` offers a retry when `retryable` is true.
 
   Without `assess` the take is still recorded, uploaded and submitted, and a notice replaces the feedback. That is what `<ActivityPreview>` shows an author, whose preview has no assessor to call.
@@ -532,7 +539,7 @@ Fine-tuning closes much of that gap ([2025](https://arxiv.org/abs/2509.15701)), 
 
 ## Appendix: filling `SpeechAssessment` from Azure pronunciation assessment
 
-Microsoft's pronunciation assessment (Azure AI Speech) is a common engine for this type. This appendix records the details that decide whether an adapter produces correct evidence. **It was checked against real responses in October 2026:** 48 cases in eight locales, on the Speech SDK for JavaScript 1.51.0 and the REST short-audio API, with synthesised speech, digital silence and background noise. Two limits follow. Microsoft updates its models without an API change (en-US, es-ES, es-MX, fr-FR, pt-BR and zh-CN in August 2026, de-DE in April 2026). And synthesised speech makes no accidental mistakes. **Capture responses from your own resource too, and store them.**
+Microsoft's pronunciation assessment (Azure AI Speech) is a common engine for this type. This appendix records the details that decide whether an adapter produces correct evidence. **It was checked against real responses in October 2026:** 59 cases in eight locales, on the Speech SDK for JavaScript 1.51.0 and the REST short-audio API, with synthesised speech, digital silence and background noise. Two limits follow. Microsoft updates its models without an API change (en-US, es-ES, es-MX, fr-FR, pt-BR and zh-CN in August 2026, de-DE in April 2026). And synthesised speech makes no accidental mistakes. **Capture responses from your own resource too, and store them.**
 
 **On a JavaScript server, use [`@intellectif/lk-azure`](../packages/lk-azure).** Its one function, `assessmentFromAzure(results, request)`, does everything this appendix describes, and is tested against 30 of these responses:
 
@@ -547,7 +554,7 @@ const read = assessmentFromAzure(results, {
   gradingSystem: 'HundredMark',
   phonemeAlphabet: 'IPA',
 });
-// read.ok ? read.assessment : read.code ('no_match', 'invalid_assessment', …)
+// read.ok ? read.assessment : read.code ('invalid_assessment', 'recognition_failed', …)
 ```
 
 The rest of this appendix is what it does, and why, for an adapter written in another language.
@@ -559,6 +566,8 @@ The rest of this appendix is what it does, and why, for an adapter written in an
 - **`Dimension: Comprehensive`** on REST. The REST default is `Basic`, which is accuracy only. The JavaScript SDK always sends `Comprehensive`.
 - **`EnableMiscue: true`** marks omitted and inserted words; set `miscue: 'assessor'`. It is not available in continuous recognition (below).
 - **`EnableProsodyAssessment: true`** only for `en-US`. In another locale it returns prosody feedback on the words, but no `ProsodyScore` and no error.
+  - **In en-US, `ProsodyScore` is missing when Azure heard no word.** Silence, noise and a hum came back with accuracy, fluency and completeness at 0, and no prosody score. On the 45 en-US results that asked for prosody and heard at least one word, it was always there: with one word heard of twelve, on another sentence than the text, on Spanish speech, and on the text under noise at −10 dB SNR.
+  - So read such a take as `no_speech` before you grade it (below). Otherwise an item that weighs prosody refuses it as `missing_dimension`, a code that says nothing about the take.
 - **Language:** always pass the item's `locale` (REST `language=` query parameter; SDK `speechRecognitionLanguage`). The SDK default is `en-US`, so an adapter that never sets it assesses every language as English.
   - **The locale does not check the language spoken.** English read from an English text, but assessed as `es-ES`, scored accuracy 95.
   - **Only the reference text catches the wrong language,** and it grades the reading low rather than refusing it. An English reading of a Spanish text scored accuracy 18 and completeness 9.
@@ -573,7 +582,7 @@ The rest of this appendix is what it does, and why, for an adapter written in an
 - **Single-shot recognition stops at 30 seconds, silently.** A 48.9 s reading came back as one `Success` ending at 29.9 s. Every later word was an omission, with no error and no flag. Choose the mode from the recording's measured length (`inspectWav`) with a margin: single-shot below about 28 s, continuous above.
 - **Continuous recognition** returns one assessment per segment, with no utterance total and no omissions or insertions marked.
   - **It splits the take at pauses** (a 3 s pause started a new segment) and scores each segment on its own. A pause between segments therefore costs no fluency, while a pause in a single-shot take does. In the captures, a continuous take with two 3 s pauses scored fluency 99.7, and a single-shot take with one 3 s pause scored 50 (on different texts). A reading graded on one path grades differently on the other.
-  - **Aggregating segments is a grading policy you own and version.** `@intellectif/lk-azure` scores a take of several segments as Microsoft's own continuous sample scores one: mean word accuracy over the reference words (an omitted or substituted word counting 0), the share of reference words read correctly, fluency from the time spent in words over the whole span (so a pause between segments is charged, as single-shot recognition charges it), mean prosody, and Microsoft's PronScore formula. On the captures, that arithmetic reproduces Azure's single-shot accuracy and completeness on every take in a script written with spaces.
+  - **Aggregating segments is a grading policy you own and version.** `@intellectif/lk-azure` scores a take of several segments as Microsoft's own continuous sample scores one: mean word accuracy over the reference words (an omitted or substituted word counting 0), the share of reference words read correctly, fluency from the time spent in words over the whole span (so a pause between segments is charged, as single-shot recognition charges it), mean prosody, and Microsoft's PronScore formula. On the captures, that arithmetic reproduces Azure's single-shot completeness on every take in a script written with spaces, and its accuracy on all but one. There the word scores averaged exactly 14.5: Azure reported 14, and the arithmetic, which rounds half up, gives 15.
   - **A reading long enough to need it approaches the evidence caps:** 1000 words, and 8000 characters between them, written or normalised.
 - **Latency** in the captures, on a wired connection: REST took about 0.15× the recording's length, and the SDK's `fromWavFileInput` about 0.55–0.6×.
 - **Content assessment** (vocabulary, grammar, topic) was retired from the Speech SDK in 2025. Microsoft points to a chat model instead.
@@ -624,8 +633,8 @@ The response does not carry these fields. The adapter must add them, or the evid
 | Situation | Map to |
 |---|---|
 | `RecognitionStatus` `Success`, with at least one word that is not an omission | `status: 'assessed'` |
-| `Success` with every reference word an `Omission`. Silence **and** background noise both return this, with `DisplayText` `"."`, `NBest[0].Confidence` 0 and every score 0 | `status: 'no_speech'` |
-| `InitialSilenceTimeout`, `BabbleTimeout` or `NoMatch` | Never returned in the captures, by the SDK or by REST. If one arrives, treat the first two as `no_speech`. Treat `NoMatch` as speech that matched nothing, and route it to review or a re-record |
+| `Success` with every reference word an `Omission`. Silence, background noise **and** a hum all return this, with `DisplayText` `"."`, `NBest[0].Confidence` 0, every score 0, and no `ProsodyScore` | `status: 'no_speech'` |
+| `InitialSilenceTimeout`, `BabbleTimeout` or `NoMatch` | `status: 'no_speech'`. None was returned in the captures, by the SDK or by REST. `NoMatch` is speech that matched no word: like silence and noise, it leaves nothing of the text to grade, and the learner can record again. Among the results of a continuous take, such a result adds no words |
 | An error, or a missing status | No assessment. Report a provider failure, and retry if it is transient |
 
 - **Measuring the recording does not catch noise.** `inspectWav` counted 3 s of −30 dBFS noise as voiced. Without the second row, a noisy take is graded 0 instead of reported as unheard. Digital silence is also caught by the measurement (`insufficient_voiced_time`).

@@ -47,11 +47,14 @@ npm view @intellectif/lk-react version
 
 On npmjs.com, for **each** package (`@intellectif/lk-core`, `@intellectif/lk-react`, `@intellectif/lk-azure`):
 
-- Package page → **Settings** → **Publishing access** → **Trusted Publisher** → **GitHub Actions**.
-- Set: organization/user `intellectif`, repository `learning-kit`, workflow filename `release.yml` (environment left blank unless you add one).
-- Keep "Require two-factor authentication or automation tokens" as npm's default; Trusted Publishing satisfies it without a token.
+- Package page → **Settings** → the **Trusted Publisher** section at the top → under "Select your publisher", **GitHub Actions**.
+- Set: organization or user `intellectif`, repository `learning-kit`, workflow filename `release.yml` (the file name only, not its path), environment left blank unless the workflow adds one. Every field is case-sensitive.
+- Under **Allowed actions**, allow **`npm publish`**. A connection created after 3 September 2026 allows only `npm stage publish` until you do, and the Release job publishes directly, so without it the publish is refused. Leave dist-tag access off: the job never runs `npm dist-tag`.
+- **Set it up only when a release will run within two days.** A new connection must make its first successful publish within 2 days, or it expires and has to be deleted and created again.
+- npm does not check the connection when you save it; a mistake shows only when the Release job publishes. Compare it with an existing package's connection (`@intellectif/lk-core` or `@intellectif/lk-react`): the fields must be the same.
+- Leave **Publishing access** as it is. Trusted Publishing satisfies it without a token. Once CI has published through the connection, npm recommends "Require two-factor authentication and disallow tokens"; a manual first publish with `npm login` and 2FA still works under it.
 
-The workflow (`.github/workflows/release.yml`) is already OIDC-ready: it declares `permissions: id-token: write`, upgrades to an OIDC-capable npm, and carries **no** `NPM_TOKEN`.
+The workflow (`.github/workflows/release.yml`) is already OIDC-ready: it declares `permissions: id-token: write`, runs Node 24, whose npm supports Trusted Publishing, and carries **no** `NPM_TOKEN`.
 
 ### 3a. A package added later
 
@@ -84,7 +87,9 @@ Release job would try to publish it through OIDC and fail.
    ```
 
    If it asks for a one-time password, run the publish again with `--otp=<the code from your authenticator>`.
-4. Set the package's Trusted Publisher on npmjs.com, as in §3.
+4. Set the package's Trusted Publisher on npmjs.com, as in §3, when its next release is due: the
+   connection expires unless that release publishes within two days. Until then the Release job does
+   not need it, since the version PR merged next publishes nothing new.
 5. Go back to your branch (`git switch main`), and merge the version PR. The Release job finds that
    version already on npm and skips it, so it publishes nothing and stays green.
 6. Tag the release and give it a GitHub Release, as the Release job does for the others:

@@ -214,12 +214,26 @@ export const NoAssessor: Story = {
 
 /**
  * The assessor heard nothing. `no_speech` and `insufficient_voiced_time` become
- * "we could not hear you"; every other code becomes "we could not assess this
- * take". The learner is offered another take and no code is ever shown to them.
+ * "we could not hear you"; `implausible_speech_rate` and any code the SDK does
+ * not name become "this recording could not be assessed", which asks for
+ * another take. The learner is offered another take and no code is ever shown
+ * to them.
  */
 export const Unscorable: Story = {
   args: {
     recordingBinding: binding(() => ({ status: 'unscorable', code: 'no_speech' })),
+  },
+};
+
+/**
+ * Refused for the server's setup: here the assessment was made for another
+ * locale than the item's. The SDK's codes that another take does not fix
+ * become "your pronunciation could not be checked", which asks for no new
+ * take, since the next one would be refused the same way.
+ */
+export const UnscorableSetup: Story = {
+  args: {
+    recordingBinding: binding(() => ({ status: 'unscorable', code: 'locale_mismatch' })),
   },
 };
 

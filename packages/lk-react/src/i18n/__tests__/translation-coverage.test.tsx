@@ -683,13 +683,29 @@ describe('translation coverage', () => {
     keep(document.body);
     cleanup();
 
-    // Any other code says only that this take could not be assessed.
+    // A code the SDK does not name asks for another take.
     sweep(
       <ReadAloud
         data={ra}
         recordingBinding={{
           upload: storeTake,
           assess: async () => ({ status: 'unscorable', code: 'house_policy' }),
+        }}
+      />,
+    );
+    await recordTake();
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    await settleSpeech();
+    keep(document.body);
+    cleanup();
+
+    // One of the SDK's codes that another take cannot fix asks for none.
+    sweep(
+      <ReadAloud
+        data={ra}
+        recordingBinding={{
+          upload: storeTake,
+          assess: async () => ({ status: 'unscorable', code: 'locale_mismatch' }),
         }}
       />,
     );
