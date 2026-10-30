@@ -235,9 +235,18 @@ export interface LkStrings {
   readAloudAssessmentUnavailable: string;
   /** The assessor found no speech, or too little of it, in the take. */
   readAloudNotHeard: string;
-  /** The assessor produced no grade for any other reason. The code itself is never shown. */
+  /**
+   * The assessor produced no grade, for a reason another take may fix: more words
+   * than the recording can hold, or a code the SDK does not name. The code itself
+   * is never shown.
+   */
   readAloudNotAssessed: string;
-  /** The assessment could not be run at all — a failure of the call, not of the reading. */
+  /**
+   * The pronunciation could not be checked, for a reason no take fixes: the
+   * assessment could not be run at all, or the grader refused the take for one
+   * of the SDK's codes that are about the server's setup. A failure of the call
+   * or the setup, not of the reading, so it asks for no new take.
+   */
   readAloudAssessmentFailed: string;
   /**
    * What went wrong with the microphone or with the take. One function rather

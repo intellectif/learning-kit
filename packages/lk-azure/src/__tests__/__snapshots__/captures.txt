@@ -20,6 +20,17 @@ prod-pt-br-clean | assessed | assessor | {"accuracy":89,"fluency":99,"completene
 prod-pt-pt-clean | assessed | assessor | {"accuracy":98,"fluency":99,"completeness":100,"overall":98.6} | 13 words | f96f013c30c0037a
 prod-silence | no_speech | none | {} | 0 words | 1350a43bd746a26a
 prod-wrong-language | assessed | assessor | {"accuracy":18,"fluency":38,"completeness":9,"overall":16.6} | 15 words | ce2497a5d996dc19
+prosody-accented-english | assessed | assessor | {"accuracy":92,"fluency":98,"completeness":100,"prosody":91.1,"overall":94.4} | 12 words | f967b2dec077048e
+prosody-first-four-words | assessed | assessor | {"accuracy":31,"fluency":100,"completeness":33,"prosody":90.1,"overall":57} | 12 words | f496df7ab61ad676
+prosody-first-two-words | assessed | assessor | {"accuracy":14,"fluency":100,"completeness":17,"prosody":88.2,"overall":46.6} | 12 words | 969abb8bf9db66a6
+prosody-first-word | assessed | assessor | {"accuracy":6,"fluency":100,"completeness":8,"prosody":40.7,"overall":32.1} | 12 words | 9e10a44a99c816fa
+prosody-noise-snr-0db | assessed | assessor | {"accuracy":100,"fluency":99,"completeness":100,"prosody":86.8,"overall":94.5} | 12 words | 7761eeff6a56e3f9
+prosody-noise-snr-10db | assessed | assessor | {"accuracy":100,"fluency":99,"completeness":100,"prosody":90.1,"overall":95.8} | 12 words | 762b583506c3033d
+prosody-noise-snr-minus-10db | assessed | assessor | {"accuracy":94,"fluency":89,"completeness":100,"prosody":49.3,"overall":76.3} | 12 words | f702aa2ddfdef6ca
+prosody-not-words | no_speech | none | {} | 0 words | 1350a43bd746a26a
+prosody-one-word-text | assessed | assessor | {"accuracy":100,"fluency":100,"completeness":100,"prosody":77.4,"overall":91} | 1 words | 3ded341f6326444f
+prosody-other-sentence | assessed | assessor | {"accuracy":15,"fluency":18,"completeness":8,"prosody":76.1,"overall":25} | 15 words | 9601ad76f82b2be4
+prosody-spanish-speech | assessed | assessor | {"accuracy":29,"fluency":36,"completeness":33,"prosody":39.3,"overall":33.3} | 17 words | 2f0ab3aae0b1165d
 rest-en-us-clean-rich | assessed | assessor | {"accuracy":95,"fluency":100,"completeness":100,"prosody":91.5,"overall":95.6} | 12 words | 937e9a7feaa54daa
 rest-en-us-fivepoint | refused five_point_scale | 8452b4f3133bc651
 rest-en-us-insertion | assessed | assessor | {"accuracy":91,"fluency":88,"completeness":92,"overall":89.4} | 13 words | 085863448efda59b

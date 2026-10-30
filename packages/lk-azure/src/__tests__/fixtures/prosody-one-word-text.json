@@ -1,0 +1,211 @@
+{
+  "case": "prosody-one-word-text",
+  "source": "prosody-one-word-text/sdkProd",
+  "captured": "2026-10-30",
+  "api": "sdk",
+  "speechSdk": "1.51.0",
+  "audioMs": 1820,
+  "request": {
+    "locale": "en-US",
+    "referenceText": "Hello.",
+    "miscue": true,
+    "gradingSystem": "HundredMark",
+    "phonemeAlphabet": "IPA",
+    "prosody": true,
+    "mode": "single-shot",
+    "segmentationSilenceTimeoutMs": null
+  },
+  "results": [
+    {
+      "RecognitionStatus": "Success",
+      "Offset": 600000,
+      "Duration": 6700000,
+      "Channel": 0,
+      "DisplayText": "Hello.",
+      "SNR": 48.139397,
+      "NBest": [
+        {
+          "Confidence": 0.9693793,
+          "Lexical": "hello",
+          "ITN": "hello",
+          "MaskedITN": "hello",
+          "Display": "Hello.",
+          "PronunciationAssessment": {
+            "AccuracyScore": 100,
+            "FluencyScore": 100,
+            "ProsodyScore": 77.4,
+            "CompletenessScore": 100,
+            "PronScore": 91
+          },
+          "Words": [
+            {
+              "Word": "hello",
+              "Offset": 600000,
+              "Duration": 6700000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None",
+                "Feedback": {
+                  "Prosody": {
+                    "Break": {
+                      "ErrorTypes": ["None"],
+                      "BreakLength": 0
+                    },
+                    "Intonation": {
+                      "ErrorTypes": [],
+                      "Monotone": {
+                        "SyllablePitchDeltaConfidence": 0.88263005
+                      }
+                    }
+                  }
+                }
+              },
+              "Syllables": [
+                {
+                  "Syllable": "hɛ",
+                  "Grapheme": "hel",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 600000,
+                  "Duration": 1700000
+                },
+                {
+                  "Syllable": "loʊ",
+                  "Grapheme": "lo",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 2400000,
+                  "Duration": 4900000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "h",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100,
+                    "NBestPhonemes": [
+                      {
+                        "Phoneme": "h",
+                        "Score": 100
+                      },
+                      {
+                        "Phoneme": "ɛ",
+                        "Score": 2
+                      },
+                      {
+                        "Phoneme": "oʊ",
+                        "Score": 2
+                      },
+                      {
+                        "Phoneme": "k",
+                        "Score": 1
+                      },
+                      {
+                        "Phoneme": "p",
+                        "Score": 1
+                      }
+                    ]
+                  },
+                  "Offset": 600000,
+                  "Duration": 1100000
+                },
+                {
+                  "Phoneme": "ɛ",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100,
+                    "NBestPhonemes": [
+                      {
+                        "Phoneme": "ɛ",
+                        "Score": 100
+                      },
+                      {
+                        "Phoneme": "ə",
+                        "Score": 87
+                      },
+                      {
+                        "Phoneme": "h",
+                        "Score": 43
+                      },
+                      {
+                        "Phoneme": "æ",
+                        "Score": 4
+                      },
+                      {
+                        "Phoneme": "ɪ",
+                        "Score": 1
+                      }
+                    ]
+                  },
+                  "Offset": 1800000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "l",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100,
+                    "NBestPhonemes": [
+                      {
+                        "Phoneme": "l",
+                        "Score": 100
+                      },
+                      {
+                        "Phoneme": "ə",
+                        "Score": 53
+                      },
+                      {
+                        "Phoneme": "oʊ",
+                        "Score": 13
+                      },
+                      {
+                        "Phoneme": "ɛ",
+                        "Score": 5
+                      },
+                      {
+                        "Phoneme": "aʊ",
+                        "Score": 2
+                      }
+                    ]
+                  },
+                  "Offset": 2400000,
+                  "Duration": 1300000
+                },
+                {
+                  "Phoneme": "oʊ",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100,
+                    "NBestPhonemes": [
+                      {
+                        "Phoneme": "oʊ",
+                        "Score": 100
+                      },
+                      {
+                        "Phoneme": "l",
+                        "Score": 8
+                      },
+                      {
+                        "Phoneme": "ə",
+                        "Score": 4
+                      },
+                      {
+                        "Phoneme": "u",
+                        "Score": 2
+                      },
+                      {
+                        "Phoneme": "ɔ",
+                        "Score": 2
+                      }
+                    ]
+                  },
+                  "Offset": 3800000,
+                  "Duration": 3500000
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

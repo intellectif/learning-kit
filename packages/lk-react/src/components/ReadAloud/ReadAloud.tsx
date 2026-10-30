@@ -14,6 +14,7 @@ import {
   type RecordingRef,
   type ScoringDetail,
   type SpeechAssessment,
+  type SpeechUnscorableCode,
   validateActivity,
   xAPIBuilder,
   xapiDefinitionFor,
@@ -90,8 +91,10 @@ const LEVEL_STEPS = 10;
  *
  * `code` is a plain `string` and not `SpeechUnscorableCode`: an application's
  * own assessor may refuse a take for a reason the SDK has no name for, and a
- * narrower type would make it unreportable. This component classifies the two
- * codes that mean "nothing was heard" and treats every other one the same way.
+ * narrower type would make it unreportable. This component tells the learner
+ * whether another take can help with each of the SDK's codes, and treats a code
+ * it does not name as one another take may fix. Report a problem that no take
+ * can fix, and that has no SDK code, as `failed`.
  */
 export type ReadAloudAssessResult =
   | { status: 'graded'; assessment: SpeechAssessment; grade: GradeRecord }
@@ -337,16 +340,45 @@ function responseOf(recording: RecordingRef | null, takes: number): ReadAloudLea
 }
 
 /**
- * Which learner message an unscorable code earns. The two codes that mean
- * "nothing was heard" send the learner back to a quieter room; every other one,
- * the SDK's and an application's own alike — and no code at all — says only
- * that this take could not be assessed. **The code itself is never shown** — it
- * is a developer's label.
+ * The learner message each of the SDK's unscorable codes earns, following the
+ * speech guide's "Another take helps" column. Typed over every
+ * `SpeechUnscorableCode`, so a code lk-core adds does not build here until it
+ * has a message.
+ */
+const UNSCORABLE_MESSAGES: Readonly<
+  Record<
+    SpeechUnscorableCode,
+    'readAloudNotHeard' | 'readAloudNotAssessed' | 'readAloudAssessmentFailed'
+  >
+> = {
+  // Nothing was heard: a quieter room helps.
+  no_speech: 'readAloudNotHeard',
+  insufficient_voiced_time: 'readAloudNotHeard',
+  // More words than the recording can hold: another take helps.
+  implausible_speech_rate: 'readAloudNotAssessed',
+  // The server's setup, or the evidence it sent. The next take is refused the
+  // same way, so none is asked for.
+  invalid_assessment: 'readAloudAssessmentFailed',
+  task_mismatch: 'readAloudAssessmentFailed',
+  locale_mismatch: 'readAloudAssessmentFailed',
+  reference_mismatch: 'readAloudAssessmentFailed',
+  recording_mismatch: 'readAloudAssessmentFailed',
+  assessor_not_accepted: 'readAloudAssessmentFailed',
+  missing_dimension: 'readAloudAssessmentFailed',
+};
+
+/**
+ * Which learner message an unscorable code earns: the SDK's own codes by the
+ * table above. Every other one, an application's own alike — and no code at
+ * all — says that this take could not be assessed and asks for another.
+ * **The code itself is never shown** — it is a developer's label.
  */
 function unscorableMessage(code: string | undefined, s: LkStrings): string {
-  return code === 'no_speech' || code === 'insufficient_voiced_time'
-    ? s.readAloudNotHeard
-    : s.readAloudNotAssessed;
+  return s[
+    code !== undefined && Object.hasOwn(UNSCORABLE_MESSAGES, code)
+      ? UNSCORABLE_MESSAGES[code as SpeechUnscorableCode]
+      : 'readAloudNotAssessed'
+  ];
 }
 
 /**

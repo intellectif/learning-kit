@@ -31,14 +31,16 @@ describe('nothing heard', () => {
     },
   );
 
-  it.each(['InitialSilenceTimeout', 'BabbleTimeout'])(
-    'reads a %s result as nothing heard',
+  // NoMatch is speech that matched no word: as silence and noise, nothing of
+  // the text to grade, and a learner who records again can be heard.
+  it.each(['InitialSilenceTimeout', 'BabbleTimeout', 'NoMatch'])(
+    'reads a %s result as no word recognised',
     (status) => {
       const result = assessmentFromAzure(
-        [{ RecognitionStatus: status }],
+        [{ RecognitionStatus: status, Offset: 0, Duration: 18_000_000 }],
         requestOf(capture('prod-en-us-clean')),
       );
-      expect(assessed(result).status).toBe('no_speech');
+      expect(assessed(result)).toMatchObject({ status: 'no_speech', scores: {}, words: [] });
     },
   );
 
@@ -47,15 +49,18 @@ describe('nothing heard', () => {
     expect(assessed(assessmentFromAzure([], request)).status).toBe('no_speech');
   });
 
-  it('adds nothing for a silent result among heard ones', () => {
-    const request = { ...requestOf(capture('prod-en-us-continuous-segments')) };
-    const results = resultsOf('prod-en-us-continuous-segments');
-    const plain = assessed(assessmentFromAzure(results, request));
-    const withSilence = assessed(
-      assessmentFromAzure([...results, { RecognitionStatus: 'InitialSilenceTimeout' }], request),
-    );
-    expect(withSilence).toEqual(plain);
-  });
+  it.each(['InitialSilenceTimeout', 'NoMatch'])(
+    'adds nothing for a %s result among heard ones',
+    (status) => {
+      const request = { ...requestOf(capture('prod-en-us-continuous-segments')) };
+      const results = resultsOf('prod-en-us-continuous-segments');
+      const plain = assessed(assessmentFromAzure(results, request));
+      const withNothing = assessed(
+        assessmentFromAzure([...results, { RecognitionStatus: status }], request),
+      );
+      expect(withNothing).toEqual(plain);
+    },
+  );
 });
 
 describe('refusals', () => {
@@ -82,14 +87,6 @@ describe('refusals', () => {
       ok: false,
       code: 'not_a_result',
     });
-  });
-
-  it('refuses NoMatch as speech that matched nothing, not a failure to retry', () => {
-    const result = assessmentFromAzure(
-      [{ RecognitionStatus: 'NoMatch' }],
-      requestOf(capture('prod-en-us-clean')),
-    );
-    expect(result).toMatchObject({ ok: false, code: 'no_match' });
   });
 
   it.each([['Error'], [4], [undefined]])('refuses status %s as recognition_failed', (status) => {

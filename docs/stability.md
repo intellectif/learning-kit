@@ -1,6 +1,6 @@
 # Stability
 
-What `@intellectif/lk-core` 1.x, `@intellectif/lk-react` 23.x and `@intellectif/lk-azure` 1.x promise, and what they don't.
+What `@intellectif/lk-core` 1.x, `@intellectif/lk-react` 23.x and `@intellectif/lk-azure` 2.x promise, and what they don't.
 Versions follow [semantic versioning](https://semver.org): anything this page says is covered changes
 only in a **major**.
 

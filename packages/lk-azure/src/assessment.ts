@@ -38,10 +38,13 @@ function checked(assessment: SpeechAssessment): AzureAssessmentResult {
  * recognition or of a REST request, or each `recognized` result of continuous
  * recognition. Pass `request` as you sent it.
  *
- * - **Nothing heard is `no_speech`.** Azure answers silence and background
- *   noise with a successful result in which every reference word is omitted,
- *   and every score is 0. That take is `status: 'no_speech'`, which
- *   `gradeReadAloud` reports as unscorable, never a grade of 0.
+ * - **No word recognised is `no_speech`.** Azure answers silence and
+ *   background noise with a successful result in which every reference word
+ *   is omitted, and every score is 0 but prosody, which it leaves out. A
+ *   `NoMatch`, `InitialSilenceTimeout` or `BabbleTimeout` result recognises
+ *   no word either. Such a take is `status: 'no_speech'`, which
+ *   `gradeReadAloud` reports as unscorable, never a grade of 0, and before
+ *   it checks for a missing dimension.
  * - **One result keeps Azure's scores.** Several are scored over the whole
  *   take, as Microsoft's continuous sample scores one; see `merge.ts`.
  * - **What is not a probability is left out:** break confidences, and a
