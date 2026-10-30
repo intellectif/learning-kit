@@ -84,6 +84,7 @@ export const MultipleChoiceDataSchema = z
     type: z.literal('multiple-choice'),
     id: z.string().min(1),
     title: z.string().min(1),
+    instructions: z.string().optional(),
     question: z.string().min(1),
     questionHtml: z.string().optional(),
     mode: z.enum(['single', 'multi']),

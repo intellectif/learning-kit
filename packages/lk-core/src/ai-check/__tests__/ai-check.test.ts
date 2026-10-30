@@ -94,6 +94,21 @@ describe('aiCheckCases', () => {
     }
   });
 
+  it("puts a question's own instructions in its facts, with no group needed", () => {
+    const request = find('fib-instructions-hint').request as AiHintRequest;
+    expect(request.facts).toMatchObject({
+      activityType: 'fill-in-the-blanks',
+      instructions:
+        'Use the word in capitals at the end of the sentence to form a word that fits the gap.',
+      passage: 'She smiled [1] when she heard the news. (HAPPY)',
+    });
+    expect(request).not.toHaveProperty('material');
+    // The grouped case gives its task as material, and has no instructions of its own.
+    expect((find('fib-formation-hint').request as AiHintRequest).facts).not.toHaveProperty(
+      'instructions',
+    );
+  });
+
   it('refuses a hint that quotes the passage where it answers its question', async () => {
     const report = await runAiCheck(
       { hint: says('The text says the highest tides come when the sun and the moon line up.') },

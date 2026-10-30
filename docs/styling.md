@@ -46,11 +46,11 @@ inside a right-to-left page. See [Internationalisation](./i18n.md).
 
 | Hook | Element |
 |---|---|
-| `.lk-mc`, `.lk-mc-option`, `.lk-mc-option-feedback` | Multiple Choice container / option / per-option feedback |
-| `.lk-fib`, `.lk-fib-passage`, `.lk-fib-blank`, `.lk-fib-answer` | Fill-in-the-Blanks |
+| `.lk-mc`, `.lk-mc-instructions`, `.lk-mc-option`, `.lk-mc-option-feedback` | Multiple Choice container / the item's instructions (1.7) / option / per-option feedback |
+| `.lk-fib`, `.lk-fib-instructions`, `.lk-fib-passage`, `.lk-fib-blank`, `.lk-fib-answer` | Fill-in-the-Blanks: `.lk-fib-instructions` is the item's instructions (1.7) |
 | `.lk-fib-hint-btn`, `.lk-fib-hint-icon` | Hint button (default icon) — restyle/replace the glyph here; the accessible name is fixed by the SDK |
 | `.lk-fib-blank-feedback`, `.lk-fib-feedback-toggle` | Per-blank feedback note + the Hide/Show feedback toggle |
-| `.lk-gs`, `.lk-gs-passage`, `.lk-gs-gap`, `.lk-gs-select` | Gap Select container / passage / one gap / its selector — `data-correct` lands on the `select` itself after submit |
+| `.lk-gs`, `.lk-gs-instructions`, `.lk-gs-passage`, `.lk-gs-gap`, `.lk-gs-select` | Gap Select container / the item's instructions (1.7) / passage / one gap / its selector — `data-correct` lands on the `select` itself after submit |
 | `.lk-gs-gap-feedback`, `.lk-gs-feedback-toggle` | Per-gap feedback note + the Hide/Show feedback toggle |
 | `.lk-dc`, `.lk-dc-title`, `.lk-dc-recordings`, `.lk-dc-recording`, `.lk-dc-recording-label` | Dictation container / title / the recordings block / one recording's fieldset (`[data-slow="true"]` for the slower file) / its legend |
 | `.lk-ai`, `.lk-ai-hint-area` | AI help: the block under an answer (an explanation) or before submit (hints), `data-state="idle" \| "loading" \| "shown" \| "unavailable"` |

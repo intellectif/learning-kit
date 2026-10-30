@@ -33,6 +33,7 @@ import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation, AiHints, useComponentAiHints } from '../shared/AiHelp.js';
 import { feedbackAnnouncement, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
+import { ItemInstructions, instructionsOf } from '../shared/ItemInstructions.js';
 import { mintTake, stampTake } from '../shared/sequence-slot.js';
 import {
   HintCost,
@@ -470,6 +471,9 @@ export function GapSelect({
       ? null
       : `${summary}${extra ? ` ${extra}` : ''}${overall ? ` ${overall}` : ''}`;
 
+  const instructions = instructionsOf(data);
+  const instructionsId = `${data.id}-instructions`;
+
   return (
     <form
       ref={formRef}
@@ -480,6 +484,7 @@ export function GapSelect({
       style={theme as CSSProperties | undefined}
       onSubmit={handleSubmit}
     >
+      <ItemInstructions id={instructionsId} className="lk-gs-instructions" text={instructions} />
       {data.media ? (
         <ActivityMedia
           media={data.media}
@@ -491,7 +496,10 @@ export function GapSelect({
           {...(locale !== undefined ? { locale } : {})}
         />
       ) : null}
-      <fieldset disabled={inactive}>
+      <fieldset
+        disabled={inactive}
+        aria-describedby={instructions === undefined ? undefined : instructionsId}
+      >
         <p className="lk-gs-passage">
           {segments.map((seg, i) => {
             if (seg.kind === 'text') {

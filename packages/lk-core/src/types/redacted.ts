@@ -84,6 +84,7 @@ export interface RedactedMultipleChoiceOption {
 /** A Multiple Choice item with the answer key, feedback and strategy removed. */
 export interface RedactedMultipleChoiceData extends RedactedItem {
   type: 'multiple-choice';
+  instructions?: string | undefined;
   question: string;
   questionHtml?: string | undefined;
   mode: 'single' | 'multi';
@@ -101,6 +102,7 @@ export interface RedactedBlankConfig {
 /** A Fill-in-the-Blanks item with every accepted answer removed. */
 export interface RedactedFillInTheBlanksData extends RedactedItem {
   type: 'fill-in-the-blanks';
+  instructions?: string | undefined;
   passage: string;
   passageHtml?: string | undefined;
   blanks: RedactedBlankConfig[];
@@ -151,6 +153,7 @@ export interface RedactedGapSelectGap {
 /** A Gap Select item the learner can still answer: choices intact, answer key gone. */
 export interface RedactedGapSelectData extends RedactedItem {
   type: 'gap-select';
+  instructions?: string | undefined;
   passage: string;
   passageHtml?: string | undefined;
   gaps: RedactedGapSelectGap[];

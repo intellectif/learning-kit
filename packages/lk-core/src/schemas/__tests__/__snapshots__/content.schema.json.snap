@@ -45,6 +45,9 @@
           "type": "string",
           "minLength": 1
         },
+        "instructions": {
+          "type": "string"
+        },
         "question": {
           "type": "string",
           "minLength": 1
@@ -425,6 +428,9 @@
         "title": {
           "type": "string",
           "minLength": 1
+        },
+        "instructions": {
+          "type": "string"
         },
         "passage": {
           "type": "string",
@@ -1082,6 +1088,9 @@
         "title": {
           "type": "string",
           "minLength": 1
+        },
+        "instructions": {
+          "type": "string"
         },
         "passage": {
           "type": "string",

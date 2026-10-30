@@ -263,6 +263,14 @@ each part:
 | Gap select | The passage the same way, and per gap the words offered, the one chosen, the right one, the verdict, the author's feedback |
 | Dictation | The transcript, what was typed, and the SDK's word-by-word alignment (`correct`, `incorrect`, `missing`, `extra`) |
 
+- **The item's own instructions** *(1.7)*: on multiple choice, fill in the blanks and gap select,
+  `facts.instructions` is the task the learner read before the question ("Complete the sentence. Use
+  ONE word."), trimmed, when the author gave one. It sits apart from the question and the passage.
+  **Tell your model that it is the task, not part of the text answered**: a hint for "She smiled
+  [1] when she heard the news. (HAPPY)" helps only if the model knows the word in capitals is to be
+  transformed. A question inside an item group can carry both: the group's `material` and its own
+  `instructions`.
+
 - **An explanation request** adds `grade`: the score, the maximum, whether it passed, and a
   `category` of `correct`, `partly-correct` or `incorrect`. In `review` it is the grade of record from
   `outcome`, so the explanation speaks to the grade on the screen. A grade of record whose numbers
@@ -569,14 +577,16 @@ are not a model's to write. `request.settings` are for `checkAiDrafts`, not the 
 
 | Type | What a model writes |
 |---|---|
-| `multiple-choice` | `title`, `question`, `mode`, `options` of `{ text, isCorrect, feedback? }`, `feedback?` |
-| `fill-in-the-blanks` | `title`, a `passage` with `{{1}}`, `{{2}}`… in order, `blanks` of `{ acceptedAnswers, hint? }` in the same order, `feedback?` |
-| `gap-select` | `title`, a `passage` with `{{1}}`…, `gaps` of `{ choices: [{ text, isCorrect }] }` — exactly one right — `feedback?` |
+| `multiple-choice` | `title`, `instructions?`, `question`, `mode`, `options` of `{ text, isCorrect, feedback? }`, `feedback?` |
+| `fill-in-the-blanks` | `title`, `instructions?`, a `passage` with `{{1}}`, `{{2}}`… in order, `blanks` of `{ acceptedAnswers, hint? }` in the same order, `feedback?` |
+| `gap-select` | `title`, `instructions?`, a `passage` with `{{1}}`…, `gaps` of `{ choices: [{ text, isCorrect }] }` — exactly one right — `feedback?` |
 | `dictation` | `title`, `transcript` — words from the source, as said there — `feedback?` |
 | `read-aloud` | `title`, `referenceText`, `instructions?`, `feedback?` |
 | `written-response` | `title`, `prompt`, `minWords`, `maxWords`, `rubric?` of `{ criteria: [{ name, description? }] }` |
 
-From captions, every draft also names the `caption` it is about.
+From captions, every draft also names the `caption` it is about. A draft's `instructions` *(1.7)*
+are the task the learner reads, the item's own field; the request's `instructions` are the author's
+words to the model.
 
 ### What comes back
 
@@ -759,7 +769,9 @@ expect(report.refused).toBe(0);
   a reading with a mispronounced "th" and a word left out, one read cleanly, the same slips from
   a stored grade without sounds, and coaching asked for in Spanish. Four sit in item groups: a
   reading question explained, and hinted at, from a passage that prints its answer; a
-  word-formation blank under the instructions its group gives; and a summary of the passage. For
+  word-formation blank under the instructions its group gives; and a summary of the passage. The
+  same word-formation blank also comes alone, under its own `instructions`, as an adaptive test
+  serves it. For
   authors, built by
   `aiCritiqueRequest` and `aiDraftsRequest`: items to review — a question whose distractor is
   botanically a right answer, a writing task far above its level, a clean cloze, and a review asked

@@ -46,6 +46,8 @@ import type { SpeechAssessment, SpeechWord } from '../types/speech.js';
  * - questions in item groups: a reading passage that prints a question's
  *   answer, which a hint must point to without quoting, and a run of blanks
  *   whose instructions only the group states;
+ * - the same blank served alone, as an adaptive test serves it, whose task
+ *   only its own instructions state;
  * - essays to grade on a rubric of three criteria, two judged on levels and
  *   one on a score, so a grade that drops a criterion or leaves a scale is
  *   caught.
@@ -181,6 +183,14 @@ const formationPart: ItemGroup = {
     body: 'Use the word in capitals at the end of each sentence to form a word that fits the gap.',
   },
   items: [formation],
+};
+
+/** The same blank served alone, as an adaptive test serves it: the task is in its own instructions. */
+const formationAlone: FillInTheBlanksData = {
+  ...formation,
+  id: 'ai-check-formation-alone',
+  instructions:
+    'Use the word in capitals at the end of the sentence to form a word that fits the gap.',
 };
 
 const weekend: WrittenResponseData = {
@@ -700,6 +710,12 @@ export function aiCheckCases(): AiCheckCase[] {
       typed({}),
       [],
       formationPart,
+    ),
+    hintCase(
+      'fib-instructions-hint',
+      'The same blank served alone, under its own instructions',
+      formationAlone,
+      typed({}),
     ),
     writingCase(
       'writing-mistakes',

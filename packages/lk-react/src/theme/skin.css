@@ -44,6 +44,17 @@
     font-weight: var(--lk-font-weight-bold);
   }
 
+  /* An item's own instructions: the task, read before the media and the
+     question. Set apart by size and weight, never by a colour of the skin's:
+     a gap select paints no surface, and its text keeps the page's colour. */
+  .lk-mc-instructions,
+  .lk-fib-instructions,
+  .lk-gs-instructions {
+    margin: 0 0 var(--lk-spacing-md);
+    font-size: var(--lk-font-size-sm);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
   /* ── Activity media (image / audio / video / embed) ──────────────────── */
   .lk-media {
     margin: 0 0 var(--lk-spacing-lg);
