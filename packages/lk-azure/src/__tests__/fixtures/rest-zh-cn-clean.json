@@ -1,0 +1,303 @@
+{
+  "case": "rest-zh-cn-clean",
+  "source": "zh-cn-clean-rest/rest",
+  "captured": "2026-10-29",
+  "api": "rest",
+  "audioMs": 3375,
+  "request": {
+    "locale": "zh-CN",
+    "referenceText": "今天天气很好，我们走路去公园。",
+    "miscue": true,
+    "gradingSystem": "HundredMark",
+    "phonemeAlphabet": "SAPI"
+  },
+  "results": [
+    {
+      "RecognitionStatus": "Success",
+      "Offset": 800000,
+      "Duration": 29300000,
+      "DisplayText": "今天天气很好，我们走路去公园。",
+      "SNR": 42.01983,
+      "NBest": [
+        {
+          "Confidence": 0.9698249,
+          "Lexical": "今天 天气 很 好 我们 走路 去 公园",
+          "ITN": "今天 天气 很 好 我们 走路 去 公园",
+          "MaskedITN": "今天天气很好我们走路去公园",
+          "Display": "今天天气很好，我们走路去公园。",
+          "AccuracyScore": 97,
+          "FluencyScore": 99,
+          "CompletenessScore": 100,
+          "PronScore": 98,
+          "Words": [
+            {
+              "Word": "今天",
+              "Offset": 800000,
+              "Duration": 4300000,
+              "Confidence": 0,
+              "AccuracyScore": 94,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "今",
+                  "Offset": 800000,
+                  "Duration": 2500000,
+                  "AccuracyScore": 88
+                },
+                {
+                  "Syllable": "",
+                  "Grapheme": "天",
+                  "Offset": 3400000,
+                  "Duration": 1700000,
+                  "AccuracyScore": 86
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "jin 1",
+                  "Offset": 800000,
+                  "Duration": 2500000,
+                  "AccuracyScore": 88
+                },
+                {
+                  "Phoneme": "tian 1",
+                  "Offset": 3400000,
+                  "Duration": 1700000,
+                  "AccuracyScore": 86
+                }
+              ]
+            },
+            {
+              "Word": "天气",
+              "Offset": 5200000,
+              "Duration": 3200000,
+              "Confidence": 0,
+              "AccuracyScore": 88,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "天",
+                  "Offset": 5200000,
+                  "Duration": 1900000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Syllable": "",
+                  "Grapheme": "气",
+                  "Offset": 7200000,
+                  "Duration": 1200000,
+                  "AccuracyScore": 82
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "tian 1",
+                  "Offset": 5200000,
+                  "Duration": 1900000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "qi 4",
+                  "Offset": 7200000,
+                  "Duration": 1200000,
+                  "AccuracyScore": 82
+                }
+              ]
+            },
+            {
+              "Word": "很",
+              "Offset": 8500000,
+              "Duration": 2400000,
+              "Confidence": 0,
+              "AccuracyScore": 100,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "很",
+                  "Offset": 8500000,
+                  "Duration": 2400000,
+                  "AccuracyScore": 100
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "hen 3",
+                  "Offset": 8500000,
+                  "Duration": 2400000,
+                  "AccuracyScore": 100
+                }
+              ]
+            },
+            {
+              "Word": "好",
+              "Offset": 11000000,
+              "Duration": 4200000,
+              "Confidence": 0,
+              "AccuracyScore": 100,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "好",
+                  "Offset": 11000000,
+                  "Duration": 4200000,
+                  "AccuracyScore": 100
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "hao 3",
+                  "Offset": 11000000,
+                  "Duration": 4200000,
+                  "AccuracyScore": 100
+                }
+              ]
+            },
+            {
+              "Word": "我们",
+              "Offset": 15500000,
+              "Duration": 3400000,
+              "Confidence": 0,
+              "AccuracyScore": 97,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "我",
+                  "Offset": 15500000,
+                  "Duration": 2200000,
+                  "AccuracyScore": 90
+                },
+                {
+                  "Syllable": "",
+                  "Grapheme": "们",
+                  "Offset": 17800000,
+                  "Duration": 1100000,
+                  "AccuracyScore": 96
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "wo 3",
+                  "Offset": 15500000,
+                  "Duration": 2200000,
+                  "AccuracyScore": 90
+                },
+                {
+                  "Phoneme": "men 5",
+                  "Offset": 17800000,
+                  "Duration": 1100000,
+                  "AccuracyScore": 96
+                }
+              ]
+            },
+            {
+              "Word": "走路",
+              "Offset": 19000000,
+              "Duration": 3300000,
+              "Confidence": 0,
+              "AccuracyScore": 100,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "走",
+                  "Offset": 19000000,
+                  "Duration": 1700000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Syllable": "",
+                  "Grapheme": "路",
+                  "Offset": 20800000,
+                  "Duration": 1500000,
+                  "AccuracyScore": 100
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "zou 3",
+                  "Offset": 19000000,
+                  "Duration": 1700000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "lu 4",
+                  "Offset": 20800000,
+                  "Duration": 1500000,
+                  "AccuracyScore": 100
+                }
+              ]
+            },
+            {
+              "Word": "去",
+              "Offset": 22400000,
+              "Duration": 1300000,
+              "Confidence": 0,
+              "AccuracyScore": 100,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "去",
+                  "Offset": 22400000,
+                  "Duration": 1300000,
+                  "AccuracyScore": 100
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "qu 4",
+                  "Offset": 22400000,
+                  "Duration": 1300000,
+                  "AccuracyScore": 100
+                }
+              ]
+            },
+            {
+              "Word": "公园",
+              "Offset": 23800000,
+              "Duration": 6300000,
+              "Confidence": 0,
+              "AccuracyScore": 100,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "公",
+                  "Offset": 23800000,
+                  "Duration": 1900000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Syllable": "",
+                  "Grapheme": "园",
+                  "Offset": 25800000,
+                  "Duration": 4300000,
+                  "AccuracyScore": 100
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "gong 1",
+                  "Offset": 23800000,
+                  "Duration": 1900000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "yuan 2",
+                  "Offset": 25800000,
+                  "Duration": 4300000,
+                  "AccuracyScore": 100
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

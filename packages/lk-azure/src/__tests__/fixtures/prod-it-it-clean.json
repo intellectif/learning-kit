@@ -1,0 +1,524 @@
+{
+  "case": "prod-it-it-clean",
+  "source": "prod-it-it-clean/sdkProd",
+  "captured": "2026-10-29",
+  "api": "sdk",
+  "speechSdk": "1.51.0",
+  "audioMs": 4213,
+  "request": {
+    "locale": "it-IT",
+    "referenceText": "Oggi il tempo è bellissimo, quindi andremo al parco a piedi.",
+    "miscue": true,
+    "gradingSystem": "HundredMark",
+    "mode": "single-shot",
+    "segmentationSilenceTimeoutMs": 5000
+  },
+  "results": [
+    {
+      "RecognitionStatus": "Success",
+      "Offset": 600000,
+      "Duration": 38700000,
+      "Channel": 0,
+      "DisplayText": "Oggi il tempo è bellissimo, quindi andremo al parco a piedi.",
+      "SNR": 37.619198,
+      "NBest": [
+        {
+          "Confidence": 0.90207183,
+          "Lexical": "Oggi il tempo è bellissimo quindi andremo al parco a piedi",
+          "ITN": "Oggi il tempo è bellissimo quindi andremo al parco a piedi",
+          "MaskedITN": "oggi il tempo è bellissimo quindi andremo al parco a piedi",
+          "Display": "Oggi il tempo è bellissimo, quindi andremo al parco a piedi.",
+          "PronunciationAssessment": {
+            "AccuracyScore": 92,
+            "FluencyScore": 98,
+            "CompletenessScore": 100,
+            "PronScore": 94.8
+          },
+          "Words": [
+            {
+              "Word": "Oggi",
+              "Offset": 600000,
+              "Duration": 5100000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 97,
+                "ErrorType": "None"
+              },
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 600000,
+                  "Duration": 2300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 3000000,
+                  "Duration": 1300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 4400000,
+                  "Duration": 1300000
+                }
+              ]
+            },
+            {
+              "Word": "il",
+              "Offset": 5800000,
+              "Duration": 1000000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 91,
+                "ErrorType": "None"
+              },
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 5800000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 31
+                  },
+                  "Offset": 6600000,
+                  "Duration": 200000
+                }
+              ]
+            },
+            {
+              "Word": "tempo",
+              "Offset": 6900000,
+              "Duration": 4200000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 94,
+                "ErrorType": "None"
+              },
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 6900000,
+                  "Duration": 800000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 7800000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 8600000,
+                  "Duration": 1000000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 9700000,
+                  "Duration": 300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 10100000,
+                  "Duration": 1000000
+                }
+              ]
+            },
+            {
+              "Word": "è",
+              "Offset": 11200000,
+              "Duration": 300000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 97,
+                "ErrorType": "None"
+              },
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 11200000,
+                  "Duration": 300000
+                }
+              ]
+            },
+            {
+              "Word": "bellissimo",
+              "Offset": 11600000,
+              "Duration": 7700000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 88,
+                "ErrorType": "None"
+              },
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 11600000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 12200000,
+                  "Duration": 1200000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 67
+                  },
+                  "Offset": 13500000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 14100000,
+                  "Duration": 1000000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 78
+                  },
+                  "Offset": 15200000,
+                  "Duration": 1300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 16600000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 70
+                  },
+                  "Offset": 17400000,
+                  "Duration": 200000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 79
+                  },
+                  "Offset": 17700000,
+                  "Duration": 1600000
+                }
+              ]
+            },
+            {
+              "Word": "quindi",
+              "Offset": 20200000,
+              "Duration": 5300000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 85,
+                "ErrorType": "None"
+              },
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 55
+                  },
+                  "Offset": 20200000,
+                  "Duration": 1800000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 22100000,
+                  "Duration": 300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 22500000,
+                  "Duration": 1200000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 79
+                  },
+                  "Offset": 23800000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 24400000,
+                  "Duration": 200000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 79
+                  },
+                  "Offset": 24700000,
+                  "Duration": 800000
+                }
+              ]
+            },
+            {
+              "Word": "andremo",
+              "Offset": 25600000,
+              "Duration": 4100000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 88,
+                "ErrorType": "None"
+              },
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 80
+                  },
+                  "Offset": 25600000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 77
+                  },
+                  "Offset": 26400000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 27000000,
+                  "Duration": 300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 27400000,
+                  "Duration": 300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 27800000,
+                  "Duration": 800000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 63
+                  },
+                  "Offset": 28700000,
+                  "Duration": 200000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 29000000,
+                  "Duration": 700000
+                }
+              ]
+            },
+            {
+              "Word": "al",
+              "Offset": 29800000,
+              "Duration": 900000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 29800000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 30400000,
+                  "Duration": 300000
+                }
+              ]
+            },
+            {
+              "Word": "parco",
+              "Offset": 30800000,
+              "Duration": 3500000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 82,
+                "ErrorType": "None"
+              },
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 82
+                  },
+                  "Offset": 30800000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 82
+                  },
+                  "Offset": 31400000,
+                  "Duration": 1100000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 82
+                  },
+                  "Offset": 32600000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 82
+                  },
+                  "Offset": 33200000,
+                  "Duration": 300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 82
+                  },
+                  "Offset": 33600000,
+                  "Duration": 700000
+                }
+              ]
+            },
+            {
+              "Word": "a",
+              "Offset": 34400000,
+              "Duration": 600000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 34400000,
+                  "Duration": 600000
+                }
+              ]
+            },
+            {
+              "Word": "piedi",
+              "Offset": 35100000,
+              "Duration": 4200000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 85,
+                "ErrorType": "None"
+              },
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 74
+                  },
+                  "Offset": 35100000,
+                  "Duration": 200000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 35400000,
+                  "Duration": 900000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 36400000,
+                  "Duration": 1000000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 37500000,
+                  "Duration": 400000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 68
+                  },
+                  "Offset": 38000000,
+                  "Duration": 1300000
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

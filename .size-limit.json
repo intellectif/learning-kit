@@ -24,6 +24,13 @@
     "limit": "81 kB"
   },
   {
+    "name": "lk-azure: assessmentFromAzure",
+    "path": "packages/lk-azure/dist/index.js",
+    "import": "{ assessmentFromAzure }",
+    "ignore": ["@intellectif/lk-core"],
+    "limit": "5 kB"
+  },
+  {
     "name": "ActivityPreview",
     "path": "packages/lk-react/dist/components/ActivityPreview.js",
     "import": "{ ActivityPreview }",

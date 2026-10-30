@@ -534,6 +534,24 @@ Fine-tuning closes much of that gap ([2025](https://arxiv.org/abs/2509.15701)), 
 
 Microsoft's pronunciation assessment (Azure AI Speech) is a common engine for this type. This appendix records the details that decide whether an adapter produces correct evidence. **It was checked against real responses in October 2026:** 48 cases in eight locales, on the Speech SDK for JavaScript 1.51.0 and the REST short-audio API, with synthesised speech, digital silence and background noise. Two limits follow. Microsoft updates its models without an API change (en-US, es-ES, es-MX, fr-FR, pt-BR and zh-CN in August 2026, de-DE in April 2026). And synthesised speech makes no accidental mistakes. **Capture responses from your own resource too, and store them.**
 
+**On a JavaScript server, use [`@intellectif/lk-azure`](../packages/lk-azure).** Its one function, `assessmentFromAzure(results, request)`, does everything this appendix describes, and is tested against 30 of these responses:
+
+```ts
+import { assessmentFromAzure } from '@intellectif/lk-azure';
+
+const read = assessmentFromAzure(results, {
+  referenceText: item.referenceText,
+  locale: item.locale,
+  recordingKey: response.recording.key,
+  miscue: !continuous,
+  gradingSystem: 'HundredMark',
+  phonemeAlphabet: 'IPA',
+});
+// read.ok ? read.assessment : read.code ('no_match', 'invalid_assessment', …)
+```
+
+The rest of this appendix is what it does, and why, for an adapter written in another language.
+
 ### Request settings
 
 - **`GradingSystem: HundredMark`.** The default is `FivePoint` (0–5) in the REST API, the documentation and the JavaScript SDK constructor. FivePoint rescales every score, from the utterance down to each phoneme, in half-point steps, so detail is lost. `validateSpeechAssessment` cannot tell its values from low 0–100 scores.
@@ -555,7 +573,7 @@ Microsoft's pronunciation assessment (Azure AI Speech) is a common engine for th
 - **Single-shot recognition stops at 30 seconds, silently.** A 48.9 s reading came back as one `Success` ending at 29.9 s. Every later word was an omission, with no error and no flag. Choose the mode from the recording's measured length (`inspectWav`) with a margin: single-shot below about 28 s, continuous above.
 - **Continuous recognition** returns one assessment per segment, with no utterance total and no omissions or insertions marked.
   - **It splits the take at pauses** (a 3 s pause started a new segment) and scores each segment on its own. A pause between segments therefore costs no fluency, while a pause in a single-shot take does. In the captures, a continuous take with two 3 s pauses scored fluency 99.7, and a single-shot take with one 3 s pause scored 50 (on different texts). A reading graded on one path grades differently on the other.
-  - **Aggregating segments is a grading policy you own and version.**
+  - **Aggregating segments is a grading policy you own and version.** `@intellectif/lk-azure` scores a take of several segments as Microsoft's own continuous sample scores one: mean word accuracy over the reference words (an omitted or substituted word counting 0), the share of reference words read correctly, fluency from the time spent in words over the whole span (so a pause between segments is charged, as single-shot recognition charges it), mean prosody, and Microsoft's PronScore formula. On the captures, that arithmetic reproduces Azure's single-shot accuracy and completeness on every take in a script written with spaces.
   - **A reading long enough to need it approaches the evidence caps:** 1000 words, and 8000 characters between them, written or normalised.
 - **Latency** in the captures, on a wired connection: REST took about 0.15× the recording's length, and the SDK's `fromWavFileInput` about 0.55–0.6×.
 - **Content assessment** (vocabulary, grammar, topic) was retired from the Speech SDK in 2025. Microsoft points to a chat model instead.

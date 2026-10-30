@@ -14,7 +14,7 @@ Thanks for contributing! This guide covers local setup, the test suite, how to a
 git clone https://github.com/intellectif/learning-kit.git
 cd learning-kit
 pnpm install
-pnpm build      # builds lk-core then lk-react (Turborepo respects ^build)
+pnpm build      # builds lk-core, then lk-react and lk-azure (Turborepo respects ^build)
 ```
 
 This is a pnpm + Turborepo monorepo:
@@ -26,7 +26,7 @@ apps/lk-example-vite Vite + React demo (MSW mock LRS) — also the e2e target
 docs/lk-storybook   Storybook 10
 ```
 
-`@intellectif/lk-core` has no runtime dependency other than Zod; `@intellectif/lk-react` keeps `react`, `react-dom`, and `@intellectif/lk-core` as peers. Keep it that way.
+`@intellectif/lk-core` has no runtime dependency other than Zod; `@intellectif/lk-react` keeps `react`, `react-dom`, and `@intellectif/lk-core` as peers; `@intellectif/lk-azure` has no runtime dependency, and `@intellectif/lk-core` as a peer. Keep it that way.
 
 ## Running tests & checks
 

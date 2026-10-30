@@ -1,6 +1,6 @@
 # Releasing & publishing to npm
 
-Published packages: `@intellectif/lk-core` and `@intellectif/lk-react` (everything else is `private` and never published). Versioning is driven by [Changesets](https://github.com/changesets/changesets); `.changeset/config.json` sets `access: public` (required for scoped packages) and base branch `main`.
+Published packages: `@intellectif/lk-core`, `@intellectif/lk-react` and `@intellectif/lk-azure` (everything else is `private` and never published). Versioning is driven by [Changesets](https://github.com/changesets/changesets); `.changeset/config.json` sets `access: public` (required for scoped packages) and base branch `main`.
 
 ## Security model (read this first)
 
@@ -45,13 +45,62 @@ npm view @intellectif/lk-react version
 
 ### 3. Configure Trusted Publishing for CI (after the packages exist)
 
-On npmjs.com, for **each** package (`@intellectif/lk-core`, then `@intellectif/lk-react`):
+On npmjs.com, for **each** package (`@intellectif/lk-core`, `@intellectif/lk-react`, `@intellectif/lk-azure`):
 
 - Package page → **Settings** → **Publishing access** → **Trusted Publisher** → **GitHub Actions**.
 - Set: organization/user `intellectif`, repository `learning-kit`, workflow filename `release.yml` (environment left blank unless you add one).
 - Keep "Require two-factor authentication or automation tokens" as npm's default; Trusted Publishing satisfies it without a token.
 
 The workflow (`.github/workflows/release.yml`) is already OIDC-ready: it declares `permissions: id-token: write`, upgrades to an OIDC-capable npm, and carries **no** `NPM_TOKEN`.
+
+### 3a. A package added later
+
+A Trusted Publisher can only be set on a package that exists, so CI cannot publish a package's first
+version. A new package (as `@intellectif/lk-azure` was, starting at `0.0.0` with a `major` changeset)
+is published once by hand, **from the version PR, before that PR is merged**. Merged first, the
+Release job would try to publish it through OIDC and fail.
+
+1. Merge the feature PR that adds the package. The Release job opens the **"chore: version packages"**
+   PR, which takes the new package to `1.0.0`.
+2. On your machine, check out that PR's branch and build the new package and lk-core:
+
+   ```bash
+   git fetch origin
+   git switch --detach origin/changeset-release/main
+   pnpm install --frozen-lockfile
+   pnpm --filter @intellectif/lk-core build
+   pnpm --filter @intellectif/lk-azure build
+   pnpm --filter @intellectif/lk-azure test
+   pnpm --filter @intellectif/lk-azure verify-dist
+   ```
+
+3. Publish it, with your own npm login (2FA on). Use **pnpm**, never `npm publish`: pnpm writes the
+   `workspace:^` peer range as a real one (`^1.7.0`), and npm would publish it literally.
+
+   ```bash
+   npm login
+   pnpm --filter @intellectif/lk-azure publish --access public --no-git-checks
+   npm logout
+   ```
+
+   If it asks for a one-time password, run the publish again with `--otp=<the code from your authenticator>`.
+4. Set the package's Trusted Publisher on npmjs.com, as in §3.
+5. Go back to your branch (`git switch main`), and merge the version PR. The Release job finds that
+   version already on npm and skips it, so it publishes nothing and stays green.
+6. Tag the release and give it a GitHub Release, as the Release job does for the others:
+
+   ```bash
+   git switch main
+   git pull
+   git tag @intellectif/lk-azure@1.0.0
+   git push origin @intellectif/lk-azure@1.0.0
+   gh release create @intellectif/lk-azure@1.0.0 --title @intellectif/lk-azure@1.0.0 --notes-file packages/lk-azure/CHANGELOG.md
+   ```
+
+7. Verify: `npm view @intellectif/lk-azure version` prints `1.0.0`, and the package page shows the
+   peer `@intellectif/lk-core` as `^1.x`, not `workspace:^`.
+
+Every later version goes through the routine flow below.
 
 ### 4. GitHub repo settings
 
@@ -182,12 +231,12 @@ Open its diff and confirm the bumps in `packages/*/package.json` are what you in
 > their own. Decide *before* merging — npm versions are immutable.
 
 **5. Merge the “chore: version packages” PR.** Release runs again, finds no changesets,
-and publishes both packages to npm with provenance.
+and publishes every package whose version it raised to npm, with provenance.
 
 **6. Verify it actually landed:**
 
 ```bash
-npm view @intellectif/lk-core version && npm view @intellectif/lk-react version
+npm view @intellectif/lk-core version && npm view @intellectif/lk-react version && npm view @intellectif/lk-azure version
 ```
 
 ### Writing the release note

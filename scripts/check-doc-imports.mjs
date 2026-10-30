@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const PACKAGES = ['packages/lk-core', 'packages/lk-react'];
+const PACKAGES = ['packages/lk-core', 'packages/lk-react', 'packages/lk-azure'];
 
 /** Each entry point a consumer can import, e.g. `@intellectif/lk-core/xapi`, and what it exports. */
 const exportsOf = new Map();
