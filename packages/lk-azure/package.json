@@ -1,6 +1,6 @@
 {
   "name": "@intellectif/lk-azure",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Azure AI Speech pronunciation assessment results, read into lk-core's SpeechAssessment: pure, no network, no key, checked against real captured responses.",
   "keywords": [
     "azure",
