@@ -460,14 +460,12 @@ export function Marks(props: {
       assessment={props.assessment}
       grade={props.grade}
       audioUrl={props.audioUrl}
-      breakThreshold={0.75}
-      monotoneThreshold={0.6}
     />
   );
 }
 ```
 
-`data` needs only `referenceText` and `locale`. The panel shows the score when you pass a `grade`, and the four dimensions — from `grade.criteria` when the grade carries any, from `assessment.scores` otherwise — each a percentage or "Not assessed", **never 0%**. Then it marks every entry `alignReadAloud` returns as `correct`, `mispronounced`, `omitted` or `inserted`, with a hidden sentence per word for a screen reader and a glyph and a text decoration for everyone else. A word with detail opens onto its accuracy, its syllables, its sounds and what was heard instead of each, and, given `audioUrl` and timings, a button that plays just that word. A break note appears only past `breakThreshold` and the monotone note only past `monotoneThreshold`; neither has a default, because where a confidence becomes worth telling a learner is yours to decide.
+`data` needs only `referenceText` and `locale`. The panel shows the score when you pass a `grade`, and the four dimensions — from `grade.criteria` when the grade carries any, from `assessment.scores` otherwise — each a percentage or "Not assessed", **never 0%**. Then it marks every entry `alignReadAloud` returns as `correct`, `mispronounced`, `omitted` or `inserted`, with a hidden sentence per word for a screen reader and a glyph and a text decoration for everyone else. A word with detail opens onto its accuracy, its syllables, its sounds and what was heard instead of each, and, given `audioUrl` and timings, a button that plays just that word. A break note appears only past `breakThreshold` and the monotone note only past `monotoneThreshold`; neither has a default, because where a confidence becomes worth telling a learner is yours to decide. Measure both on your own engine's results before you set them: Azure's raw break confidences are not 0–1, and its monotone value ran 0.38–0.67 on natural readings (see [Breaks and monotone](#breaks-and-monotone)).
 
 **It checks the evidence before it aligns it**, because `alignReadAloud` throws for evidence `validateSpeechAssessment` refuses. In development the refusal is thrown as `ActivitySchemaError`, which the component's error boundary shows. In production the score and the dimensions are rendered and the word list is left out: a malformed assessment costs the learner the marks, never the grade.
 
@@ -521,83 +519,111 @@ Three different operations then stay distinct:
 
 A generative model can assess a recording. Published comparisons, however, find zero-shot models agree far less with human raters than dedicated pronunciation engines at word and phoneme level. They are also more lenient, and vary between identical runs. They do comparatively well on holistic judgements and on explaining results.
 
+For example, GPT-4o, zero-shot, on the Speechocean762 test set ([Wang et al., 2025](https://arxiv.org/abs/2503.11229)):
+- its utterance scores correlated with human raters at 0.445, against 0.811 for a dedicated model;
+- its word accuracy scores correlated at 0.241, against 0.693;
+- 41.5% of its utterances came back without a complete result.
+
+Fine-tuning closes much of that gap ([2025](https://arxiv.org/abs/2509.15701)), but phoneme-level assessment stays hard.
+
 `gradeReadAloud` therefore refuses `assessor.kind: 'ai'` evidence unless you pass `allowAiAssessor: true`. When you do, label the feedback accordingly. A model is well suited to explaining an engine's marks to the learner. That explanation is display text, and never enters the grade.
 
 ---
 
 ## Appendix: filling `SpeechAssessment` from Azure pronunciation assessment
 
-Microsoft's pronunciation assessment (Azure AI Speech) is a common engine for this type. This appendix records the details that decide whether an adapter produces correct evidence. It reflects Microsoft's documentation and JavaScript SDK behaviour as of September 2026. **Capture real responses from your own resource before relying on any mapping,** because the published examples disagree with each other in places.
+Microsoft's pronunciation assessment (Azure AI Speech) is a common engine for this type. This appendix records the details that decide whether an adapter produces correct evidence. **It was checked against real responses in October 2026:** 48 cases in eight locales, on the Speech SDK for JavaScript 1.51.0 and the REST short-audio API, with synthesised speech, digital silence and background noise. Two limits follow. Microsoft updates its models without an API change (en-US, es-ES, es-MX, fr-FR, pt-BR and zh-CN in August 2026, de-DE in April 2026). And synthesised speech makes no accidental mistakes. **Capture responses from your own resource too, and store them.**
 
 ### Request settings
 
-- **`GradingSystem: HundredMark`.** The default is `FivePoint` (0–5) in the REST API, the documentation and the JavaScript SDK constructor. An adapter that forgets this produces scores `validateSpeechAssessment` cannot distinguish from low 0–100 scores.
+- **`GradingSystem: HundredMark`.** The default is `FivePoint` (0–5) in the REST API, the documentation and the JavaScript SDK constructor. FivePoint rescales every score, from the utterance down to each phoneme, in half-point steps, so detail is lost. `validateSpeechAssessment` cannot tell its values from low 0–100 scores.
 - **`Granularity: Phoneme`** returns word, syllable and phoneme scores.
 - **`Dimension: Comprehensive`** on REST. The REST default is `Basic`, which is accuracy only. The JavaScript SDK always sends `Comprehensive`.
 - **`EnableMiscue: true`** marks omitted and inserted words; set `miscue: 'assessor'`. It is not available in continuous recognition (below).
-- **`EnableProsodyAssessment: true`** only for `en-US`.
+- **`EnableProsodyAssessment: true`** only for `en-US`. In another locale it returns prosody feedback on the words, but no `ProsodyScore` and no error.
 - **Language:** always pass the item's `locale` (REST `language=` query parameter; SDK `speechRecognitionLanguage`). The SDK default is `en-US`, so an adapter that never sets it assesses every language as English.
+  - **The locale does not check the language spoken.** English read from an English text, but assessed as `es-ES`, scored accuracy 95.
+  - **Only the reference text catches the wrong language,** and it grades the reading low rather than refusing it. An English reading of a Spanish text scored accuracy 18 and completeness 9.
+- **In single-shot recognition, leave the segmentation silence at its default.** With `Speech_SegmentationSilenceTimeoutMs` set to 5000, a 7 s pause ended the take. Everything after it came back as omitted, and the take graded 0.54 instead of 0.74. The default kept whole takes through pauses of 1.7, 3 and 7 s; longer pauses were not measured.
 - **REST short audio:**
   - the query also needs `format=detailed` (the default `simple` returns no scores);
-  - send `Content-Type: audio/wav; codecs=audio/pcm; samplerate=16000`;
+  - send `Content-Type: audio/wav; codecs=audio/pcm; samplerate=16000`. 48 kHz `audio/ogg; codecs=opus` was accepted too, and scored like the WAV, although the documentation names 16 kHz only;
   - the `Pronunciation-Assessment` header is the base64 of the UTF-8 JSON settings;
-  - the documented request limit is 60 s of audio, and Microsoft advises at most 30 s for pronunciation assessment;
-  - `PhonemeAlphabet` and `NBestPhonemeCount` appear in Microsoft's REST samples but not in its REST parameter table, so verify them on your resource.
+  - `PhonemeAlphabet` and `NBestPhonemeCount` are honoured, although the REST parameter table leaves them out;
+  - the documented request limit is 60 s of audio, and Microsoft advises at most 30 s. A 32 s upload was accepted.
 - **The JavaScript Speech SDK accepts uncompressed PCM only** (WAV, 16 kHz 16-bit mono by default). It does not decode Opus, WebM or MP3.
-- **Continuous recognition** (for recordings longer than single-shot handles, about 15–30 s) returns one assessment per segment and no utterance total, and does not mark omissions or insertions. Aggregating segments is a grading policy you own and version. Until you have one, keep items within single-shot or REST lengths. A reading long enough to need it also approaches the caps on evidence: 1000 words, and 8000 characters between them, written or normalised.
-- **Content assessment** (vocabulary, grammar, topic) was retired from the Speech SDK in 2025.
+- **Single-shot recognition stops at 30 seconds, silently.** A 48.9 s reading came back as one `Success` ending at 29.9 s. Every later word was an omission, with no error and no flag. Choose the mode from the recording's measured length (`inspectWav`) with a margin: single-shot below about 28 s, continuous above.
+- **Continuous recognition** returns one assessment per segment, with no utterance total and no omissions or insertions marked.
+  - **It splits the take at pauses** (a 3 s pause started a new segment) and scores each segment on its own. A pause between segments therefore costs no fluency, while a pause in a single-shot take does. In the captures, a continuous take with two 3 s pauses scored fluency 99.7, and a single-shot take with one 3 s pause scored 50 (on different texts). A reading graded on one path grades differently on the other.
+  - **Aggregating segments is a grading policy you own and version.**
+  - **A reading long enough to need it approaches the evidence caps:** 1000 words, and 8000 characters between them, written or normalised.
+- **Latency** in the captures, on a wired connection: REST took about 0.15× the recording's length, and the SDK's `fromWavFileInput` about 0.55–0.6×.
+- **Content assessment** (vocabulary, grammar, topic) was retired from the Speech SDK in 2025. Microsoft points to a chat model instead.
 
 ### Mapping the response
 
 | Azure (detailed JSON) | `SpeechAssessment` |
 |---|---|
-| `NBest[0].PronunciationAssessment.AccuracyScore` (SDK JSON; REST puts the five scores directly on `NBest[0]`) | `scores.accuracy` |
-| `FluencyScore` / `CompletenessScore` / `ProsodyScore` | `scores.fluency` / `scores.completeness` / `scores.prosody`, **only when present** |
+| `NBest[0].PronunciationAssessment.AccuracyScore` (SDK JSON; REST puts the scores directly on `NBest[0]`, and on each word, syllable and phoneme) | `scores.accuracy` |
+| `FluencyScore` / `CompletenessScore` / `ProsodyScore` | `scores.fluency` / `scores.completeness` / `scores.prosody`, **only when present**. `CompletenessScore` is the share of reference words whose `ErrorType` is `None`, so a mispronounced word lowers completeness as well as accuracy |
 | `PronScore` | `scores.overall` (display and monitoring; the grade uses the weighted dimensions) |
-| `DisplayText`, or `NBest[0].Lexical` | `recognizedText` (prefer `Lexical`: numbers stay words) |
+| `DisplayText`, or `NBest[0].Lexical` | `recognizedText` (prefer `Lexical`: numbers stay words). Both are `"."` when nothing was heard |
 | `NBest[0].Words[]` | `words[]` |
 | `Word` | `text` |
-| `…AccuracyScore` on the word | `accuracy` |
-| `ErrorType` `None` / `Mispronunciation` / `Omission` / `Insertion` | `error` `none` / `mispronunciation` / `omission` / `insertion` |
-| `ErrorType` `UnexpectedBreak` / `MissingBreak` / `Monotone` | `error: 'none'`, `vendorError` verbatim (these are prosody, not segmental errors) |
+| `…AccuracyScore` on the word | `accuracy`. **Leave it out on an omitted word.** In SDK JSON an omitted word has no score, no `Duration` and `Offset: null`. REST gives it 0, 0 and 0, which must not become a score or a time |
+| `ErrorType` `None` / `Mispronunciation` / `Omission` / `Insertion` | `error` `none` / `mispronunciation` / `omission` / `insertion`. `Mispronunciation` was exactly a word `AccuracyScore` below 60 |
+| `ErrorType` `UnexpectedBreak` / `MissingBreak` / `Monotone` | `error: 'none'`, `vendorError` verbatim (these are prosody, not segmental errors). No capture returned them: break and intonation feedback arrived under `Feedback.Prosody` only |
 | `Offset`, `Duration` (100-nanosecond ticks) | `startMs = Offset / 10000`, `durationMs = Duration / 10000`, re-based to the recording start |
-| `Syllables[]` (`Syllable`, `Grapheme`, score, `Offset`, `Duration`) | `syllables[]` (en-US only) |
-| `Phonemes[]` (`Phoneme`, score, `Offset`, `Duration`) | `phonemes[]`. Phoneme names exist only for `en-US` (IPA or SAPI) and `zh-CN` (SAPI); elsewhere leave `symbol` out and keep the score |
-| `NBestPhonemes[]` (`Phoneme`, `Score`) | `heardAs[]` (en-US; requires `NBestPhonemeCount`) |
-| `Feedback.Prosody.Break.UnexpectedBreak.Confidence` / `MissingBreak.Confidence` | `breaks.unexpected` / `breaks.missing` (Microsoft suggests 0.75 as a display threshold) |
-| `Feedback.Prosody.Intonation.Monotone.Confidence` (stamped on every word) | `prosody.monotoneConfidence`, once per utterance |
+| `Syllables[]` (`Syllable`, `Grapheme`, score, `Offset`, `Duration`) | `syllables[]`, **only those with a name**. es-ES, es-MX, de-DE, fr-FR, en-GB, pt-BR, zh-CN and ja-JP return syllables whose `Syllable` is `""`, which `validateSpeechAssessment` refuses (`syllables.N.text`). it-IT and pt-PT return none |
+| `Phonemes[]` (`Phoneme`, score, `Offset`, `Duration`) | `phonemes[]`. Names exist only for `en-US` (IPA or SAPI) and `zh-CN` (SAPI: a pinyin syllable with its tone number, such as `jin 1`). Elsewhere `Phoneme` is `""`, not absent: leave `symbol` out and keep the score |
+| `NBestPhonemes[]` (`Phoneme`, `Score`) | `heardAs[]`, en-US only (requires `NBestPhonemeCount`). es-ES returned candidates whose names were all `""` |
+| `Feedback.Prosody.Break` | **Leave `breaks` out:** its confidences are not 0–1 (see [Breaks and monotone](#breaks-and-monotone)) |
+| `Feedback.Prosody.Intonation.Monotone` (stamped on every word) | `prosody.monotoneConfidence`, once per utterance, and only with a threshold measured on your own learners (see [Breaks and monotone](#breaks-and-monotone)) |
 | `SNR` | `signal.snrDb` |
 
-Three fields the response does not carry, which the adapter must add or the evidence is refused:
+The response does not carry these fields. The adapter must add them, or the evidence is refused:
 
-- `task: 'scripted'`, with the item's `referenceText` copied verbatim and the storage key of the take in `recordingKey` — the bindings a grade checks (`scripted_binding_required`).
+- `task: 'scripted'`, with the item's `referenceText` copied verbatim and the storage key of the take in `recordingKey`. These are the bindings a grade checks (`scripted_binding_required`).
 - `phonemeAlphabet`, `'ipa'` or `'sapi'`, matching the `PhonemeAlphabet` you requested, whenever any phoneme carries a `symbol` or a `heardAs` candidate (`phoneme_alphabet_required`).
-- `scale: 100` and `assessmentVersion: '1.0'`, and `miscue` — `'assessor'` when `EnableMiscue` was on, `'none'` when it was not.
+- `scale: 100`, `assessmentVersion: '1.0'`, and `miscue`: `'assessor'` when `EnableMiscue` was on, `'none'` when it was not.
+
+### Breaks and monotone
+
+- **Break confidences are not probabilities.**
+  - `UnexpectedBreak.Confidence` grows with the length of the pause. It passed 1 on 30 of 848 words, and reached 7.37 on a 1.7 s pause. Copied into `breaks.unexpected`, it makes `validateSpeechAssessment` refuse the take, so a reading with one real pause becomes `invalid_assessment`.
+  - `MissingBreak.Confidence` was 1 on every word with no pause before it, and 0 on the words with one. It gives a threshold nothing to work with.
+  - `Break.ErrorTypes` was `["None"]` on every word.
+  - The one usable field is `BreakLength`, the silence before the word in ticks. A pause marked from it is a rule you own; the SDK has none.
+- **Monotone:**
+  - SDK JSON carries only `Intonation.Monotone.SyllablePitchDeltaConfidence`. REST adds `Confidence` and `WordPitchSlopeConfidence`, which were always 0.
+  - The value is the same on every word of an utterance, and its scale is not documented.
+  - Natural synthesised readings ran 0.38–0.67, so a threshold such as 0.6 calls natural speech monotone.
+
+  Map it only with a threshold measured on your own learners' recordings, or leave it out.
 
 ### Status and silence
 
 | Situation | Map to |
 |---|---|
-| `RecognitionStatus` `Success` with one or more words | `status: 'assessed'` |
-| `InitialSilenceTimeout`, or `Success` with no words | `status: 'no_speech'` |
-| `BabbleTimeout` (noise only) | `status: 'no_speech'`, or refuse with your own code |
-| `NoMatch` | **Not silence**: speech that matched no words, usually the wrong language. Route it to review or a re-record; do not report `no_speech` |
+| `RecognitionStatus` `Success`, with at least one word that is not an omission | `status: 'assessed'` |
+| `Success` with every reference word an `Omission`. Silence **and** background noise both return this, with `DisplayText` `"."`, `NBest[0].Confidence` 0 and every score 0 | `status: 'no_speech'` |
+| `InitialSilenceTimeout`, `BabbleTimeout` or `NoMatch` | Never returned in the captures, by the SDK or by REST. If one arrives, treat the first two as `no_speech`. Treat `NoMatch` as speech that matched nothing, and route it to review or a re-record |
 | An error, or a missing status | No assessment. Report a provider failure, and retry if it is transient |
 
+- **Measuring the recording does not catch noise.** `inspectWav` counted 3 s of −30 dBFS noise as voiced. Without the second row, a noisy take is graded 0 instead of reported as unheard. Digital silence is also caught by the measurement (`insufficient_voiced_time`).
 - The JavaScript SDK's JSON result writes `RecognitionStatus` as a name (`"Success"`), while documentation examples show `0`.
-- Since SDK 1.44 the JavaScript SDK no longer emits `NoMatch` at all, so test what your version returns for silence, noise and wrong-language speech.
 
 ### Offsets in the JavaScript SDK
 
-The JavaScript SDK shifts some offsets by the start of the current recognition turn and not others:
-- With the default `Simple` output format, only the top-level `Offset` is shifted.
-- With `Detailed`, word offsets are shifted too.
-- Syllable and phoneme offsets are never shifted.
+- **Within one recognition turn, every offset counts from the start of the audio.** That covers words, syllables and phonemes, across the segments of a continuous take too. In SDK 1.51.0, a segment that began at 6.2 s gave its first word, syllable and phoneme 6.2 s.
+- **The SDK adds the turn's base offset to the result and its words only.** The base changes when a new turn starts, as after a reconnection. From then on, syllable and phoneme offsets count from the new turn.
 
-A single-shot first turn is unaffected. For continuous recognition, record the SDK version and output format with each result, and re-base per result.
+Record the SDK version and output format with each result. No grade reads syllable or phoneme times; they only place sounds on screen.
 
 ### Other behaviour to expect
 
 - **Scores are the engine's own.** A word's score is not the average of its phonemes, so do not recompute it.
-- **Microsoft updates the models without an API change** (several locales in 2025 and 2026). The same audio can score differently later; store the raw response.
+- **The same audio can score differently later,** because Microsoft updates the models without an API change. Store the raw response.
+- **zh-CN and ja-JP reference text can be sent unsegmented,** with its punctuation; the service segments it itself.
+- **A word with two readings is assessed against one of them.** 今日は (kyō wa, or konnichiwa) scored 82 as a word, while 7 of its 9 phonemes scored 0: the engine expected the reading the synthesised voice did not say.
 - **Authorization tokens** from `issueToken` last 10 minutes; Microsoft suggests reusing one for 9. A token works only against the host family that issued it. Keep the key on your server.
