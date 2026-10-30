@@ -1080,20 +1080,35 @@ it. It comes after the groundwork it needs, in this order.
      - A measured difficulty belongs outside the item, keyed by its content hash: inside it, the
        measurement would survive an edit, and updating it would change the plan hash of every
        attempt in progress.
-2. **Real engine results.** The speech code is built from documented shapes; no real engine output
-   has been captured into the SDK's fixtures, and the vendor documentation contradicts itself on
-   details that decide grades. Capture scripted and unscripted results first, from synthesised speech
-   or the maintainer's own voice, never a learner's, and commit JSON only.
+2. ✅ **Real engine results.** 48 Azure cases were captured in October 2026, from synthesised speech,
+   silence and noise, never a learner's voice, and the vendor documentation turned out wrong on
+   details that decide grades. Silence and noise come back as a success with every word omitted, and
+   break confidences are not probabilities. The speech guide's Azure appendix is rewritten from them.
+   **`@intellectif/lk-azure` 1.0.0** reads Azure's results into a `SpeechAssessment`, tested against 30
+   of the captures (JSON only), and scores a take Azure splits into segments as single-shot
+   recognition would. It is a separate package, decided on 2026-10-30, so that lk-core names no
+   vendor.
 3. **The unscripted assessment.** `SpeechAssessment` already names `task: 'unscripted'`, which
    `gradeReadAloud` refuses. It gains what an open answer carries: the recogniser's transcript and
    word timings, and the engine's pronunciation, fluency and prosody measures. There is no reference
    text, so nothing is aligned to one.
+   - **Two steps, decided on 2026-10-30.** A transcription model writes what was said, then a
+     scripted assessment against that transcript gives the marks. Microsoft's own documentation
+     recommends this when the text must be accurate: its unscripted mode uses another recogniser
+     than its transcription. The transcript's source is recorded apart from the engine's.
+   - **A capture run first,** with the maintainer's own voice speaking freely. It checks whether the
+     transcriber writes a learner's mistakes as said or corrects them before the judge sees them.
 4. **`speaking-response`**, as the September plan drew it: a prompt and optional media as on
    `written-response`, a rubric, recording limits, and a deferred grade.
    - **`gradeSpeakingResponse`, pure.** Content and language criteria come from the judge, on the
-     transcript; pronunciation and fluency criteria come from the engine's measures, never from a
-     model, since zero-shot models score pronunciation far below engines. `gradeFromRubric` computes
-     the total.
+     transcript; pronunciation and fluency criteria come from the engine's measures by default.
+     `gradeFromRubric` computes the total.
+   - **A model may judge pronunciation instead, behind the calibration gate** (decided on
+     2026-10-30). The gate decides whether its grades count in an exam, measured against people's
+     marks on the host's own data. Published comparisons put zero-shot models far below engines: on
+     Speechocean762, GPT-4o's utterance scores agreed with raters at 0.445 against 0.811 for a
+     dedicated model ([Wang et al., 2025](https://arxiv.org/abs/2503.11229)). An exam therefore
+     starts closed to it.
    - **`<SpeakingResponse>`:** the prompt, the picture, the recorder (`useSpeechRecorder`) and the
      feedback, with headless hooks for a host that draws its own.
    - **Summative use only through the calibration gate** of step 1.

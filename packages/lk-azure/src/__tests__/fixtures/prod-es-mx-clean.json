@@ -1,0 +1,687 @@
+{
+  "case": "prod-es-mx-clean",
+  "source": "prod-es-mx-clean/sdkProd",
+  "captured": "2026-10-29",
+  "api": "sdk",
+  "speechSdk": "1.51.0",
+  "audioMs": 4213,
+  "request": {
+    "locale": "es-MX",
+    "referenceText": "Hoy hace muy buen clima, así que vamos a caminar al parque.",
+    "miscue": true,
+    "gradingSystem": "HundredMark",
+    "mode": "single-shot",
+    "segmentationSilenceTimeoutMs": 5000
+  },
+  "results": [
+    {
+      "RecognitionStatus": "Success",
+      "Offset": 1300000,
+      "Duration": 33100000,
+      "Channel": 0,
+      "DisplayText": "Hoy hace muy buen clima, así que vamos a caminar al parque.",
+      "SNR": 43.41984,
+      "NBest": [
+        {
+          "Confidence": 0.96943,
+          "Lexical": "Hoy hace muy buen clima así que vamos a caminar al parque",
+          "ITN": "Hoy hace muy buen clima así que vamos a caminar al parque",
+          "MaskedITN": "hoy hace muy buen clima así que vamos a caminar al parque",
+          "Display": "Hoy hace muy buen clima, así que vamos a caminar al parque.",
+          "PronunciationAssessment": {
+            "AccuracyScore": 97,
+            "FluencyScore": 95,
+            "CompletenessScore": 100,
+            "PronScore": 96.4
+          },
+          "Words": [
+            {
+              "Word": "Hoy",
+              "Offset": 1300000,
+              "Duration": 3100000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 97,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 1300000,
+                  "Duration": 3100000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 1300000,
+                  "Duration": 1900000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 3300000,
+                  "Duration": 1100000
+                }
+              ]
+            },
+            {
+              "Word": "hace",
+              "Offset": 4500000,
+              "Duration": 2100000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 4500000,
+                  "Duration": 900000
+                },
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 5500000,
+                  "Duration": 1100000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 4500000,
+                  "Duration": 900000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 5500000,
+                  "Duration": 300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 5900000,
+                  "Duration": 700000
+                }
+              ]
+            },
+            {
+              "Word": "muy",
+              "Offset": 6700000,
+              "Duration": 2000000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 97,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 6700000,
+                  "Duration": 2000000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 6700000,
+                  "Duration": 900000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 7700000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 8300000,
+                  "Duration": 400000
+                }
+              ]
+            },
+            {
+              "Word": "buen",
+              "Offset": 8800000,
+              "Duration": 2200000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 97,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 8800000,
+                  "Duration": 2200000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 8800000,
+                  "Duration": 600000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 9500000,
+                  "Duration": 300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 9900000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 87
+                  },
+                  "Offset": 10500000,
+                  "Duration": 500000
+                }
+              ]
+            },
+            {
+              "Word": "clima",
+              "Offset": 11100000,
+              "Duration": 3700000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 97,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 11100000,
+                  "Duration": 1900000
+                },
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 88
+                  },
+                  "Offset": 13100000,
+                  "Duration": 1700000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 11100000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 11700000,
+                  "Duration": 600000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 12400000,
+                  "Duration": 600000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 13100000,
+                  "Duration": 600000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 81
+                  },
+                  "Offset": 13800000,
+                  "Duration": 1000000
+                }
+              ]
+            },
+            {
+              "Word": "así",
+              "Offset": 16500000,
+              "Duration": 3500000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 97,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 16500000,
+                  "Duration": 1700000
+                },
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 18300000,
+                  "Duration": 1700000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 16500000,
+                  "Duration": 1700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 18300000,
+                  "Duration": 900000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 19300000,
+                  "Duration": 700000
+                }
+              ]
+            },
+            {
+              "Word": "que",
+              "Offset": 20100000,
+              "Duration": 1300000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 97,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 20100000,
+                  "Duration": 1300000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 20100000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 20900000,
+                  "Duration": 500000
+                }
+              ]
+            },
+            {
+              "Word": "vamos",
+              "Offset": 21500000,
+              "Duration": 3100000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 94,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 21500000,
+                  "Duration": 1300000
+                },
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 22900000,
+                  "Duration": 1700000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 21500000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 22100000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 22900000,
+                  "Duration": 300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 23300000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 23900000,
+                  "Duration": 700000
+                }
+              ]
+            },
+            {
+              "Word": "a",
+              "Offset": 24700000,
+              "Duration": 500000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 24700000,
+                  "Duration": 500000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 24700000,
+                  "Duration": 500000
+                }
+              ]
+            },
+            {
+              "Word": "caminar",
+              "Offset": 25300000,
+              "Duration": 4300000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 97,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 25300000,
+                  "Duration": 1100000
+                },
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 26500000,
+                  "Duration": 1100000
+                },
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 27700000,
+                  "Duration": 1900000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 25300000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 26100000,
+                  "Duration": 300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 26500000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 27100000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 27700000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 28500000,
+                  "Duration": 600000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 29200000,
+                  "Duration": 400000
+                }
+              ]
+            },
+            {
+              "Word": "al",
+              "Offset": 29700000,
+              "Duration": 1100000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 97,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 29700000,
+                  "Duration": 1100000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 29700000,
+                  "Duration": 300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 30100000,
+                  "Duration": 700000
+                }
+              ]
+            },
+            {
+              "Word": "parque",
+              "Offset": 30900000,
+              "Duration": 3500000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 94,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 30900000,
+                  "Duration": 2100000
+                },
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 91
+                  },
+                  "Offset": 33100000,
+                  "Duration": 1300000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 30900000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 31700000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 32300000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 33100000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 78
+                  },
+                  "Offset": 33900000,
+                  "Duration": 500000
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

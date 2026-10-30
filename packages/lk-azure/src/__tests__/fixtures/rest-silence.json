@@ -1,0 +1,145 @@
+{
+  "case": "rest-silence",
+  "source": "silence-rest-and-sdk/rest",
+  "captured": "2026-10-29",
+  "api": "rest",
+  "audioMs": 3000,
+  "request": {
+    "locale": "en-US",
+    "referenceText": "The weather is lovely today, so we will walk to the park.",
+    "miscue": true,
+    "gradingSystem": "HundredMark"
+  },
+  "results": [
+    {
+      "RecognitionStatus": "Success",
+      "Offset": 0,
+      "Duration": 30000000,
+      "DisplayText": ".",
+      "SNR": 0,
+      "NBest": [
+        {
+          "Confidence": 0,
+          "Lexical": ".",
+          "ITN": ".",
+          "MaskedITN": ".",
+          "Display": ".",
+          "AccuracyScore": 0,
+          "FluencyScore": 0,
+          "CompletenessScore": 0,
+          "PronScore": 0,
+          "Words": [
+            {
+              "Word": "The",
+              "Offset": 0,
+              "Duration": 0,
+              "Confidence": 0,
+              "AccuracyScore": 0,
+              "ErrorType": "Omission",
+              "Phonemes": []
+            },
+            {
+              "Word": "weather",
+              "Offset": 0,
+              "Duration": 0,
+              "Confidence": 0,
+              "AccuracyScore": 0,
+              "ErrorType": "Omission",
+              "Phonemes": []
+            },
+            {
+              "Word": "is",
+              "Offset": 0,
+              "Duration": 0,
+              "Confidence": 0,
+              "AccuracyScore": 0,
+              "ErrorType": "Omission",
+              "Phonemes": []
+            },
+            {
+              "Word": "lovely",
+              "Offset": 0,
+              "Duration": 0,
+              "Confidence": 0,
+              "AccuracyScore": 0,
+              "ErrorType": "Omission",
+              "Phonemes": []
+            },
+            {
+              "Word": "today",
+              "Offset": 0,
+              "Duration": 0,
+              "Confidence": 0,
+              "AccuracyScore": 0,
+              "ErrorType": "Omission",
+              "Phonemes": []
+            },
+            {
+              "Word": "so",
+              "Offset": 0,
+              "Duration": 0,
+              "Confidence": 0,
+              "AccuracyScore": 0,
+              "ErrorType": "Omission",
+              "Phonemes": []
+            },
+            {
+              "Word": "we",
+              "Offset": 0,
+              "Duration": 0,
+              "Confidence": 0,
+              "AccuracyScore": 0,
+              "ErrorType": "Omission",
+              "Phonemes": []
+            },
+            {
+              "Word": "will",
+              "Offset": 0,
+              "Duration": 0,
+              "Confidence": 0,
+              "AccuracyScore": 0,
+              "ErrorType": "Omission",
+              "Phonemes": []
+            },
+            {
+              "Word": "walk",
+              "Offset": 0,
+              "Duration": 0,
+              "Confidence": 0,
+              "AccuracyScore": 0,
+              "ErrorType": "Omission",
+              "Phonemes": []
+            },
+            {
+              "Word": "to",
+              "Offset": 0,
+              "Duration": 0,
+              "Confidence": 0,
+              "AccuracyScore": 0,
+              "ErrorType": "Omission",
+              "Phonemes": []
+            },
+            {
+              "Word": "the",
+              "Offset": 0,
+              "Duration": 0,
+              "Confidence": 0,
+              "AccuracyScore": 0,
+              "ErrorType": "Omission",
+              "Phonemes": []
+            },
+            {
+              "Word": "park",
+              "Offset": 0,
+              "Duration": 0,
+              "Confidence": 0,
+              "AccuracyScore": 0,
+              "ErrorType": "Omission",
+              "Phonemes": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

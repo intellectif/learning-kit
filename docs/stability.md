@@ -1,11 +1,12 @@
 # Stability
 
-What `@intellectif/lk-core` 1.x and `@intellectif/lk-react` 23.x promise, and what they don't.
+What `@intellectif/lk-core` 1.x, `@intellectif/lk-react` 23.x and `@intellectif/lk-azure` 1.x promise, and what they don't.
 Versions follow [semantic versioning](https://semver.org): anything this page says is covered changes
 only in a **major**.
 
 - [The two version numbers](#the-two-version-numbers)
 - [Grades](#grades)
+- [Azure results](#azure-results)
 - [The public API](#the-public-api)
 - [Content](#content)
 - [Registering your own activity types](#registering-your-own-activity-types)
@@ -43,10 +44,24 @@ decides every release.
 - **New scoring behaviour is opt-in.** A new tolerance, policy or rounding mode ships switched off, and
   with it off every number is what it was.
 
+## Azure results
+
+`@intellectif/lk-azure` reads an Azure pronunciation assessment response into a `SpeechAssessment`. A
+re-map of a stored response is a regrade, so the same rule applies to it as to a grade:
+
+- **The same results and request give the same assessment for the whole of a major.** The tests hold
+  the assessment of each of 30 real captured responses, by hash; a change to any of them is a major,
+  and its changeset says which responses map differently and what that does to their grades.
+- **A refusal that becomes an assessment, or the reverse, is a major too.**
+- **It peers on lk-core, as lk-react does:** a lk-core minor or patch releases no lk-azure, and
+  `scripts/check-release-plan.mjs` proves it.
+- **Azure is not covered.** Microsoft updates its models without an API change, so the same audio can
+  come back with other scores. Store the raw response.
+
 ## The public API
 
-- **Every export recorded in `packages/lk-core/api/surface.md` and `packages/lk-react/api/surface.md`
-  is covered**, types included. CI fails when the exports differ from those files, so a change to the
+- **Every export recorded in `packages/lk-core/api/surface.md`, `packages/lk-react/api/surface.md`
+  and `packages/lk-azure/api/surface.md` is covered**, types included. CI fails when the exports differ from those files, so a change to the
   public API is always a visible decision in review.
 - **Only the entry points in each package's `exports` map are public.** A deep import into `dist/`
   is not.

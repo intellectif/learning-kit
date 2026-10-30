@@ -1,0 +1,613 @@
+{
+  "case": "prod-en-gb-clean",
+  "source": "prod-en-gb-clean/sdkProd",
+  "captured": "2026-10-29",
+  "api": "sdk",
+  "speechSdk": "1.51.0",
+  "audioMs": 3600,
+  "request": {
+    "locale": "en-GB",
+    "referenceText": "The weather is lovely today, so we will walk to the park.",
+    "miscue": true,
+    "gradingSystem": "HundredMark",
+    "mode": "single-shot",
+    "segmentationSilenceTimeoutMs": 5000
+  },
+  "results": [
+    {
+      "RecognitionStatus": "Success",
+      "Offset": 1300000,
+      "Duration": 32600000,
+      "Channel": 0,
+      "DisplayText": "The weather is lovely today so we will walk to the park.",
+      "SNR": 42.3791,
+      "NBest": [
+        {
+          "Confidence": 0.9912378,
+          "Lexical": "the weather is lovely today so we will walk to the park",
+          "ITN": "the weather is lovely today so we will walk to the park",
+          "MaskedITN": "the weather is lovely today so we will walk to the park",
+          "Display": "The weather is lovely today so we will walk to the park.",
+          "PronunciationAssessment": {
+            "AccuracyScore": 100,
+            "FluencyScore": 93,
+            "CompletenessScore": 100,
+            "PronScore": 95.8
+          },
+          "Words": [
+            {
+              "Word": "the",
+              "Offset": 1300000,
+              "Duration": 1700000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 99,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 99
+                  },
+                  "Offset": 1300000,
+                  "Duration": 1700000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 99
+                  },
+                  "Offset": 1300000,
+                  "Duration": 1300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 99
+                  },
+                  "Offset": 2700000,
+                  "Duration": 300000
+                }
+              ]
+            },
+            {
+              "Word": "weather",
+              "Offset": 3100000,
+              "Duration": 3100000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "weath",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 3100000,
+                  "Duration": 1300000
+                },
+                {
+                  "Syllable": "",
+                  "Grapheme": "er",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 4500000,
+                  "Duration": 1700000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 3100000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 3700000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 4500000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 5100000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 5700000,
+                  "Duration": 500000
+                }
+              ]
+            },
+            {
+              "Word": "is",
+              "Offset": 6300000,
+              "Duration": 1100000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 6300000,
+                  "Duration": 1100000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 6300000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 6900000,
+                  "Duration": 500000
+                }
+              ]
+            },
+            {
+              "Word": "lovely",
+              "Offset": 7500000,
+              "Duration": 3700000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "love",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 7500000,
+                  "Duration": 2100000
+                },
+                {
+                  "Syllable": "",
+                  "Grapheme": "ly",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 9700000,
+                  "Duration": 1500000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 7500000,
+                  "Duration": 900000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 8500000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 9100000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 9700000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 10500000,
+                  "Duration": 700000
+                }
+              ]
+            },
+            {
+              "Word": "today",
+              "Offset": 11300000,
+              "Duration": 5200000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 98,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "to",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 98
+                  },
+                  "Offset": 11300000,
+                  "Duration": 1300000
+                },
+                {
+                  "Syllable": "",
+                  "Grapheme": "day",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 98
+                  },
+                  "Offset": 12700000,
+                  "Duration": 3800000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 98
+                  },
+                  "Offset": 11300000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 98
+                  },
+                  "Offset": 12100000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 98
+                  },
+                  "Offset": 12700000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 98
+                  },
+                  "Offset": 13500000,
+                  "Duration": 3000000
+                }
+              ]
+            },
+            {
+              "Word": "so",
+              "Offset": 18900000,
+              "Duration": 2500000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 18900000,
+                  "Duration": 2500000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 18900000,
+                  "Duration": 1700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 20700000,
+                  "Duration": 700000
+                }
+              ]
+            },
+            {
+              "Word": "we",
+              "Offset": 21500000,
+              "Duration": 1300000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 21500000,
+                  "Duration": 1300000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 21500000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 22100000,
+                  "Duration": 700000
+                }
+              ]
+            },
+            {
+              "Word": "will",
+              "Offset": 22900000,
+              "Duration": 1300000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 22900000,
+                  "Duration": 1300000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 22900000,
+                  "Duration": 300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 23300000,
+                  "Duration": 300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 23700000,
+                  "Duration": 500000
+                }
+              ]
+            },
+            {
+              "Word": "walk",
+              "Offset": 24300000,
+              "Duration": 2900000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 24300000,
+                  "Duration": 2900000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 24300000,
+                  "Duration": 800000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 25200000,
+                  "Duration": 1200000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 26500000,
+                  "Duration": 700000
+                }
+              ]
+            },
+            {
+              "Word": "to",
+              "Offset": 27300000,
+              "Duration": 900000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 27300000,
+                  "Duration": 900000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 27300000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 27900000,
+                  "Duration": 300000
+                }
+              ]
+            },
+            {
+              "Word": "the",
+              "Offset": 28300000,
+              "Duration": 900000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 28300000,
+                  "Duration": 900000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 28300000,
+                  "Duration": 400000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 28800000,
+                  "Duration": 400000
+                }
+              ]
+            },
+            {
+              "Word": "park",
+              "Offset": 29300000,
+              "Duration": 4600000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 29300000,
+                  "Duration": 4600000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 29300000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 30100000,
+                  "Duration": 1100000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 31300000,
+                  "Duration": 1100000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 32500000,
+                  "Duration": 1400000
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

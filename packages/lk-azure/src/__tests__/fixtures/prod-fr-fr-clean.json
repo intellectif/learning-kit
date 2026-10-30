@@ -1,0 +1,623 @@
+{
+  "case": "prod-fr-fr-clean",
+  "source": "prod-fr-fr-clean/sdkProd",
+  "captured": "2026-10-29",
+  "api": "sdk",
+  "speechSdk": "1.51.0",
+  "audioMs": 4188,
+  "request": {
+    "locale": "fr-FR",
+    "referenceText": "Il fait très beau aujourd'hui, alors nous irons au parc à pied.",
+    "miscue": true,
+    "gradingSystem": "HundredMark",
+    "mode": "single-shot",
+    "segmentationSilenceTimeoutMs": 5000
+  },
+  "results": [
+    {
+      "RecognitionStatus": "Success",
+      "Offset": 900000,
+      "Duration": 33100000,
+      "Channel": 0,
+      "DisplayText": "Il fait très beau aujourd'hui, alors nous irons au parc à pied.",
+      "SNR": 44.601513,
+      "NBest": [
+        {
+          "Confidence": 0.9056958,
+          "Lexical": "Il fait très beau aujourd'hui alors nous irons au parc à pied",
+          "ITN": "Il fait très beau aujourd'hui alors nous irons au parc à pied",
+          "MaskedITN": "il fait très beau aujourd'hui alors nous irons au parc à pied",
+          "Display": "Il fait très beau aujourd'hui, alors nous irons au parc à pied.",
+          "PronunciationAssessment": {
+            "AccuracyScore": 93,
+            "FluencyScore": 98,
+            "CompletenessScore": 100,
+            "PronScore": 95.4
+          },
+          "Words": [
+            {
+              "Word": "Il",
+              "Offset": 900000,
+              "Duration": 3100000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "il",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 900000,
+                  "Duration": 3100000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 900000,
+                  "Duration": 2100000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 3100000,
+                  "Duration": 900000
+                }
+              ]
+            },
+            {
+              "Word": "fait",
+              "Offset": 4100000,
+              "Duration": 1500000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 94,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "fait",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 4100000,
+                  "Duration": 1500000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 4100000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 4900000,
+                  "Duration": 700000
+                }
+              ]
+            },
+            {
+              "Word": "très",
+              "Offset": 5700000,
+              "Duration": 1900000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 88,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "très",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 88
+                  },
+                  "Offset": 5700000,
+                  "Duration": 1900000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 88
+                  },
+                  "Offset": 5700000,
+                  "Duration": 600000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 88
+                  },
+                  "Offset": 6400000,
+                  "Duration": 600000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 88
+                  },
+                  "Offset": 7100000,
+                  "Duration": 500000
+                }
+              ]
+            },
+            {
+              "Word": "beau",
+              "Offset": 7700000,
+              "Duration": 1700000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 80,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "beau",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 80
+                  },
+                  "Offset": 7700000,
+                  "Duration": 1700000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 80
+                  },
+                  "Offset": 7700000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 80
+                  },
+                  "Offset": 8300000,
+                  "Duration": 1100000
+                }
+              ]
+            },
+            {
+              "Word": "aujourd'hui",
+              "Offset": 9500000,
+              "Duration": 6500000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 94,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "au",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 9500000,
+                  "Duration": 700000
+                },
+                {
+                  "Syllable": "",
+                  "Grapheme": "jour",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 10300000,
+                  "Duration": 2000000
+                },
+                {
+                  "Syllable": "",
+                  "Grapheme": "d'hui",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 86
+                  },
+                  "Offset": 12400000,
+                  "Duration": 3600000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 9500000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 10300000,
+                  "Duration": 900000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 11300000,
+                  "Duration": 300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 11700000,
+                  "Duration": 600000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 12400000,
+                  "Duration": 600000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 13100000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 78
+                  },
+                  "Offset": 13700000,
+                  "Duration": 2300000
+                }
+              ]
+            },
+            {
+              "Word": "alors",
+              "Offset": 16900000,
+              "Duration": 4200000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 94,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "a",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 16900000,
+                  "Duration": 1000000
+                },
+                {
+                  "Syllable": "",
+                  "Grapheme": "lors",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 18000000,
+                  "Duration": 3100000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 16900000,
+                  "Duration": 1000000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 18000000,
+                  "Duration": 1000000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 19100000,
+                  "Duration": 1000000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 94
+                  },
+                  "Offset": 20200000,
+                  "Duration": 900000
+                }
+              ]
+            },
+            {
+              "Word": "nous",
+              "Offset": 21200000,
+              "Duration": 2200000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 100,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "nous",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 21200000,
+                  "Duration": 2200000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 21200000,
+                  "Duration": 1100000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 22400000,
+                  "Duration": 1000000
+                }
+              ]
+            },
+            {
+              "Word": "irons",
+              "Offset": 23500000,
+              "Duration": 2800000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 97,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "i",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 2
+                  },
+                  "Offset": 23500000,
+                  "Duration": 1300000
+                },
+                {
+                  "Syllable": "",
+                  "Grapheme": "rons",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 2
+                  },
+                  "Offset": 24900000,
+                  "Duration": 1400000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 0
+                  },
+                  "Offset": 23500000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 3
+                  },
+                  "Offset": 24100000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 2
+                  },
+                  "Offset": 24900000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 2
+                  },
+                  "Offset": 25700000,
+                  "Duration": 600000
+                }
+              ]
+            },
+            {
+              "Word": "au",
+              "Offset": 26400000,
+              "Duration": 800000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 97,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "au",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 26400000,
+                  "Duration": 800000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 26400000,
+                  "Duration": 800000
+                }
+              ]
+            },
+            {
+              "Word": "parc",
+              "Offset": 27300000,
+              "Duration": 2500000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 94,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "parc",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 97
+                  },
+                  "Offset": 27300000,
+                  "Duration": 2500000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 27300000,
+                  "Duration": 500000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 78
+                  },
+                  "Offset": 27900000,
+                  "Duration": 300000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 28300000,
+                  "Duration": 700000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 29100000,
+                  "Duration": 700000
+                }
+              ]
+            },
+            {
+              "Word": "à",
+              "Offset": 29900000,
+              "Duration": 900000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 82,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "à",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 82
+                  },
+                  "Offset": 29900000,
+                  "Duration": 900000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 82
+                  },
+                  "Offset": 29900000,
+                  "Duration": 900000
+                }
+              ]
+            },
+            {
+              "Word": "pied",
+              "Offset": 30900000,
+              "Duration": 3100000,
+              "PronunciationAssessment": {
+                "AccuracyScore": 97,
+                "ErrorType": "None"
+              },
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Grapheme": "pied",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 90
+                  },
+                  "Offset": 30900000,
+                  "Duration": 3100000
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 30900000,
+                  "Duration": 1100000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 100
+                  },
+                  "Offset": 32100000,
+                  "Duration": 600000
+                },
+                {
+                  "Phoneme": "",
+                  "PronunciationAssessment": {
+                    "AccuracyScore": 75
+                  },
+                  "Offset": 32800000,
+                  "Duration": 1200000
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

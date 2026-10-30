@@ -1,0 +1,583 @@
+{
+  "case": "rest-ja-jp-clean",
+  "source": "ja-jp-clean-rest/rest",
+  "captured": "2026-10-29",
+  "api": "rest",
+  "audioMs": 4513,
+  "request": {
+    "locale": "ja-JP",
+    "referenceText": "今日はとても良い天気なので、公園まで歩きます。",
+    "miscue": true,
+    "gradingSystem": "HundredMark"
+  },
+  "results": [
+    {
+      "RecognitionStatus": "Success",
+      "Offset": 2100000,
+      "Duration": 36700000,
+      "DisplayText": "今日はとても良い天気なので、公園まで歩きます。",
+      "SNR": 46.484425,
+      "NBest": [
+        {
+          "Confidence": 0.93081504,
+          "Lexical": "今日は とても 良い 天気 な の で 公園 まで 歩き ます",
+          "ITN": "今日は とても 良い 天気 な の で 公園 まで 歩き ます",
+          "MaskedITN": "今日はとても良い天気なので、公園まで歩きます",
+          "Display": "今日はとても良い天気なので、公園まで歩きます。",
+          "AccuracyScore": 96,
+          "FluencyScore": 88,
+          "CompletenessScore": 100,
+          "PronScore": 92,
+          "Words": [
+            {
+              "Word": "今日は",
+              "Offset": 2100000,
+              "Duration": 4100000,
+              "Confidence": 0,
+              "AccuracyScore": 82,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Offset": 2100000,
+                  "Duration": 4100000,
+                  "AccuracyScore": 11
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "Offset": 2100000,
+                  "Duration": 500000,
+                  "AccuracyScore": 0
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 2700000,
+                  "Duration": 500000,
+                  "AccuracyScore": 7
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 3300000,
+                  "Duration": 200000,
+                  "AccuracyScore": 0
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 3600000,
+                  "Duration": 200000,
+                  "AccuracyScore": 0
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 3900000,
+                  "Duration": 200000,
+                  "AccuracyScore": 0
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 4200000,
+                  "Duration": 300000,
+                  "AccuracyScore": 0
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 4600000,
+                  "Duration": 200000,
+                  "AccuracyScore": 0
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 4900000,
+                  "Duration": 300000,
+                  "AccuracyScore": 0
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 5300000,
+                  "Duration": 900000,
+                  "AccuracyScore": 42
+                }
+              ]
+            },
+            {
+              "Word": "とても",
+              "Offset": 6300000,
+              "Duration": 4300000,
+              "Confidence": 0,
+              "AccuracyScore": 94,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Offset": 6300000,
+                  "Duration": 1500000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Syllable": "",
+                  "Offset": 7900000,
+                  "Duration": 1300000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Syllable": "",
+                  "Offset": 9300000,
+                  "Duration": 1300000,
+                  "AccuracyScore": 87
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "Offset": 6300000,
+                  "Duration": 700000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 7100000,
+                  "Duration": 700000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 7900000,
+                  "Duration": 700000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 8700000,
+                  "Duration": 500000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 9300000,
+                  "Duration": 500000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 9900000,
+                  "Duration": 700000,
+                  "AccuracyScore": 78
+                }
+              ]
+            },
+            {
+              "Word": "良い",
+              "Offset": 10700000,
+              "Duration": 2700000,
+              "Confidence": 0,
+              "AccuracyScore": 94,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Offset": 10700000,
+                  "Duration": 1700000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Syllable": "",
+                  "Offset": 12500000,
+                  "Duration": 900000,
+                  "AccuracyScore": 77
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "Offset": 10700000,
+                  "Duration": 700000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 11500000,
+                  "Duration": 900000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 12500000,
+                  "Duration": 300000,
+                  "AccuracyScore": 86
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 12900000,
+                  "Duration": 500000,
+                  "AccuracyScore": 71
+                }
+              ]
+            },
+            {
+              "Word": "天気",
+              "Offset": 13500000,
+              "Duration": 3200000,
+              "Confidence": 0,
+              "AccuracyScore": 97,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Offset": 13500000,
+                  "Duration": 1100000,
+                  "AccuracyScore": 92
+                },
+                {
+                  "Syllable": "",
+                  "Offset": 14700000,
+                  "Duration": 700000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Syllable": "",
+                  "Offset": 15500000,
+                  "Duration": 1200000,
+                  "AccuracyScore": 97
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "Offset": 13500000,
+                  "Duration": 300000,
+                  "AccuracyScore": 76
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 13900000,
+                  "Duration": 700000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 14700000,
+                  "Duration": 700000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 15500000,
+                  "Duration": 700000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 16300000,
+                  "Duration": 400000,
+                  "AccuracyScore": 91
+                }
+              ]
+            },
+            {
+              "Word": "な",
+              "Offset": 16800000,
+              "Duration": 1000000,
+              "Confidence": 0,
+              "AccuracyScore": 100,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Offset": 16800000,
+                  "Duration": 1000000,
+                  "AccuracyScore": 100
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "Offset": 16800000,
+                  "Duration": 400000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 17300000,
+                  "Duration": 500000,
+                  "AccuracyScore": 100
+                }
+              ]
+            },
+            {
+              "Word": "の",
+              "Offset": 17900000,
+              "Duration": 1100000,
+              "Confidence": 0,
+              "AccuracyScore": 100,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Offset": 17900000,
+                  "Duration": 1100000,
+                  "AccuracyScore": 100
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "Offset": 17900000,
+                  "Duration": 500000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 18500000,
+                  "Duration": 500000,
+                  "AccuracyScore": 100
+                }
+              ]
+            },
+            {
+              "Word": "で",
+              "Offset": 19100000,
+              "Duration": 4100000,
+              "Confidence": 0,
+              "AccuracyScore": 97,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Offset": 19100000,
+                  "Duration": 4100000,
+                  "AccuracyScore": 85
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "Offset": 19100000,
+                  "Duration": 700000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 19900000,
+                  "Duration": 3300000,
+                  "AccuracyScore": 82
+                }
+              ]
+            },
+            {
+              "Word": "公園",
+              "Offset": 23500000,
+              "Duration": 5100000,
+              "Confidence": 0,
+              "AccuracyScore": 97,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Offset": 23500000,
+                  "Duration": 5100000,
+                  "AccuracyScore": 97
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "Offset": 23500000,
+                  "Duration": 1300000,
+                  "AccuracyScore": 97
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 24900000,
+                  "Duration": 1500000,
+                  "AccuracyScore": 97
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 26500000,
+                  "Duration": 700000,
+                  "AccuracyScore": 97
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 27300000,
+                  "Duration": 500000,
+                  "AccuracyScore": 97
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 27900000,
+                  "Duration": 700000,
+                  "AccuracyScore": 97
+                }
+              ]
+            },
+            {
+              "Word": "まで",
+              "Offset": 28700000,
+              "Duration": 2300000,
+              "Confidence": 0,
+              "AccuracyScore": 97,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Offset": 28700000,
+                  "Duration": 1200000,
+                  "AccuracyScore": 97
+                },
+                {
+                  "Syllable": "",
+                  "Offset": 30000000,
+                  "Duration": 1000000,
+                  "AccuracyScore": 97
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "Offset": 28700000,
+                  "Duration": 500000,
+                  "AccuracyScore": 97
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 29300000,
+                  "Duration": 600000,
+                  "AccuracyScore": 97
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 30000000,
+                  "Duration": 400000,
+                  "AccuracyScore": 97
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 30500000,
+                  "Duration": 500000,
+                  "AccuracyScore": 97
+                }
+              ]
+            },
+            {
+              "Word": "歩き",
+              "Offset": 31100000,
+              "Duration": 3500000,
+              "Confidence": 0,
+              "AccuracyScore": 97,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Offset": 31100000,
+                  "Duration": 1100000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Syllable": "",
+                  "Offset": 32300000,
+                  "Duration": 900000,
+                  "AccuracyScore": 92
+                },
+                {
+                  "Syllable": "",
+                  "Offset": 33300000,
+                  "Duration": 1300000,
+                  "AccuracyScore": 100
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "Offset": 31100000,
+                  "Duration": 500000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 31700000,
+                  "Duration": 500000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 32300000,
+                  "Duration": 300000,
+                  "AccuracyScore": 81
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 32700000,
+                  "Duration": 500000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 33300000,
+                  "Duration": 500000,
+                  "AccuracyScore": 100
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 33900000,
+                  "Duration": 700000,
+                  "AccuracyScore": 100
+                }
+              ]
+            },
+            {
+              "Word": "ます",
+              "Offset": 34700000,
+              "Duration": 4100000,
+              "Confidence": 0,
+              "AccuracyScore": 97,
+              "ErrorType": "None",
+              "Syllables": [
+                {
+                  "Syllable": "",
+                  "Offset": 34700000,
+                  "Duration": 1300000,
+                  "AccuracyScore": 96
+                },
+                {
+                  "Syllable": "",
+                  "Offset": 36100000,
+                  "Duration": 2700000,
+                  "AccuracyScore": 82
+                }
+              ],
+              "Phonemes": [
+                {
+                  "Phoneme": "",
+                  "Offset": 34700000,
+                  "Duration": 500000,
+                  "AccuracyScore": 98
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 35300000,
+                  "Duration": 700000,
+                  "AccuracyScore": 95
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 36100000,
+                  "Duration": 900000,
+                  "AccuracyScore": 90
+                },
+                {
+                  "Phoneme": "",
+                  "Offset": 37100000,
+                  "Duration": 1700000,
+                  "AccuracyScore": 78
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
