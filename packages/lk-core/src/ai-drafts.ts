@@ -127,7 +127,9 @@ const FIELDS: Readonly<Record<string, Fields>> = {
     'What the learner hears and types: words from the source, as they are said there.',
   ),
   referenceText: text('What the learner reads aloud: a sentence or two from the source.'),
-  instructions: text('Optional. How to read it, shown to the learner.'),
+  instructions: text(
+    'Optional. The task, shown to the learner before the item: what to do ("Complete the sentence. Use ONE word."), or how to read it aloud. Never part of the text the learner answers.',
+  ),
   prompt: text('The writing task, as plain text.'),
   minWords: { type: 'integer', minimum: 0 },
   maxWords: { type: 'integer', minimum: 1 },
@@ -151,9 +153,9 @@ const FIELDS: Readonly<Record<string, Fields>> = {
 
 /** The fields a model writes for each type: a draft's own names, never an id or a setting. */
 const WRITES: Readonly<Record<AiDraftType, readonly string[]>> = {
-  'multiple-choice': ['title', 'question', 'mode', 'options', 'feedback'],
-  'fill-in-the-blanks': ['title', 'passage', 'blanks', 'feedback'],
-  'gap-select': ['title', 'passage', 'gaps', 'feedback'],
+  'multiple-choice': ['title', 'instructions', 'question', 'mode', 'options', 'feedback'],
+  'fill-in-the-blanks': ['title', 'instructions', 'passage', 'blanks', 'feedback'],
+  'gap-select': ['title', 'instructions', 'passage', 'gaps', 'feedback'],
   dictation: ['title', 'transcript', 'feedback'],
   'read-aloud': ['title', 'referenceText', 'instructions', 'feedback'],
   'written-response': ['title', 'prompt', 'minWords', 'maxWords', 'rubric'],
@@ -325,11 +327,18 @@ function feedbackOf(entry: Fields): Fields {
       };
 }
 
+/** The instructions a model wrote for the learner, when it wrote any. */
+function instructionsOf(entry: Fields): Fields {
+  const instructions = written(entry.instructions);
+  return instructions !== undefined ? { instructions } : {};
+}
+
 /** A type's content, read from what a model wrote. */
 function contentOf(type: AiDraftType, entry: Fields, newId: () => string): Fields {
   switch (type) {
     case 'multiple-choice':
       return {
+        ...instructionsOf(entry),
         question: stringOf(entry.question),
         ...(typeof entry.mode === 'string' ? { mode: entry.mode } : {}),
         options: listOf(entry.options).map((option) => {
@@ -346,6 +355,7 @@ function contentOf(type: AiDraftType, entry: Fields, newId: () => string): Field
       };
     case 'fill-in-the-blanks':
       return {
+        ...instructionsOf(entry),
         passage: stringOf(entry.passage),
         blanks: listOf(entry.blanks).map((blank, index) => {
           const fields = isRecord(blank) ? blank : {};
@@ -362,6 +372,7 @@ function contentOf(type: AiDraftType, entry: Fields, newId: () => string): Field
       };
     case 'gap-select':
       return {
+        ...instructionsOf(entry),
         passage: stringOf(entry.passage),
         gaps: listOf(entry.gaps).map((gap, index) => {
           const marked = listOf(isRecord(gap) ? gap.choices : undefined);
@@ -384,14 +395,12 @@ function contentOf(type: AiDraftType, entry: Fields, newId: () => string): Field
       };
     case 'dictation':
       return { transcript: stringOf(entry.transcript), ...feedbackOf(entry) };
-    case 'read-aloud': {
-      const instructions = written(entry.instructions);
+    case 'read-aloud':
       return {
         referenceText: stringOf(entry.referenceText),
-        ...(instructions !== undefined ? { instructions } : {}),
+        ...instructionsOf(entry),
         ...feedbackOf(entry),
       };
-    }
     default: {
       const criteria = listOf(isRecord(entry.rubric) ? entry.rubric.criteria : undefined);
       return {

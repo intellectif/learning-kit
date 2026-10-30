@@ -31,6 +31,7 @@ import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation, AiHints, useComponentAiHints } from '../shared/AiHelp.js';
 import { feedbackAnnouncement, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
+import { ItemInstructions, instructionsOf } from '../shared/ItemInstructions.js';
 import { mintTake, stampTake } from '../shared/sequence-slot.js';
 import {
   HintCost,
@@ -479,6 +480,8 @@ export function MultipleChoice({
   };
 
   const questionId = `${data.id}-question`;
+  const instructions = instructionsOf(data);
+  const instructionsId = `${data.id}-instructions`;
   // Rich text renders ONLY through a caller-supplied sanitiser; without one we
   // fall back to the plain-text field, escaped by React (types.ts HtmlSanitizer).
   const questionHtml =
@@ -571,6 +574,7 @@ export function MultipleChoice({
 
   return (
     <div className="lk-mc" lang={locale} style={theme as CSSProperties | undefined} ref={rootRef}>
+      <ItemInstructions id={instructionsId} className="lk-mc-instructions" text={instructions} />
       {data.media ? (
         <ActivityMedia
           media={data.media}
@@ -583,7 +587,10 @@ export function MultipleChoice({
         />
       ) : null}
       <form onSubmit={handleSubmit}>
-        <fieldset disabled={inactive}>
+        <fieldset
+          disabled={inactive}
+          aria-describedby={instructions === undefined ? undefined : instructionsId}
+        >
           {questionHtml === null ? (
             <legend id={questionId}>{data.question}</legend>
           ) : (

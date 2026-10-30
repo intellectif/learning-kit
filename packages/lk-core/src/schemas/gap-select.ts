@@ -1,7 +1,7 @@
 import * as z from 'zod/v4';
 import { AiPermissionsSchema } from './ai.js';
 import { FeedbackSchema } from './feedback.js';
-import { PLACEHOLDER_RE } from './fill-in-the-blanks.js';
+import { PassageInstructionsSchema, PLACEHOLDER_RE } from './fill-in-the-blanks.js';
 import { MediaSchema } from './media.js';
 
 /**
@@ -80,6 +80,7 @@ export const GapSelectDataSchema = z
     type: z.literal('gap-select'),
     id: z.string().min(1),
     title: z.string().min(1),
+    instructions: PassageInstructionsSchema.optional(),
     passage: z.string().min(1),
     passageHtml: z.string().optional(),
     gaps: z.array(GapSelectGapSchema).min(1),

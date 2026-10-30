@@ -206,6 +206,49 @@ count, see [Grading with a model](./grading.md).
 they are carried for your own UI, audit trail and review queue. Use `hasGrade(outcome)` rather than `status === 'scored'`, or you
 will silently miss asynchronously graded work.
 
+### A question's own instructions (1.7)
+
+Multiple choice, fill in the blanks and gap select take an optional `instructions`, as read aloud
+already does: the task the learner reads before answering, as plain text.
+
+```jsonc
+{
+  "type": "fill-in-the-blanks",
+  "instructions": "Complete the sentence. Use ONE word.",
+  "passage": "Hi! I'm Mei, and I {{b1}} from Japan.",
+  …
+}
+```
+
+- **The learner sees it first.** `<MultipleChoice>`, `<FillInTheBlanks>` and `<GapSelect>` draw it
+  before the media and the question or passage, in its own paragraph (`.lk-mc-instructions`,
+  `.lk-fib-instructions`, `.lk-gs-instructions`). The question's fieldset names it with
+  `aria-describedby`, so a screen reader announces it on entering the question.
+- **It goes wherever the item goes.** `redact()` keeps it at every reveal level, and so do
+  `withoutAuthorOnly()` and `redactItemGroup()`.
+- **AI help reads it.** Hints and explanations carry it in their facts, apart from the question:
+  see [AI help for learners](./ai.md#what-your-model-is-given). A model drafting items may write it.
+- **It never changes a grade.**
+- **Plain text only.** There is no `instructionsHtml`: instructions are a sentence or two. A `{{id}}`
+  placeholder in the instructions of a fill-in-the-blanks or a gap select is refused at
+  `instructions`, since blanks and gaps live in the passage only. Blank instructions are drawn and
+  sent as none.
+
+**Where instructions go:**
+
+| The instructions are for | Put them in |
+|---|---|
+| A run of questions, such as a part of a paper | The group's text stimulus: see [item groups](#shared-stimulus--item-groups-v05) |
+| One question | The item's `instructions` |
+| Questions served one at a time from a bank: an adaptive test, or a bank shuffled across forms | Each item's `instructions`, since there is no run to share them |
+
+Both can apply to one question: inside a group, the learner reads the group's material, then the
+question's own instructions.
+
+**Don't write the task into the question or the passage.** There nothing marks it as the task: a
+screen reader reads both as one text, and AI help, the critic and a model drafting variants all
+treat "Use ONE word" as part of the sentence to answer.
+
 ### Media per question
 
 

@@ -247,6 +247,13 @@ export interface MultipleChoiceData {
   id: string;
   /** Human-readable title used in xAPI statements and error boundaries. */
   title: string;
+  /**
+   * Optional instructions shown to the learner, as plain text: the task, read
+   * before the question and never part of it ("Choose the correct option to
+   * complete the conversation."). Every AI request about the item carries them.
+   * Instructions a run of questions shares go in an item group's text stimulus.
+   */
+  instructions?: string;
   /** The question stem presented to the learner, as plain text. */
   question: string;
   /**
@@ -389,6 +396,14 @@ export interface GapSelectData {
   id: string;
   /** Human-readable title used in xAPI statements and error boundaries. */
   title: string;
+  /**
+   * Optional instructions shown to the learner, as plain text: the task, read
+   * before the passage and never part of it ("Complete the sentence. Use ONE
+   * word."). Every AI request about the item carries them. A `{{id}}`
+   * placeholder here is refused: gaps live in the passage only. Instructions
+   * a run of questions shares go in an item group's text stimulus.
+   */
+  instructions?: string;
   /** Passage text containing `{{gap_id}}` placeholders. */
   passage: string;
   /**
@@ -447,6 +462,14 @@ export interface FillInTheBlanksData {
   id: string;
   /** Human-readable title used in xAPI statements and error boundaries. */
   title: string;
+  /**
+   * Optional instructions shown to the learner, as plain text: the task, read
+   * before the passage and never part of it ("Complete the sentence. Use ONE
+   * word."). Every AI request about the item carries them. A `{{id}}`
+   * placeholder here is refused: blanks live in the passage only. Instructions
+   * a run of questions shares go in an item group's text stimulus.
+   */
+  instructions?: string;
   /** Passage text containing `{{blank_id}}` placeholders. */
   passage: string;
   /**

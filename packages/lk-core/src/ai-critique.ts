@@ -66,10 +66,10 @@ const NOT_WORDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Every string an author wrote into an item, with its path: the question, the
- * options, the passage, the answers, the hints, the feedback, a picture's
- * `alt`. Settings, ids and addresses are left out, and so is any `…Html`
- * sidecar: the plain field beside it holds the same words.
+ * Every string an author wrote into an item, with its path: the instructions,
+ * the question, the options, the passage, the answers, the hints, the
+ * feedback, a picture's `alt`. Settings, ids and addresses are left out, and
+ * so is any `…Html` sidecar: the plain field beside it holds the same words.
  */
 function fieldsOf(value: unknown, path: string[] = []): AiCritiqueField[] {
   if (typeof value === 'string') {

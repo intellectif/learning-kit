@@ -11,6 +11,18 @@ import { MediaSchema } from './media.js';
 export const PLACEHOLDER_RE = /\{\{\s*([^{}]+?)\s*\}\}/g;
 
 /**
+ * The instructions of an item with a passage: plain text, with no `{{id}}`
+ * placeholder. Blanks and gaps live in the passage only, and one written here
+ * would be shown to the learner as it stands. Shared by Gap Select.
+ */
+export const PassageInstructionsSchema = z
+  .string()
+  .refine((text) => text.match(PLACEHOLDER_RE) === null, {
+    error:
+      'The instructions are plain text: a {{id}} placeholder belongs in the passage, where its blank or gap is.',
+  });
+
+/**
  * Zod schema for a `TextMatchPolicy` — the opt-in matching tolerances a blank
  * may declare. Every default reproduces the v1 trim + case-fold semantics.
  */
@@ -66,6 +78,7 @@ export const FillInTheBlanksDataSchema = z
     type: z.literal('fill-in-the-blanks'),
     id: z.string().min(1),
     title: z.string().min(1),
+    instructions: PassageInstructionsSchema.optional(),
     passage: z.string().min(1),
     passageHtml: z.string().optional(),
     blanks: z.array(BlankConfigSchema).min(1),

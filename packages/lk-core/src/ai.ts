@@ -155,6 +155,12 @@ const base = (data: AiActivityInput) => ({
   ...(typeof data.locale === 'string' ? { locale: data.locale } : {}),
 });
 
+/** The item's instructions, trimmed; nothing for none, or for blank ones the learner never sees. */
+function instructionsOf(data: AiActivityInput): { instructions?: string } {
+  const text: unknown = (data as { instructions?: unknown }).instructions;
+  return typeof text === 'string' && text.trim() !== '' ? { instructions: text.trim() } : {};
+}
+
 /**
  * The facts a model is given about one item and one answer. `details` are the
  * SDK's per-part verdicts — from its own scorer, or from a server's outcome in
@@ -180,6 +186,7 @@ export function buildAiFacts(
       return {
         ...base(data),
         activityType: 'multiple-choice',
+        ...instructionsOf(data),
         question: item.question,
         mode: item.mode,
         options: item.options.map((option) => {
@@ -208,6 +215,7 @@ export function buildAiFacts(
       return {
         ...base(data),
         activityType: 'fill-in-the-blanks',
+        ...instructionsOf(data),
         passage: numberedPassage(item.passage),
         blanks: placeholderOrder(item.passage).map((id, index) => {
           const blank = blanks.get(id);
@@ -236,6 +244,7 @@ export function buildAiFacts(
       return {
         ...base(data),
         activityType: 'gap-select',
+        ...instructionsOf(data),
         passage: numberedPassage(item.passage),
         gaps: placeholderOrder(item.passage).map((id, index) => {
           const gap = gaps.get(id);

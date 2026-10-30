@@ -92,6 +92,11 @@ export interface AiOptionFact {
 
 export interface AiMultipleChoiceFacts extends AiFactsBase {
   activityType: 'multiple-choice';
+  /**
+   * The item's instructions, when it has any: the task the learner reads
+   * before the question. They say what to do, and are never part of the text answered.
+   */
+  instructions?: string;
   question: string;
   mode: 'single' | 'multi';
   options: AiOptionFact[];
@@ -116,6 +121,11 @@ export interface AiBlankFact {
 
 export interface AiFillInTheBlanksFacts extends AiFactsBase {
   activityType: 'fill-in-the-blanks';
+  /**
+   * The item's instructions, when it has any: the task the learner reads
+   * before the passage. They say what to do, and are never part of the text answered.
+   */
+  instructions?: string;
   /** The passage, each blank written as `[1]`, `[2]`… in passage order. */
   passage: string;
   blanks: AiBlankFact[];
@@ -140,6 +150,11 @@ export interface AiGapFact {
 
 export interface AiGapSelectFacts extends AiFactsBase {
   activityType: 'gap-select';
+  /**
+   * The item's instructions, when it has any: the task the learner reads
+   * before the passage. They say what to do, and are never part of the text answered.
+   */
+  instructions?: string;
   /** The passage, each gap written as `[1]`, `[2]`… in passage order. */
   passage: string;
   gaps: AiGapFact[];

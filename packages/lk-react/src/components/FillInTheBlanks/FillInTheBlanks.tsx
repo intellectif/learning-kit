@@ -23,6 +23,7 @@ import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { AiExplanation, AiHints, useComponentAiHints } from '../shared/AiHelp.js';
 import { feedbackAnnouncement, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
+import { ItemInstructions, instructionsOf } from '../shared/ItemInstructions.js';
 import { mintTake, stampTake } from '../shared/sequence-slot.js';
 import {
   HintCost,
@@ -560,6 +561,9 @@ export function FillInTheBlanks({
     !submitted &&
     (aiHints.offered || (policy.hints && data.blanks.some((blank) => blank.hint)));
 
+  const instructions = instructionsOf(data);
+  const instructionsId = `${data.id}-instructions`;
+
   return (
     <form
       ref={formRef}
@@ -570,6 +574,7 @@ export function FillInTheBlanks({
       style={theme as CSSProperties | undefined}
       onSubmit={handleSubmit}
     >
+      <ItemInstructions id={instructionsId} className="lk-fib-instructions" text={instructions} />
       {data.media ? (
         <ActivityMedia
           media={data.media}
@@ -581,7 +586,10 @@ export function FillInTheBlanks({
           {...(locale !== undefined ? { locale } : {})}
         />
       ) : null}
-      <fieldset disabled={inactive}>
+      <fieldset
+        disabled={inactive}
+        aria-describedby={instructions === undefined ? undefined : instructionsId}
+      >
         <p className="lk-fib-passage">
           {segments.map((seg, i) => {
             if (seg.kind === 'text') {

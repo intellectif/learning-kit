@@ -147,7 +147,16 @@ describe('aiDraftsRequest', () => {
     expect(item.properties.type?.enum).toEqual(['dictation', 'multiple-choice']);
     expect(item.properties.type?.description).toContain('dictation: transcript, feedback');
     expect(Object.keys(item.properties).sort()).toEqual(
-      ['type', 'title', 'transcript', 'feedback', 'question', 'mode', 'options'].sort(),
+      [
+        'type',
+        'title',
+        'transcript',
+        'feedback',
+        'instructions',
+        'question',
+        'mode',
+        'options',
+      ].sort(),
     );
     for (const key of [
       'id',

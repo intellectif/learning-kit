@@ -174,6 +174,7 @@ export const TEXT_MATCH_FIELD_POLICY: FieldPolicy = {
 
 const MULTIPLE_CHOICE_FIELD_POLICY: FieldPolicy = {
   ...SHARED_PUBLIC_FIELDS,
+  instructions: 'public',
   question: 'public',
   questionHtml: 'public',
   mode: 'public',
@@ -215,6 +216,7 @@ const MULTIPLE_CHOICE_FIELD_POLICY: FieldPolicy = {
  */
 const GAP_SELECT_FIELD_POLICY: FieldPolicy = {
   ...SHARED_PUBLIC_FIELDS,
+  instructions: 'public',
   passage: 'public',
   passageHtml: 'public',
   presentation: 'public',
@@ -236,6 +238,7 @@ const GAP_SELECT_FIELD_POLICY: FieldPolicy = {
 
 const FILL_IN_THE_BLANKS_FIELD_POLICY: FieldPolicy = {
   ...SHARED_PUBLIC_FIELDS,
+  instructions: 'public',
   passage: 'public',
   passageHtml: 'public',
   scoringStrategy: 'answer-key',

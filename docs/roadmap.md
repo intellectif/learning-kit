@@ -1061,7 +1061,14 @@ it. It comes after the groundwork it needs, in this order.
      - `contentJsonSchema`, draft 2020-12, with a sequence entry as its root.
 
      See [docs/authoring.md](./authoring.md#exporting-and-importing-content-16).
-   - **Next, lk-core 1.7.0: parallel versions.**
+   - ✅ **lk-core 1.7.0 / lk-react 23.3.0, a question's own instructions** (inserted 2026-10-29,
+     on the same consumer's request): an optional, learner-visible `instructions` on multiple
+     choice, fill in the blanks and gap select, as read aloud has, for questions served one at a
+     time from a bank, where no group can hold the task. AI help and drafts read it; no grade does.
+     This revisits the decision of 2026-10-17, which stands for a run of questions: their shared
+     instructions belong in the group's stimulus. See
+     [docs/authoring.md](./authoring.md#a-questions-own-instructions-17).
+   - **Next, lk-core 1.8.0: parallel versions.** A variant keeps its source's instructions.
      - `aiVariantsRequest` with its check, repair and run: one variant per exemplar, settings
        copied by the SDK, and no recording address copied;
      - paper-level checks in `critiqueDrafts`;

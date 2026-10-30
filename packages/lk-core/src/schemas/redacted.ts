@@ -70,6 +70,7 @@ export const RedactedMultipleChoiceOptionSchema = z.strictObject({
 export const RedactedMultipleChoiceDataSchema = z.strictObject({
   ...redactedBase,
   type: z.literal('multiple-choice'),
+  instructions: z.string().optional(),
   question: z.string().min(1),
   questionHtml: z.string().optional(),
   mode: z.enum(['single', 'multi']),
@@ -87,6 +88,7 @@ export const RedactedBlankConfigSchema = z.strictObject({
 export const RedactedFillInTheBlanksDataSchema = z.strictObject({
   ...redactedBase,
   type: z.literal('fill-in-the-blanks'),
+  instructions: z.string().optional(),
   passage: z.string().min(1),
   passageHtml: z.string().optional(),
   blanks: z.array(RedactedBlankConfigSchema).min(1),
@@ -129,6 +131,7 @@ export const RedactedGapSelectGapSchema = z.strictObject({
 export const RedactedGapSelectDataSchema = z.strictObject({
   ...redactedBase,
   type: z.literal('gap-select'),
+  instructions: z.string().optional(),
   passage: z.string().min(1),
   passageHtml: z.string().optional(),
   gaps: z.array(RedactedGapSelectGapSchema).min(1),
