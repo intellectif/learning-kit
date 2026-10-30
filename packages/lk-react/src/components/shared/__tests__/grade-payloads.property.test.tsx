@@ -231,6 +231,39 @@ const outcome = nearMiss(
 );
 
 /**
+ * Stored marks on words that read as numbers, as "Prices rose 150%" has one:
+ * drawn as the grader sent them, and never a number the SDK computed. Found by
+ * CI as a detail whose `correctResponse` the near-miss swapped for `'NaN'`.
+ */
+const NUMBER_LIKE_WORDS: Payload = {
+  status: 'graded',
+  grade: {
+    score: 0,
+    maxScore: 1,
+    passed: false,
+    feedback: null,
+    criteria: [],
+    details: [
+      ['w1', 'incorrect', 'NaN'],
+      ['w2', 'incorrect-omission', 'Infinity'],
+      ['w3', 'correct', '150%'],
+    ].map(([itemId, outcome, word]) => ({
+      itemId,
+      correct: outcome === 'correct',
+      outcome,
+      learnerResponse: outcome === 'correct' ? word : '',
+      correctResponse: word,
+      weight: 1,
+      score: 0,
+    })),
+  },
+  score: 0,
+  maxScore: 1,
+  passed: false,
+  feedback: null,
+};
+
+/**
  * Evidence: the real thing; a refused variant whose `scale` and `scores` may
  * be anything, which production still reads its dimension rows from; or
  * anything at all.
@@ -302,8 +335,16 @@ const assessResult = (mode: Mode): fc.Arbitrary<unknown> => {
 
 type Mode = 'production' | 'development';
 
-/** Host text the SDK renders verbatim and never computes: a grader's own words. */
-const HOST_WORDS = '.lk-pf-grade-feedback, .lk-ra-grade-feedback, [aria-live] span[dir="auto"]';
+/** Host text the SDK renders verbatim and never computes: a grader's own words, and the marked words. */
+const HOST_WORDS =
+  '.lk-pf-grade-feedback, .lk-ra-grade-feedback, [aria-live] span[dir="auto"], .lk-pf-word-text, .lk-ra-word-text';
+
+/**
+ * A word the SDK's sentences quote ("“NaN” was mispronounced"), which is the
+ * host's too: every interface string puts a word between the quotes, never a
+ * number it computed.
+ */
+const QUOTED_WORD = /“[^”]*”/g;
 
 const SCORE = /Score (\d+)%/;
 
@@ -342,7 +383,7 @@ function assertSane(root: HTMLElement): Observed {
     if (node.parentElement?.closest(HOST_WORDS)) {
       continue;
     }
-    const text = node.textContent ?? '';
+    const text = (node.textContent ?? '').replace(QUOTED_WORD, '“”');
     written += ` ${text}`;
     expect(text).not.toMatch(/NaN|Infinity/);
     for (const match of text.matchAll(/(\S*?)(-?[\d.]+(?:e[+-]?\d+)?)%/gi)) {
@@ -529,7 +570,7 @@ describe.each(['production', 'development'] as const)('any grade payload, in %s'
             }
           },
         ),
-        { numRuns: RUNS },
+        { numRuns: RUNS, examples: [[NUMBER_LIKE_WORDS, undefined]] },
       );
       seen.check();
     },
