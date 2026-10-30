@@ -211,6 +211,23 @@ describe('validateDraft: dictation', () => {
     expect(validateDraft('dictation', dc({ title: 'Raining in Lisbon' })).status).toBe('complete');
   });
 
+  it('judges a text written twice under rules as it judges it read afresh', () => {
+    // Within one validation, a text already read under the same rules is not
+    // read again: the title here IS the transcript, so its reading is the
+    // remembered one. Found only by chance by the property tests, which let
+    // the 100% coverage gate on src/scoring fail when their draws missed it.
+    const rules = { equivalences: [{ from: "isn't", to: 'is not' }] };
+    const remembered = dc({ title: "It isn't raining in Lisbon today.", tolerance: rules });
+    // A trailing space is a different text to remember, and the same sentence.
+    const afresh = dc({ title: "It isn't raining in Lisbon today. ", tolerance: rules });
+    expect(summary(validateDraft('dictation', remembered))).toEqual([
+      ['dc_transcript_revealed', 'invalid', 'title'],
+    ]);
+    expect(summary(validateDraft('dictation', remembered))).toEqual(
+      summary(validateDraft('dictation', afresh)),
+    );
+  });
+
   it('checks the hint mode', () => {
     for (const mode of [undefined, null, '']) {
       expect(summary(validateDraft('dictation', dc({ hints: { mode } })))).toEqual([

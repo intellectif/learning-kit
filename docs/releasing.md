@@ -100,6 +100,13 @@ Release job would try to publish it through OIDC and fail.
 7. Verify: `npm view @intellectif/lk-azure version` prints `1.0.0`, and the package page shows the
    peer `@intellectif/lk-core` as `^1.x`, not `workspace:^`.
 
+**If the version PR was merged first**, the Release job fails at `changeset publish` with
+`E404 … PUT https://registry.npmjs.org/@intellectif%2flk-azure - Not found`, and publishes nothing:
+the other packages are skipped as already on npm. `main` then holds the new version, so run steps 2–4
+from `main` instead of the PR branch, and tag the version PR's merge commit in step 6
+(`git tag @intellectif/lk-azure@1.0.0 <that commit>`). The next Release run finds the version on npm
+and stays green.
+
 Every later version goes through the routine flow below.
 
 ### 4. GitHub repo settings
