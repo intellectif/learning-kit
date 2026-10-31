@@ -20,6 +20,7 @@ export const ITEM_FINDING_SEVERITY = {
   fib_hint_reveals_answer: 'warning',
   fib_answer_in_passage: 'warning',
   fib_accepted_answer_redundant: 'advice',
+  fib_tolerance_spans_words: 'advice',
   // gap-select
   gs_title_reveals_answer: 'warning',
   gs_choices_duplicate: 'warning',
@@ -36,6 +37,12 @@ export const ITEM_FINDING_SEVERITY = {
   media_transcript_differs: 'warning',
   // a set of items: a quiz, or an item group's items
   set_key_position_same: 'warning',
+  // a paper: every item of a set, groups' items included (critiqueDrafts)
+  set_key_position_bias: 'warning',
+  set_key_longest_bias: 'warning',
+  set_stem_duplicate: 'warning',
+  set_item_answers_item: 'warning',
+  set_key_repeated: 'advice',
 } as const satisfies Readonly<Record<string, ItemFindingSeverity>>;
 
 export type ItemFindingCode = keyof typeof ITEM_FINDING_SEVERITY;

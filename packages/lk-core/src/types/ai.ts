@@ -895,3 +895,254 @@ export interface AiVideoDraft {
   /** What `critiqueItemGroupDraft` says of it. */
   findings: ItemFinding[];
 }
+
+// ── Variants of existing items ─────────────────────────────────────────
+
+/**
+ * How hard a variant is meant to be next to its exemplar: one step, inside the
+ * level, never another level. `same` is a parallel form. The SDK cannot
+ * measure difficulty: this is an instruction to the model, and item statistics
+ * after delivery are the measurement.
+ */
+export type AiVariantDifficulty = 'easier' | 'same' | 'harder';
+
+/**
+ * What the level covers, from the host's curriculum: grammar and vocabulary a
+ * learner has been taught, and topics to keep away from. Told to the model;
+ * the SDK does not check vocabulary.
+ */
+export interface AiVariantLevelFacts {
+  grammar?: string[];
+  vocabulary?: string[];
+  avoidTopics?: string[];
+}
+
+/** Why `aiVariantsRequest` left an exemplar out: it cannot yield a sound variant. */
+export type AiVariantSkipCode =
+  | 'variant_exemplar_unheard'
+  | 'variant_exemplar_unseen'
+  | 'variant_exemplar_incomplete'
+  | 'variant_exemplar_timeline'
+  | 'variant_exemplar_unsupported'
+  | 'variant_exemplar_too_long';
+
+/** An exemplar left out of the facts, and why. The host keeps it, or asks a person. */
+export interface AiVariantSkip {
+  /** Its index in the exemplars passed. */
+  exemplarIndex: number;
+  code: AiVariantSkipCode;
+  message: string;
+}
+
+/**
+ * What a variant must meet, computed from its exemplar, so that what the model
+ * is told and what `checkAiVariants` checks are one thing.
+ */
+export interface AiVariantTargets {
+  /** The exemplar's type: an activity type, or `item-group`. */
+  type: string;
+  /**
+   * The counts to keep: `{ mode: 'single', options: 4, correct: 1 }`,
+   * `{ blanks: [{ oneWord: true, acceptedAnswers: [1, 3] }] }`,
+   * `{ gaps: [{ bank: 0 }, …], banks: [{ choices: 7 }] }`,
+   * `{ stimulus: 'audio', items: ['multiple-choice', …], speakers: 2, turns: [5, 8] }`.
+   */
+  structure: Readonly<Record<string, unknown>>;
+  /** Inclusive bounds, in words, for each text written: `{ 'stimulus.body': [162, 198], question: [6, 14] }`. */
+  lengths: Readonly<Record<string, [number, number]>>;
+  difficulty: AiVariantDifficulty;
+  /** Why this item moves, in the host's words. Present only when `difficulty` is not `same`. */
+  difficultyReason?: string;
+  /** The ways this type is made easier or harder, as sentences. Present only when `difficulty` is not `same`. */
+  levers?: string[];
+  /**
+   * For an item group whose items do not all move alike (`difficultyFor`
+   * names some of them): each item's own difficulty, by its index in `items`.
+   */
+  itemDifficulty?: {
+    item: number;
+    difficulty: AiVariantDifficulty;
+    difficultyReason?: string;
+    levers?: string[];
+  }[];
+  /** What the item critic finds in the exemplar: flaws the variant must not repeat. */
+  exemplarFindings: { code: string; message: string }[];
+}
+
+/** One exemplar as a model is given it. */
+export interface AiVariantExemplarFacts {
+  /** Its index in the exemplars passed: what the variant names as its `exemplar`. */
+  exemplar: number;
+  type: string;
+  /**
+   * The exemplar in the shape a variant is written in: every word a learner
+   * reads or hears, which options are right, and each blank's answers. No ids,
+   * HTML, settings or addresses.
+   */
+  content: Readonly<Record<string, unknown>>;
+  /** What it tests, when the author said: the variant tests the same. */
+  learningObjectives?: string[];
+  targets: AiVariantTargets;
+}
+
+/**
+ * A picture an exemplar shows, for a host that attaches pictures to its call:
+ * in exemplar order, each with the `ref` the facts name it by.
+ */
+export interface AiVariantImage {
+  ref: string;
+  exemplarIndex: number;
+  /** Where the picture is, from the exemplar. */
+  path: string[];
+  alt?: string;
+  url: string;
+}
+
+/**
+ * What a host's model is given to write variants of existing items: built by
+ * `aiVariantsRequest`, and by `aiVariantsRepairRequest` for a second pass.
+ *
+ * Only `feature`, `facts`, `shape` and, on a repair, `repair` are for the
+ * model. The rest is for `checkAiVariants`: the exemplars and the other forms
+ * as passed — answer keys and addresses included — and the host's settings.
+ */
+export interface AiVariantsRequest {
+  feature: 'variant-generation';
+  facts: {
+    /** One per exemplar that can be varied, in paper order. One variant is written for each. */
+    exemplars: AiVariantExemplarFacts[];
+    /** The level, as the host names it (`CEFR B1`): every variant stays inside it. */
+    level: string;
+    locale?: string;
+    /** The default for every exemplar; each one's `targets.difficulty` says its own. */
+    difficulty: AiVariantDifficulty;
+    levelFacts?: AiVariantLevelFacts;
+    /**
+     * What happens to a picture: `describe` — the variant describes a new one
+     * in its `alt`, for a person to find or commission; `reuse` — the variant
+     * keeps the exemplar's and asks new questions about it.
+     */
+    imagePolicy: 'describe' | 'reuse';
+    /** Every picture the exemplars show, for a host that attaches them. Absent when there are none. */
+    images?: AiVariantImage[];
+    /**
+     * The other forms' items, as their texts and right answers: what a variant
+     * must not resemble. Absent when the host passed none.
+     */
+    avoid?: { texts: string[]; keys: string[] }[];
+    /** The author's words to the model, as they are. */
+    instructions?: string;
+    /** What every variant must respect, as sentences a prompt can quote. */
+    rules: string[];
+  };
+  /** The JSON Schema of a reply — `{ variants: [...] }` — one per exemplar in the facts. */
+  shape: Readonly<Record<string, unknown>>;
+  /** The exemplars as passed. Not for the model: it holds answer keys and addresses. */
+  exemplars: readonly unknown[];
+  /** The other forms as passed. Not for the model. */
+  avoid?: readonly unknown[];
+  /** The host's settings for every variant of a type. Not for the model. */
+  settings?: AiDraftSettings;
+  /** The host's length ratios, overriding `AI_VARIANT_LENGTH_BANDS`. Not for the model. */
+  lengthTolerance?: { material?: number; item?: number };
+  /** Spread single-answer keys across positions, from this seed. Not for the model. */
+  balanceKeyPositions?: { seed: string };
+  /** The exemplars that cannot be varied, and why. */
+  skipped: AiVariantSkip[];
+  /**
+   * On a repair: what to write again, each with the problems the model can
+   * fix — `variant` absent for one the model did not write. The reply holds
+   * one variant for each, naming its exemplar.
+   */
+  repair?: {
+    exemplar: number;
+    variant?: Readonly<Record<string, unknown>>;
+    problems: AiDraftProblem[];
+  }[];
+}
+
+/**
+ * Why a variant is not a parallel item of its exemplar: `variant_type` — not
+ * its type; `variant_structure` — a count a learner answers, or a setting that
+ * scores it, differs. Always `invalid`, and repairable.
+ */
+export interface AiVariantMismatch {
+  path: string[];
+  message: string;
+  code: 'variant_type' | 'variant_structure';
+  severity: 'invalid';
+}
+
+/** An exemplar the reply wrote no variant for. Invalid, and repairable. */
+export interface AiVariantMissing {
+  exemplarIndex: number;
+  code: 'variant_missing';
+  message: string;
+  severity: 'invalid';
+}
+
+/**
+ * One item of an exemplar and the variant's item in its place, by path from
+ * each entry (`[]` for a loose activity or a group, `['items', '2']` for an
+ * item in it) and by id: what lines up one form's slot with another's when
+ * the content has no `slotKey`.
+ */
+export interface AiVariantPair {
+  exemplarPath: string[];
+  variantPath: string[];
+  exemplarId: string;
+  variantId: string;
+}
+
+/** A variant as the SDK made it from a reply: copied fields put back, ids minted, checked and compared. */
+export interface AiGeneratedVariant {
+  /** Its exemplar's index in the exemplars passed. */
+  exemplarIndex: number;
+  /** The exemplar's type: an activity type, or `item-group`. */
+  type: string;
+  /** The variant: a sequence entry once `status` is `complete`. */
+  entry: Record<string, unknown>;
+  /**
+   * `invalid` when `validation` is, or a mismatch says so; else `incomplete`
+   * when `validation` is; else `complete`. A recording, or a picture to
+   * describe, comes back with no file — `media_url_required`, so `incomplete`
+   * — until the host attaches one.
+   */
+  status: 'complete' | 'incomplete' | 'invalid';
+  /** What `validateDraft`, or `validateItemGroupDraft`, says of it. */
+  validation: DraftValidationResult<unknown>;
+  /** How it fails to be parallel to its exemplar. */
+  mismatches: AiVariantMismatch[];
+  /** What the item critic finds, then `variant_length`, `variant_near_copy` and `variant_same_key`. */
+  findings: ItemFinding[];
+  /** Each item of the exemplar with the variant's item in its place. */
+  pairs: AiVariantPair[];
+  /** The variant as the model wrote it, for a repair. */
+  generated: Readonly<Record<string, unknown>>;
+}
+
+/** What `checkAiVariants` makes of a reply. */
+export interface AiVariants {
+  /** The variants the reply wrote, in exemplar order. */
+  variants: AiGeneratedVariant[];
+  /** The exemplars it wrote none for. */
+  missing: AiVariantMissing[];
+  /** What only the set shows, over the variants as returned: the paper codes of `critiqueDrafts`. */
+  findings: ItemFinding[];
+  provenance?: AiProvenance;
+  usage?: GraderUsage;
+}
+
+/** What `generateVariants` came to. */
+export interface AiVariantsRun {
+  /** The best pass of each variant, in exemplar order. */
+  variants: AiGeneratedVariant[];
+  /** The exemplars no pass wrote a variant for. */
+  missing: AiVariantMissing[];
+  /** What only the set shows, over the variants as they ended. */
+  findings: ItemFinding[];
+  /** The exemplars that could not be varied, and why. */
+  skipped: AiVariantSkip[];
+  /** Every call, in order: the first, then each repair. */
+  calls: AiDraftsCall[];
+}

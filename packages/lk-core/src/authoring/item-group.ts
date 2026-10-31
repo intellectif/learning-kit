@@ -25,6 +25,7 @@ import {
   isUnwritten,
   refusesEmpty,
 } from './issues.js';
+import { paperFindings } from './paper.js';
 import { stimulusFindings } from './recordings.js';
 
 /**
@@ -147,6 +148,7 @@ export function critiqueDrafts(entries: readonly unknown[]): ItemFinding[] {
       ),
     ),
     ...keyPositionFinding(entries, []),
+    ...paperFindings(entries),
   ]);
 }
 

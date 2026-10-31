@@ -7,6 +7,7 @@ import type {
   AiGradingRequest,
   AiHintRequest,
   AiTextResult,
+  AiVariantsRequest,
   AiWritingFeedbackRequest,
 } from '../../types/ai.js';
 import { type AiCheckCase, aiCheckCases, formatAiCheckReport, runAiCheck } from '../index.js';
@@ -419,6 +420,11 @@ describe('runAiCheck', () => {
       };
     });
 
+    // Writes each exemplar's content back as its variant: read, and every text a near copy.
+    const variants = vi.fn(async (request: AiVariantsRequest) => ({
+      variants: request.facts.exemplars.map((one) => ({ ...one.content, exemplar: one.exemplar })),
+    }));
+
     const report = await runAiCheck({
       explain,
       hint,
@@ -426,8 +432,34 @@ describe('runAiCheck', () => {
       pronunciationCoaching,
       critique,
       drafts,
+      variants,
       grading,
     });
+    const varied = report.results.filter((one) => one.case.feature === 'variant-generation');
+    expect(varied.map((one) => one.case.id)).toEqual([
+      'variants-choice',
+      'variants-cloze',
+      'variants-gaps',
+      'variants-dictation',
+      'variants-read-aloud',
+      'variants-writing',
+      'variants-reading',
+      'variants-section',
+      'variants-famous',
+      'variants-grammar-key',
+    ]);
+    expect(
+      varied.every((one) =>
+        one.variants?.variants.every((variant) => variant.mismatches.length === 0),
+      ),
+    ).toBe(true);
+    expect(
+      varied.every((one) =>
+        one.variants?.variants.every((variant) =>
+          variant.findings.some((found) => found.code === 'variant_near_copy'),
+        ),
+      ),
+    ).toBe(true);
 
     expect(report.total).toBe(cases.length);
     expect(report.shown).toBe(cases.length);

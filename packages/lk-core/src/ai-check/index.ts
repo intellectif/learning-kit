@@ -49,6 +49,7 @@ import { checkAiCoaching } from '../ai-coaching.js';
 import { checkAiCritique } from '../ai-critique.js';
 import { checkAiDrafts } from '../ai-drafts.js';
 import { checkAiGrading } from '../ai-grading.js';
+import { checkAiVariants } from '../ai-variants.js';
 import { checkAiWritingFeedback } from '../ai-writing.js';
 import type {
   AiCoaching,
@@ -63,6 +64,8 @@ import type {
   AiHintRequest,
   AiRefusal,
   AiTextResult,
+  AiVariants,
+  AiVariantsRequest,
   AiWritingFeedback,
   AiWritingFeedbackRequest,
 } from '../types/ai.js';
@@ -86,6 +89,8 @@ export interface AiCheckPorts {
   critique?(request: AiCritiqueRequest): Promise<unknown> | unknown;
   /** Drafts items from a source, for an author to approve. */
   drafts?(request: AiDraftsRequest): Promise<unknown> | unknown;
+  /** Writes parallel versions of existing items, for another form of an exam. */
+  variants?(request: AiVariantsRequest): Promise<unknown> | unknown;
   /** Grades a submitted essay on its rubric: a server's port, which no component calls. */
   grading?(request: AiGradingRequest): Promise<unknown> | unknown;
 }
@@ -117,6 +122,12 @@ export interface AiCheckResult {
    * many came back `complete` and without warnings.
    */
   drafts?: AiDrafts;
+  /**
+   * For a variants case the SDK read: each variant with its status, how it
+   * differs from its exemplar, and what was found. A reply read is not a good
+   * one — check how many came back without mismatches or warnings.
+   */
+  variants?: AiVariants;
   /**
    * For a grading case the SDK accepted: the judgement, as checked. A reply of
    * the right shape, not a right grade — `gradeFromJudgement` turns it into one.
@@ -194,6 +205,8 @@ function portFor(
       return ports.critique as never;
     case 'draft-generation':
       return ports.drafts as never;
+    case 'variant-generation':
+      return ports.variants as never;
     case 'grading':
       return ports.grading as never;
     default:
@@ -239,6 +252,18 @@ async function runCase(ports: AiCheckPorts, one: AiCheckCase): Promise<AiCheckRe
     });
     return checked.ok
       ? { case: one, ok: true, drafts: checked.drafts, ms }
+      : refused(one, raw, checked.refusal, ms);
+  }
+  if (one.request.feature === 'variant-generation') {
+    let next = 0;
+    const checked = checkAiVariants(raw, one.request, {
+      newId: () => {
+        next += 1;
+        return `ai-check-${next}`;
+      },
+    });
+    return checked.ok
+      ? { case: one, ok: true, variants: checked.variants, ms }
       : refused(one, raw, checked.refusal, ms);
   }
   if (one.request.feature === 'item-critique') {

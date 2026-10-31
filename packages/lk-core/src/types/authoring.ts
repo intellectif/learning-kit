@@ -69,6 +69,64 @@ export type ItemFindingSeverity = 'warning' | 'advice';
  */
 export interface ItemFinding extends ValidationError {
   severity: ItemFindingSeverity;
+  /**
+   * The other places a finding about several items involves, by path from the
+   * same root as `path`: the item whose passage holds another's answer, the
+   * questions whose keys share a position. Absent when only `path` is involved.
+   */
+  related?: string[][];
+}
+
+/**
+ * One form of an exam, as `critiqueVersions` reads it: its sections in paper
+ * order, each a list of sequence entries. A host without sections passes one.
+ */
+export interface VersionPaper {
+  sections: readonly {
+    key?: string;
+    title?: string;
+    entries: readonly unknown[];
+  }[];
+}
+
+/**
+ * One thing `critiqueVersions` found between two forms. `a` and `b` are where
+ * it is in each, by path from the paper's root:
+ * `['sections', '0', 'entries', '2', 'items', '1']`.
+ *
+ * - `invalid` — the two are not parallel: a different blueprint, type or
+ *   structure, so they do not score alike.
+ * - `warning` — they are parallel, but a re-sitting learner would meet
+ *   something again, or one form is longer or tests another objective.
+ * - `advice` — a picture both forms show, which a host may allow.
+ */
+export interface VersionFinding extends ValidationError {
+  severity: 'invalid' | 'warning' | 'advice';
+  a?: string[];
+  b?: string[];
+}
+
+/** One slot of the first form, with the slot of the second paired with it, and how they were paired. */
+export interface VersionSlot {
+  a: string[] | null;
+  b: string[] | null;
+  by: 'pairs' | 'slotKey' | 'position';
+}
+
+/** What `critiqueVersions` found. */
+export interface VersionComparison {
+  findings: VersionFinding[];
+  /** Every slot of either form — entries, and the items of a group — paired or not. */
+  slots: VersionSlot[];
+  summary: {
+    /** Items in each form: loose activities and the items of groups. */
+    aItems: number;
+    bItems: number;
+    /** Items paired with one of the other form. */
+    paired: number;
+    /** Paired slots whose structure differs. */
+    structureMismatches: number;
+  };
 }
 
 /** What `createDraft` hands an activity type's `authoring.createDraft`. */

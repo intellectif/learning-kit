@@ -310,6 +310,23 @@ export function critiqueFillInTheBlanks(draft: DraftFields): ItemFinding[] {
         );
       }
     });
+
+    // Forgiven edits run over the whole answer: over two words, one edit can
+    // change a word's form ("had told" → "has told") rather than its spelling.
+    const forgiven = policyFor(blank as unknown as BlankConfig).levenshtein ?? 0;
+    const spanning = accepted.findIndex((answer) => {
+      const text = written(answer);
+      return text !== undefined && /\s/.test(text.trim());
+    });
+    if (forgiven > 0 && spanning !== -1) {
+      findings.push(
+        finding(
+          'fib_tolerance_spans_words',
+          ['blanks', index, 'acceptedAnswers', spanning],
+          `Blank ${ordinal(index)} forgives ${forgiven === 1 ? 'one edit' : `${forgiven} edits`} over an answer of several words, so "${accepted[spanning]}" with one word in another form is marked right. Make it a one-word blank, or take the tolerance off.`,
+        ),
+      );
+    }
   });
 
   return findings;

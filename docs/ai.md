@@ -2,8 +2,9 @@
 
 A learner can ask for **an explanation of a graded answer**, for **hints before submitting one**,
 for **feedback on a draft of a written response** before handing it in, and for **coaching on a
-reading aloud** once the speech engine has marked it. An author can ask a model to **review an item**
-and to **draft items from a passage, a transcript or a video's captions**. The model is yours: the
+reading aloud** once the speech engine has marked it. An author can ask a model to **review an item**,
+to **draft items from a passage, a transcript or a video's captions**, and to **write a parallel
+version of existing items** for another form of an exam. The model is yours: the
 SDK never calls one, never holds a key, and never writes a prompt. It builds the facts your model is
 given, from the item, the learner's answer and its own scorer, and checks what comes back before
 anyone sees it.
@@ -22,6 +23,7 @@ It describes `@intellectif/lk-core` 1.2.0 and `@intellectif/lk-react` 23.1.0.
 - [Coaching on a reading](#coaching-on-a-reading)
 - [Reviewing an item with a model](#reviewing-an-item-with-a-model)
 - [Drafts from a source](#drafts-from-a-source)
+- [Variants of existing items](#variants-of-existing-items-18)
 - [What the SDK refuses to show](#what-the-sdk-refuses-to-show)
 - [Records, cost and privacy](#records-cost-and-privacy)
 - [Testing your prompt](#testing-your-prompt)
@@ -651,6 +653,189 @@ dropped.
 that a generated question is true to its source — which is what the author's review, and the
 [critique](#reviewing-an-item-with-a-model), are for.
 
+## Variants of existing items *(1.8)*
+
+For authors writing another form of an exam: Form v2 for learners who re-sit, at the same difficulty.
+A model writes a **parallel version** of each exemplar — the same type, structure, scoring, skill
+and level, with every word a learner reads or hears new — and the SDK checks each against its
+exemplar and against every form already written. Drafting writes questions about a source; this
+writes a variant of a question, or of a whole part with its passage or listening script.
+
+```ts
+import { aiVariantsRequest, critiqueDrafts, critiqueVersions, generateVariants } from '@intellectif/lk-core';
+
+const request = aiVariantsRequest({
+  exemplars: formOne.listeningSection,  // loose activities and item groups, as stored, keys included
+  level: 'CEFR B1',                     // required: every variant stays inside it
+  avoid: otherForms.listeningSection,   // every form already written: compared, never varied
+  levelFacts: { grammar: ['past simple', 'going to'], avoidTopics: ['politics'] },
+  images: 'reuse',                      // or 'describe' (the default): a new picture, described
+  balanceKeyPositions: { seed: `${examId}:form-2` },
+});
+const run = await generateVariants({
+  request,
+  port: (request) => callMyModel(VARIANTS_PROMPT, request),
+  newId: () => crypto.randomUUID(),
+});
+// run.variants: each with status, mismatches, findings and pairs; run.skipped: what was not varied.
+const paper = critiqueDrafts(run.variants.map((one) => one.entry)); // what only the paper shows
+```
+
+**A variant is never approved by the SDK.** As with drafts, store it as proposed, show it with what the
+SDK says, and let a person accept, edit or discard it. Compare the whole new form with every other
+with [`critiqueVersions`](./authoring.md#parallel-forms-comparing-two-versions-18) before it is
+published.
+
+### What the host passes
+
+- **`exemplars`**, up to `AI_VARIANTS_MAX_EXEMPLARS` (20), in paper order: send a long section in
+  parts. One variant is written for each.
+- **`level`**, as you name it; **`locale`**, else the first exemplar's.
+- **`difficulty`**: `same` (the default) for a parallel form, or `easier` / `harder` — one step,
+  inside the level. **`difficultyFor`** moves single items, by the id of a loose activity, a group or
+  an item in a group, with your `reason` ("p-value 0.96 on 31 attempts"), passed to the model as it
+  is. The SDK cannot measure difficulty: this is an instruction, and item statistics after delivery
+  are the measurement. With a difficulty other than `same`, a variant's `difficultyLevel` moves one
+  step too, kept inside 1–5.
+- **`levelFacts`**: grammar and vocabulary your course has taught by this point, and topics to avoid.
+  Told to the model; the SDK does not check vocabulary.
+- **`avoid`**: every other form's entries. A variant is compared with its exemplar and with all of
+  them for near copies, and for repeated keys with the entry in its place — the same `slotKey`, or,
+  when neither has one and `avoid` is whole forms in the exemplars' order (its length a multiple of
+  theirs), the same position in each.
+- **`images`**: `describe` writes a description of a new picture, for a person to find or commission;
+  `reuse` keeps the exemplar's picture and asks new questions about it.
+- **`settings`**: as for drafts, fields of yours for every variant of a type, which the model never
+  writes. They override what is copied from the exemplar, never what the model writes.
+- **`lengthTolerance`**: your ratios, overriding `AI_VARIANT_LENGTH_BANDS`.
+- **`balanceKeyPositions`**: spreads the right option of every single-answer, unshuffled multiple
+  choice across positions as evenly as the counts allow, from your seed — the same seed gives the same
+  orders. Without it the model's order is kept, and the paper codes of `critiqueDrafts` report a
+  cluster.
+
+**Exemplars that cannot be varied** are left out of the facts and listed in `request.skipped`, each
+with a code: keep the exemplar, or ask a person.
+
+| Code | When |
+|---|---|
+| `variant_exemplar_unheard` | A recording the item depends on — its media, an option's, or a listening part's — has neither `transcript` nor `script`: a model cannot know what it says. A dictation's or read-aloud's recording says the item's own text, so it never counts |
+| `variant_exemplar_unseen` | With `images: 'reuse'`, a picture the item depends on has no `alt` |
+| `variant_exemplar_incomplete` | `validateDraft` / `validateItemGroupDraft` does not call it `complete`: it has no structure to copy |
+| `variant_exemplar_timeline` | An interactive video: its questions are timed to its video |
+| `variant_exemplar_unsupported` | A registered type the SDK does not vary: it does not know which of its fields are words and which settings |
+| `variant_exemplar_too_long` | A passage or script over `AI_VARIANTS_MAX_MATERIAL_LENGTH` (12,000) characters: send a shorter part |
+
+`aiVariantsRequest` never returns `null`: when every exemplar is skipped, the request holds none,
+`skipped` says why, and `generateVariants` makes no call. It throws `RangeError` for what cannot be a
+request: no exemplars or more than 20, one that is neither an item group nor a registered type, an
+empty `level`, a difficulty or `images` it does not know, and a `difficultyFor` id no exemplar has.
+
+### What your model is given, and writes
+
+`request.facts` holds, for each exemplar: its `content` in the very shape a variant is written in —
+every word, which options are right, each blank's answers, a passage's gaps numbered `{{1}}`, `{{2}}`…
+— its `learningObjectives`, and its **`targets`**, computed by the SDK so that what your prompt asks
+for and what is checked are one thing:
+
+- **`structure`**: the counts to keep — `{ mode, options, correct }`, each blank's `oneWord` and its
+  band of accepted answers, each gap's bank or own number of choices, a part's stimulus kind, items
+  with their own counts, `speakers` and a band of `turns`;
+- **`lengths`**: inclusive bounds in words for each text written;
+- **`difficulty`**, and away from `same` the **`levers`** for the type — distractor plausibility,
+  literal or inferred, context, word frequency, pace — and your `difficultyReason`; a group whose
+  items move differently has `itemDifficulty`;
+- **`exemplarFindings`**: what the item critic finds in the exemplar, not to repeat.
+
+Beside them: `level`, `locale`, `difficulty`, `levelFacts`, `instructions` (the author's words),
+`imagePolicy`, `images` — every picture with a `ref` the content names it by, its `alt` and its
+address, for a host that attaches pictures to a multimodal call — `avoid` as the other forms' texts
+and keys, and **`rules`**: what every variant must respect, as sentences your prompt can quote. **No
+recording's address reaches the facts**, and nothing about any learner.
+
+`request.shape` is the JSON Schema of the reply: `{ variants: [...] }`, exactly one per exemplar, each
+naming its `exemplar` index and `type` and writing only the words: a title, instructions where the
+exemplar has them, the question, options with `isCorrect`, a passage with `{{n}}`, blanks' accepted
+answers, a gap's choices or — for a gap drawing on a shared bank — its `answer` and the bank's choices,
+a transcript, a reference text, a prompt, feedback where the exemplar has it, a picture's `alt`, a
+recording's `script` or `transcript`, and for a part its `stimulus` and `items`. `request.exemplars`,
+`avoid`, `settings`, `lengthTolerance` and `balanceKeyPositions` are for `checkAiVariants`, not the
+model: they hold answer keys and addresses.
+
+### What is copied, and what comes back
+
+**A variant has its exemplar's type, structure, scoring and settings; the model writes every word a
+learner reads or hears, and nothing else.** What the model may not write is taken from the exemplar
+after the reply is read, whatever the reply says of it:
+
+- **every type:** `scoringStrategy`, `shuffle`, `passThreshold`, `locale`, `ai`,
+  `learningObjectives`, `slotKey` (so v2's slots line up with v1's: store anything kept by slot id with
+  the form it belongs to), `schemaVersion`, and `difficultyLevel` (moved one step away from `same`);
+- **multiple choice:** `mode`; an option that carries media in the exemplar carries it in the variant;
+- **fill in the blanks:** each blank's `match`, `caseSensitive` and `trimWhitespace`;
+- **gap select:** `presentation`, `shuffleChoices`, which gaps draw on which bank;
+- **dictation:** `tolerance` and `hints`; **read aloud:** `recording` and `scoring`;
+- **written response:** the `rubric` verbatim, `minWords`, `maxWords` and `languageTarget`;
+- **a part:** the stimulus `kind` and `locale`, `shuffle`, and each item's type in order;
+- **a recording:** its `playback`, and **`url: null`** — the host records the new script or
+  transcript — with `captionsUrl`, `tracks`, `poster` and a script turn's own fields (a cast voice)
+  dropped: a new speaker does not inherit an old voice. A dictation's or read-aloud's `slowMedia`
+  comes back as `{ type: 'audio', url: null }`;
+- **a picture:** with `describe`, `url: null` and the new `alt`; with `reuse`, the exemplar's address
+  and `alt`.
+
+Ids are new, from `newId`; a blank's and a gap's are their placeholders' numbers. `…Html` sidecars,
+a group's `attribution` and fields the SDK does not know are not copied: they describe the old content.
+
+**`checkAiVariants(raw, request, { newId })`** reads a reply into `variants`, in exemplar order, each
+with:
+
+- **`status`**: `invalid` when `validation` is or a mismatch says so, else `incomplete` when
+  `validation` is, else `complete`. **A recording or a picture to describe comes back `incomplete`
+  with only `media_url_required`, by design**: `listMediaRefs` lists it with `url: null`, your
+  recording step's work list, and `mapMediaRefs` attaches the file;
+- **`validation`**: `validateDraft`, or `validateItemGroupDraft` for a part;
+- **`mismatches`**: why it is not parallel (`variant_type`, `variant_structure`);
+- **`findings`**: the item critic, then `variant_length`, `variant_near_copy` and `variant_same_key`;
+- **`pairs`**: each exemplar item with the variant item in its place, by path from each entry and by
+  id, for statistics per slot when your content has no `slotKey`;
+- **`generated`**: the variant as the model wrote it, for a repair.
+
+`missing` lists the exemplars the reply wrote nothing for, and `findings` what only the set shows:
+the paper codes of [`critiqueDrafts`](./authoring.md#reviewing-an-item-the-critic-12). The whole
+reply is refused only when it is not `{ variants: [...] }` of objects each naming an exemplar of the
+facts once (`malformed`), or holds more variants than exemplars (`too-long`). A variant written as
+another type is one `variant_type`, not a refused reply: the others are kept.
+
+| Code | Severity | When |
+|---|---|---|
+| `variant_missing` | invalid | The reply has no variant for this exemplar: in `missing`, repaired by asking for it again |
+| `variant_type` | invalid | The variant was written as another type than its exemplar's |
+| `variant_structure` | invalid | A count a learner answers, or a setting that scores it, differs: options, how many are right, blanks and their matching, a one-word blank given longer answers, accepted answers more than two away from the exemplar's, gaps, banks and their choices, a part's items, its stimulus kind, its speakers or a quarter more or fewer turns, a slow recording, a recording left with no words to record. The message says which, with both counts |
+| `variant_length` | warning | A text outside its band, with the words and the band. Material (a passage, a listening script, what a recording says) within a tenth of the exemplar's words, at least 5 either way; an item's own text (a question, a gapped passage, a prompt, a dictation, a reading) within a quarter, at least 2 |
+| `variant_near_copy` | warning | A text whose word triples are at least half the exemplar's (`AI_VARIANT_NEAR_COPY_THRESHOLD`), or any text of its kind in `avoid`, with the score and what it matched; texts under six words compare whole. Also a multiple choice whose options are the exemplar's, or an `avoid` question's, in any order |
+| `variant_same_key` | warning | A right answer the exemplar's slot, or the slot in its place in `avoid`, already had: a correct option's text, a blank's accepted answer (in the blank's case), a gap's right choice. A warning, not invalid: "were" is the only answer of many a grammar item |
+
+Texts compare as the critic reads them: placeholders out, compatibility forms read as what they stand
+for, accents, case and punctuation ignored.
+
+### The repair loop
+
+`aiVariantsRepairRequest(request, variants)` sends back each variant with a mismatch, an issue other
+than `media_url_required`, or a warning at a field the model writes — with those problems at the paths
+it wrote (a banked gap's missing key at its `answer`) — and each missing exemplar with
+`variant_missing`; the exemplar and its targets stay in the facts. It is `null` when there is nothing
+to repair. `generateVariants` runs the loop `repairs` times (1 by default, at most
+`AI_VARIANTS_MAX_REPAIRS`, 3), keeping each variant's best pass — by status, then fewer invalid
+problems, then fewer warnings — and a repaired variant keeps its id. With `balanceKeyPositions`, keys
+are spread once, over the variants as they end. As with drafts, it never throws for a model's failure;
+every call is in `run.calls`.
+
+**Never changed:** the exemplars, `avoid` and the request are read, never written — compare and hash
+them afterwards.
+
+**Not here:** checking a variant's vocabulary against the level, measuring its difficulty, and
+recording or finding its media — those are your review, your statistics and your recording step.
+
 ## What the SDK refuses to show
 
 Whatever a port resolves to is checked before a learner sees it. A refused answer shows as "not
@@ -749,6 +934,7 @@ const report = await runAiCheck({
   pronunciationCoaching: (request) => callMyModel(COACHING_PROMPT, request),
   critique: (request) => callMyModel(CRITIQUE_PROMPT, request),
   drafts: (request) => callMyModel(DRAFTS_PROMPT, request),
+  variants: (request) => callMyModel(VARIANTS_PROMPT, request), // 1.8
   grading: (request) => callMyModel(GRADING_PROMPT, request),
 });
 console.log(formatAiCheckReport(report));
@@ -800,6 +986,12 @@ expect(report.refused).toBe(0);
 - **A drafts case that is shown is a reply the SDK read, not a good one.** Its `result.drafts` holds
   each draft with what `validateDraft` and the critic say: count how many came back `complete` and
   without warnings.
+- **Variants cases** (lk-core 1.8), built by `aiVariantsRequest`: one exemplar of each type, a
+  reading part with its passage, a whole section one step harder with its keys spread, and two that
+  tempt a model — a famous opening line it would rather copy than replace, and a grammar item whose
+  only natural answer is the same word. As with drafts, a case that is shown is a reply the SDK read:
+  its `result.variants` holds each variant with its `mismatches` and `findings` — count how many
+  came back without either, and expect `variant_same_key` on the grammar item.
 - **It runs one call at a time** by default, because a run in CI meets a rate limit long before it
   runs out of patience; `concurrency` raises it.
 - A port you leave out has its cases skipped rather than failed, and a port that throws is an

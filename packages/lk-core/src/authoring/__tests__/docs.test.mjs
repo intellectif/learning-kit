@@ -9,6 +9,8 @@
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { AI_VARIANT_CODE_SEVERITY } from '../../ai-variants.ts';
+import { VERSION_FINDING_SEVERITY } from '../../versions.ts';
 import { ITEM_FINDING_SEVERITY } from '../findings.ts';
 import { DRAFT_ISSUE_SEVERITY } from '../issues.ts';
 
@@ -46,5 +48,31 @@ describe('docs/authoring.md item critic table', () => {
 
     expect(rows.length).toBe(Object.keys(documented).length);
     expect(documented).toEqual({ ...ITEM_FINDING_SEVERITY });
+  });
+});
+
+describe('docs/ai.md variant code table', () => {
+  it('documents every variant code with its severity', () => {
+    const doc = readFileSync(new URL('../../../../../docs/ai.md', import.meta.url), 'utf8');
+    const start = doc.indexOf('## Variants of existing items');
+    const rows = [
+      ...doc.slice(start).matchAll(/^\| `(variant_[a-z_]+)` \| (invalid|warning) \|/gm),
+    ].map(([, code, severity]) => [code, severity]);
+    expect(start).toBeGreaterThan(-1);
+    expect(Object.fromEntries(rows)).toEqual({ ...AI_VARIANT_CODE_SEVERITY });
+  });
+});
+
+describe('docs/authoring.md version comparison table', () => {
+  it('documents every code with its severity', () => {
+    const doc = readFileSync(new URL('../../../../../docs/authoring.md', import.meta.url), 'utf8');
+    const start = doc.indexOf('## Parallel forms: comparing two versions');
+    const rows = [
+      ...doc
+        .slice(start)
+        .matchAll(/^\| `(versions_[a-z_]+)` \| (invalid|warning|advice or warning) \|/gm),
+    ].map(([, code, severity]) => [code, severity === 'advice or warning' ? 'warning' : severity]);
+    expect(start).toBeGreaterThan(-1);
+    expect(Object.fromEntries(rows)).toEqual({ ...VERSION_FINDING_SEVERITY });
   });
 });

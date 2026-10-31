@@ -653,6 +653,20 @@ describe('read aloud at its line', () => {
   });
 });
 
+/**
+ * critiqueDrafts without the paper codes of 1.8: these sets repeat one question to
+ * test the older rules, and the paper critic is right to call them duplicates.
+ */
+const PAPER_CODES = new Set([
+  'set_key_position_bias',
+  'set_key_longest_bias',
+  'set_stem_duplicate',
+  'set_item_answers_item',
+  'set_key_repeated',
+]);
+const beforePaper = (entries: readonly unknown[]) =>
+  critiqueDrafts(entries).filter((found) => !PAPER_CODES.has(found.code));
+
 describe('a set of items', () => {
   const keyAt = (position: number, over: Fields = {}) =>
     mc({
@@ -665,7 +679,7 @@ describe('a set of items', () => {
     });
 
   it('every key in one place across four or more single-answer questions', () => {
-    expect(critiqueDrafts([keyAt(0), keyAt(0), keyAt(0), keyAt(0)])).toEqual([
+    expect(beforePaper([keyAt(0), keyAt(0), keyAt(0), keyAt(0)])).toEqual([
       expect.objectContaining({
         code: 'set_key_position_same',
         path: [],
@@ -673,9 +687,9 @@ describe('a set of items', () => {
       }),
     ]);
     // Three is not yet a habit; one elsewhere breaks it; a shuffled one does not count.
-    expect(critiqueDrafts([keyAt(0), keyAt(0), keyAt(0)])).toEqual([]);
-    expect(critiqueDrafts([keyAt(0), keyAt(0), keyAt(0), keyAt(1)])).toEqual([]);
-    expect(critiqueDrafts([keyAt(0), keyAt(0), keyAt(0), keyAt(0, { shuffle: true })])).toEqual([]);
+    expect(beforePaper([keyAt(0), keyAt(0), keyAt(0)])).toEqual([]);
+    expect(beforePaper([keyAt(0), keyAt(0), keyAt(0), keyAt(1)])).toEqual([]);
+    expect(beforePaper([keyAt(0), keyAt(0), keyAt(0), keyAt(0, { shuffle: true })])).toEqual([]);
   });
 
   it('each entry’s findings under its index, a group’s under its items, unknown types skipped', () => {
@@ -692,7 +706,7 @@ describe('a set of items', () => {
         keyAt(2),
       ],
     };
-    const found = critiqueDrafts([fib({ title: 'Went' }), group, 'junk']);
+    const found = beforePaper([fib({ title: 'Went' }), group, 'junk']);
     expect(found.map((one) => [one.code, one.path.join('.')])).toEqual([
       ['fib_title_reveals_answer', '0.title'],
       ['mc_title_reveals_answer', '1.items.0.title'],
@@ -720,9 +734,9 @@ describe('a set of items, at the edges of its rule', () => {
     });
 
   it('counts only single-answer multiple choice with one key', () => {
-    expect(critiqueDrafts(four(shaped({ mode: 'multi' })))).toEqual([]);
-    expect(critiqueDrafts(four(shaped({ twoKeys: true })))).toEqual([]);
-    expect(critiqueDrafts(four(shaped({ type: 'my-choice' })))).toEqual([]);
+    expect(beforePaper(four(shaped({ mode: 'multi' })))).toEqual([]);
+    expect(beforePaper(four(shaped({ twoKeys: true })))).toEqual([]);
+    expect(beforePaper(four(shaped({ type: 'my-choice' })))).toEqual([]);
   });
 });
 
