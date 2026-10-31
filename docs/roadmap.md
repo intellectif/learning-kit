@@ -1068,13 +1068,24 @@ it. It comes after the groundwork it needs, in this order.
      This revisits the decision of 2026-10-17, which stands for a run of questions: their shared
      instructions belong in the group's stimulus. See
      [docs/authoring.md](./authoring.md#a-questions-own-instructions-17).
-   - **Next, lk-core 1.8.0: parallel versions.** A variant keeps its source's instructions.
-     - `aiVariantsRequest` with its check, repair and run: one variant per exemplar, settings
-       copied by the SDK, and no recording address copied;
-     - paper-level checks in `critiqueDrafts`;
-     - `critiqueVersions(v1, v2)`.
+   - ✅ **lk-core 1.8.0, parallel forms** (built 2026-10-31, on the same consumer's detailed
+     request):
+     - `aiVariantsRequest`, `checkAiVariants`, `aiVariantsRepairRequest` and `generateVariants`: one
+       variant per exemplar, loose items and whole parts with their passage or listening script;
+       type, structure, scoring and settings copied back by the SDK; targets computed for the model
+       (counts, lengths in words, difficulty and its levers); variants checked for structure
+       (`variant_structure`), length, near copies and repeated keys against the exemplar and every
+       other form; recordings returned with no file and a new script; pictures described anew or
+       reused; keys spread from a seed;
+     - paper codes in `critiqueDrafts` (`set_key_position_bias`, `set_key_longest_bias`,
+       `set_stem_duplicate`, `set_item_answers_item`, `set_key_repeated`) and
+       `fib_tolerance_spans_words`;
+     - `critiqueVersions(a, b)`, two forms slot by slot and paper against paper;
+     - a replayable `vectors/variants.json`, and variant cases in the AI check kit.
 
-     Difficulty is an instruction the SDK does not claim to check; measuring it is `analyzeItem`'s.
+     See [docs/ai.md](./ai.md#variants-of-existing-items-18) and
+     [docs/authoring.md](./authoring.md#parallel-forms-comparing-two-versions-18). Difficulty is
+     an instruction the SDK does not claim to check; measuring it is `analyzeItem`'s.
    - **Declined: a `meta` field on activities.**
      - `learningObjectives` and `difficultyLevel` already exist.
      - A measured difficulty belongs outside the item, keyed by its content hash: inside it, the

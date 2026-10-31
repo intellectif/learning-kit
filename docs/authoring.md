@@ -1211,13 +1211,15 @@ the passage, a hint that gives the answer away, two options that read the same.
 import { critiqueDraft, critiqueDrafts, critiqueItemGroupDraft, validateDraft } from '@intellectif/lk-core';
 
 const list = [...validateDraft(type, draft).issues, ...critiqueDraft(type, draft)];
-critiqueDrafts(quiz);           // a question set: each entry under its index, and the set's own findings
+critiqueDrafts(quiz);           // a question set: each entry under its index, and the set's own findings —
+                                // from 1.8 the paper codes too, over every item, groups' items included
 critiqueItemGroupDraft(group);  // a testlet: each item under items.N, and the group's own findings
 ```
 
 A finding is a `ValidationError` — `{ path, message, code }` — plus `severity`,
 like a draft issue, so an editor shows both in one list, sorted `invalid`,
-`incomplete`, `warning`, `advice`:
+`incomplete`, `warning`, `advice`. A finding about several items *(1.8)* sits at
+one of them and names the others in `related`, by path from the same root:
 
 - **`warning`** — a known flaw a learner can exploit or trip over.
 - **`advice`** — an item-writing guideline the item departs from.
@@ -1242,6 +1244,7 @@ author: translate by `code`.
 | `fib_hint_reveals_answer` | warning | `blanks.N.hint` | The blank's own hint contains one of its accepted answers, by the same rule |
 | `fib_answer_in_passage` | warning | `blanks.N.acceptedAnswers.M` | The passage, its blanks taken out, prints the answer as whole words. An answer of one short word ("is", "26") is not looked for: a passage is full of them |
 | `fib_accepted_answer_redundant` | advice | `blanks.N.acceptedAnswers.M` | The blank's own matching already accepts this answer as an earlier one — case, spacing, normalisation and accents as the blank sets them; typo tolerance aside, since two answers a typo apart still accept different inputs |
+| `fib_tolerance_spans_words` | advice | `blanks.N.acceptedAnswers.M` | *(1.8)* The blank forgives edits (`match.levenshtein` above 0) and an accepted answer is several words. The edits run over the whole answer, so one edit can change a word's form rather than its spelling: with one forgiven edit, "has told" is accepted for "had told", another tense. Make it a one-word blank, or take the tolerance off |
 | `gs_title_reveals_answer` | warning | `title` | The title contains a gap's correct choice, by the hint rule |
 | `gs_choices_duplicate` | warning | `gaps.N.choices.M.text`, `banks.N.choices.M.text` | Two choices in one list read the same |
 | `gs_bank_no_distractor` | warning | `banks.N.choices` | A bank drawn on by two or more gaps offers no more choices than it has gaps: the last gap is answered by elimination |
@@ -1253,6 +1256,11 @@ author: translate by `code`.
 | `media_script_differs` | warning | `….script` | A recording (an item's, an option's, a group's stimulus or its media) has a `transcript` and a `script` that say different words, once case, accents, punctuation and each speaker's `Name:` label are ignored. AI facts read the transcript and a voice reads the script |
 | `media_transcript_differs` | warning | `media.transcript`, `media.script` | A dictation's or a read-aloud's recording says other words than the item's own `transcript` (or one of its `acceptedTranscripts`) or `referenceText`, by the same comparison |
 | `set_key_position_same` | warning | the set: `''` for `critiqueDrafts`, `items` for a group | Four or more single-answer multiple-choice questions that do not shuffle, and every one keeps its correct option in the same position |
+| `set_key_position_bias` | warning | `''`; `related`: the questions | *(1.8)* Six or more single-answer questions that do not shuffle, groups' items included: one position holds more than half the keys (7 of 10 in B) — or, from eight, a position every question has holds none. Every key in one place is `set_key_position_same` |
+| `set_key_longest_bias` | warning | `''`; `related`: the questions | *(1.8)* In five or more single-answer questions of three or more written options without media, the right option is the strictly longest, in characters, in at least 60 % of them. `mc_key_longest` flags one item; a paper where it happens every time is a stronger signal |
+| `set_stem_duplicate` | warning | the later item's text; `related`: the earlier | *(1.8)* Two items' questions, gapped passages, prompts, dictation transcripts or reading texts read the same, or share at least half their word triples (`AI_VARIANT_NEAR_COPY_THRESHOLD`). Texts under six words are not compared: "Choose the correct answer." repeats by design |
+| `set_item_answers_item` | warning | the answer; `related`: where it is printed | *(1.8)* An item's right answer — a correct option, an accepted blank answer, a gap's right choice — is printed, as whole words, in another item's text, options or choices, or in another group's material, and not in the item's own stem. Answers of two characters or fewer, and single common English words (`the`, `were`, `have`…), are not looked for. A group's own material is not searched for its items' answers: they are meant to be there |
+| `set_key_repeated` | advice | the first item's answer; `related`: the others | *(1.8)* The same answer answers three items or more. Not wrong — a grammar paper may need "were" twice — but the set tests less than its length suggests |
 
 **The hint rule** is the one `hintRevealsAnswer` holds an AI hint to: an answer
 written out as whole words, case, accents and punctuation ignored; an answer of
@@ -1546,7 +1554,55 @@ on import `validateDraft` and `validateItemGroupDraft` decide. `jsonSchemaFor(ty
 
 **A round trip that loses nothing.** Compare `canonicalJson(entry)` before an export
 and after an import that changed nothing, or `contentHash` for a short form. A
-re-pointed address changes both, as it should.
+re-pointed address changes both, as it should. Ids are part of both, so two forms
+that differ only in their ids hash apart: leave ids out on your side to compare
+content alone.
+
+## Parallel forms: comparing two versions (1.8)
+
+A form is a parallel version of another when it has the same blueprint and scores
+alike, and a learner who sat one meets nothing of it again on the other.
+`critiqueVersions` checks both, slot by slot and paper against paper: after a
+model writes a form ([variants](./ai.md#variants-of-existing-items-18)), when a form
+is imported, and when an author publishes a form started as a copy of another — it
+tells them which questions they have not rewritten yet.
+
+```ts
+import { critiqueVersions } from '@intellectif/lk-core';
+
+const comparison = critiqueVersions(
+  { sections: [{ key: 'listening', title: 'Listening', entries: formOne }] },
+  { sections: [{ key: 'listening', title: 'Listening', entries: formTwo }] },
+  { allowSharedImages: true }, // the default: a picture may be shared, a recording may not
+);
+comparison.findings; // each with `a` and `b`: where it is in each form
+comparison.slots;    // every slot of either form, with its pair or null, and how they were paired
+comparison.summary;  // { aItems, bItems, paired, structureMismatches }
+```
+
+A paper is its sections in order, each a list of sequence entries; a host without
+sections passes one. **Slots pair** by the `pairs` you give (paths from each
+paper's root, such as a variant's `pairs` placed in your sections), then by
+`slotKey`, then by position — the same entry of the same section. A paired group's
+items pair by their own `slotKey`, then by position. A slot that pairs with
+nothing is in `slots` with `null` on one side.
+
+| Code | Severity | When |
+|---|---|---|
+| `versions_section_mismatch` | invalid | The forms have different numbers of sections, or a section's `key` or `title` differs at the same position: weights and pass marks are kept per section |
+| `versions_entry_count` | invalid | A section has a different number of entries, or a paired group a different number of items |
+| `versions_type_mismatch` | invalid | Paired slots, or a paired group's items, are of different types |
+| `versions_structure_mismatch` | invalid | Paired slots fail a structure rule of [variants](./ai.md#what-is-copied-and-what-comes-back): options and how many are right, blanks and their matching, gaps, banks, a part's stimulus and speakers, the rubric, word bounds, a slow recording, the scoring strategy. A form that scores differently is not parallel |
+| `versions_objectives_mismatch` | warning | Paired items test different `learningObjectives` |
+| `versions_length_out_of_band` | warning | A paired text outside the length band: material within a tenth, an item's own text within a quarter (`lengthTolerance` overrides) |
+| `versions_near_copy` | warning | Any text of the second form reads like any text of its kind in the first — not only its pair: a model can copy question 3 into slot 7 — or a multiple choice has another's options in another order |
+| `versions_same_key` | warning | Paired items share a right answer |
+| `versions_shared_media` | advice or warning | Both forms use one file: `advice` for a picture while `allowSharedImages` (the default), `warning` for a recording, captions or anything else — a learner who re-sits hears it again |
+
+`critiqueVersions(a, a)` is the check of a form against itself: no invalid finding,
+and every item a near copy and every key repeated. It reads content as stored,
+finished or not, and never throws. `VERSION_FINDING_SEVERITY` holds the codes and
+their severities.
 
 ## Freezing an attempt (v0.6)
 

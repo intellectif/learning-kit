@@ -21,7 +21,7 @@
     "name": "lk-core: everything",
     "path": "packages/lk-core/dist/index.js",
     "import": "*",
-    "limit": "81 kB"
+    "limit": "96 kB"
   },
   {
     "name": "lk-azure: assessmentFromAzure",

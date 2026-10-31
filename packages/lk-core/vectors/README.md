@@ -232,3 +232,26 @@ the one you installed; record that yourself beside any grade you store.
 Adding a regenerate-after-version step to the release was considered and
 rejected: it would put a step that can fail *after* the version bump, which is
 strictly worse than a string that reads one version behind.
+
+## The variants corpus (1.8)
+
+`variants.json` holds requests to `aiVariantsRequest`, canned model replies, and
+what `checkAiVariants` made of them — plus two papers for the paper codes of
+`critiqueDrafts`: a correct reply, each structure fault a variant can have, a
+length out of band, a near copy of the exemplar and of another form, a repeated
+key, a missing variant, a recording with nothing to say what it says, a picture
+to describe, and keys spread from a fixed seed. Ids come from a counter, so
+every outcome is the same on every run.
+
+It records the outcome a host branches on — each variant's status, the codes
+and paths of its issues, mismatches and findings, its pairs, skipped and
+missing exemplars, and the option order where keys were spread — not the
+messages. Unlike `scoring.json` it is not a grade-stability promise: a minor may
+refine a rule behind a code, and the corpus moves with it. Replay it to see what
+changed in the build you install:
+
+```js
+const { replayVariants } = await import(pathToFileURL(join(root, 'vectors/variants.mjs')).href);
+const variants = JSON.parse(readFileSync(join(root, 'vectors/variants.json'), 'utf8'));
+const changed = replayVariants(core, variants).filter((result) => !result.ok);
+```

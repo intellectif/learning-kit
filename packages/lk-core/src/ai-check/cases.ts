@@ -3,6 +3,7 @@ import { aiCoachingRequest } from '../ai-coaching.js';
 import { aiCritiqueRequest } from '../ai-critique.js';
 import { aiDraftsRequest } from '../ai-drafts.js';
 import { aiGradingRequest } from '../ai-grading.js';
+import { aiVariantsRequest } from '../ai-variants.js';
 import { aiWritingFeedbackRequest } from '../ai-writing.js';
 import { gradeReadAloud } from '../scoring/speech/grade.js';
 import type {
@@ -25,6 +26,7 @@ import type {
   AiGradingRequest,
   AiGroupInput,
   AiHintRequest,
+  AiVariantsRequest,
   AiWritingFeedbackRequest,
 } from '../types/ai.js';
 import type { ItemGroup } from '../types/item-group.js';
@@ -380,6 +382,7 @@ export interface AiCheckCase {
     | 'pronunciation-coaching'
     | 'item-critique'
     | 'draft-generation'
+    | 'variant-generation'
     | 'grading';
   /** What the learner did, in a few words, for a report a person reads. */
   about: string;
@@ -391,6 +394,7 @@ export interface AiCheckCase {
     | AiCoachingRequest
     | AiCritiqueRequest
     | AiDraftsRequest
+    | AiVariantsRequest
     | AiGradingRequest;
 }
 
@@ -497,6 +501,44 @@ function draftsCase(
   }
   return { id, feature: 'draft-generation', about, request };
 }
+
+/** Builds a variants case, failing loudly rather than shipping one with nothing to vary. */
+function variantsCase(
+  id: string,
+  about: string,
+  exemplars: readonly unknown[],
+  extra: Omit<Parameters<typeof aiVariantsRequest>[0], 'exemplars' | 'level'> = {},
+): AiCheckCase {
+  const request = aiVariantsRequest({ exemplars, level: 'CEFR A2', ...extra });
+  if (request.facts.exemplars.length !== exemplars.length) {
+    throw new Error(`ai-check: an exemplar of "${id}" cannot be varied`);
+  }
+  return { id, feature: 'variant-generation', about, request };
+}
+
+/** A text everyone has read: a model is tempted to copy it rather than write a parallel one. */
+const famous: ReadAloudData = {
+  schemaVersion: '1.0',
+  type: 'read-aloud',
+  id: 'ai-check-famous',
+  title: 'Read the opening aloud',
+  referenceText: 'It was the best of times, it was the worst of times, it was the age of wisdom.',
+  locale: 'en-US',
+  recording: { maxSeconds: 20 },
+  scoring: { dimensions: [{ name: 'accuracy', weight: 1 }] },
+};
+
+/** A grammar item whose only natural answer, in any parallel sentence, is the same word. */
+const secondConditional: FillInTheBlanksData = {
+  schemaVersion: '1.0',
+  type: 'fill-in-the-blanks',
+  id: 'ai-check-second-conditional',
+  title: 'If I were you',
+  instructions: 'Complete the sentence. Use ONE word.',
+  passage: 'If I {{be}} you, I would take the early train tomorrow.',
+  blanks: [{ id: 'be', acceptedAnswers: ['were'] }],
+  scoringStrategy: 'all-or-nothing',
+};
 
 /**
  * What a host sets on every read-aloud it drafts: the SDK has no default for a
@@ -868,6 +910,27 @@ export function aiCheckCases(): AiCheckCase[] {
       'The essay with mistakes, with comments asked for in Spanish',
       "Last weekend I go to the market and buyed a apple. My friends was there too, so we don't go home early. Then I go to the cinema.",
       { learnerLocale: 'es' },
+    ),
+    variantsCase('variants-choice', 'A parallel version of a multiple choice', [capital]),
+    variantsCase('variants-cloze', 'A parallel version of a fill-in-the-blanks', [introduction]),
+    variantsCase('variants-gaps', 'A parallel version of a gap select', [landscape]),
+    variantsCase('variants-dictation', 'A parallel version of a dictation', [listening]),
+    variantsCase('variants-read-aloud', 'A parallel version of a text to read aloud', [weather]),
+    variantsCase('variants-writing', 'A parallel version of a writing task', [weekend]),
+    variantsCase('variants-reading', 'A parallel reading part: a new passage and its questions', [
+      tides,
+    ]),
+    variantsCase(
+      'variants-section',
+      'A parallel section, harder by one step, with its keys spread',
+      [capital, introduction, landscape],
+      { difficulty: 'harder', balanceKeyPositions: { seed: 'ai-check' } },
+    ),
+    variantsCase('variants-famous', 'A parallel version of a famous opening line', [famous]),
+    variantsCase(
+      'variants-grammar-key',
+      'A parallel grammar item whose natural answer is the same word',
+      [secondConditional],
     ),
   ];
 }

@@ -577,6 +577,8 @@ if (typeof aiCheck.runAiCheck === 'function') {
     }),
     // Drafts nothing: an empty reply is a reply the SDK reads.
     drafts: () => ({ drafts: [] }),
+    // Writes no variant: also a reply the SDK reads, every exemplar then missing.
+    variants: () => ({ variants: [] }),
     // Judges every criterion on its own scale, as a careful prompt does.
     grading: (request) => ({
       criteria: request.facts.rubric.map((criterion) =>
@@ -681,6 +683,27 @@ for (const [label, build] of [
   }
 }
 
+// The variants corpus (1.8): what the shipped variants code makes of each
+// canned reply, replayed with the shipped replayer, so a host replaying it
+// against its install runs what was tested here.
+const variantsCorpus = JSON.parse(readFileSync(join(PKG_ROOT, 'vectors', 'variants.json'), 'utf8'));
+const { replayVariants } = await import(
+  pathToFileURL(join(PKG_ROOT, 'vectors', 'variants.mjs')).href
+);
+if (!Array.isArray(variantsCorpus.cases) || variantsCorpus.cases.length === 0) {
+  failures.push('vectors/variants.json holds no cases, so the gate would pass vacuously');
+}
+for (const [label, build] of [
+  ['dist/index.cjs', core],
+  ['dist/index.js', esm],
+]) {
+  for (const result of replayVariants(build, variantsCorpus)) {
+    if (!result.ok) {
+      failures.push(`${label}: variants case "${result.name}" changed`);
+    }
+  }
+}
+
 /**
  * Each entry point, bundled the way an app bundles it, still knows the SDK's
  * types. lk-core declares `sideEffects: false`, so a bundler may drop any
@@ -775,5 +798,5 @@ console.log(
     'new drafts are incomplete; an unreadable delivery setting restricts; an unreadable scoring setting is refused; a writing correction must quote the draft; coaching keeps to the marks the engine made; the item critic advises without refusing, a model drafts content only, and a video puts untimed questions at its end; ' +
     'the AI check kit runs from its own subpath; one function per entry, bundled alone, still knows the built-in types; ' +
     'no entry point exports a zod schema and no published type names zod; ' +
-    `${corpus.vectors.length} grade vectors and ${validationCount} validation expectations replay identically against CJS and ESM.`,
+    `${corpus.vectors.length} grade vectors, ${validationCount} validation expectations and ${variantsCorpus.cases.length} variants cases replay identically against CJS and ESM.`,
 );
