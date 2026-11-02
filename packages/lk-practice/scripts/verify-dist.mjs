@@ -5,8 +5,10 @@
  * must each export exactly the names below, and the same ones. The build must
  * be pure (R1.1): its text names no clock, random source, timer, network call
  * or Node built-in, and it loads and runs with the clock, the random source
- * and argument-less `new Date()` replaced by functions that throw. And it must
- * not name lk-core at all: this package has no dependency on it.
+ * and argument-less `new Date()` replaced by functions that throw. It must
+ * not name lk-core at all: this package has no dependency on it. Its only
+ * dependency, ts-fsrs, is loaded from the entries below and nowhere else, and
+ * no declaration file names it, so no library type is part of the API (R4.3).
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { builtinModules, createRequire } from 'node:module';
@@ -19,7 +21,10 @@ const DIST = join(PKG_ROOT, 'dist');
 const failures = [];
 
 /** Everything the root entry exports at run time (the types have no runtime value). */
-const REQUIRED_EXPORTS = ['composeGraph', 'validateGraph', 'validateItems'];
+const REQUIRED_EXPORTS = ['composeGraph', 'fsrsMemoryModel', 'validateGraph', 'validateItems'];
+
+/** The ts-fsrs entries the build may load (design §3). */
+const ALLOWED_PACKAGES = new Set(['ts-fsrs', 'ts-fsrs/middlewares', 'ts-fsrs/models/fsrs-7']);
 
 /** A small graph, an item and an extension, run through both builds under the trap. */
 const SMOKE_GRAPH = {
@@ -60,6 +65,27 @@ function smoke(format, module) {
   if (module.composeGraph(SMOKE_GRAPH, [SMOKE_EXTENSION]).ok !== true) {
     problems.push(`${format} composeGraph rejects the smoke extension.`);
   }
+  // The memory model: a new memory rated good on 2026-01-01T00:00Z is due in
+  // 4.7777 days, then serialized, read back and reviewed again (vectors/memory.json).
+  const model = module.fsrsMemoryModel();
+  const context = {
+    desiredRetention: 0.9,
+    maximumIntervalDays: 36500,
+    learningSteps: ['1m', '10m'],
+    relearningSteps: ['10m'],
+  };
+  const first = model.review(model.init(), 'good', 1_767_225_600_000, context);
+  if (first.due !== 1_767_638_395_164) {
+    problems.push(`${format} fsrsMemoryModel gives due ${first.due} for the smoke review.`);
+  }
+  const memory = model.deserialize(JSON.parse(JSON.stringify(model.serialize(first.memory))));
+  const r = model.retrievability(memory, first.due);
+  if (!(r > 0.89 && r < 0.91)) {
+    problems.push(`${format} fsrsMemoryModel gives retrievability ${r} at the due time.`);
+  }
+  if (!(model.review(memory, 'again', first.due, context).due > first.due)) {
+    problems.push(`${format} fsrsMemoryModel does not schedule a lapse after its review.`);
+  }
   return problems;
 }
 
@@ -95,6 +121,9 @@ for (const file of files) {
     failures.push(`dist/${file} names @intellectif/lk-core, which this package must not use.`);
   }
   if (file.endsWith('ts')) {
+    if (/ts-fsrs|@open-spaced-repetition/.test(text)) {
+      failures.push(`dist/${file} names ts-fsrs, whose types must not be part of the API.`);
+    }
     continue;
   }
   const code = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
@@ -107,6 +136,18 @@ for (const file of files) {
   for (const [, specifier] of specifiers) {
     if (BUILTINS.has(specifier.split('/')[0]) || BUILTINS.has(specifier)) {
       failures.push(`dist/${file} loads ${specifier}, a Node built-in.`);
+    }
+  }
+  // Module statements and `require` calls only, so a message that contains
+  // the word `from` is not read as an import.
+  const loads = [
+    ...code.matchAll(/^(?:import|export)\b[^;'"`]*?\bfrom\s*["']([^"']+)["']/gm),
+    ...code.matchAll(/^import\s*["']([^"']+)["']/gm),
+    ...code.matchAll(/\brequire\(\s*["']([^"']+)["']\s*\)/g),
+  ];
+  for (const [, specifier] of loads) {
+    if (!specifier.startsWith('.') && !ALLOWED_PACKAGES.has(specifier)) {
+      failures.push(`dist/${file} loads ${specifier}; only ts-fsrs entries are allowed.`);
     }
   }
 }
@@ -177,5 +218,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  `verify-dist OK: ESM and CommonJS export the same ${REQUIRED_EXPORTS.length} names, ${files.length} built files are pure, the build loads and runs under the purity trap, and nothing names lk-core.`,
+  `verify-dist OK: ESM and CommonJS export the same ${REQUIRED_EXPORTS.length} names, ${files.length} built files are pure, the build loads and runs under the purity trap, it loads only ts-fsrs, and nothing names lk-core or exposes a ts-fsrs type.`,
 );

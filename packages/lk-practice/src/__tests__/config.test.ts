@@ -1,3 +1,4 @@
+import { FSRS7_DEFAULT_WEIGHTS } from 'ts-fsrs/models/fsrs-7';
 import { describe, expect, it } from 'vitest';
 import { configHash, defaultConfig, resolveConfig } from '../config.js';
 import type {
@@ -73,6 +74,7 @@ describe('resolveConfig', () => {
       id: 'fsrs-7',
       version: 1,
       params: {
+        weights: Array.from(FSRS7_DEFAULT_WEIGHTS),
         learningSteps: ['1m', '10m'],
         relearningSteps: ['10m'],
         maximumIntervalDays: 36500,
@@ -316,8 +318,8 @@ describe('configHash', () => {
       ),
     }).toMatchInlineSnapshot(`
       {
-        "custom": "88d2e6521528d7a6",
-        "default": "3ff64cac2f9dd2a1",
+        "custom": "e868c3132e07217d",
+        "default": "5067a166c2be0874",
       }
     `);
   });

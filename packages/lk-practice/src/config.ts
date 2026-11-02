@@ -8,6 +8,7 @@
 import { canonicalize, formatPath } from './determinism/canonical.js';
 import { hashCanonical } from './determinism/fnv.js';
 import { DEFAULT_STAGE_DEMAND, resolveStageDemand } from './graph/stages.js';
+import { FSRS_DEFAULT_PARAMS } from './memory/fsrs.js';
 import type {
   CandidateProof,
   CheckResult,
@@ -493,15 +494,20 @@ export function configHash(config: ResolvedPracticeConfig): string {
 }
 
 /**
- * The default memory model's reference. Its params are the default steps and
- * interval; the fitted FSRS-7 weights join them when the adapter lands (M3),
- * which changes the default configuration hash.
+ * The default memory model's reference: the same id, version and params as
+ * `fsrsMemoryModel()`, without building a scheduler.
  */
 function defaultMemoryRef(): PolicyRef {
+  const { weights, learningSteps, relearningSteps, maximumIntervalDays } = FSRS_DEFAULT_PARAMS;
   return {
     id: 'fsrs-7',
     version: 1,
-    params: { learningSteps: ['1m', '10m'], relearningSteps: ['10m'], maximumIntervalDays: 36500 },
+    params: {
+      weights: [...weights],
+      learningSteps: [...learningSteps],
+      relearningSteps: [...relearningSteps],
+      maximumIntervalDays,
+    },
   };
 }
 
