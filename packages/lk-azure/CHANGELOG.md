@@ -1,5 +1,18 @@
 # @intellectif/lk-azure
 
+## 2.1.0
+
+### Minor Changes
+
+- [#141](https://github.com/intellectif/learning-kit/pull/141) [`d5b3a3c`](https://github.com/intellectif/learning-kit/commit/d5b3a3c60278555160734af845eb062d918cd083) Thanks [@diego28e](https://github.com/diego28e)! - **Spoken answers: `transcriber` reads a take marked against its transcript into unscripted evidence for `gradeSpeakingResponse`**
+
+  **Action required:** none for reading a read-aloud take. The lk-core peer range now starts at 1.9.0, whose assessment schema knows the `transcript` field: upgrade lk-core with it.
+
+  - **`AzureAssessmentRequest.transcriber?: Grader`** — who wrote `referenceText` when it is the verbatim transcript of a spoken answer rather than an item's text. The assessment then comes back `task: 'unscripted'`, with `transcript: { text: referenceText, source: transcriber }` and no `referenceText`. Single-shot, continuous and silent takes read exactly as a reading's do: only the binding differs.
+  - **Why a minor:** additive. Without `transcriber`, every result reads as before.
+
+  Guide: https://github.com/intellectif/learning-kit/blob/main/docs/speech-assessment.md#spoken-answers-19
+
 ## 2.0.0
 
 ### Major Changes
