@@ -8,6 +8,7 @@ this file with the changeset that explains it.
 
 ```ts
 function composeGraph: declare function composeGraph(base: SkillGraph, extensions: readonly GraphExtension[], config?: ResolvedPracticeConfig): GraphComposition;
+function fsrsMemoryModel: declare function fsrsMemoryModel(options?: FsrsOptions): MemoryModel;
 function validateGraph: declare function validateGraph(graph: unknown, config?: ResolvedPracticeConfig): GraphValidation;
 function validateItems: declare function validateItems(items: unknown, graph: SkillGraph, config?: ResolvedPracticeConfig): ItemsValidation;
 interface CandidateCheck: interface CandidateCheck { readonly accepted: readonly CandidateItem[]; readonly rejected: readonly { readonly index: number; readonly issues: readonly Issue[]; }[]; }

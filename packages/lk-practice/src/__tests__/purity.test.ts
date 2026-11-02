@@ -65,7 +65,12 @@ describe('the runtime purity trap', () => {
   it('loads and runs the root entry without reaching any of them', async () => {
     vi.resetModules();
     const entry = await import('../index.js');
-    expect(Object.keys(entry).sort()).toEqual(['composeGraph', 'validateGraph', 'validateItems']);
+    expect(Object.keys(entry).sort()).toEqual([
+      'composeGraph',
+      'fsrsMemoryModel',
+      'validateGraph',
+      'validateItems',
+    ]);
     const graph = {
       version: '1',
       skills: [
@@ -100,5 +105,26 @@ describe('the runtime purity trap', () => {
       },
     ]);
     expect(composed.ok).toBe(true);
+    // The memory model, with ts-fsrs loaded under the trap too: every grade,
+    // a lapse, two retention values and fitted options.
+    const model = entry.fsrsMemoryModel({ maximumIntervalDays: 3650 });
+    const context = {
+      desiredRetention: 0.9,
+      maximumIntervalDays: 3650,
+      learningSteps: ['1m', '10m'],
+      relearningSteps: ['10m'],
+    };
+    let memory = model.init();
+    let at = 1_767_225_600_000;
+    for (const rating of ['again', 'hard', 'good', 'easy', 'again', 'good'] as const) {
+      const next = model.review(memory, rating, at, {
+        ...context,
+        desiredRetention: rating === 'easy' ? 0.8 : 0.9,
+      });
+      expect(next.due).toBeGreaterThan(at);
+      memory = model.deserialize(JSON.parse(JSON.stringify(model.serialize(next.memory))));
+      expect(model.retrievability(memory, next.due)).toBeGreaterThan(0);
+      at = next.due;
+    }
   });
 });
