@@ -51,6 +51,7 @@
     "lint": "biome check .",
     "publint": "publint",
     "verify-dist": "node scripts/verify-dist.mjs",
+    "vectors:log": "node scripts/log-vectors.mjs && biome format --write vectors/log.json",
     "vectors:memory": "node scripts/memory-vectors.mjs",
     "vectors:policy": "node scripts/policy-vectors.mjs && biome format --write vectors/evidence.json vectors/stage.json",
     "attw": "attw --pack . --ignore-rules no-resolution",

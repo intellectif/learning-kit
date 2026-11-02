@@ -68,9 +68,11 @@ describe('the runtime purity trap', () => {
     expect(Object.keys(entry).sort()).toEqual([
       'PracticeConfigError',
       'composeGraph',
+      'createPractice',
       'eloMasteryModel',
       'fsrsMemoryModel',
       'mapEvidence',
+      'migrateState',
       'validateGraph',
       'validateItems',
     ]);
@@ -111,12 +113,7 @@ describe('the runtime purity trap', () => {
     // The memory model, with ts-fsrs loaded under the trap too: every grade,
     // a lapse, two retention values and fitted options.
     const model = entry.fsrsMemoryModel({ maximumIntervalDays: 3650 });
-    const context = {
-      desiredRetention: 0.9,
-      maximumIntervalDays: 3650,
-      learningSteps: ['1m', '10m'],
-      relearningSteps: ['10m'],
-    };
+    const context = { desiredRetention: 0.9 };
     let memory = model.init();
     let at = 1_767_225_600_000;
     for (const rating of ['again', 'hard', 'good', 'easy', 'again', 'good'] as const) {
@@ -160,5 +157,32 @@ describe('the runtime purity trap', () => {
       defaultConfig(),
     );
     expect(mapped.perSkill[0]?.rating).toBe('easy');
+    // The practice object: record, a host action, replay, status, migrate.
+    const practice = entry.createPractice();
+    const item = {
+      id: 'i',
+      skills: [{ skillId: 'a', weight: 1 }],
+      stage: 'recall',
+      origin: 'authored' as const,
+      status: 'proven' as const,
+    };
+    const first = practice.record(practice.initState('l', graph), {
+      graph,
+      item,
+      evidence: { id: 'e1', itemId: 'i', at, source: { kind: 'self', rating: 'good' } },
+    });
+    expect(first.kind).toBe('applied');
+    if (first.kind !== 'applied') return;
+    const second = practice.act(first.state, graph, {
+      id: 'h1',
+      at: at + 1,
+      action: { kind: 'place', skillId: 'b', stage: 'use', credited: true },
+    });
+    expect(second.kind).toBe('applied');
+    if (second.kind !== 'applied') return;
+    const replayed = practice.replay([...first.appended, ...second.appended], graph, 'l');
+    expect(replayed.ok && replayed.state).toEqual(second.state);
+    expect(practice.status(second.state, graph, at + 2).skills).toHaveLength(2);
+    expect(entry.migrateState(JSON.parse(JSON.stringify(second.state))).ok).toBe(true);
   });
 });

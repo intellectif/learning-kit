@@ -14,6 +14,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { builtinModules, createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 
 const require = createRequire(import.meta.url);
 const PKG_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -24,9 +25,11 @@ const failures = [];
 const REQUIRED_EXPORTS = [
   'PracticeConfigError',
   'composeGraph',
+  'createPractice',
   'eloMasteryModel',
   'fsrsMemoryModel',
   'mapEvidence',
+  'migrateState',
   'validateGraph',
   'validateItems',
 ];
@@ -92,12 +95,7 @@ function smoke(format, module) {
   // The memory model: a new memory rated good on 2026-01-01T00:00Z is due in
   // 4.7777 days, then serialized, read back and reviewed again (vectors/memory.json).
   const model = module.fsrsMemoryModel();
-  const context = {
-    desiredRetention: 0.9,
-    maximumIntervalDays: 36500,
-    learningSteps: ['1m', '10m'],
-    relearningSteps: ['10m'],
-  };
+  const context = { desiredRetention: 0.9 };
   const first = model.review(model.init(), 'good', 1_767_225_600_000, context);
   if (first.due !== 1_767_638_395_164) {
     problems.push(`${format} fsrsMemoryModel gives due ${first.due} for the smoke review.`);
@@ -144,6 +142,28 @@ function smoke(format, module) {
   } catch (error) {
     if (!(error instanceof module.PracticeConfigError)) {
       problems.push(`${format} mapEvidence throws ${String(error)}, not PracticeConfigError.`);
+    }
+  }
+  // The log: the smoke evidence recorded, replayed to the same state, and the
+  // stored state read back by migrateState (design 6).
+  const practice = module.createPractice({});
+  const recorded = practice.record(practice.initState('l1', SMOKE_GRAPH), {
+    graph: SMOKE_GRAPH,
+    evidence: SMOKE_EVIDENCE,
+    item: SMOKE_ITEMS[0],
+  });
+  if (recorded.kind !== 'applied' || recorded.appended.length !== 1) {
+    problems.push(
+      `${format} createPractice().record gives ${recorded.kind} for the smoke evidence.`,
+    );
+  } else {
+    const replayed = practice.replay(recorded.appended, SMOKE_GRAPH, 'l1');
+    if (!replayed.ok || !isDeepStrictEqual(replayed.state, recorded.state)) {
+      problems.push(`${format} createPractice().replay does not rebuild the recorded state.`);
+    }
+    const read = module.migrateState(JSON.parse(JSON.stringify(recorded.state)));
+    if (!read.ok || !isDeepStrictEqual(read.state, recorded.state)) {
+      problems.push(`${format} migrateState does not read the stored state back.`);
     }
   }
   return problems;

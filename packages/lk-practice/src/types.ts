@@ -197,12 +197,15 @@ export interface MemoryReview<M> {
   readonly due: number;
 }
 
+/**
+ * What a review needs besides the memory, the rating and the time. **(revised
+ * in M5)** Only the desired retention: the learning steps, relearning steps
+ * and maximum interval are the memory model's own options (`FsrsOptions` for
+ * the default), so they enter its `params` and the configuration hash.
+ */
 export interface ReviewContext {
+  /** The skill's desired retention at the reviewed stage (R4.6). */
   readonly desiredRetention: number;
-  readonly maximumIntervalDays: number;
-  /** For example `['1m', '10m']`. */
-  readonly learningSteps: readonly string[];
-  readonly relearningSteps: readonly string[];
 }
 
 export interface MasteryModel<S = unknown> {
@@ -687,6 +690,13 @@ export interface HeldEvidence {
   readonly at: number;
   readonly seq: number;
   readonly reason: 'low-confidence' | 'human-review' | 'deferred' | 'routed-to-person';
+  /**
+   * The held evidence and its task snapshot, as logged. **(revised in M5)**
+   * Kept in the state so a confirmation that arrives while the held entry is
+   * still the newest one is applied without reading the log (design 8.7).
+   */
+  readonly evidence: Evidence;
+  readonly task: TaskSnapshot;
 }
 
 /** What an evidence entry stores about its task, so replay never needs the item (R2.3). */
@@ -1096,3 +1106,82 @@ export type ItemsValidation =
 export type GraphComposition =
   | { readonly ok: true; readonly graph: SkillGraph; readonly warnings: readonly Issue[] }
   | { readonly ok: false; readonly issues: readonly Issue[] };
+
+// ---------------------------------------------------------------------------
+// §5.9 The Practice object (R10.1) (M5)
+// ---------------------------------------------------------------------------
+
+/**
+ * A configuration bound by `createPractice`: pure functions over the state and
+ * the log, with no mutable state of its own. **(revised in M5)** `plan` arrives
+ * in M6; `exportReviewHistory` is not implemented yet (design 13).
+ */
+export interface Practice {
+  readonly config: ResolvedPracticeConfig;
+  readonly configHash: string;
+  /** The state of a learner with an empty log. */
+  initState(learnerId: string, graph: SkillGraph): PracticeState;
+  /** Records one piece of evidence (design 6.1). */
+  record(state: PracticeState, input: RecordInput): RecordResult;
+  /** Records one host action (R10.6), the same way. */
+  act(state: PracticeState, graph: SkillGraph, input: HostActionInput): RecordResult;
+  /** The live status of every graph skill at `now`; reads state, emits nothing. */
+  status(state: PracticeState, graph: SkillGraph, now: number): LearnerSummary;
+  /** The state a log gives from the start, sorted by `(at, seq)` (R5.3, R11.7). */
+  replay(entries: readonly ReviewLogEntry[], graph: SkillGraph, learnerId: string): ReplayResult;
+  /** `replay`, continued from a stored state with the entries it has not applied. */
+  replayFrom(
+    checkpoint: PracticeState,
+    entries: readonly ReviewLogEntry[],
+    graph: SkillGraph,
+  ): ReplayResult;
+  /** How the state's skills compare with a graph (R2.3); changes nothing. */
+  reconcile(state: PracticeState, graph: SkillGraph): ReconcileReport;
+}
+
+export interface RecordInput {
+  readonly graph: SkillGraph;
+  readonly evidence: Evidence;
+  /** Required unless the evidence only confirms held evidence. */
+  readonly item?: PracticeItem;
+}
+
+export type RecordResult =
+  | {
+      readonly kind: 'applied';
+      readonly state: PracticeState;
+      readonly appended: readonly ReviewLogEntry[];
+      readonly events: readonly PracticeEvent[];
+    }
+  | {
+      readonly kind: 'replay-required';
+      readonly appended: readonly ReviewLogEntry[];
+      /** Replay from the newest checkpoint whose `log.lastAt` is earlier than this. */
+      readonly replayFrom: number;
+    }
+  | { readonly kind: 'duplicate'; readonly events: readonly PracticeEvent[] }
+  /** Nothing to append. */
+  | { readonly kind: 'rejected'; readonly issues: readonly Issue[] };
+
+export type ReplayResult =
+  | {
+      readonly ok: true;
+      readonly state: PracticeState;
+      readonly events: readonly PracticeEvent[];
+    }
+  | { readonly ok: false; readonly issues: readonly Issue[] };
+
+export type MigrationResult =
+  | { readonly ok: true; readonly state: PracticeState; readonly migrated: boolean }
+  | { readonly ok: false; readonly issues: readonly Issue[] };
+
+export interface ReconcileReport {
+  readonly stateGraphVersion: string;
+  readonly graphVersion: string;
+  /** In the state, not in the graph; sorted. */
+  readonly orphanedSkills: readonly string[];
+  /** In the graph, with no state yet; graph order. */
+  readonly newSkills: readonly string[];
+  /** A memory for a stage the skill's ladder no longer has; sorted by skill, then stage. */
+  readonly missingStages: readonly { readonly skillId: string; readonly stage: StageId }[];
+}

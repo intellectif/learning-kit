@@ -1,7 +1,9 @@
 /**
  * Replays the policy vectors (`evidence.json`, `stage.json`) against an
  * implementation of the evidence mapper, the Elo ability, the stage policy and
- * the mastery predicate (design 8.2, 8.3, 8.5).
+ * the mastery predicate (design 8.2, 8.3, 8.5), and the log vectors
+ * (`log.json`) against `createPractice` and `migrateState` (design 6, 8.1,
+ * 8.7; revised in M5).
  *
  * Plain ESM with no imports, so the unit tests, `scripts/mutate.mjs` and
  * another implementation can all run it. `impl` is an object holding the
@@ -28,6 +30,8 @@ export const ENTRY = {
     'updateAbility',
   ],
   'memory/fsrs.ts': ['createFsrsModel'],
+  'practice.ts': ['createPractice'],
+  'schema/migrate.ts': ['migrateState'],
   'stage/index.ts': ['createStagePolicy', 'implication'],
 };
 
@@ -95,6 +99,89 @@ const refOf = (instance) => ({
   version: instance.version,
   params: instance.params,
 });
+
+/** A record or act result without its state, and issues as code and path. */
+function outcome(result) {
+  switch (result.kind) {
+    case 'applied':
+    case 'duplicate':
+      return { kind: result.kind, events: result.events };
+    case 'replay-required':
+      return { kind: result.kind, replayFrom: result.replayFrom };
+    default:
+      return { kind: result.kind, issues: issuesOf(result.issues) };
+  }
+}
+
+const issuesOf = (issues) => issues.map(({ code, path }) => ({ code, path }));
+
+/** A replay result: the state when it succeeds, the issues when it does not. */
+const replayed = (result) =>
+  result.ok ? { ok: true, state: result.state } : { ok: false, issues: issuesOf(result.issues) };
+
+/**
+ * Runs a learner's steps through `createPractice(config)`: each step records
+ * evidence (`evidence`, `item`) or acts (`act`), against `graphs.main` unless
+ * it names another graph, and through a practice of `alternate` when `with`
+ * says so. A replay-required step appends and then replays the whole log, as
+ * a host does. The result is each step's outcome, the log, the final state,
+ * its replay, a replay from each `checkpoints` cut (the replay of the first
+ * entries, then the rest), the replay under `recompute`, `status` at each
+ * `now`, and `reconcile` against each graph named in `reconcile`.
+ */
+function runLog(impl, v) {
+  const practice = attempt(() => impl.createPractice(v.config ?? {}));
+  if (practice.$throws !== undefined) return practice;
+  const alternate = v.alternate === undefined ? practice : impl.createPractice(v.alternate);
+  const main = v.graphs.main;
+  let state = practice.initState(v.learnerId, main);
+  const entries = [];
+  const steps = v.steps.map((step) => {
+    const graph = v.graphs[step.graph ?? 'main'];
+    const by = step.with === 'alternate' ? alternate : practice;
+    const result =
+      step.act !== undefined
+        ? by.act(state, graph, step.act)
+        : by.record(state, {
+            graph,
+            evidence: step.evidence,
+            ...(step.item === undefined ? {} : { item: step.item }),
+          });
+    if (result.kind === 'applied') {
+      state = result.state;
+      entries.push(...result.appended);
+    } else if (result.kind === 'replay-required') {
+      entries.push(...result.appended);
+      const again = practice.replay(entries, main, v.learnerId);
+      if (!again.ok) return { ...outcome(result), replay: replayed(again) };
+      state = again.state;
+      return { ...outcome(result), replayEvents: again.events };
+    }
+    return outcome(result);
+  });
+  const full = practice.replay(entries, main, v.learnerId);
+  return {
+    configHash: practice.configHash,
+    steps,
+    entries,
+    state,
+    replay: full.ok
+      ? { ok: true, events: full.events }
+      : { ok: false, issues: issuesOf(full.issues) },
+    checkpoints: (v.checkpoints ?? []).map((cut) => {
+      const start = practice.replay(entries.slice(0, cut), main, v.learnerId);
+      if (!start.ok) return { cut, start: replayed(start) };
+      return { cut, ...replayed(practice.replayFrom(start.state, entries.slice(cut), main)) };
+    }),
+    ...(v.recompute === undefined
+      ? {}
+      : {
+          recompute: replayed(impl.createPractice(v.recompute).replay(entries, main, v.learnerId)),
+        }),
+    status: (v.now ?? []).map((now) => attempt(() => practice.status(state, main, now))),
+    reconcile: (v.reconcile ?? []).map((name) => practice.reconcile(state, v.graphs[name])),
+  };
+}
 
 /** Each kind of vector, run to the value it records. */
 const RUN = {
@@ -186,6 +273,14 @@ const RUN = {
     };
   },
   status: (impl, v) => impl.skillStatus(v.state ?? undefined, v.input),
+  log: runLog,
+  migrate: (impl, v) =>
+    v.rows.map((raw) => {
+      const result = impl.migrateState(raw);
+      return result.ok
+        ? { ok: true, migrated: result.migrated, state: result.state }
+        : { ok: false, issues: issuesOf(result.issues) };
+    }),
 };
 
 /** One line per mismatch across the corpus; empty when every vector matches. */

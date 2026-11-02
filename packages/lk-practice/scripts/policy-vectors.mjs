@@ -7,44 +7,15 @@
 // behaviour; the unit tests check the same rules against hand-computed values.
 // Run with `pnpm vectors:policy`, then review the diff: a changed output is a
 // behaviour change and needs a version (D26).
-import { rmSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { build } from 'esbuild';
-import { CORPUS_VERSION, ENTRY, record } from '../vectors/replay.mjs';
+import { CORPUS_VERSION, record } from '../vectors/replay.mjs';
+import { loadSrc, PACKAGE } from './load-src.mjs';
 
-const PACKAGE = fileURLToPath(new URL('..', import.meta.url));
 const DAY = 86_400_000;
 const T0 = Date.UTC(2026, 0, 1);
 
-/**
- * Bundles the ENTRY functions from src/ (Node cannot load the `.js` specifiers
- * of the .ts sources). The bundle is written inside the package so ts-fsrs,
- * left external, resolves as it does for the real build.
- */
-async function load() {
-  const contents = Object.entries(ENTRY)
-    .map(([module, names]) => `export { ${names.join(', ')} } from './src/${module}';`)
-    .join('\n');
-  // Under the gitignored `.mutants/`, as scripts/mutate.mjs's bundles are.
-  const outfile = join(PACKAGE, '.mutants', `policy-vectors-${process.pid}.mjs`);
-  await build({
-    stdin: { contents, resolveDir: PACKAGE, loader: 'ts' },
-    outfile,
-    bundle: true,
-    format: 'esm',
-    platform: 'node',
-    external: ['ts-fsrs', 'ts-fsrs/*'],
-    logLevel: 'silent',
-  });
-  try {
-    return await import(pathToFileURL(outfile).href);
-  } finally {
-    rmSync(outfile, { force: true });
-  }
-}
-
-const impl = await load();
+const impl = await loadSrc('policy-vectors');
 
 // ── Evidence (R7.2, R7.4, R7.8, D27) ─────────────────────────────────────────
 

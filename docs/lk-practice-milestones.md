@@ -130,7 +130,7 @@ Commands, with `<branch>` and `<title>` from the milestone:
 
 - **Branch:** `feat/lk-practice-log`. **Title:** `feat: lk-practice log, record, replay and host actions`.
 - **Scope:** `log/*`, `practice.ts` (`createPractice`, `record`, `act`, `replay`, `replayFrom`, `status`, `reconcile`), `status/*`, `schema/*` (state v1, `migrateState`), events (8.1, 8.7, 7).
-- **Files:** those modules and tests, `vectors/replay.json`.
+- **Files:** those modules and tests, `vectors/log.json` (revised in M5: not `replay.json`, beside the `replay.mjs` runner), `scripts/log-vectors.mjs`.
 - **Tasks:**
   - [ ] `applyEntry` as the single transition; rolling log hash.
   - [ ] Duplicate, out-of-order and confirmation `replay-required` paths; look-ahead confirmation in replay.
@@ -177,7 +177,7 @@ Commands, with `<branch>` and `<title>` from the milestone:
 - **Files:** `src/testing/*`, `package.json` (exports), `vectors/replay.mjs`, `scripts/verify-dist.mjs`, `bench/`, `api/surface.md`.
 - **Tasks:**
   - [ ] Seeded simulator over 90 simulated days; report policy comparisons, including `stageOffset` 0, 0.5 and 1.
-  - [ ] `replay.mjs` runs every vector file against `dist/`.
+  - [ ] `replay.mjs` runs every vector file against `dist/`. (revised in M5) It already replays `log.json` against src/; its `ENTRY` also names internal functions (`abilityAt`, `updateAbility`, `createStagePolicy` and others) that `dist/` does not export, so this task decides whether `./testing` exposes them or the `dist/` run covers the public functions only.
   - [ ] Benchmark against R12.4 (including `plan` at 2,000 skills and 10,000 items); record numbers in the pull request and in R12.4; if `plan` misses, apply the design 8.6 fallback.
 - **Gates:** all vectors pass with the purity trap installed.
 - **Acceptance:** criterion 14.
