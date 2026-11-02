@@ -357,7 +357,12 @@ function proveInferredTypesFound() {
 }
 proveInferredTypesFound();
 
-const PACKAGES = ['packages/lk-core', 'packages/lk-react', 'packages/lk-azure'];
+const PACKAGES = [
+  'packages/lk-core',
+  'packages/lk-react',
+  'packages/lk-azure',
+  'packages/lk-practice',
+];
 const failures = [];
 let checked = 0;
 

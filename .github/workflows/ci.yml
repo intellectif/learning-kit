@@ -54,7 +54,8 @@ jobs:
       # (tests included — a released defect once survived because its test did
       # not compile), every test run once, with coverage, and the packaging
       # checks against this Node's build. `coverage` is the test run: running
-      # `test` as well ran every suite twice.
+      # `test` as well ran every suite twice. lk-practice is filtered out: it
+      # needs Node 24 (its `engines`), and the Node 24 leg above covers it.
       - name: Build, lint, typecheck, test with coverage, packaging
         if: matrix.node-version == '22'
-        run: pnpm turbo run build lint typecheck coverage publint attw verify-dist
+        run: pnpm turbo run build lint typecheck coverage publint attw verify-dist --filter=!@intellectif/lk-practice
