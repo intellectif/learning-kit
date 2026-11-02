@@ -91,12 +91,15 @@ pnpm mutate --filter text-match  # one file
 pnpm mutate --limit 25           # a quick sample
 pnpm mutate --package lk-practice                    # lk-practice: evidence, stage, mastery
 pnpm mutate --package lk-practice --modules stage    # one directory (or a .ts file) under src
+pnpm mutate --package lk-practice --modules log,status,schema   # the log
 ```
 
 `--package` defaults to `lk-core`. For `lk-practice` the oracle is
-`vectors/evidence.json` and `vectors/stage.json`, replayed through
-`vectors/replay.mjs`; regenerate them with `pnpm --filter @intellectif/lk-practice vectors:policy`
-after a deliberate behaviour change.
+`vectors/evidence.json`, `vectors/stage.json` and `vectors/log.json`, replayed
+through `vectors/replay.mjs`; regenerate them with
+`pnpm --filter @intellectif/lk-practice vectors:policy` and `vectors:log`
+after a deliberate behaviour change. The log modules are not in the default
+list: run them with `--modules log,status,schema`.
 
 100% coverage on `src/scoring/**` means every line RAN, not that anything would
 notice if the line were wrong. `scripts/mutate.mjs` changes one operator or

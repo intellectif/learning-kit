@@ -38,12 +38,7 @@ const DAY = 86_400_000;
 const T0 = Date.UTC(2026, 0, 1);
 
 function context(desiredRetention = 0.9): ReviewContext {
-  return {
-    desiredRetention,
-    maximumIntervalDays: FSRS_DEFAULT_PARAMS.maximumIntervalDays,
-    learningSteps: FSRS_DEFAULT_PARAMS.learningSteps,
-    relearningSteps: FSRS_DEFAULT_PARAMS.relearningSteps,
-  };
+  return { desiredRetention };
 }
 
 const allMemories = vectors.cases.flatMap((c) => c.steps.map((s) => s.memory));

@@ -1,7 +1,7 @@
 /**
- * Replays vectors/evidence.json and vectors/stage.json against src/ through
- * vectors/replay.mjs, the way scripts/mutate.mjs replays them against each
- * mutant. Plain ESM, as the replay is.
+ * Replays vectors/evidence.json, vectors/stage.json and vectors/log.json
+ * against src/ through vectors/replay.mjs, the way scripts/mutate.mjs replays
+ * them against each mutant. Plain ESM, as the replay is.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -10,6 +10,8 @@ import * as config from '../config.js';
 import * as evidence from '../evidence/index.js';
 import * as mastery from '../mastery/index.js';
 import * as memory from '../memory/fsrs.js';
+import * as practice from '../practice.js';
+import * as migrate from '../schema/migrate.js';
 import * as stage from '../stage/index.js';
 
 const MODULES = {
@@ -17,6 +19,8 @@ const MODULES = {
   'evidence/index.ts': evidence,
   'mastery/index.ts': mastery,
   'memory/fsrs.ts': memory,
+  'practice.ts': practice,
+  'schema/migrate.ts': migrate,
   'stage/index.ts': stage,
 };
 const impl = {};
@@ -27,11 +31,15 @@ for (const [module, names] of Object.entries(ENTRY)) {
 const corpus = (file) =>
   JSON.parse(readFileSync(new URL(`../../vectors/${file}`, import.meta.url), 'utf8'));
 
-describe('policy vectors', () => {
-  for (const file of ['evidence.json', 'stage.json']) {
+describe('policy and log vectors', () => {
+  for (const [file, least] of [
+    ['evidence.json', 10],
+    ['stage.json', 10],
+    ['log.json', 10],
+  ]) {
     it(`${file} replays with no difference`, () => {
       const loaded = corpus(file);
-      expect(loaded.vectors.length).toBeGreaterThan(10);
+      expect(loaded.vectors.length).toBeGreaterThanOrEqual(least);
       expect(replay(impl, loaded)).toEqual([]);
     });
   }
@@ -45,6 +53,16 @@ describe('policy vectors', () => {
     expect(replay(impl, { version: 1, vectors: [{ kind: 'nope', name: 'x' }] })).toEqual([
       'x: unknown kind nope',
     ]);
+  });
+
+  it('reports a changed log outcome and a changed migrated state', () => {
+    const loaded = corpus('log.json');
+    const changed = structuredClone(loaded);
+    const log = changed.vectors.find((vector) => vector.kind === 'log' && vector.expected.steps);
+    log.expected.steps[0].kind = 'duplicate';
+    const rows = changed.vectors.find((vector) => vector.kind === 'migrate');
+    rows.expected[0].ok = false;
+    expect(replay(impl, changed)).toHaveLength(2);
   });
 
   it('compares floats at a relative 1e-9 and everything else exactly', () => {
