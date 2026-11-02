@@ -964,7 +964,7 @@ export interface Practice {
   replay(entries: readonly ReviewLogEntry[], graph: SkillGraph, learnerId: string): ReplayResult;
   replayFrom(checkpoint: PracticeState, entries: readonly ReviewLogEntry[], graph: SkillGraph): ReplayResult;
   reconcile(state: PracticeState, graph: SkillGraph): ReconcileReport;
-  exportReviewHistory(entries: readonly ReviewLogEntry[], graph: SkillGraph, learnerId: string): ReviewHistoryExport; // not yet assigned (13)
+  exportReviewHistory(entries: readonly ReviewLogEntry[], graph: SkillGraph, learnerId: string): ReviewHistoryExport; // M8 (13)
 }
 
 export interface RecordInput {
@@ -1052,7 +1052,7 @@ export type JsonSchemaObject = Readonly<Record<string, unknown>>;
 
 **As built in M5 (revised in M5).**
 
-- `createPractice` and `migrateState` are exported; `plan` arrives in M6, the schema constants in M7, and `exportReviewHistory` is not built yet (13).
+- `createPractice` and `migrateState` are exported; `plan` arrives in M6, the schema constants in M7, and `exportReviewHistory` is not built yet (13). (revised in M6) `plan` is built (8.6); `exportReviewHistory` is assigned to M8 (13).
 - `Practice.config` exposes the resolved, frozen configuration (`ResolvedPracticeConfig`) and `configHash` its hash; `PracticeConfig`, the input type, is exported from the root.
 - `initState` throws a `TypeError` for an empty `learnerId` or a graph without a string `version`; `replay` returns those two cases as `SHAPE_INVALID` issues instead.
 - `status` throws a `RangeError` when `now` is not a safe integer, and `PracticeConfigError` with `STATE_CONFIG_MISMATCH` or `GRAPH_VERSION_MISMATCH` issues when the state does not belong to this configuration and graph version; `reconcile` reports and never throws on a version difference.
@@ -1358,6 +1358,22 @@ Ties at any step use `tieKey(seed, skillId) = fnv1a64(canonicalJson(['planner@1'
 
 Default `stageSeconds` (placeholders, Default, changeable, to be replaced by measured times): `recognise` 20, `recall` 30, `produce` 60, `apply` 120, `example` 90, `complete` 180, `write` 420, `transfer` 600; any other stage 120.
 
+**As built in M6 (revised in M6).** Choices the steps above leave open, each pinned by `vectors/plan.json` and the planner tests; a host that needs another behaviour asks for a change before `0.1.0`.
+
+- **Request.** `plan` throws a `TypeError` or `RangeError` for a malformed request (`now` or `dueBy` not a safe integer, `dueBy` before `now`, `seed` not a string, `budget` or `limits` not an object, `pool` not an array, a focus or exclude list that is not an array of strings, `budget.maxTargets` or a limit that is not a safe integer of at least 0 (at least 1 for `maxSkillsPerTarget`), `budget.maxSeconds` NaN or below 0), and `PracticeConfigError` with `STATE_CONFIG_MISMATCH` or `GRAPH_VERSION_MISMATCH` as `status` does. An unset `budget.maxTargets` or `budget.maxSeconds` is unlimited.
+- **Readiness.** The planner derives readiness itself: a skill is ready when it has no hard prerequisites or has been unlocked, and it is not credited. It does not call `status`'s `skillStatus`, which reports an unlocked, unstarted skill with a one-stage ladder as `reviewing` (13).
+- **Soft prerequisites.** "Mastered" in step 2 means mastered or credited.
+- **Focus set.** The closure follows **hard** prerequisites only, in topological order with `tieKey` ties; a focus skill's soft prerequisites are not pulled in (R6.2 says "prerequisites"; see 13).
+- **Retrievability.** Computed for overdue and due memories (the `due` reason carries it, as its type requires), for hard prerequisites of a skill that lapsed within the window, and inside the mastery predicate of a soft prerequisite at the top of its ladder; never for stage-up, new or pretest candidates.
+- **Remediation floor.** The floor is `desiredRetention - retentionMargin` of the prerequisite's current stage (R3.5 (d)). A prerequisite below that floor is usually overdue as well, so with the defaults the remediation tier mostly overlaps the overdue tier and the skill is planned there first (one target per skill). Ties between lapses use the lapsed skill's `tieKey`.
+- **Stage-up.** `fromStage` is the previous stage of the ladder, or `null` at the first stage.
+- **Caps and deferral.** A candidate that does not fit the budget is counted in `deferred` and the fill keeps scanning, so a later, shorter target can still fit. `deferred.newReady` counts the ready new skills not planned, whether the cap, the budget or the backlog rule left them out.
+- **Pretest.** A pretest is added only together with its `new` target; when the two do not fit the budget together, the `new` target is tried alone. There is no pretest when the clipped `pretestStageIndex` is 0 (the new target's own stage). This is the one case where a skill appears in two targets.
+- **Coalescing.** Components join in tier order; a component that joined an earlier target is not planned again. `reason.coalesced` lists them.
+- **Item matching.** An invalid pool item, an unproven one or one with a proof kind outside `acceptProofs` is not matched and `plan` still succeeds; it raises no `ITEM_*` issue (8.10). A proven item without a proof is accepted, as `record` accepts it. An item without `difficulty` counts as difficulty 0. An item is attached to at most one target of a plan; `excludeItems` and `excludeSkills` apply to every tier.
+- **Order.** Step 6 runs on units (a pretest with its `new` target never splits): first the interleave groups, then the declarative new block at the first one's place, then a new target next to a new target of the same group swaps with the next unrelated target.
+- **Version.** `algorithm` is `{ id: 'planner', version: 1 }`.
+
 ### 8.7 Held, confirmed and out-of-order evidence
 
 - Replay sorts entries by `(at, seq)` and first builds an index `confirmations: heldId -> first confirming entry`. When replay reaches a held entry that has a confirmation, it applies the confirmation's source and outcomes with the held entry's task and `at`; when it reaches the confirmation, it emits `evidence.confirmed` only. A held entry with a `discard-held` before any confirmation stays unapplied.
@@ -1386,13 +1402,13 @@ Every `check*`, `validate*`, `record` and `act` failure is an `Issue` with a sta
 | `GRAPH_CYCLE` | `validateGraph`, `composeGraph` | The prerequisite edges, hard and soft, contain a cycle, or the `encompasses` edges do; one issue per cycle (R2.1). |
 | `ENCOMPASSES_WITHOUT_PREREQUISITE` (warning) | `validateGraph`, `composeGraph` | The component of an `encompasses` edge does not reach its composite through prerequisite edges of either strength (R2.1). |
 | `SKILL_UNKNOWN`, `STAGE_UNKNOWN`, `STAGE_NOT_IN_LADDER` | validation, `record` | A reference to a skill or stage that the graph does not define for that skill; `STAGE_NOT_IN_LADDER` also covers a `forms` key that is not a stage of the skill's ladder. |
-| `ITEM_UNKNOWN`, `ITEM_UNPROVEN` | `record`, `plan` pool validation | The evidence names no known item, or an item that is not proven. (revised in M5) `ITEM_UNKNOWN` also covers an item whose `id` differs from the evidence's `itemId`; `ITEM_UNPROVEN` covers a proof kind outside `acceptProofs`. |
+| `ITEM_UNKNOWN`, `ITEM_UNPROVEN` | `record` | The evidence names no known item, or an item that is not proven. (revised in M5) `ITEM_UNKNOWN` also covers an item whose `id` differs from the evidence's `itemId`; `ITEM_UNPROVEN` covers a proof kind outside `acceptProofs`. (revised in M6) `plan` raises neither: a pool item that would fail is not matched (8.6). |
 | `SKILL_NOT_IN_TASK` | `validateItems`, `record` | A criterion or a skill outcome names a skill the task does not exercise: neither a listed skill nor one of their `encompasses` components. |
 | `EXTENSION_NOT_ADMITTED` | `composeGraph` | An extension passed to `composeGraph` is still `proposed`. |
 | `EXTENSION_ID_OUTSIDE_PREFIX` | `composeGraph` | An extension's skill id is not its `idPrefix` or under it (`prefix.` followed by more). |
 | `EXTENSION_EDGE_INTO_BASE` | `composeGraph` | An extension edge points at a base skill; extensions only add edges into their own skills. |
 | `STATE_CONFIG_MISMATCH` | `record`, `act`, `replayFrom`, `status`, `plan` | The state was built with a different configuration hash. (revised in M5: also `replayFrom` and `status`.) |
-| `GRAPH_VERSION_MISMATCH` | `record`, `act`, `replayFrom`, `status` | The state was built against a different graph version; replay it. (revised in M5: also `replayFrom` and `status`.) |
+| `GRAPH_VERSION_MISMATCH` | `record`, `act`, `replayFrom`, `status`, `plan` | The state was built against a different graph version; replay it. (revised in M5: also `replayFrom` and `status`; revised in M6: also `plan`.) |
 | `REPLAY_CHECKPOINT_TOO_NEW` | `replayFrom` | An entry not in the checkpoint is earlier than the checkpoint's last instant, or (revised in M5) a new entry confirms evidence the checkpoint holds after the checkpoint applied later entries (7). |
 | `HELD_UNKNOWN` (revised in M5) | `record`, `act`, `replay`, `replayFrom` | A confirmation or `discard-held` names no held evidence (`record`, `act`), or neither a held record of the start state nor an earlier evidence entry (replay). |
 | `CONFIRMATION_INVALID` (revised in M5) | `record`, `replay`, `replayFrom` | A confirmation does not fit the evidence it confirms: an `at` before it, another `itemId`, a `supplements` field, or a source that would itself be held (`exposure`, `pending`, or a held AI or human grade). Outcomes outside the held task are `SKILL_NOT_IN_TASK`. |
@@ -1441,11 +1457,11 @@ Every `check*`, `validate*`, `record` and `act` failure is an `Issue` with a sta
 | Simulation | 90 simulated days; policy comparisons reported, not asserted | `src/testing/__tests__/simulate.test.ts` | M8 |
 | Purity | Static scan of `dist/` and the runtime trap | `scripts/verify-dist.mjs`, `src/__tests__/purity.test.ts` | M1 (skeleton), M8 (all vectors) |
 | Types | `expectTypeOf` on public types, `exactOptionalPropertyTypes` cases | `src/__tests__/types.test.ts` | M2 onwards |
-| Mutation | `pnpm mutate` on `evidence/`, `stage/`, `mastery/` (all of it, revised in M4: Elo and the per-stage ability as well as the predicate), `planner/`; (revised in M5) `log/`, `status/` and `schema/` with `--modules log,status,schema`, against the vectors including `log.json` | `scripts/mutate.mjs --package lk-practice` (generalised) | M4 onwards |
+| Mutation | `pnpm mutate` on `evidence/`, `stage/`, `mastery/` (all of it, revised in M4: Elo and the per-stage ability as well as the predicate), `planner/`; (revised in M5) `log/`, `status/` and `schema/` with `--modules log,status,schema`, against the vectors including `log.json`; (revised in M6) `planner/` with `--modules planner`, against the vectors including `plan.json` | `scripts/mutate.mjs --package lk-practice` (generalised) | M4 onwards |
 | Contract | Structural types accept real `lk-core` types; real `evaluate` outputs map as R7.7 says | `src/adapters/lk-core/__tests__/contract.test.ts` | M10 |
 | Benchmark | R12.4 targets, tracked, not gated; the 8.6 fallback if `plan` misses | `bench/plan.bench.mjs` | M8 |
 
-Coverage: the repository's 80% gate overall and 100% lines and branches for the gated modules, set in `vitest.config.ts`. (revised in M5) The gated modules are `evidence/`, `stage/`, `mastery/`, `log/`, `schema/`, `status/` and `practice.ts`; the planner joins in M6. Property tests use fast-check with `numRuns` of at least 100 and the property in the test title.
+Coverage: the repository's 80% gate overall and 100% lines and branches for the gated modules, set in `vitest.config.ts`. (revised in M5) The gated modules are `evidence/`, `stage/`, `mastery/`, `log/`, `schema/`, `status/` and `practice.ts`; the planner joins in M6. (revised in M6) `planner/` is gated. Property tests use fast-check with `numRuns` of at least 100 and the property in the test title.
 
 ## 11. Repository wiring
 
@@ -1463,6 +1479,7 @@ Line numbers were read on 2026-11-01 and may drift; each milestone re-reads them
 | `turbo.json` | No change expected (generic task configs); confirmed at M1. | - |
 | `scripts/mutate.mjs` | Generalise beyond `lk-core` (package and module list as arguments). | M4 |
 | `scripts/mutate.mjs` (revised in M5) | `lk-practice`'s corpora add `vectors/log.json`; the default module list is unchanged, and `log`, `status` and `schema` run with `--modules`. | M5 |
+| `scripts/mutate.mjs` (revised in M6) | `lk-practice`'s corpora add `vectors/plan.json`; `planner` runs with `--modules planner`. | M6 |
 | `packages/lk-practice/package.json` dependencies | Add `"ts-fsrs": "6.0.0"` (exact). | M3 |
 | `scripts/check-doc-imports.mjs` (`PACKAGES`, line 22) | Add `lk-practice`, so README and guide imports are checked. | M9 |
 | `.size-limit.json` | Entries for `.`, `./lk-core`, `./testing` in the existing `{ name, path, import, limit }` form, limits from the first build with headroom. | M9 (root and `./testing`), M10 (`./lk-core`) |
@@ -1506,8 +1523,11 @@ On Node 24, a **practice module** in the LMS backend: on enrolment it records `a
 | FSRS memory field list | Decided in M3 | Eight fields (8.4); frozen by `memory.json`. |
 | Per-stage retention in the scheduler | Decided in M3 | Retention is bound at creation in 6.0.0, so one scheduler per distinct value (8.4). |
 | Steps and maximum interval in `ReviewContext` | Decided in M5 | (revised in M5) Removed from the port; `ReviewContext` is `{ desiredRetention }` and the steps and maximum interval are model options (8.4). |
-| `exportReviewHistory` (R4.8) | Open (revised in M5) | Not built in M5 and not yet assigned to a milestone; R4.8 still requires it, so a milestone before the release (M9) has to take it. |
+| `exportReviewHistory` (R4.8) | Assigned to M8 (revised in M6) | Not built in M5 or M6. (revised in M6) Assigned to M8, beside the simulator whose long histories it exports; R4.8 is unchanged. |
 | `stageSeconds` defaults | Placeholder | Replaced by measured times from real hosts. |
+| Focus closure over hard prerequisites only (revised in M6) | Design judgement, open | R6.2 says "prerequisites"; M6 follows hard ones only (8.6), because a soft prerequisite does not lock its skill. Following soft ones too is a behaviour change to `plan` before `0.1.0`. |
+| Remediation overlapping the overdue tier (revised in M6) | Open | With the defaults a prerequisite below its floor is usually overdue too, so remediation targets are rare; the simulator (M8) shows how often they occur. |
+| `skillStatus` for an unlocked, unstarted one-stage skill (revised in M6) | Open finding | `status` reports it as `reviewing`; the planner does not depend on it (8.6). Not changed in M6. |
 | `ability.stageOffset` (1 logit per demand step) | Placeholder | No empirical basis yet; the simulator compares 0, 0.5 and 1 (D27). |
 | Default stage demand pairing across ladders | Design judgement | `example` = `recognise`, `complete` = `recall`, `write` = `produce`, `transfer` = `apply`; hosts override with `stageDemand` (D28). |
 | `plan` cost at 2,000 skills and 10,000 items | Open until M8 | Benchmark; the fallback in 8.6. |

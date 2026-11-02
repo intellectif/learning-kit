@@ -144,8 +144,9 @@ function smoke(format, module) {
       problems.push(`${format} mapEvidence throws ${String(error)}, not PracticeConfigError.`);
     }
   }
-  // The log: the smoke evidence recorded, replayed to the same state, and the
-  // stored state read back by migrateState (design 6).
+  // The log: the smoke evidence recorded, replayed to the same state, the
+  // stored state read back by migrateState (design 6), and a session planned
+  // from it (design 8.6; revised in M6).
   const practice = module.createPractice({});
   const recorded = practice.record(practice.initState('l1', SMOKE_GRAPH), {
     graph: SMOKE_GRAPH,
@@ -164,6 +165,15 @@ function smoke(format, module) {
     const read = module.migrateState(JSON.parse(JSON.stringify(recorded.state)));
     if (!read.ok || !isDeepStrictEqual(read.state, recorded.state)) {
       problems.push(`${format} migrateState does not read the stored state back.`);
+    }
+    const request = { now: SMOKE_EVIDENCE.at + 30 * 86_400_000, seed: 's1', budget: {} };
+    const planned = practice.plan(recorded.state, SMOKE_GRAPH, request);
+    if (
+      planned.algorithm.id !== 'planner' ||
+      planned.targets.length === 0 ||
+      !isDeepStrictEqual(planned, practice.plan(recorded.state, SMOKE_GRAPH, request))
+    ) {
+      problems.push(`${format} createPractice().plan gives ${JSON.stringify(planned.targets)}.`);
     }
   }
   return problems;

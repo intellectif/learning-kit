@@ -10,6 +10,7 @@ import { PracticeConfigError } from './errors.js';
 import { createEngine } from './log/context.js';
 import { recordEvidence, recordHostAction } from './log/record.js';
 import { replayLog, replayLogFrom } from './log/replay.js';
+import { planSession } from './planner/index.js';
 import { learnerStatus, reconcileState } from './status/summary.js';
 import type { Practice, PracticeConfig, PracticeState, SkillGraph } from './types.js';
 
@@ -51,6 +52,7 @@ export function createPractice(config: PracticeConfig = {}): Practice {
     record: (state, input) => recordEvidence(engine, state, input),
     act: (state, graph, input) => recordHostAction(engine, state, graph, input),
     status: (state, graph, now) => learnerStatus(engine, state, graph, now),
+    plan: (state, graph, request) => planSession(engine, state, graph, request),
     replay: (entries, graph, learnerId) => {
       if (!isId(learnerId) || typeof graph?.version !== 'string') {
         return Object.freeze({

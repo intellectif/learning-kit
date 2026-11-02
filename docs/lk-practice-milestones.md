@@ -154,6 +154,7 @@ Commands, with `<branch>` and `<title>` from the milestone:
   - [ ] Budget fill, interleaving, target ids and tie keys.
 - **Gates:** 100% on planner selection; mutation; property tests.
 - **Acceptance:** criteria 6, 7, 8, 9.
+- **As built (revised in M6):** `src/planner/` (`keys`, `request`, `tiers`, `match`, `order`, `plan`), `vectors/plan.json` from `scripts/plan-vectors.mjs` (`vectors:plan`), and the `plan` kind in `vectors/replay.mjs`. `planner/` is in the 100% coverage gate and runs with `pnpm mutate --package lk-practice --modules planner`. The choices the design left open are listed under "As built in M6" in design 8.6.
 - **Changeset:** none.
 
 ## M7 - Contracts
@@ -173,11 +174,12 @@ Commands, with `<branch>` and `<title>` from the milestone:
 ## M8 - Testing subpath and vectors runner
 
 - **Branch:** `feat/lk-practice-testing`. **Title:** `feat: lk-practice testing subpath, vectors runner and benchmark`.
-- **Scope:** `./testing` export (simulated learner), `vectors/replay.mjs`, the runtime purity trap over all vectors, `bench/plan.bench.mjs`.
+- **Scope:** `./testing` export (simulated learner), `vectors/replay.mjs`, the runtime purity trap over all vectors, `bench/plan.bench.mjs`, `exportReviewHistory` (R4.8; revised in M6).
 - **Files:** `src/testing/*`, `package.json` (exports), `vectors/replay.mjs`, `scripts/verify-dist.mjs`, `bench/`, `api/surface.md`.
 - **Tasks:**
   - [ ] Seeded simulator over 90 simulated days; report policy comparisons, including `stageOffset` 0, 0.5 and 1.
   - [ ] `replay.mjs` runs every vector file against `dist/`. (revised in M5) It already replays `log.json` against src/; its `ENTRY` also names internal functions (`abilityAt`, `updateAbility`, `createStagePolicy` and others) that `dist/` does not export, so this task decides whether `./testing` exposes them or the `dist/` run covers the public functions only.
+  - [ ] (revised in M6) `exportReviewHistory(entries, graph, learnerId)` (R4.8, design 5.9): replay the log and return, per skill and stage, the ordered reviews with rating and timestamp; vectors in `vectors/log.json`. Assigned here because the simulator produces the long histories it is meant to export.
   - [ ] Benchmark against R12.4 (including `plan` at 2,000 skills and 10,000 items); record numbers in the pull request and in R12.4; if `plan` misses, apply the design 8.6 fallback.
 - **Gates:** all vectors pass with the purity trap installed.
 - **Acceptance:** criterion 14.
