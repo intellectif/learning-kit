@@ -157,7 +157,8 @@ describe('the runtime purity trap', () => {
       defaultConfig(),
     );
     expect(mapped.perSkill[0]?.rating).toBe('easy');
-    // The practice object: record, a host action, replay, status, migrate.
+    // The practice object: record, a host action, replay, status, plan
+    // (revised in M6), migrate.
     const practice = entry.createPractice();
     const item = {
       id: 'i',
@@ -183,6 +184,13 @@ describe('the runtime purity trap', () => {
     const replayed = practice.replay([...first.appended, ...second.appended], graph, 'l');
     expect(replayed.ok && replayed.state).toEqual(second.state);
     expect(practice.status(second.state, graph, at + 2).skills).toHaveLength(2);
+    const planned = practice.plan(second.state, graph, {
+      now: at + 30 * 86_400_000,
+      seed: 's1',
+      pool: [item],
+      budget: { maxTargets: 2 },
+    });
+    expect(planned.targets[0]?.skillIds).toEqual(['a']);
     expect(entry.migrateState(JSON.parse(JSON.stringify(second.state))).ok).toBe(true);
   });
 });

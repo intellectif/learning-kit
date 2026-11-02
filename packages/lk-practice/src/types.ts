@@ -1113,8 +1113,9 @@ export type GraphComposition =
 
 /**
  * A configuration bound by `createPractice`: pure functions over the state and
- * the log, with no mutable state of its own. **(revised in M5)** `plan` arrives
- * in M6; `exportReviewHistory` is not implemented yet (design 13).
+ * the log, with no mutable state of its own. **(revised in M6)** `plan` is
+ * implemented; `exportReviewHistory` is not implemented yet and is assigned to
+ * M8 (design 13).
  */
 export interface Practice {
   readonly config: ResolvedPracticeConfig;
@@ -1127,6 +1128,8 @@ export interface Practice {
   act(state: PracticeState, graph: SkillGraph, input: HostActionInput): RecordResult;
   /** The live status of every graph skill at `now`; reads state, emits nothing. */
   status(state: PracticeState, graph: SkillGraph, now: number): LearnerSummary;
+  /** The ordered targets of the next session within budget (R6, design 8.6); reads state, emits nothing. */
+  plan(state: PracticeState, graph: SkillGraph, request: PlanRequest): SessionPlan;
   /** The state a log gives from the start, sorted by `(at, seq)` (R5.3, R11.7). */
   replay(entries: readonly ReviewLogEntry[], graph: SkillGraph, learnerId: string): ReplayResult;
   /** `replay`, continued from a stored state with the entries it has not applied. */

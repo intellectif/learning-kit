@@ -1,7 +1,8 @@
 /**
- * Replays vectors/evidence.json, vectors/stage.json and vectors/log.json
- * against src/ through vectors/replay.mjs, the way scripts/mutate.mjs replays
- * them against each mutant. Plain ESM, as the replay is.
+ * Replays vectors/evidence.json, vectors/stage.json, vectors/log.json and
+ * vectors/plan.json (revised in M6) against src/ through vectors/replay.mjs,
+ * the way scripts/mutate.mjs replays them against each mutant. Plain ESM, as
+ * the replay is.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -31,11 +32,12 @@ for (const [module, names] of Object.entries(ENTRY)) {
 const corpus = (file) =>
   JSON.parse(readFileSync(new URL(`../../vectors/${file}`, import.meta.url), 'utf8'));
 
-describe('policy and log vectors', () => {
+describe('policy, log and plan vectors', () => {
   for (const [file, least] of [
     ['evidence.json', 10],
     ['stage.json', 10],
     ['log.json', 10],
+    ['plan.json', 10],
   ]) {
     it(`${file} replays with no difference`, () => {
       const loaded = corpus(file);
@@ -62,6 +64,20 @@ describe('policy and log vectors', () => {
     log.expected.steps[0].kind = 'duplicate';
     const rows = changed.vectors.find((vector) => vector.kind === 'migrate');
     rows.expected[0].ok = false;
+    expect(replay(impl, changed)).toHaveLength(2);
+  });
+
+  it('reports a changed plan target and a changed thrown error', () => {
+    const loaded = corpus('plan.json');
+    const changed = structuredClone(loaded);
+    const planned = changed.vectors.find((vector) =>
+      vector.expected.plans.some((entry) => entry.targets?.length > 0),
+    );
+    planned.expected.plans.find((entry) => entry.targets?.length > 0).targets[0].stage = 'x';
+    const thrown = changed.vectors.find((vector) =>
+      vector.expected.plans.some((entry) => entry.$throws !== undefined),
+    );
+    thrown.expected.plans.find((entry) => entry.$throws !== undefined).$throws = 'Error';
     expect(replay(impl, changed)).toHaveLength(2);
   });
 

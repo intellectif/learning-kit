@@ -38,6 +38,7 @@
  *   pnpm mutate --package lk-practice --modules stage     # one module
  *   pnpm mutate --package lk-practice --modules mastery/predicate.ts,evidence
  *   pnpm mutate --package lk-practice --modules log,status,schema   # the log
+ *   pnpm mutate --package lk-practice --modules planner             # the planner
  */
 
 import { execFileSync } from 'node:child_process';
@@ -84,13 +85,18 @@ const PACKAGES = {
     modules: ['evidence', 'stage', 'mastery'],
     entry: 'stdin',
     external: ['ts-fsrs', 'ts-fsrs/*'],
-    corpora: ['vectors/evidence.json', 'vectors/stage.json', 'vectors/log.json'],
+    corpora: [
+      'vectors/evidence.json',
+      'vectors/stage.json',
+      'vectors/log.json',
+      'vectors/plan.json',
+    ],
     replay: 'vectors/replay.mjs',
     failures: 'replay(core, corpus).length',
     advice:
       '\nFor each: does it change what a learner practises next (a rating, a weight,\n' +
       'a stage move, a due cap, an ability, a mastery condition, a log outcome, an\n' +
-      'event or a stored state)? If yes, the vectors need a case that tells the two\n' +
+      'event, a stored state or a planned target)? If yes, the vectors need a case that tells the two\n' +
       'apart. If no (an error message, an equivalent expression, a type-only path)\n' +
       'say so in the pull request.',
   },

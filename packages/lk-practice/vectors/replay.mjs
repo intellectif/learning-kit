@@ -1,9 +1,10 @@
 /**
  * Replays the policy vectors (`evidence.json`, `stage.json`) against an
  * implementation of the evidence mapper, the Elo ability, the stage policy and
- * the mastery predicate (design 8.2, 8.3, 8.5), and the log vectors
+ * the mastery predicate (design 8.2, 8.3, 8.5), the log vectors
  * (`log.json`) against `createPractice` and `migrateState` (design 6, 8.1,
- * 8.7; revised in M5).
+ * 8.7; revised in M5), and the plan vectors (`plan.json`) against
+ * `createPractice` (design 8.6; revised in M6).
  *
  * Plain ESM with no imports, so the unit tests, `scripts/mutate.mjs` and
  * another implementation can all run it. `impl` is an object holding the
@@ -120,19 +121,14 @@ const replayed = (result) =>
   result.ok ? { ok: true, state: result.state } : { ok: false, issues: issuesOf(result.issues) };
 
 /**
- * Runs a learner's steps through `createPractice(config)`: each step records
- * evidence (`evidence`, `item`) or acts (`act`), against `graphs.main` unless
- * it names another graph, and through a practice of `alternate` when `with`
- * says so. A replay-required step appends and then replays the whole log, as
- * a host does. The result is each step's outcome, the log, the final state,
- * its replay, a replay from each `checkpoints` cut (the replay of the first
- * entries, then the rest), the replay under `recompute`, `status` at each
- * `now`, and `reconcile` against each graph named in `reconcile`.
+ * Applies a learner's steps with `practice`: each step records evidence
+ * (`evidence`, `item`) or acts (`act`), against `graphs.main` unless it names
+ * another graph, and through `alternate` when `with` says so. A
+ * replay-required step appends and then replays the whole log, as a host
+ * does. Returns each step's outcome, the log and the final state (shared by
+ * the `log` and `plan` kinds; revised in M6).
  */
-function runLog(impl, v) {
-  const practice = attempt(() => impl.createPractice(v.config ?? {}));
-  if (practice.$throws !== undefined) return practice;
-  const alternate = v.alternate === undefined ? practice : impl.createPractice(v.alternate);
+function learn(practice, alternate, v) {
   const main = v.graphs.main;
   let state = practice.initState(v.learnerId, main);
   const entries = [];
@@ -159,6 +155,24 @@ function runLog(impl, v) {
     }
     return outcome(result);
   });
+  return { state, entries, steps };
+}
+
+/**
+ * Runs a learner's steps (see `learn`) through `createPractice(config)`, and
+ * `alternate` where a step says so. The result is each step's outcome, the
+ * log, the final state, its replay, a replay from each `checkpoints` cut (the
+ * replay of the first entries, then the rest), the replay under `recompute`,
+ * `status` at each `now`, `status` against each named graph at each
+ * `statusOn` instant, and `reconcile` against each graph named in
+ * `reconcile`.
+ */
+function runLog(impl, v) {
+  const practice = attempt(() => impl.createPractice(v.config ?? {}));
+  if (practice.$throws !== undefined) return practice;
+  const alternate = v.alternate === undefined ? practice : impl.createPractice(v.alternate);
+  const main = v.graphs.main;
+  const { state, entries, steps } = learn(practice, alternate, v);
   const full = practice.replay(entries, main, v.learnerId);
   return {
     configHash: practice.configHash,
@@ -179,6 +193,13 @@ function runLog(impl, v) {
           recompute: replayed(impl.createPractice(v.recompute).replay(entries, main, v.learnerId)),
         }),
     status: (v.now ?? []).map((now) => attempt(() => practice.status(state, main, now))),
+    ...(v.statusOn === undefined
+      ? {}
+      : {
+          statusOn: v.statusOn.map(({ graph, now }) =>
+            attempt(() => practice.status(state, v.graphs[graph], now)),
+          ),
+        }),
     reconcile: (v.reconcile ?? []).map((name) => practice.reconcile(state, v.graphs[name])),
   };
 }
@@ -274,6 +295,30 @@ const RUN = {
   },
   status: (impl, v) => impl.skillStatus(v.state ?? undefined, v.input),
   log: runLog,
+  // The learner's steps (see `learn`), then `plan` for each request against
+  // `graphs.main` or the graph it names (design 8.6; revised in M6).
+  plan: (impl, v) => {
+    const practice = impl.createPractice(v.config ?? {});
+    const { state, steps } = learn(practice, practice, v);
+    return {
+      steps,
+      plans: v.requests.map(({ graph, request }) =>
+        attempt(() => practice.plan(state, v.graphs[graph ?? 'main'], request)),
+      ),
+    };
+  },
+  // A stored log replayed as given, from the start or from `checkpoint`, so
+  // the rejections of replay itself are pinned (revised in M6).
+  replay: (impl, v) => {
+    const practice = impl.createPractice(v.config ?? {});
+    const result =
+      v.checkpoint === undefined
+        ? practice.replay(v.entries, v.graph, v.learnerId)
+        : practice.replayFrom(v.checkpoint, v.entries, v.graph);
+    return result.ok
+      ? { ok: true, state: result.state, events: result.events }
+      : { ok: false, issues: issuesOf(result.issues) };
+  },
   migrate: (impl, v) =>
     v.rows.map((raw) => {
       const result = impl.migrateState(raw);
