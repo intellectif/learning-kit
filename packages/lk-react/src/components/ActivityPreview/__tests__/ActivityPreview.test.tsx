@@ -393,6 +393,26 @@ describe('<ActivityPreview>', () => {
     expect(screen.getByRole('note')).toHaveTextContent(DEFAULT_STRINGS.unsupportedActivity);
   });
 
+  it('notes a spoken answer, which has no built-in component yet, and draws it through renderers', () => {
+    const answer = {
+      ...createDraft('speaking-response', { newId: counter() }),
+      title: 'City or country',
+      prompt: 'Would you rather live in a city? Say why.',
+      locale: 'en-US',
+      recording: { maxSeconds: 60 },
+      rubric: { criteria: [{ name: 'Content', weight: 1 }] },
+    };
+    const { unmount } = render(<ActivityPreview draft={answer} />);
+    expect(screen.getByRole('note')).toHaveTextContent(DEFAULT_STRINGS.unsupportedActivity);
+    unmount();
+
+    function Spoken({ data }: ActivityProps) {
+      return <p>Host renderer for {data.type}</p>;
+    }
+    render(<ActivityPreview draft={answer} renderers={{ 'speaking-response': Spoken }} />);
+    expect(screen.getByText('Host renderer for speaking-response')).toBeInTheDocument();
+  });
+
   it('throws on wiring errors instead of guessing', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(() => render(<ActivityPreview draft={{ title: 'No type' }} />)).toThrow(/string `type`/);

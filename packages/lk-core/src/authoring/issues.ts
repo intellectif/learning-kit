@@ -162,6 +162,24 @@ export const DRAFT_ISSUE_SEVERITY = {
   ra_slow_media_without_media: 'incomplete',
   ra_slow_media_same_recording: 'invalid',
   ra_slow_media_beside_play_limit: 'invalid',
+  // speaking-response
+  sr_prompt_required: 'incomplete',
+  sr_locale_required: 'incomplete',
+  sr_locale_invalid: 'invalid',
+  sr_max_seconds_required: 'incomplete',
+  sr_max_seconds_out_of_range: 'invalid',
+  sr_min_seconds_out_of_range: 'invalid',
+  sr_max_takes_out_of_range: 'invalid',
+  sr_rubric_required: 'incomplete',
+  sr_rubric_criteria_required: 'incomplete',
+  sr_criterion_name_required: 'incomplete',
+  sr_criterion_name_duplicate: 'invalid',
+  sr_criterion_weight_required: 'incomplete',
+  sr_criterion_weight_invalid: 'invalid',
+  sr_criterion_measure_invalid: 'invalid',
+  sr_criterion_measure_duplicate: 'invalid',
+  sr_rubric_weights_zero: 'incomplete',
+  sr_rubric_weights_too_large: 'invalid',
 } as const satisfies Readonly<Record<string, DraftSeverity>>;
 
 export type DraftIssueCode = keyof typeof DRAFT_ISSUE_SEVERITY;

@@ -826,6 +826,52 @@ is scored as the word `and` by the scorer. No rule can turn typed words into
 nothing, and `isAnswered` cuts text at the 8000-character cap as the scorer
 does, so the reverse never happens.
 
+### Speaking Response — answer out loud (1.9)
+
+The learner answers a prompt out loud, optionally about a picture or after a
+recording, and the answer is graded on a rubric. Like a written response it is
+**deferred**: nothing grades it in the browser.
+
+```jsonc
+{
+  "schemaVersion": "1.0",
+  "type": "speaking-response",
+  "id": "city-or-country",
+  "title": "City or country",
+  "prompt": "Would you rather live in a city or in the country? Say why.",
+  "locale": "en-US",
+  "media": { "type": "image", "url": "https://example.com/street.png", "alt": "A busy street" },
+  "recording": { "minSeconds": 10, "maxSeconds": 60, "maxTakes": 2 },
+  "languageTarget": "en-B1",
+  "rubric": {
+    "criteria": [
+      { "name": "Content", "weight": 2 },
+      { "name": "Language", "weight": 1 },
+      { "name": "Pronunciation", "weight": 1, "measure": "pronunciation" },
+      { "name": "Fluency", "weight": 1, "measure": "fluency" }
+    ]
+  }
+}
+```
+
+- **A criterion with a `measure` is scored by the speech engine**:
+  `pronunciation` from the assessment's accuracy, `fluency` from its fluency,
+  `prosody` from its prosody. A criterion without one is a judge's: a model
+  behind the calibration gate, or a person, scoring the transcript of what was
+  said. A host can let the judge score the measured criteria too. At most one
+  criterion per measure; names are unique as a judgement matches them (case and
+  spacing ignored).
+- **The locale is canonical, with a region** (`en-US`), as a read-aloud's is: the
+  engine measures against one locale's speech.
+- **The response is a recording**, `{ type: 'speaking-response', recording }`,
+  with `recording: null` for a learner who submitted without speaking — a 0, as
+  on a read-aloud.
+- **The rubric reaches the learner**, `measure` included, as a written
+  response's does.
+- **The server grades it** with `gradeSpeakingResponse`, from the engine's
+  unscripted assessment of the take and the judge's marks: see
+  [Speech assessment](./speech-assessment.md#spoken-answers-19).
+
 ### Feedback
 
 Two composable layers, both authored by you. The SDK never *writes* feedback, but it does **select** it: since 0.3.0 `score()` and `evaluate()` set `ScoringResult.feedback` to `feedback.correct` or `feedback.incorrect` according to `passed`, so a server scoring headlessly gets the same message the component shows and does not have to reimplement the choice.
@@ -911,6 +957,7 @@ first.
 | `gap-select` | an empty passage, no gaps, `scoringStrategy: 'all-or-nothing'`, **no choice marked correct** |
 | `dictation` | an empty title and an empty transcript; no recording, hints, tolerances or accepted transcripts; no `scoringStrategy` — the type has one strategy |
 | `read-aloud` | an empty title, text to read and locale; `recording: { maxSeconds: 0 }`; `scoring: { dimensions: [] }` — **no dimension is weighted**, because which of accuracy, fluency, completeness and prosody a grade counts, and what each is worth, is a teaching decision, and a defaulted set would let an author write the text, never open the scoring control, and hold a `complete` item graded on weights nobody chose |
+| `speaking-response` | an empty title, prompt and locale; `recording: { maxSeconds: 0 }`; `rubric: { criteria: [] }` — how long an answer may be, its language and what it is graded on are teaching decisions |
 
 Three of those are decisions:
 
@@ -1107,6 +1154,31 @@ a kind that is not `audio` — is reported as `media_invalid`: the policy belong
 on `media`, which the slow recording follows, and captions are allowed on a
 read-aloud recording, because the text being read is public and captions of it
 withhold nothing. A new `read-aloud` draft has no `scoringStrategy` to choose and
+`scoring_strategy_required` is never reported for it.
+
+`speaking-response`:
+
+| Code | Severity | Path | When |
+|---|---|---|---|
+| `sr_prompt_required` | incomplete | `prompt` | Absent, or only whitespace — even when `promptHtml` is set, because the plain prompt is what is shown without a sanitiser |
+| `sr_locale_required` | incomplete | `locale` | Absent, empty, or only whitespace |
+| `sr_locale_invalid` | invalid | `locale` | Written, but not a BCP 47 tag in canonical form with a region: `en-US`, `es-419`, `zh-Hant-TW` |
+| `sr_max_seconds_required` | incomplete | `recording.maxSeconds` | No `recording` at all, or a `maxSeconds` that is not set or `0` |
+| `sr_max_seconds_out_of_range` | invalid | `recording.maxSeconds` | A number that is not above 0 and at most 300 |
+| `sr_min_seconds_out_of_range` | invalid | `recording.minSeconds` | Negative, or not below `maxSeconds` |
+| `sr_max_takes_out_of_range` | invalid | `recording.maxTakes` | A number that is not a whole number from 1 to 20 |
+| `sr_rubric_required` | incomplete | `rubric` | No rubric |
+| `sr_rubric_criteria_required` | incomplete | `rubric.criteria` | A rubric with no criteria |
+| `sr_criterion_name_required` | incomplete | `rubric.criteria.N.name` | Absent, or only whitespace |
+| `sr_criterion_name_duplicate` | invalid | `rubric.criteria.N.name` | The name of an earlier criterion, case and spacing ignored, reported at the second: a judgement names the criterion it scores |
+| `sr_criterion_weight_required` | incomplete | `rubric.criteria.N.weight` | Not set |
+| `sr_criterion_weight_invalid` | invalid | `rubric.criteria.N.weight` | Not a finite number of 0 or more |
+| `sr_criterion_measure_invalid` | invalid | `rubric.criteria.N.measure` | Not one of `pronunciation`, `fluency`, `prosody` |
+| `sr_criterion_measure_duplicate` | invalid | `rubric.criteria.N.measure` | A measure an earlier criterion is already scored from, reported at the second |
+| `sr_rubric_weights_zero` | incomplete | `rubric.criteria` | Every weight is 0, so no weighted total can be computed |
+| `sr_rubric_weights_too_large` | invalid | `rubric.criteria` | The weights add up to more than a number can hold |
+
+A new `speaking-response` draft has no `scoringStrategy` to choose and
 `scoring_strategy_required` is never reported for it.
 
 **`null` is a value, not an absence.** A required field that is `null` counts as

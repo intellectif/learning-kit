@@ -579,6 +579,49 @@ const readAloudDraft = fc
   })
   .map(compact);
 
+/** A speaking criterion: a written one, and the measure that may score it — including one that is not. */
+const speakingCriterionArb = entry(
+  fc
+    .record({
+      name: text,
+      description: optionalText,
+      weight: fc.constantFrom<unknown>(undefined, null, 0, 1, 2, -1, Number.NaN, Number.MAX_VALUE),
+      measure: fc.constantFrom<unknown>(
+        undefined,
+        null,
+        '',
+        'pronunciation',
+        'fluency',
+        'prosody',
+        'pitch',
+      ),
+    })
+    .map(compact),
+);
+
+const speakingResponseDraft = fc
+  .record({
+    ...envelope('speaking-response'),
+    instructions: optionalText,
+    prompt: text,
+    promptHtml: optionalText,
+    recording: orUnset(recordingArb),
+    rubric: orUnset(
+      fc
+        .record({
+          label: optionalText,
+          criteria: orUnset(fc.array(speakingCriterionArb, { maxLength: 4 })),
+        })
+        .map(compact),
+    ),
+    languageTarget: optionalText,
+    ...sharedArbs,
+    // After the shared fields: as a read-aloud's, the locale decides the grade.
+    locale: readAloudLocaleArb,
+    media: orUnset(readAloudMediaArb),
+  })
+  .map(compact);
+
 /** An editor's draft of each type: a type without one does not compile. */
 const EDITOR_DRAFTS = Object.entries({
   'multiple-choice': multipleChoiceDraft,
@@ -587,6 +630,7 @@ const EDITOR_DRAFTS = Object.entries({
   'gap-select': gapSelectDraft,
   dictation: dictationDraft,
   'read-aloud': readAloudDraft,
+  'speaking-response': speakingResponseDraft,
 } satisfies Record<BuiltInActivityType, fc.Arbitrary<Record<string, unknown>>>) as [
   BuiltInActivityType,
   fc.Arbitrary<Record<string, unknown>>,
@@ -602,6 +646,7 @@ const RESPONSES = {
   // A learner who submitted without recording: the blank a deferred type still
   // has to evaluate without throwing.
   'read-aloud': { type: 'read-aloud', recording: null },
+  'speaking-response': { type: 'speaking-response', recording: null },
 } satisfies Record<BuiltInActivityType, LearnerResponse>;
 
 describe('validateDraft properties', () => {

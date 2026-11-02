@@ -19,6 +19,7 @@ It describes `@intellectif/lk-core` 1.5.0.
 - [Choosing thresholds](#choosing-thresholds)
 - [Testing your grading prompt](#testing-your-grading-prompt)
 - [What is not here](#what-is-not-here)
+- [Spoken answers (1.9)](#spoken-answers-19)
 
 ## The flow
 
@@ -356,5 +357,15 @@ not a right grade. Whether a model grades as your teachers do is what a calibrat
 - **Calling a model, storing reports and setting thresholds.** These stay yours.
 - **A marking queue for teachers.** `pendingGrade` and `routing` are the data one needs.
 - **Subgroup analysis.** Run `calibrationReport` on each group's pairs, and compare the reports.
-- **Grading a spoken response.** It comes next, on this contract: see the
-  [roadmap](./roadmap.md).
+- **A component for spoken answers.** lk-core 1.9 grades them (below); lk-react's
+  `<SpeakingResponse>` comes next.
+
+## Spoken answers (1.9)
+
+A `speaking-response` is graded on this contract too. `aiSpeakingGradingRequest` builds the
+request from the item and the take's evidence — the transcript as the text, only the criteria a
+judge scores, the engine's measures as context — and `checkAiGrading` reads the reply exactly as it
+reads a written response's. `gradeSpeakingResponse` then computes the grade from the judgement and
+the engine's scores, and `routeGrade` and `calibrationReport` take the speaking item as their scope,
+as they take a written one. The whole flow, and why the transcript must be verbatim, is in
+[Speech assessment](./speech-assessment.md#spoken-answers-19).

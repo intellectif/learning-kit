@@ -8,7 +8,7 @@ this file with the changeset that explains it.
 
 ```ts
 function assessmentFromAzure: declare function assessmentFromAzure(results: readonly AzureResult[], request: AzureAssessmentRequest): AzureAssessmentResult;
-interface AzureAssessmentRequest: interface AzureAssessmentRequest { referenceText: string; locale: string; recordingKey: string; miscue: boolean; gradingSystem: 'FivePoint' | 'HundredMark'; phonemeAlphabet?: 'IPA' | 'SAPI'; assessorId?: string; }
+interface AzureAssessmentRequest: interface AzureAssessmentRequest { referenceText: string; transcriber?: Grader; locale: string; recordingKey: string; miscue: boolean; gradingSystem: 'FivePoint' | 'HundredMark'; phonemeAlphabet?: 'IPA' | 'SAPI'; assessorId?: string; }
 type AzureAssessmentResult: type AzureAssessmentResult = { assessment: SpeechAssessment; ok: true; } | { code: AzureRefusalCode; errors?: ValidationError[]; message: string; ok: false; };
 type AzureRefusalCode: type AzureRefusalCode = 'five_point_scale' | 'invalid_assessment' | 'miscue_across_results' | 'not_a_result' | 'recognition_failed';
 type AzureResult: type AzureResult = object | string;

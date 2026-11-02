@@ -84,6 +84,17 @@ const COMPONENT_FOR_TYPE = {
   'read-aloud': 'ReadAloud',
 };
 
+/**
+ * Built-in types that ship ahead of their component, each with where it is
+ * drawn meanwhile. Named one by one, so a type lk-core gains still fails the
+ * check below unless it is listed here on purpose; the entry goes when the
+ * component lands in `COMPONENT_FOR_TYPE`.
+ */
+const AWAITING_COMPONENT = {
+  // lk-core 1.9 grades it on the server; `<SpeakingResponse>` is the next release.
+  'speaking-response': 'a host renderer, through `renderers`',
+};
+
 const REQUIRED_EXPORTS = {
   ...Object.fromEntries(
     Object.values(COMPONENT_FOR_TYPE).map((name) => [`dist/components/${name}.js`, [name]]),
@@ -163,13 +174,24 @@ for (const [rel, expected] of Object.entries(REQUIRED_EXPORTS)) {
       '@intellectif/lk-core exports no BUILT_IN_ACTIVITY_TYPES to hold the components to',
     );
   } else {
-    const missing = builtIn.filter((type) => !Object.hasOwn(COMPONENT_FOR_TYPE, type));
-    const stale = Object.keys(COMPONENT_FOR_TYPE).filter((type) => !builtIn.includes(type));
+    const missing = builtIn.filter(
+      (type) =>
+        !Object.hasOwn(COMPONENT_FOR_TYPE, type) && !Object.hasOwn(AWAITING_COMPONENT, type),
+    );
+    const stale = [...Object.keys(COMPONENT_FOR_TYPE), ...Object.keys(AWAITING_COMPONENT)].filter(
+      (type) => !builtIn.includes(type),
+    );
+    const both = Object.keys(AWAITING_COMPONENT).filter((type) =>
+      Object.hasOwn(COMPONENT_FOR_TYPE, type),
+    );
     if (missing.length > 0) {
       failures.push(`no component for lk-core's built-in type(s): ${missing.join(', ')}`);
     }
     if (stale.length > 0) {
       failures.push(`a component for a type lk-core does not ship: ${stale.join(', ')}`);
+    }
+    if (both.length > 0) {
+      failures.push(`a type with a component is still listed as awaiting one: ${both.join(', ')}`);
     }
   }
 }

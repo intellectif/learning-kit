@@ -3,6 +3,7 @@ import { fillInTheBlanksAuthoring } from '../authoring/fill-in-the-blanks.js';
 import { gapSelectAuthoring } from '../authoring/gap-select.js';
 import { multipleChoiceAuthoring } from '../authoring/multiple-choice.js';
 import { readAloudAuthoring } from '../authoring/read-aloud.js';
+import { speakingResponseAuthoring } from '../authoring/speaking-response.js';
 import { writtenResponseAuthoring } from '../authoring/written-response.js';
 import type { BuiltInActivityType } from '../built-in-types.js';
 import { countWords } from '../count-words.js';
@@ -18,8 +19,10 @@ import {
   RedactedGapSelectDataSchema,
   RedactedMultipleChoiceDataSchema,
   RedactedReadAloudDataSchema,
+  RedactedSpeakingResponseDataSchema,
   RedactedWrittenResponseDataSchema,
 } from '../schemas/redacted.js';
+import { SpeakingResponseDataSchema } from '../schemas/speaking-response.js';
 import { WrittenResponseDataSchema } from '../schemas/written-response.js';
 import { scoreDictation } from '../scoring/activity-scorers/dictation.js';
 import { scoreFillInTheBlanks } from '../scoring/activity-scorers/fill-in-the-blanks.js';
@@ -42,6 +45,8 @@ import type {
   MultipleChoiceLearnerResponse,
   ReadAloudData,
   ReadAloudLearnerResponse,
+  SpeakingResponseData,
+  SpeakingResponseLearnerResponse,
   WrittenResponseData,
   WrittenResponseLearnerResponse,
 } from '../types/activity.js';
@@ -514,13 +519,37 @@ const READ_ALOUD_FIELD_POLICY: FieldPolicy = {
 };
 
 /**
+ * Speaking Response: public, as written-response is. The task, the picture and
+ * the limits of a take are what the learner needs to answer; the rubric tells
+ * them what the answer is graded on — classified key by key, a criterion's
+ * `measure` included, so nothing parked on it reaches a learner. A deployment
+ * that wants the rubric hidden tightens it per call: the redacted schema leaves
+ * it optional. Only the authored pass/fail feedback is removed.
+ */
+const SPEAKING_RESPONSE_FIELD_POLICY: FieldPolicy = {
+  ...SHARED_PUBLIC_FIELDS,
+  instructions: 'public',
+  prompt: 'public',
+  promptHtml: 'public',
+  recording: { maxSeconds: 'public', minSeconds: 'public', maxTakes: 'public' },
+  languageTarget: 'public',
+  feedback: FEEDBACK_FIELD_POLICY,
+  rubric: {
+    ...RUBRIC_FIELD_POLICY,
+    criteria: { ...(RUBRIC_FIELD_POLICY.criteria as FieldPolicy), measure: 'public' },
+  },
+};
+
+/**
  * Whether a response carries a stored recording: an object whose `key` is a
  * non-empty string. Read defensively, because both callers are handed whatever
  * an application stored — `evaluate()` passes `partial` a response that may be
  * absent (a slot nobody answered), and a take that failed to upload is never a
  * `null` recording but may be anything at all in an older row.
  */
-function hasRecording(response: ReadAloudLearnerResponse | undefined): boolean {
+function hasRecording(
+  response: ReadAloudLearnerResponse | SpeakingResponseLearnerResponse | undefined,
+): boolean {
   const recording = (response as { recording?: unknown } | undefined)?.recording;
   return (
     typeof recording === 'object' &&
@@ -562,6 +591,38 @@ export const readAloudType = defineActivityType<ReadAloudData, ReadAloudLearnerR
 });
 
 /**
+ * Built-in Speaking Response descriptor. Grading is DEFERRED, as a read-aloud's
+ * is: the synchronous outcome reports only whether a recording was stored, and
+ * `gradeSpeakingResponse` produces the grade once the application holds the
+ * transcript, the engine's measures and a judgement.
+ */
+export const speakingResponseType = defineActivityType<
+  SpeakingResponseData,
+  SpeakingResponseLearnerResponse
+>({
+  type: 'speaking-response',
+  schema: SpeakingResponseDataSchema as unknown as StandardSchemaV1<unknown, SpeakingResponseData>,
+  scoring: {
+    kind: 'deferred',
+    reason: 'requires_async_grading',
+    partial: (_data, response) => ({ hasRecording: hasRecording(response) }),
+  },
+  isAnswered: (response) => hasRecording(response),
+  fieldPolicy: SPEAKING_RESPONSE_FIELD_POLICY,
+  redactedSchema: RedactedSpeakingResponseDataSchema,
+  interop: {
+    xapiActivityTypeIri: 'http://adlnet.gov/expapi/activities/cmi.interaction',
+    // `other`, as read-aloud: an open spoken answer has no response pattern a
+    // statement can carry.
+    xapiInteractionType: 'other',
+    correctResponsesPattern: () => [],
+  },
+  interactions: ['recording-started', 'recording-stopped', 'recording-uploaded', 'submitted'],
+  authoring: speakingResponseAuthoring,
+  mediaSlots: () => MAIN_MEDIA,
+});
+
+/**
  * The SDK's own types, by type: what the registry is created holding
  * (`registry.ts`). Nothing here registers anything as this module loads — the
  * registry reads this, so the built-ins travel with the lookups that use them.
@@ -575,4 +636,5 @@ export const BUILT_IN_DESCRIPTORS = {
   'gap-select': gapSelectType,
   dictation: dictationType,
   'read-aloud': readAloudType,
+  'speaking-response': speakingResponseType,
 } satisfies { readonly [Type in BuiltInActivityType]: { readonly type: Type } };

@@ -77,6 +77,9 @@ const SpeechAssessmentSchema = z.strictObject({
     overall: Score.optional(),
   }),
   recognizedText: maxUnits(z.string(), 8000).optional(),
+  transcript: z
+    .strictObject({ text: maxUnits(z.string().min(1), 8000), source: AssessorSchema })
+    .optional(),
   miscue: z.enum(['assessor', 'none']),
   phonemeAlphabet: z.enum(['ipa', 'sapi']).optional(),
   words: z.array(WordSchema).max(SPEECH_ASSESSMENT_MAX_WORDS),

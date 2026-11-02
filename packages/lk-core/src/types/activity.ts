@@ -25,6 +25,7 @@ export interface ActivityDataMap {
   'gap-select': GapSelectData;
   dictation: DictationData;
   'read-aloud': ReadAloudData;
+  'speaking-response': SpeakingResponseData;
 }
 
 /**
@@ -803,6 +804,7 @@ export interface LearnerResponseMap {
   'gap-select': GapSelectLearnerResponse;
   dictation: DictationLearnerResponse;
   'read-aloud': ReadAloudLearnerResponse;
+  'speaking-response': SpeakingResponseLearnerResponse;
 }
 
 /** Union of all learner response shapes. */
@@ -907,6 +909,85 @@ export interface RecordingRef {
  */
 export interface ReadAloudLearnerResponse {
   type: 'read-aloud';
+  /** `null`: the learner submitted without recording (a blank). A take that failed to upload is never `null`. */
+  recording: RecordingRef | null;
+  /** Telemetry: takes used. No grade reads it. */
+  takes?: number;
+}
+
+/**
+ * What a speech engine measures of an open answer, which a criterion of a
+ * speaking rubric may be scored from instead of by a judge:
+ *
+ * - `pronunciation` — the engine's accuracy: how close each sound is to the
+ *   locale's speech;
+ * - `fluency` — its fluency: pace, pauses and hesitations;
+ * - `prosody` — its prosody: stress, rhythm and intonation.
+ */
+export type SpeakingMeasure = 'pronunciation' | 'fluency' | 'prosody';
+
+/**
+ * One criterion of a speaking rubric: a written-response criterion, and
+ * optionally the engine measure it is scored from. Without `measure` the
+ * criterion is a judge's to score — content, organisation, range, accuracy of
+ * the language — from the transcript; with one, the engine's measure scores it
+ * unless the host lets the judge score measured criteria too.
+ */
+export interface SpeakingRubricCriterion extends WrittenResponseRubricCriterion {
+  measure?: SpeakingMeasure;
+}
+
+/** A speaking task's rubric: at least one criterion, at least one weighted above 0. */
+export interface SpeakingRubric {
+  label?: string;
+  criteria: SpeakingRubricCriterion[];
+}
+
+/**
+ * Speaking Response activity data contract: a learner answers a prompt out
+ * loud — optionally about a picture, or after a recording — and the answer is
+ * graded on a rubric. Deferred, like written-response: nothing grades it in the
+ * browser. The server transcribes the take, a speech engine measures it, and
+ * `gradeSpeakingResponse` computes the grade from a judge's criteria and the
+ * engine's measures.
+ */
+export interface SpeakingResponseData {
+  schemaVersion: '1.0';
+  type: 'speaking-response';
+  id: string;
+  title: string;
+  /** The task, shown to the learner before the prompt: how to answer. */
+  instructions?: string;
+  /** What the learner speaks about, as plain text. */
+  prompt: string;
+  /** Rich-text prompt for display. Author content; sanitise before rendering. */
+  promptHtml?: string;
+  /**
+   * The language spoken, a canonical BCP 47 tag with a region (`en-US`): the
+   * speech engine measures pronunciation against one locale's speech.
+   */
+  locale: string;
+  /** A picture to describe, or a recording to answer. */
+  media?: ActivityMedia;
+  /** The limits of a take. */
+  recording: RecordingBounds;
+  /** What the answer is graded on. */
+  rubric: SpeakingRubric;
+  /** Target language and level, e.g. `"en-B1"`: told to the judge. */
+  languageTarget?: string;
+  passThreshold?: number;
+  feedback?: ActivityFeedback;
+  learningObjectives?: string[];
+  difficultyLevel?: 1 | 2 | 3 | 4 | 5;
+  ai?: ActivityAiPermissions;
+}
+
+/**
+ * Learner response for a Speaking Response activity: a reference to the
+ * recording the application stored, as a read-aloud's is.
+ */
+export interface SpeakingResponseLearnerResponse {
+  type: 'speaking-response';
   /** `null`: the learner submitted without recording (a blank). A take that failed to upload is never `null`. */
   recording: RecordingRef | null;
   /** Telemetry: takes used. No grade reads it. */

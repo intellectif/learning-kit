@@ -29,7 +29,10 @@ export type {
   ReadAloudData,
   ReadAloudLearnerResponse,
   RecordingRef,
+  SpeakingResponseData,
+  SpeakingResponseLearnerResponse,
 } from '../types/activity.js';
+export type { AiGradingJudgement } from '../types/ai.js';
 export type { GradeRecord } from '../types/grading.js';
 export type {
   ItemScoringCount,
@@ -42,8 +45,10 @@ export type {
 } from '../types/item-scoring.js';
 export type {
   GradeReadAloudOptions,
+  GradeSpeakingResponseOptions,
   ReadAloudWordAlignment,
   ReadAloudWordState,
+  SpeakingEvidence,
   SpeechAssessment,
   SpeechMeasurement,
   SpeechPhoneme,
@@ -111,6 +116,7 @@ export { classifyBand, gte, roundGrade } from './rounding.js';
 export {
   alignReadAloud,
   gradeReadAloud,
+  gradeSpeakingResponse,
   inspectWav,
   READ_ALOUD_MAX_DIMENSION_WEIGHT,
   READ_ALOUD_MAX_REFERENCE_LENGTH,

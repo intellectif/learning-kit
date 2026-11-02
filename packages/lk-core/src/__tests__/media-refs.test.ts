@@ -110,6 +110,17 @@ const ITEMS = {
     media: { type: 'audio', url: `${CDN}/cat.mp3` },
     slowMedia: { type: 'audio', url: `${CDN}/cat-slow.mp3` },
   },
+  'speaking-response': {
+    schemaVersion: '1.0',
+    type: 'speaking-response',
+    id: 'sr-1',
+    title: 'Describe the picture',
+    prompt: 'What is the cat doing?',
+    locale: 'en-US',
+    recording: { maxSeconds: 60 },
+    rubric: { criteria: [{ name: 'Content', weight: 1 }] },
+    media: { type: 'image', url: `${CDN}/cat.png`, alt: 'A cat on a mat.' },
+  },
 } as const;
 
 const GROUP = {

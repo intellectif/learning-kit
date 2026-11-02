@@ -365,6 +365,9 @@ const UNSCORABLE_MESSAGES: Readonly<
   recording_mismatch: 'readAloudAssessmentFailed',
   assessor_not_accepted: 'readAloudAssessmentFailed',
   missing_dimension: 'readAloudAssessmentFailed',
+  // A spoken answer's code: no read-aloud grade returns it, and a server that
+  // sent one sent another item's result.
+  judgement_mismatch: 'readAloudAssessmentFailed',
 };
 
 /**

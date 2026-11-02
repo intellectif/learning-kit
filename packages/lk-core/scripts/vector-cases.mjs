@@ -567,6 +567,148 @@ const punctuated = (count, letters, dots) =>
     heard(`${'p'.repeat(letters)}${'.'.repeat(dots)}`, { accuracy: 90 }),
   );
 
+// -- Speaking response -------------------------------------------------------
+
+/** What the learner said, verbatim, fillers and their own grammar kept: twelve words. */
+const SPOKEN_ANSWER = 'um I think the city is uh more better for young people';
+/** The storage key of the answer the fixtures submit. */
+const ANSWER_KEY = 'answer-1';
+
+/**
+ * A speaking item: two criteria a judge scores, one on levels, then
+ * pronunciation and fluency from the engine. Every optional field is set, so it
+ * is also the item the validation corpus seeds the type from.
+ */
+const sr = (over = {}) => ({
+  schemaVersion: '1.0',
+  type: 'speaking-response',
+  id: 'sr-city',
+  title: 'City or country',
+  instructions: 'Answer in about a minute.',
+  prompt: 'Would you rather live in a city or in the country? Say why.',
+  promptHtml: '<p>Would you rather live in a <strong>city</strong> or in the country? Say why.</p>',
+  locale: 'en-US',
+  media: { type: 'image', url: 'https://example.com/city.png', alt: 'A busy street' },
+  recording: { minSeconds: 10, maxSeconds: 60, maxTakes: 2 },
+  rubric: {
+    label: 'Speaking',
+    criteria: [
+      { name: 'Content', weight: 2, levels: EXAM_LEVELS.map((label) => ({ label })) },
+      { name: 'Language', weight: 1, description: 'Range and accuracy of grammar and words.' },
+      { name: 'Pronunciation', weight: 1, measure: 'pronunciation' },
+      { name: 'Fluency', weight: 1, measure: 'fluency' },
+    ],
+  },
+  languageTarget: 'en-B1',
+  passThreshold: 0.6,
+  feedback: { correct: 'Well said.', incorrect: 'Try again.' },
+  learningObjectives: ['Give a reason for a preference'],
+  difficultyLevel: 3,
+  ...over,
+});
+
+/** A speaking item the engine scores alone. */
+const srMeasured = () =>
+  sr({
+    rubric: {
+      criteria: [
+        { name: 'Pronunciation', weight: 1, measure: 'pronunciation' },
+        { name: 'Fluency', weight: 1, measure: 'fluency' },
+      ],
+    },
+  });
+
+/** A spoken answer carrying a stored recording. */
+const answered = (key = ANSWER_KEY) => ({
+  type: 'speaking-response',
+  recording: { key, mimeType: 'audio/wav' },
+});
+
+/**
+ * An unscripted assessment of the answer, measured against the transcriber's
+ * verbatim text, which it carries.
+ */
+const heardAnswer = (over = {}) => ({
+  assessmentVersion: '1.0',
+  status: 'assessed',
+  task: 'unscripted',
+  locale: 'en-US',
+  recordingKey: ANSWER_KEY,
+  assessor: { kind: 'auto', id: 'pronunciation-engine' },
+  scale: 100,
+  scores: { accuracy: 90, fluency: 60, prosody: 70, completeness: 100 },
+  recognizedText: SPOKEN_ANSWER,
+  transcript: { text: SPOKEN_ANSWER, source: { kind: 'auto', id: 'transcriber' } },
+  miscue: 'assessor',
+  words: SPOKEN_ANSWER.split(' ').map((text) => heard(text, { accuracy: 90 })),
+  ...over,
+});
+
+/** A judgement of Content (on a level) and Language (a score). */
+const answerJudgement = (content, language, over = {}) => ({
+  criteria: [
+    { name: 'Content', level: EXAM_LEVELS[content], score: content / 2 },
+    { name: 'Language', score: language },
+  ],
+  feedback: 'You gave a reason; watch "more better".',
+  corrections: [{ original: 'more better', corrected: 'better' }],
+  requiresHumanReview: false,
+  provenance: { model: 'grader-1', promptHash: 'p1' },
+  ...over,
+});
+
+/** The measurement and policy the fixtures grade under: round numbers, not a recommendation. */
+const measuredAnswer = (over = {}) => ({
+  measured: { durationMs: 12000, voicedMs: 8000 },
+  plausibility: { maxWordsPerSecond: 6, minVoicedMs: 500 },
+  ...over,
+});
+
+/** One refusal: what `gradeSpeakingResponse` does with evidence it cannot tie to the answer. */
+const speakingRefusal = (code, over = {}, note) => ({
+  id: `gradeSpeakingResponse/sr/unscorable/${code}`,
+  fn: 'gradeSpeakingResponse',
+  args: [
+    over.data ?? sr(),
+    over.response ?? answered(),
+    {
+      assessment: over.assessment ?? heardAnswer(),
+      judgement: over.judgement === undefined ? answerJudgement(2, 0.5) : over.judgement,
+    },
+    over.options ?? measuredAnswer(),
+  ],
+  ignore: ['reason'],
+  ...(note ? { note } : {}),
+});
+
+/** The unscripted assessment of the answer, without its transcript. */
+const heardAnswerWithoutTranscript = (over = {}) => {
+  const { transcript: _transcript, ...rest } = heardAnswer(over);
+  return rest;
+};
+
+/** The speaking-response vector `name`, graded with the given parts replaced. */
+const speaking = (name, over = {}, note) => ({
+  id: `gradeSpeakingResponse/sr/${name}`,
+  fn: 'gradeSpeakingResponse',
+  args: [
+    over.data ?? sr(),
+    over.response ?? answered(),
+    {
+      assessment: over.assessment === undefined ? heardAnswer() : over.assessment,
+      judgement: over.judgement === undefined ? answerJudgement(2, 0.5) : over.judgement,
+    },
+    over.options ?? measuredAnswer(),
+  ],
+  ...(note ? { note } : {}),
+});
+
+/** The unscripted assessment of the answer, without the recording key it may leave out. */
+const heardAnswerWithoutKey = () => {
+  const { recordingKey: _key, ...rest } = heardAnswer();
+  return rest;
+};
+
 // -- WAV bytes ---------------------------------------------------------------
 //
 // Recordings small enough to read in the diff: 8 kHz, at most 25 ms, and every
@@ -5869,4 +6011,435 @@ export const CASES = [
     ['seed-not-a-string', ['attempt-1:essay', 0.25, 7]],
     ['key-not-a-string', [undefined, 0.25, 'term-1']],
   ].map(([name, args]) => ({ id: `inAuditSample/${name}-throws`, fn: 'inAuditSample', args })),
+
+  // -- Speaking response -------------------------------------------------------
+  //
+  // A spoken answer's grade is arithmetic over a judge's criteria and an
+  // engine's measures, both obtained elsewhere. Pinned: which evidence is
+  // refused and what each refusal is called, who scores which criterion, and
+  // the weighted total -- never a judge's or an engine's own numbers.
+  {
+    id: 'gradeSpeakingResponse/sr/judge-and-engine',
+    fn: 'gradeSpeakingResponse',
+    args: [
+      sr(),
+      answered(),
+      { assessment: heardAnswer(), judgement: answerJudgement(2, 0.5) },
+      measuredAnswer(),
+    ],
+    note: "Content Met (1) at weight 2 and Language 0.5 from the judge, pronunciation 90 and fluency 60 of 100 from the engine: (2 + 0.5 + 0.9 + 0.6) / 5. The record is the judge's: its feedback, corrections and identity.",
+  },
+  {
+    id: 'gradeSpeakingResponse/sr/blank-scores-zero',
+    fn: 'gradeSpeakingResponse',
+    args: [
+      sr(),
+      { type: 'speaking-response', recording: null },
+      { assessment: null, judgement: null },
+      measuredAnswer({ measured: null }),
+    ],
+    note: 'A learner who submitted without recording scores 0. Neither the evidence nor the measurement is read.',
+  },
+  {
+    id: 'gradeSpeakingResponse/sr/engine-alone',
+    fn: 'gradeSpeakingResponse',
+    args: [
+      srMeasured(),
+      answered(),
+      { assessment: heardAnswer(), judgement: null },
+      measuredAnswer(),
+    ],
+    note: "A rubric of measures needs no judge: the grade is the engine's, with the authored feedback.",
+  },
+  {
+    id: 'gradeSpeakingResponse/sr/judge-scores-the-measures-too',
+    fn: 'gradeSpeakingResponse',
+    args: [
+      sr(),
+      answered(),
+      {
+        assessment: heardAnswer({ scores: {} }),
+        judgement: answerJudgement(1, 0.5, {
+          criteria: [
+            { name: 'Content', level: EXAM_LEVELS[1], score: 0.5 },
+            { name: 'Language', score: 0.5 },
+            { name: 'Pronunciation', score: 0.75 },
+            { name: 'Fluency', score: 0.25 },
+          ],
+        }),
+      },
+      measuredAnswer({ judgeMeasures: true }),
+    ],
+    note: 'With judgeMeasures the judge scores every criterion and no engine score is read: an assessment without scores still grades.',
+  },
+  {
+    id: 'gradeSpeakingResponse/sr/weight-zero-measure-is-not-required',
+    fn: 'gradeSpeakingResponse',
+    args: [
+      sr({
+        rubric: {
+          criteria: [
+            { name: 'Content', weight: 1, levels: EXAM_LEVELS.map((label) => ({ label })) },
+            { name: 'Language', weight: 1 },
+            { name: 'Prosody', weight: 0, measure: 'prosody' },
+          ],
+        },
+      }),
+      answered(),
+      { assessment: heardAnswer({ scores: { accuracy: 90 } }), judgement: answerJudgement(2, 0.5) },
+      measuredAnswer(),
+    ],
+    note: 'A measure weighed 0 is not required of the assessment, and is left out when the engine did not score it.',
+  },
+  {
+    id: 'gradeSpeakingResponse/sr/pass-threshold/raw-tie-fails',
+    fn: 'gradeSpeakingResponse',
+    args: [
+      sr({ passThreshold: 0.7, rubric: { criteria: [{ name: 'Language', weight: 1 }] } }),
+      answered(),
+      {
+        assessment: heardAnswer(),
+        judgement: answerJudgement(0, 0.69995, {
+          criteria: [{ name: 'Language', score: 0.69995 }],
+        }),
+      },
+      measuredAnswer(),
+    ],
+    note: 'Raw 0.69995 is below 0.7: a fail by default, though it displays as 70%.',
+  },
+  {
+    id: 'gradeSpeakingResponse/sr/pass-threshold/rounded-tie-passes',
+    fn: 'gradeSpeakingResponse',
+    args: [
+      sr({ passThreshold: 0.7, rubric: { criteria: [{ name: 'Language', weight: 1 }] } }),
+      answered(),
+      {
+        assessment: heardAnswer(),
+        judgement: answerJudgement(0, 0.69995, {
+          criteria: [{ name: 'Language', score: 0.69995 }],
+        }),
+      },
+      measuredAnswer({ rounding: { mode: 'half-up', dp: 2 } }),
+    ],
+    note: 'With a rounding policy the pass line is compared rounded; the score itself stays unrounded.',
+  },
+  {
+    id: 'gradeSpeakingResponse/sr/judgement-names-matched-loosely',
+    fn: 'gradeSpeakingResponse',
+    args: [
+      sr(),
+      answered(),
+      {
+        assessment: heardAnswer(),
+        judgement: answerJudgement(2, 0.5, {
+          criteria: [
+            { name: 'language', score: 0.5 },
+            { name: '  CONTENT ', level: EXAM_LEVELS[2], score: 1 },
+          ],
+        }),
+      },
+      measuredAnswer(),
+    ],
+    note: "A judged criterion is matched as checkAiGrading matches it, case and spacing ignored; the grade lists the criteria in the rubric's order, by their authored names.",
+  },
+  speakingRefusal(
+    'invalid_assessment',
+    { assessment: heardAnswer({ scale: 50 }) },
+    'An assessment that fails validateSpeechAssessment is refused before anything in it is read.',
+  ),
+  speakingRefusal(
+    'task_mismatch',
+    { assessment: heardAnswer({ task: 'scripted', referenceText: SPOKEN_ANSWER }) },
+    'A scripted assessment measured a reading of a known text; a spoken answer is assessed against what was said.',
+  ),
+  speakingRefusal('locale_mismatch', { assessment: heardAnswer({ locale: 'en-GB' }) }),
+  speakingRefusal(
+    'recording_mismatch',
+    { assessment: heardAnswer({ recordingKey: 'answer-2' }) },
+    'Evidence for another take is not evidence for this one.',
+  ),
+  {
+    ...speakingRefusal('recording_mismatch', { assessment: heardAnswerWithoutKey() }),
+    id: 'gradeSpeakingResponse/sr/unscorable/recording_mismatch/no-key',
+    note: 'Unscripted evidence need not name its recording to be valid, but it must to be graded.',
+  },
+  speakingRefusal('assessor_not_accepted', {
+    assessment: heardAnswer({ assessor: { kind: 'ai', model: 'listener-1' } }),
+  }),
+  speakingRefusal('no_speech', { assessment: heardAnswer({ status: 'no_speech' }) }),
+  speakingRefusal('insufficient_voiced_time', {
+    options: measuredAnswer({ measured: { durationMs: 12000, voicedMs: 100 } }),
+  }),
+  speakingRefusal(
+    'implausible_speech_rate',
+    { options: measuredAnswer({ measured: { durationMs: 12000, voicedMs: 1000 } }) },
+    'Twelve words of transcript in 1 s of voiced time is above the 6 a second the policy allows.',
+  ),
+  speakingRefusal(
+    'missing_dimension',
+    { assessment: heardAnswer({ scores: { accuracy: 90 } }) },
+    'The item scores Fluency from the engine, and the assessment has no fluency score. An absent score is not a 0.',
+  ),
+  speakingRefusal(
+    'judgement_mismatch',
+    {
+      judgement: answerJudgement(2, 0.5, {
+        criteria: [{ name: 'Content', level: EXAM_LEVELS[2], score: 1 }],
+      }),
+    },
+    'A judgement that leaves a criterion out would grade a different task.',
+  ),
+  {
+    ...speakingRefusal('judgement_mismatch', {
+      judgement: answerJudgement(2, 0.5, {
+        criteria: [
+          { name: 'Content', level: EXAM_LEVELS[2], score: 1 },
+          { name: 'Language', score: 0.5 },
+          { name: 'Fluency', score: 0.5 },
+        ],
+      }),
+    }),
+    id: 'gradeSpeakingResponse/sr/unscorable/judgement_mismatch/judged-a-measure',
+    note: "Without judgeMeasures a measured criterion is the engine's, and a judgement that scores it is refused.",
+  },
+  {
+    ...speakingRefusal('judgement_mismatch', {
+      judgement: answerJudgement(2, 0.5, {
+        criteria: [
+          { name: 'Content', level: EXAM_LEVELS[2], score: 1 },
+          { name: 'Language', score: 4 },
+        ],
+      }),
+    }),
+    id: 'gradeSpeakingResponse/sr/unscorable/judgement_mismatch/off-scale',
+    note: "A judged score is 0..1: a person's 4 out of 5 is refused rather than read as a grade above 100%.",
+  },
+  {
+    id: 'gradeSpeakingResponse/sr/refuses-a-missing-judgement',
+    fn: 'gradeSpeakingResponse',
+    args: [sr(), answered(), { assessment: heardAnswer(), judgement: null }, measuredAnswer()],
+    note: "A rubric with criteria a judge scores cannot be graded without a judgement: it throws, as missing evidence is the caller's bug.",
+  },
+  {
+    id: 'gradeSpeakingResponse/sr/refuses-a-response-that-is-not-speaking',
+    fn: 'gradeSpeakingResponse',
+    args: [
+      sr(),
+      recorded(),
+      { assessment: heardAnswer(), judgement: answerJudgement(2, 0.5) },
+      measuredAnswer(),
+    ],
+  },
+  {
+    id: 'gradeSpeakingResponse/sr/refuses-data-that-is-not-valid',
+    fn: 'gradeSpeakingResponse',
+    args: [
+      sr({ locale: 'en' }),
+      answered(),
+      { assessment: heardAnswer({ locale: 'en' }), judgement: answerJudgement(2, 0.5) },
+      measuredAnswer(),
+    ],
+    note: 'A locale without a region does not say whose pronunciation is measured; the data is refused before any evidence is read.',
+  },
+  // -- Speaking response: the boundaries a mutation sweep found unpinned -------
+  speaking(
+    'rate-counted-from-the-transcript',
+    {
+      assessment: heardAnswer({ transcript: { text: 'I agree', source: { kind: 'human' } } }),
+      options: measuredAnswer({ measured: { durationMs: 12000, voicedMs: 1000 } }),
+    },
+    "Two words of transcript in 1 s of voiced time is plausible, whatever the engine recognised: the rate is the judge's text's.",
+  ),
+  speaking(
+    'rate-counted-from-recognised-text-without-a-transcript',
+    {
+      assessment: heardAnswerWithoutTranscript(),
+      options: measuredAnswer({ measured: { durationMs: 12000, voicedMs: 1000 } }),
+    },
+    'Without a transcript the rate is counted from what the engine recognised: twelve words in 1 s.',
+  ),
+  speaking(
+    'judged-score-of-zero',
+    { judgement: answerJudgement(2, 0) },
+    'A judge may score a criterion 0: it is on the scale, and graded as a 0.',
+  ),
+  speaking(
+    'judge-record-carried',
+    {
+      judgement: answerJudgement(2, 0.5, {
+        criteria: [
+          { name: 'Content', level: EXAM_LEVELS[2], score: 1, comment: 'A clear reason.' },
+          { name: 'Language', score: 0.5 },
+        ],
+        corrections: [],
+        rationale: 'One reason, developed.',
+        usage: { promptTokens: 900, completionTokens: 120 },
+        provenance: { model: 'grader-1', promptHash: 'p1', generatedAt: '2026-11-02T10:00:00Z' },
+      }),
+    },
+    "The judge's comment, rationale, usage and time are kept on the grade; an empty list of corrections is left out.",
+  ),
+  speaking(
+    'engine-alone-ignores-an-empty-judgement',
+    { data: srMeasured(), judgement: answerJudgement(2, 0.5, { criteria: [] }) },
+    "A judgement of no criteria, on a rubric the engine scores alone, changes nothing: the grade is still the engine's.",
+  ),
+  speaking('ai-assessor-accepted-when-opted-in', {
+    assessment: heardAnswer({ assessor: { kind: 'ai', model: 'listener-1' } }),
+    options: measuredAnswer({ allowAiAssessor: true }),
+  }),
+  speaking(
+    'voiced-time-at-exactly-the-policy-minimum',
+    {
+      options: measuredAnswer({
+        measured: { durationMs: 12000, voicedMs: 500 },
+        plausibility: { maxWordsPerSecond: 30, minVoicedMs: 500 },
+      }),
+    },
+    'Exactly the least voiced time the policy asks for is enough.',
+  ),
+  speaking(
+    'speech-rate-at-exactly-the-policy-limit',
+    { options: measuredAnswer({ measured: { durationMs: 12000, voicedMs: 2000 } }) },
+    'Twelve words in 2 s is 6 a second, the limit itself: still plausible.',
+  ),
+  speaking(
+    'no-words-in-no-voiced-time',
+    {
+      data: srMeasured(),
+      assessment: heardAnswerWithoutTranscript({ recognizedText: '', words: [] }),
+      judgement: null,
+      options: measuredAnswer({
+        measured: { durationMs: 12000, voicedMs: 0 },
+        plausibility: { maxWordsPerSecond: 6, minVoicedMs: 0 },
+      }),
+    },
+    'No word claimed in no voiced time is no rate to refuse, under a policy that asks for no voiced time.',
+  ),
+  {
+    ...speakingRefusal('implausible_speech_rate', {
+      assessment: heardAnswer({ transcript: { text: 'Yes', source: { kind: 'human' } } }),
+      options: measuredAnswer({
+        measured: { durationMs: 12000, voicedMs: 0 },
+        plausibility: { maxWordsPerSecond: 6, minVoicedMs: 0 },
+      }),
+    }),
+    id: 'gradeSpeakingResponse/sr/unscorable/implausible_speech_rate/one-word-in-no-voiced-time',
+    note: 'One word in no voiced time at all is more than any policy allows.',
+  },
+  speaking(
+    'refuses-a-recording-without-an-assessment',
+    { assessment: null },
+    "A recording graded without the engine's assessment is the caller's bug: it throws.",
+  ),
+  speaking(
+    'refuses-a-missing-judgement-of-one-criterion',
+    {
+      data: sr({
+        rubric: {
+          criteria: [
+            { name: 'Content', weight: 1 },
+            { name: 'Fluency', weight: 1, measure: 'fluency' },
+          ],
+        },
+      }),
+      judgement: null,
+    },
+    'One criterion for the judge is enough to need a judgement.',
+  ),
+  speaking('refuses-a-redacted-projection', { data: { ...sr(), redacted: true } }),
+  ...[
+    ['max-words-per-second-missing', { minVoicedMs: 500 }],
+    [
+      'max-words-per-second-infinite',
+      { maxWordsPerSecond: Number.POSITIVE_INFINITY, minVoicedMs: 500 },
+    ],
+    ['max-words-per-second-zero', { maxWordsPerSecond: 0, minVoicedMs: 500 }],
+    ['min-voiced-ms-missing', { maxWordsPerSecond: 6 }],
+    ['min-voiced-ms-infinite', { maxWordsPerSecond: 6, minVoicedMs: Number.POSITIVE_INFINITY }],
+    ['min-voiced-ms-negative', { maxWordsPerSecond: 6, minVoicedMs: -1 }],
+  ].map(([name, plausibility]) =>
+    speaking(`refuses-a-policy/${name}`, { options: measuredAnswer({ plausibility }) }),
+  ),
+  speaking(
+    'policy/one-word-a-second-allowed',
+    {
+      options: measuredAnswer({
+        measured: { durationMs: 12000, voicedMs: 12000 },
+        plausibility: { maxWordsPerSecond: 1, minVoicedMs: 500 },
+      }),
+    },
+    'A policy of one word a second is a policy; twelve words in 12 s of voiced time meets it, the whole recording voiced.',
+  ),
+  speaking(
+    'policy/no-voiced-time-required',
+    {
+      options: measuredAnswer({
+        measured: { durationMs: 12000, voicedMs: 8000 },
+        plausibility: { maxWordsPerSecond: 6, minVoicedMs: 0 },
+      }),
+    },
+    'A policy may ask for no voiced time at all.',
+  ),
+  ...[
+    ['duration-not-a-number', { durationMs: '12000', voicedMs: 8000 }],
+    ['duration-not-finite', { durationMs: Number.NaN, voicedMs: 8000 }],
+    ['duration-negative', { durationMs: -1, voicedMs: 0 }],
+    ['voiced-not-a-number', { durationMs: 12000, voicedMs: '8000' }],
+    ['voiced-not-finite', { durationMs: 12000, voicedMs: Number.POSITIVE_INFINITY }],
+    ['voiced-negative', { durationMs: 12000, voicedMs: -1 }],
+    ['voiced-past-duration', { durationMs: 12000, voicedMs: 12001 }],
+    // Each passes every check but one: a duration just below 0 is within the
+    // tolerance of voiced time 0, and a NaN is neither negative nor too long.
+    ['duration-a-hair-below-zero', { durationMs: -1e-7, voicedMs: 0 }],
+    ['voiced-nan', { durationMs: 12000, voicedMs: Number.NaN }],
+  ].map(([name, measured]) =>
+    speaking(`refuses-a-measurement/${name}`, { options: measuredAnswer({ measured }) }),
+  ),
+  {
+    ...speakingRefusal('implausible_speech_rate', {
+      options: measuredAnswer({
+        measured: { durationMs: 0, voicedMs: 0 },
+        plausibility: { maxWordsPerSecond: 6, minVoicedMs: 0 },
+      }),
+    }),
+    id: 'gradeSpeakingResponse/sr/unscorable/implausible_speech_rate/empty-recording',
+    note: 'A recording of 0 ms is a measurement, not a bad one: twelve words in it are refused as evidence, never thrown on.',
+  },
+  {
+    ...speakingRefusal('implausible_speech_rate', {
+      options: measuredAnswer({
+        measured: { durationMs: 0, voicedMs: 0.000001 },
+        plausibility: { maxWordsPerSecond: 6, minVoicedMs: 0 },
+      }),
+    }),
+    id: 'gradeSpeakingResponse/sr/unscorable/implausible_speech_rate/voiced-at-the-tolerance',
+    note: 'Voiced time exactly the float tolerance past the duration is one measurement of it, not a bad one.',
+  },
+  speaking(
+    'policy/one-word-in-a-millisecond-allowed',
+    {
+      assessment: heardAnswer({ transcript: { text: 'Yes', source: { kind: 'human' } } }),
+      options: measuredAnswer({
+        measured: { durationMs: 12000, voicedMs: 1 },
+        plausibility: { maxWordsPerSecond: 2000, minVoicedMs: 0 },
+      }),
+    },
+    'Only no voiced time at all refuses every word: any other is a rate, compared with the policy, however generous.',
+  ),
+  {
+    id: 'gradeReadAloud/ra/unscorable/task_mismatch/unscripted-answer',
+    fn: 'gradeReadAloud',
+    args: [
+      ra(),
+      recorded(),
+      assessed({
+        task: 'unscripted',
+        transcript: { text: READ_SENTENCE, source: { kind: 'human' } },
+      }),
+      measuredTake(),
+    ],
+    ignore: ['reason'],
+    note: "Unscripted evidence carrying a transcript is a spoken answer's, never a reading's.",
+  },
 ];

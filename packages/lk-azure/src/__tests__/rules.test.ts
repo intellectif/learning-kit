@@ -1,7 +1,11 @@
-import type { SpeechAssessment } from '@intellectif/lk-core/scoring';
+import {
+  gradeReadAloud,
+  gradeSpeakingResponse,
+  type SpeechAssessment,
+} from '@intellectif/lk-core/scoring';
 import { describe, expect, it } from 'vitest';
 import { type AzureAssessmentResult, assessmentFromAzure } from '../index.js';
-import { capture, requestOf, resultsOf } from './support.js';
+import { capture, itemOf, requestOf, resultsOf, TAKE_KEY } from './support.js';
 
 /** The assessment of an accepted result; a refusal fails the test with its reason. */
 function assessed(result: AzureAssessmentResult): SpeechAssessment {
@@ -512,5 +516,117 @@ describe('several results: one continuous take', () => {
     );
     expect(result.scores.fluency).toBe(one.NBest[0].PronunciationAssessment.FluencyScore);
     expect(result.signal?.snrDb).toBe(one.SNR);
+  });
+});
+
+describe('a spoken answer, marked against its transcript', () => {
+  const TRANSCRIBER = { kind: 'auto', id: 'transcriber' } as const;
+
+  /** A capture's request, its reference sent as a transcriber's text. */
+  const answerRequest = (name: string) => ({
+    ...requestOf(capture(name)),
+    transcriber: TRANSCRIBER,
+  });
+
+  it('is unscripted evidence carrying the transcript, and no reference text', () => {
+    const reading = assessed(run('prod-en-us-clean'));
+    const answer = assessed(
+      assessmentFromAzure(resultsOf('prod-en-us-clean'), answerRequest('prod-en-us-clean')),
+    );
+
+    expect(answer).toMatchObject({
+      task: 'unscripted',
+      transcript: { text: capture('prod-en-us-clean').request.referenceText, source: TRANSCRIBER },
+      recordingKey: 'take-1.wav',
+    });
+    expect(answer).not.toHaveProperty('referenceText');
+    // The marks and the scores are the reading's: only the binding differs.
+    const { task: _t, referenceText: _r, ...marks } = reading;
+    expect(answer).toMatchObject(marks);
+  });
+
+  it('merges a continuous answer against its transcript, as a reading against its text', () => {
+    const name = 'prod-en-us-continuous-segments';
+    const reading = assessed(assessmentFromAzure(resultsOf(name), requestOf(capture(name))));
+    const answer = assessed(assessmentFromAzure(resultsOf(name), answerRequest(name)));
+
+    expect(answer.task).toBe('unscripted');
+    expect(answer.scores).toEqual(reading.scores);
+    expect(answer.words).toEqual(reading.words);
+  });
+
+  it('is no_speech, unscripted, when nothing was heard', () => {
+    const answer = assessed(
+      assessmentFromAzure(resultsOf('prod-silence'), answerRequest('prod-silence')),
+    );
+
+    expect(answer).toMatchObject({ status: 'no_speech', task: 'unscripted', words: [] });
+    expect(answer.transcript?.source).toEqual(TRANSCRIBER);
+  });
+
+  it('keeps a copy of the transcriber, not the object the request holds', () => {
+    const request = answerRequest('prod-en-us-clean');
+    const answer = assessed(assessmentFromAzure(resultsOf('prod-en-us-clean'), request));
+
+    expect(answer.transcript?.source).not.toBe(request.transcriber);
+  });
+
+  it('is refused by lk-core when the transcript is empty', () => {
+    const result = assessmentFromAzure(resultsOf('prod-en-us-clean'), {
+      ...answerRequest('prod-en-us-clean'),
+      referenceText: '',
+    });
+
+    expect(result).toMatchObject({ ok: false, code: 'invalid_assessment' });
+  });
+});
+
+describe('a spoken answer, graded', () => {
+  it('is graded by gradeSpeakingResponse from the measures, and refused by gradeReadAloud', () => {
+    const one = capture('prod-en-us-clean');
+    const answer = assessed(
+      assessmentFromAzure(resultsOf('prod-en-us-clean'), {
+        ...requestOf(one),
+        transcriber: { kind: 'auto', id: 'transcriber' },
+      }),
+    );
+    const options = {
+      measured: { durationMs: one.audioMs, voicedMs: one.audioMs },
+      plausibility: { maxWordsPerSecond: 6, minVoicedMs: 500 },
+    };
+
+    const grade = gradeSpeakingResponse(
+      {
+        schemaVersion: '1.0',
+        type: 'speaking-response',
+        id: 'sr-capture',
+        title: 'Answer aloud',
+        prompt: 'Say it.',
+        locale: one.request.locale,
+        recording: { maxSeconds: 120 },
+        rubric: {
+          criteria: [
+            { name: 'Pronunciation', weight: 1, measure: 'pronunciation' },
+            { name: 'Fluency', weight: 1, measure: 'fluency' },
+          ],
+        },
+      },
+      { type: 'speaking-response', recording: { key: TAKE_KEY, mimeType: 'audio/wav' } },
+      { assessment: answer, judgement: null },
+      options,
+    );
+    expect(grade).toMatchObject({
+      score: ((answer.scores.accuracy as number) + (answer.scores.fluency as number)) / 200,
+      grader: { kind: 'auto', id: 'azure-pronunciation-assessment' },
+    });
+
+    expect(
+      gradeReadAloud(
+        itemOf(one),
+        { type: 'read-aloud', recording: { key: TAKE_KEY, mimeType: 'audio/wav' } },
+        answer,
+        options,
+      ),
+    ).toMatchObject({ unscorable: true, code: 'task_mismatch' });
   });
 });

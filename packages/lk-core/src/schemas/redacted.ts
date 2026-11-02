@@ -8,7 +8,11 @@ import { CANONICAL_LOCALE_RE } from '../scoring/speech/locale.js';
 import { captionFieldsOf } from './dictation.js';
 import { MediaUrlSchema, RedactedMediaSchema } from './media.js';
 import { READ_ALOUD_DIMENSIONS, ReadAloudSlowMediaSchema } from './read-aloud.js';
-import { RedactedWrittenResponseRubricSchema } from './written-response.js';
+import { SPEAKING_MEASURES } from './speaking-response.js';
+import {
+  RedactedWrittenResponseRubricCriterionSchema,
+  RedactedWrittenResponseRubricSchema,
+} from './written-response.js';
 
 /**
  * Schemas for REDACTED activity data — the learner-safe projection `redact()`
@@ -289,3 +293,38 @@ export const RedactedReadAloudDataSchema = z
       });
     }
   });
+
+/**
+ * Redacted Speaking Response data: everything a learner needs to answer — the
+ * prompt, the picture or recording, the limits of a take — and the rubric, which
+ * tells them what the answer is graded on, as a written response's does (a
+ * deployment may hide it per call). Only the authored pass/fail feedback is
+ * removed: it is written about a grade that does not exist yet.
+ */
+export const RedactedSpeakingResponseDataSchema = z.strictObject({
+  ...redactedBase,
+  type: z.literal('speaking-response'),
+  locale: z.string().regex(CANONICAL_LOCALE_RE),
+  instructions: z.string().optional(),
+  prompt: z.string(),
+  promptHtml: z.string().optional(),
+  recording: z.strictObject({
+    maxSeconds: z.number().gt(0).max(READ_ALOUD_MAX_SECONDS),
+    minSeconds: z.number().min(0).optional(),
+    maxTakes: z.number().int().min(1).max(READ_ALOUD_MAX_TAKES).optional(),
+  }),
+  rubric: z
+    .strictObject({
+      label: z.string().optional(),
+      criteria: z
+        .array(
+          z.strictObject({
+            ...RedactedWrittenResponseRubricCriterionSchema.shape,
+            measure: z.enum(SPEAKING_MEASURES).optional(),
+          }),
+        )
+        .min(1),
+    })
+    .optional(),
+  languageTarget: z.string().optional(),
+});
