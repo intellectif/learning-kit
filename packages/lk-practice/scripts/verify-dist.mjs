@@ -21,7 +21,15 @@ const DIST = join(PKG_ROOT, 'dist');
 const failures = [];
 
 /** Everything the root entry exports at run time (the types have no runtime value). */
-const REQUIRED_EXPORTS = ['composeGraph', 'fsrsMemoryModel', 'validateGraph', 'validateItems'];
+const REQUIRED_EXPORTS = [
+  'PracticeConfigError',
+  'composeGraph',
+  'eloMasteryModel',
+  'fsrsMemoryModel',
+  'mapEvidence',
+  'validateGraph',
+  'validateItems',
+];
 
 /** The ts-fsrs entries the build may load (design §3). */
 const ALLOWED_PACKAGES = new Set(['ts-fsrs', 'ts-fsrs/middlewares', 'ts-fsrs/models/fsrs-7']);
@@ -51,6 +59,22 @@ const SMOKE_EXTENSION = {
   skills: [{ id: 'x.c', knowledge: 'procedural' }],
   edges: [{ kind: 'prerequisite', from: 'b', to: 'x.c', strength: 'soft' }],
   status: 'admitted',
+};
+
+/** An answer passed after one hint, half the points: `hard`, correct 0.5 (R7.2). */
+const SMOKE_EVIDENCE = {
+  id: 'e1',
+  itemId: 'i1',
+  at: 1_767_225_600_000,
+  source: { kind: 'auto', score: 1, maxScore: 2, passed: true },
+  hintsUsed: 1,
+};
+const SMOKE_TASK = {
+  itemId: 'i1',
+  skills: [{ skillId: 'b', weight: 1 }],
+  stage: 'write',
+  difficulty: 0,
+  origin: 'authored',
 };
 
 /** Runs the smoke calls on one build; returns what went wrong. */
@@ -85,6 +109,42 @@ function smoke(format, module) {
   }
   if (!(model.review(memory, 'again', first.due, context).due > first.due)) {
     problems.push(`${format} fsrsMemoryModel does not schedule a lapse after its review.`);
+  }
+  // The mastery model: one correct answer at p = 0.5 with K = 1 gives theta 0.5.
+  const elo = module.eloMasteryModel();
+  const ability = elo.update(elo.init(SMOKE_GRAPH.skills[0]), {
+    correct: 1,
+    weight: 1,
+    difficulty: 0,
+    stage: 'recognise',
+    context: 'practice',
+  });
+  if (elo.estimate(ability).value !== 0.5) {
+    problems.push(`${format} eloMasteryModel gives theta ${elo.estimate(ability).value}.`);
+  }
+  // The evidence mapper reads only these parts of a resolved configuration.
+  const config = {
+    evidenceOptions: {
+      checksPassFraction: 1,
+      aiMediumWeight: 0.5,
+      selfWeight: 0.5,
+      selfCorrect: { again: 0, hard: 0.6, good: 1, easy: 1 },
+    },
+    memoryWeightFloor: 0.3,
+    contexts: { examsMoveSchedule: false, diagnosticWeight: 1, pretestWeight: 0 },
+  };
+  const task = { ...SMOKE_TASK };
+  const effect = module.mapEvidence(SMOKE_EVIDENCE, task, {}, config).perSkill[0];
+  if (effect?.rating !== 'hard' || effect.correct !== 0.5 || effect.memory !== 'review') {
+    problems.push(`${format} mapEvidence maps the smoke evidence to ${JSON.stringify(effect)}.`);
+  }
+  try {
+    module.mapEvidence(SMOKE_EVIDENCE, task, {}, { ...config, evidenceOptions: null });
+    problems.push(`${format} mapEvidence accepts a configuration with a custom mapper.`);
+  } catch (error) {
+    if (!(error instanceof module.PracticeConfigError)) {
+      problems.push(`${format} mapEvidence throws ${String(error)}, not PracticeConfigError.`);
+    }
   }
   return problems;
 }

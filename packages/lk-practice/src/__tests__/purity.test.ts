@@ -66,8 +66,11 @@ describe('the runtime purity trap', () => {
     vi.resetModules();
     const entry = await import('../index.js');
     expect(Object.keys(entry).sort()).toEqual([
+      'PracticeConfigError',
       'composeGraph',
+      'eloMasteryModel',
       'fsrsMemoryModel',
+      'mapEvidence',
       'validateGraph',
       'validateItems',
     ]);
@@ -126,5 +129,36 @@ describe('the runtime purity trap', () => {
       expect(model.retrievability(memory, next.due)).toBeGreaterThan(0);
       at = next.due;
     }
+    // The mastery model and the evidence mapper.
+    const elo = entry.eloMasteryModel();
+    const ability = elo.update(elo.init(graph.skills[0] as never), {
+      correct: 1,
+      weight: 1,
+      difficulty: 0,
+      stage: 'recall',
+      context: 'practice',
+    });
+    expect(elo.estimate(ability).value).toBe(0.5);
+    const { defaultConfig } = await import('../config.js');
+    const mapped = entry.mapEvidence(
+      {
+        id: 'e',
+        itemId: 'i',
+        at,
+        source: { kind: 'auto', score: 1, maxScore: 1, passed: true },
+        durationMs: 1000,
+      },
+      {
+        itemId: 'i',
+        skills: [{ skillId: 'a', weight: 1 }],
+        stage: 'recall',
+        difficulty: 0,
+        origin: 'authored',
+        fluentSeconds: 5,
+      },
+      {},
+      defaultConfig(),
+    );
+    expect(mapped.perSkill[0]?.rating).toBe('easy');
   });
 });

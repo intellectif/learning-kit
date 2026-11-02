@@ -10,13 +10,16 @@ export default defineConfig({
       reporter: ['text', 'lcov'],
       include: ['src/**'],
       exclude: ['**/__tests__/**', '**/*.test.*'],
-      // The repository's gate. The modules that decide what a learner practises
-      // next get their own 100% thresholds as they are added.
+      // The repository's gate, and 100% for the modules that decide what a
+      // learner practises next (design section 10); the planner joins in M6.
       thresholds: {
         lines: 80,
         functions: 80,
         branches: 80,
         statements: 80,
+        'src/evidence/**': { lines: 100, functions: 100, branches: 100, statements: 100 },
+        'src/stage/**': { lines: 100, functions: 100, branches: 100, statements: 100 },
+        'src/mastery/**': { lines: 100, functions: 100, branches: 100, statements: 100 },
       },
     },
   },

@@ -287,8 +287,12 @@ export interface StageDecisionInput {
 }
 
 export interface StageDecision {
-  /** After the implication rule (D15). */
-  readonly effect: 'success' | 'lapse' | 'neutral';
+  /**
+   * After the implication rule (D15). `review` is a `hard` retrieval at or
+   * above the current stage: the memory is reviewed and the streak is
+   * unchanged. `neutral` takes no review. (revised in M4: `review` added.)
+   */
+  readonly effect: 'success' | 'lapse' | 'review' | 'neutral';
   readonly move: 'promote' | 'demote' | 'stay';
   /** The streak after this retrieval (reset on a move). */
   readonly streak: StageStreak;

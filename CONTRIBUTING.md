@@ -89,7 +89,14 @@ components' return type. Give the export an explicit type, e.g. a component's
 pnpm mutate                      # the whole scoring engine (~700 mutants)
 pnpm mutate --filter text-match  # one file
 pnpm mutate --limit 25           # a quick sample
+pnpm mutate --package lk-practice                    # lk-practice: evidence, stage, mastery
+pnpm mutate --package lk-practice --modules stage    # one directory (or a .ts file) under src
 ```
+
+`--package` defaults to `lk-core`. For `lk-practice` the oracle is
+`vectors/evidence.json` and `vectors/stage.json`, replayed through
+`vectors/replay.mjs`; regenerate them with `pnpm --filter @intellectif/lk-practice vectors:policy`
+after a deliberate behaviour change.
 
 100% coverage on `src/scoring/**` means every line RAN, not that anything would
 notice if the line were wrong. `scripts/mutate.mjs` changes one operator or

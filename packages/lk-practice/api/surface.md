@@ -7,8 +7,11 @@ this file with the changeset that explains it.
 ## @intellectif/lk-practice
 
 ```ts
+class PracticeConfigError: declare class PracticeConfigError extends Error { readonly issues: readonly Issue[]; constructor(issues: readonly Issue[]); }
 function composeGraph: declare function composeGraph(base: SkillGraph, extensions: readonly GraphExtension[], config?: ResolvedPracticeConfig): GraphComposition;
+function eloMasteryModel: declare function eloMasteryModel(options?: EloOptions): MasteryModel;
 function fsrsMemoryModel: declare function fsrsMemoryModel(options?: FsrsOptions): MemoryModel;
+function mapEvidence: declare function mapEvidence(evidence: Evidence, task: TaskSnapshot, _skills: SkillStatesView, config: ResolvedPracticeConfig): MappedEvidence;
 function validateGraph: declare function validateGraph(graph: unknown, config?: ResolvedPracticeConfig): GraphValidation;
 function validateItems: declare function validateItems(items: unknown, graph: SkillGraph, config?: ResolvedPracticeConfig): ItemsValidation;
 interface CandidateCheck: interface CandidateCheck { readonly accepted: readonly CandidateItem[]; readonly rejected: readonly { readonly index: number; readonly issues: readonly Issue[]; }[]; }
@@ -56,7 +59,7 @@ interface SkillNode: interface SkillNode { readonly id: string; readonly knowled
 interface SkillOutcome: interface SkillOutcome { readonly skillId: string; readonly score: number; readonly maxScore: number; readonly passed?: boolean; }
 interface SkillState: interface SkillState { readonly stage: StageId; readonly startedAt: null | number; readonly unlockedAt: null | number; readonly credited: boolean; readonly suspended: 'host' | 'leech' | null; readonly memories: Readonly<Record<StageId, StageMemory>>; readonly ability: Readonly<Record<StageId, unknown>>; readonly mastered: boolean; readonly evidenceCount: number; readonly lastLapseAt: null | number; readonly top: { readonly firstSuccessAt: null | number; readonly lastSuccessAt: null | number; readonly lastWasLapse: boolean; readonly successes: number; }; }
 interface SkillSummary: interface SkillSummary { readonly skillId: string; readonly status: SkillStatus; readonly stage: StageId | null; readonly due: null | number; readonly retrievability: null | number; readonly ability: MasteryEstimate | null; readonly expectedSuccessAtReference: null | number; readonly masteryLapsed: boolean; readonly lapses: number; readonly unlockedAt: null | number; }
-interface StageDecision: interface StageDecision { readonly effect: 'lapse' | 'neutral' | 'success'; readonly move: 'demote' | 'promote' | 'stay'; readonly streak: StageStreak; readonly dueCap: null | number; }
+interface StageDecision: interface StageDecision { readonly effect: 'lapse' | 'neutral' | 'review' | 'success'; readonly move: 'demote' | 'promote' | 'stay'; readonly streak: StageStreak; readonly dueCap: null | number; }
 interface StageDecisionInput: interface StageDecisionInput { readonly ladder: readonly StageId[]; readonly current: StageId; readonly evidenceStage: StageId; readonly rating: Rating; readonly at: number; readonly streak: StageStreak; }
 interface StageMemory: interface StageMemory { readonly model: string; readonly memory: unknown; readonly due: null | number; readonly modelDue: null | number; readonly lastReviewAt: null | number; readonly reviews: number; readonly lapses: number; readonly streak: StageStreak; readonly superseded: boolean; }
 interface StagePolicy: interface StagePolicy { readonly id: string; readonly version: number; readonly params: JsonValue; decide(input: StageDecisionInput): StageDecision; }
