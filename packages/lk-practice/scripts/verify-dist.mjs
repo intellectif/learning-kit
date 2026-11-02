@@ -4,9 +4,9 @@
  * The tests read `src/`. This reads `dist/`: the ESM and the CommonJS build
  * must each export exactly the names below, and the same ones. The build must
  * be pure (R1.1): its text names no clock, random source, timer, network call
- * or Node built-in, and it loads with the clock, the random source and
- * argument-less `new Date()` replaced by functions that throw. And it must not
- * name lk-core at all: this package has no dependency on it.
+ * or Node built-in, and it loads and runs with the clock, the random source
+ * and argument-less `new Date()` replaced by functions that throw. And it must
+ * not name lk-core at all: this package has no dependency on it.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { builtinModules, createRequire } from 'node:module';
@@ -18,8 +18,50 @@ const PKG_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(PKG_ROOT, 'dist');
 const failures = [];
 
-/** Everything the root entry exports. Nothing yet. */
-const REQUIRED_EXPORTS = [];
+/** Everything the root entry exports at run time (the types have no runtime value). */
+const REQUIRED_EXPORTS = ['composeGraph', 'validateGraph', 'validateItems'];
+
+/** A small graph, an item and an extension, run through both builds under the trap. */
+const SMOKE_GRAPH = {
+  version: '1',
+  skills: [
+    { id: 'a', knowledge: 'declarative' },
+    { id: 'b', knowledge: 'procedural' },
+  ],
+  edges: [{ kind: 'prerequisite', from: 'a', to: 'b', strength: 'hard' }],
+};
+const SMOKE_ITEMS = [
+  {
+    id: 'i1',
+    skills: [{ skillId: 'b', weight: 1 }],
+    stage: 'write',
+    origin: 'authored',
+    status: 'proven',
+  },
+];
+const SMOKE_EXTENSION = {
+  id: 'x1',
+  goalId: 'g1',
+  idPrefix: 'x',
+  skills: [{ id: 'x.c', knowledge: 'procedural' }],
+  edges: [{ kind: 'prerequisite', from: 'b', to: 'x.c', strength: 'soft' }],
+  status: 'admitted',
+};
+
+/** Runs the smoke calls on one build; returns what went wrong. */
+function smoke(format, module) {
+  const problems = [];
+  if (module.validateGraph(SMOKE_GRAPH).ok !== true) {
+    problems.push(`${format} validateGraph rejects the smoke graph.`);
+  }
+  if (module.validateItems(SMOKE_ITEMS, SMOKE_GRAPH).ok !== true) {
+    problems.push(`${format} validateItems rejects the smoke items.`);
+  }
+  if (module.composeGraph(SMOKE_GRAPH, [SMOKE_EXTENSION]).ok !== true) {
+    problems.push(`${format} composeGraph rejects the smoke extension.`);
+  }
+  return problems;
+}
 
 /** What pure code never names. Comments are removed before the scan. */
 const IMPURE = [
@@ -96,6 +138,7 @@ globalThis.crypto.randomUUID = trap('crypto.randomUUID()');
 try {
   esm = await import(pathToFileURL(join(DIST, 'index.js')).href);
   cjs = require(join(DIST, 'index.cjs'));
+  failures.push(...smoke('ESM', esm), ...smoke('CJS', cjs));
 } catch (error) {
   failures.push(`the build does not load under the purity trap: ${error.message}`);
 } finally {
@@ -134,5 +177,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  `verify-dist OK: ESM and CommonJS export the same ${REQUIRED_EXPORTS.length} names, ${files.length} built files are pure, the build loads under the purity trap, and nothing names lk-core.`,
+  `verify-dist OK: ESM and CommonJS export the same ${REQUIRED_EXPORTS.length} names, ${files.length} built files are pure, the build loads and runs under the purity trap, and nothing names lk-core.`,
 );

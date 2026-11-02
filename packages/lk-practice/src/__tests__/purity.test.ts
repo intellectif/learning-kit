@@ -62,9 +62,43 @@ describe('the runtime purity trap', () => {
     expect(new Date(0).toISOString()).toBe('1970-01-01T00:00:00.000Z');
   });
 
-  it('loads the root entry without reaching any of them', async () => {
+  it('loads and runs the root entry without reaching any of them', async () => {
     vi.resetModules();
     const entry = await import('../index.js');
-    expect(Object.keys(entry)).toEqual([]);
+    expect(Object.keys(entry).sort()).toEqual(['composeGraph', 'validateGraph', 'validateItems']);
+    const graph = {
+      version: '1',
+      skills: [
+        { id: 'a', knowledge: 'declarative' as const },
+        { id: 'b', knowledge: 'procedural' as const, stages: ['use'] },
+      ],
+      edges: [{ kind: 'prerequisite' as const, from: 'a', to: 'b', strength: 'hard' as const }],
+    };
+    expect(entry.validateGraph(graph).ok).toBe(true);
+    expect(
+      entry.validateItems(
+        [
+          {
+            id: 'i',
+            skills: [{ skillId: 'a', weight: 1 }],
+            stage: 'recall',
+            origin: 'authored',
+            status: 'proven',
+          },
+        ],
+        graph,
+      ).ok,
+    ).toBe(true);
+    const composed = entry.composeGraph(graph, [
+      {
+        id: 'e',
+        goalId: 'g',
+        idPrefix: 'x',
+        skills: [{ id: 'x', knowledge: 'procedural' }],
+        edges: [{ kind: 'prerequisite', from: 'b', to: 'x', strength: 'soft' }],
+        status: 'admitted',
+      },
+    ]);
+    expect(composed.ok).toBe(true);
   });
 });

@@ -1301,20 +1301,28 @@ Every `check*`, `validate*`, `record` and `act` failure is an `Issue` with a sta
 
 | Code | Raised by | Meaning |
 |---|---|---|
-| `GRAPH_CYCLE` | `validateGraph`, `composeGraph` | The hard prerequisite edges contain a cycle. |
-| `ENCOMPASSES_WITHOUT_PREREQUISITE` | `validateGraph` | An `encompasses` edge has no matching hard prerequisite. |
-| `SKILL_UNKNOWN`, `STAGE_UNKNOWN`, `STAGE_NOT_IN_LADDER` | validation, `record` | A reference to a skill or stage that the graph does not define for that skill. |
+| `GRAPH_CYCLE` | `validateGraph`, `composeGraph` | The prerequisite edges, hard and soft, contain a cycle, or the `encompasses` edges do; one issue per cycle (R2.1). |
+| `ENCOMPASSES_WITHOUT_PREREQUISITE` (warning) | `validateGraph`, `composeGraph` | The component of an `encompasses` edge does not reach its composite through prerequisite edges of either strength (R2.1). |
+| `SKILL_UNKNOWN`, `STAGE_UNKNOWN`, `STAGE_NOT_IN_LADDER` | validation, `record` | A reference to a skill or stage that the graph does not define for that skill; `STAGE_NOT_IN_LADDER` also covers a `forms` key that is not a stage of the skill's ladder. |
 | `ITEM_UNKNOWN`, `ITEM_UNPROVEN` | `record`, `plan` pool validation | The evidence names no known item, or an item that is not proven. |
-| `SKILL_NOT_IN_TASK` | `record` | A skill outcome names a skill the task does not exercise. |
-| `EXTENSION_NOT_ADMITTED` | `composeGraph` | A proposed extension was passed as admitted. |
+| `SKILL_NOT_IN_TASK` | `validateItems`, `record` | A criterion or a skill outcome names a skill the task does not exercise: neither a listed skill nor one of their `encompasses` components. |
+| `EXTENSION_NOT_ADMITTED` | `composeGraph` | An extension passed to `composeGraph` is still `proposed`. |
+| `EXTENSION_ID_OUTSIDE_PREFIX` | `composeGraph` | An extension's skill id is not its `idPrefix` or under it (`prefix.` followed by more). |
+| `EXTENSION_EDGE_INTO_BASE` | `composeGraph` | An extension edge points at a base skill; extensions only add edges into their own skills. |
 | `STATE_CONFIG_MISMATCH` | `record`, `act`, `plan` | The state was built with a different configuration hash. |
 | `GRAPH_VERSION_MISMATCH` | `record`, `act` | The state was built against a different graph version; replay it. |
 | `REPLAY_CHECKPOINT_TOO_NEW` | `replayFrom` | An entry not in the checkpoint is earlier than the checkpoint's last instant. |
 | `CONFIG_CONFLICT`, `CONFIG_INVALID` | `createPractice` | A custom policy given with the built-in policy's options; an option out of range or `params` that are not canonical JSON (D26). |
 | `STAGE_NO_EQUIVALENT` | `validateItems`, `checkCandidates`, `record` | A listed skill has neither the item's stage nor a less demanding stage (R3.8). |
-| `STAGE_DEMAND_ORDER`, `STAGE_DEMAND_AMBIGUOUS` | `validateGraph`, `createPractice` | Demand does not strictly increase along a ladder; an undeclared stage's fallback differs between ladders. |
-| `STAGE_DEMAND_DEFAULTED` (warning) | `validateGraph` | A stage has no declared demand and uses its normalised ladder position. |
+| `STAGE_DEMAND_ORDER`, `STAGE_DEMAND_AMBIGUOUS` | `validateGraph`, `composeGraph`, `createPractice` | Demand does not strictly increase along a ladder; an undeclared stage's fallback differs between ladders. |
+| `STAGE_DEMAND_DEFAULTED` (warning) | `validateGraph`, `composeGraph` | A stage has no declared demand and uses its normalised ladder position. |
 | `ITEM_TIMING_ORDER` | `validateItems`, `checkCandidates` | `fluentSeconds` is not below `slowSeconds`. |
+| `SHAPE_INVALID` | validation | A value is missing, of the wrong type, or an optional field is present as `undefined`; nothing further is checked. |
+| `ID_DUPLICATE` | validation, `composeGraph` | A skill, item or extension id is used twice, an item lists a skill twice, or an extension adds a skill the base already has. |
+| `EDGE_SELF`, `EDGE_DUPLICATE`, `EDGE_WEIGHT_INVALID` | `validateGraph`, `composeGraph` | An edge from a skill to itself; a second edge of the same kind between the same skills; an `encompasses` weight outside (0, 1]. |
+| `ITEM_WEIGHT_INVALID`, `ITEM_WEIGHTS_SUM` | `validateItems` | An item skill weight outside (0, 1]; weights that do not sum to 1. |
+| `RETENTION_OUT_OF_RANGE` | `validateGraph` | A skill's `desiredRetention` is outside [0.7, 0.97]. |
+| `LADDER_INVALID` | `validateGraph` | A skill's `stages` override is empty, has an empty or repeated stage, or a `mixed` skill has none. |
 | `CANDIDATE_CRITERIA_MISSING`, `CANDIDATE_FORM_NOT_ALLOWED` | `checkCandidates` | Per-skill outcomes are needed and a target skill has no criterion; the declared form is not allowed. |
 
 ## 9. Determinism

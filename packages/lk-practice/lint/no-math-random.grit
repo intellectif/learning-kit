@@ -1,0 +1,3 @@
+`Math.random` as $call where {
+  register_diagnostic(span=$call, message="lk-practice is pure (R1.1): take a seed argument instead of Math.random.")
+}
