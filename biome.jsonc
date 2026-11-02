@@ -57,6 +57,14 @@
       }
     }
   },
+  // Reports `Math.random` in lk-practice's source; see the lk-practice
+  // override below for the globals.
+  "plugins": [
+    {
+      "path": "./packages/lk-practice/lint/no-math-random.grit",
+      "includes": ["packages/lk-practice/src/**", "!**/__tests__/**"]
+    }
+  ],
   "overrides": [
     {
       // lk-core's zod is bundled into every app that imports it. zod's `z` is an
@@ -75,6 +83,41 @@
                     "importNames": ["z", "default"],
                     "message": "Import zod as a namespace (`import * as z from 'zod/v4'`): the named `z` brings every zod locale into an app's bundle."
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      // lk-practice is pure (requirement R1.1): every result is a function of
+      // its arguments alone, so time, randomness and I/O come in as arguments.
+      // These globals would read them from the environment instead. Tests may
+      // use them; `scripts/verify-dist.mjs` checks the built files as well.
+      // `Math.random` is a member, not a global, so the plugin under `plugins`
+      // reports it.
+      "includes": ["packages/lk-practice/src/**", "!**/__tests__/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "Date": "lk-practice is pure (R1.1): take the time as an argument (`now`) instead of reading the clock.",
+                  "performance": "lk-practice is pure (R1.1): take the time as an argument instead of reading the clock.",
+                  "crypto": "lk-practice is pure (R1.1): take a seed argument instead of reading random values.",
+                  "setTimeout": "lk-practice is pure (R1.1): it schedules nothing; return the due time instead.",
+                  "setInterval": "lk-practice is pure (R1.1): it schedules nothing; return the due time instead.",
+                  "setImmediate": "lk-practice is pure (R1.1): it schedules nothing; return the due time instead.",
+                  "clearTimeout": "lk-practice is pure (R1.1): it schedules nothing.",
+                  "clearInterval": "lk-practice is pure (R1.1): it schedules nothing.",
+                  "queueMicrotask": "lk-practice is pure (R1.1): it schedules nothing.",
+                  "fetch": "lk-practice is pure (R1.1): it does no I/O; the host passes the data in.",
+                  "XMLHttpRequest": "lk-practice is pure (R1.1): it does no I/O; the host passes the data in.",
+                  "WebSocket": "lk-practice is pure (R1.1): it does no I/O; the host passes the data in.",
+                  "process": "lk-practice is pure (R1.1): it reads no environment; take a configuration argument."
                 }
               }
             }

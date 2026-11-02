@@ -1,0 +1,3476 @@
+{
+  "$comment": "Graph, item and composition vectors for @intellectif/lk-practice (criterion 1). Each case names the function (kind), its input and the expected result: ok with the warning codes, or the issue codes in order. Run by src/graph/__tests__/vectors.test.ts with the default configuration.",
+  "version": 1,
+  "cases": [
+    {
+      "name": "valid: empty graph",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "valid: a hard chain",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "b",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "c",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "hard"
+            },
+            {
+              "kind": "prerequisite",
+              "from": "b",
+              "to": "c",
+              "strength": "hard"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "valid: composite with soft prerequisites on its components",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "w",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "p1",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "p2",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "p1",
+              "to": "w",
+              "strength": "soft"
+            },
+            {
+              "kind": "prerequisite",
+              "from": "p2",
+              "to": "w",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "w",
+              "to": "p1",
+              "weight": 1
+            },
+            {
+              "kind": "encompasses",
+              "from": "w",
+              "to": "p2",
+              "weight": 0.25
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "valid: component reached through a transitive prerequisite",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "w",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "m",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "p",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "p",
+              "to": "m",
+              "strength": "hard"
+            },
+            {
+              "kind": "prerequisite",
+              "from": "m",
+              "to": "w",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "w",
+              "to": "p",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "valid: mixed skill with its own ladder",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "m",
+              "knowledge": "mixed",
+              "stages": ["recall", "write"]
+            }
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "valid: forms keyed by stages of the ladder",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural",
+              "forms": {
+                "write": ["free-text"],
+                "example": ["predict"]
+              }
+            }
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "valid: desiredRetention at both bounds",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural",
+              "desiredRetention": 0.7
+            },
+            {
+              "id": "b",
+              "knowledge": "procedural",
+              "desiredRetention": 0.97
+            }
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "warning: one-stage ladder with an undeclared stage",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": ["STAGE_DEMAND_DEFAULTED"]
+      }
+    },
+    {
+      "name": "warning: encompasses without a prerequisite",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "w",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "p",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "encompasses",
+              "from": "w",
+              "to": "p",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": ["ENCOMPASSES_WITHOUT_PREREQUISITE"]
+      }
+    },
+    {
+      "name": "warning: prerequisite in the wrong direction does not count",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "w",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "p",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "w",
+              "to": "p",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "w",
+              "to": "p",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": ["ENCOMPASSES_WITHOUT_PREREQUISITE"]
+      }
+    },
+    {
+      "name": "invalid: not an object",
+      "kind": "graph",
+      "input": {
+        "graph": "graph"
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SHAPE_INVALID"]
+      }
+    },
+    {
+      "name": "invalid: missing edges",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": []
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SHAPE_INVALID"]
+      }
+    },
+    {
+      "name": "invalid: unknown knowledge type",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "tacit"
+            }
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SHAPE_INVALID"]
+      }
+    },
+    {
+      "name": "invalid: unknown edge kind",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "b",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "related",
+              "from": "a",
+              "to": "b"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SHAPE_INVALID"]
+      }
+    },
+    {
+      "name": "invalid: prerequisite without strength",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "b",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SHAPE_INVALID"]
+      }
+    },
+    {
+      "name": "invalid: duplicate skill id",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "a",
+              "knowledge": "declarative"
+            }
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["ID_DUPLICATE"]
+      }
+    },
+    {
+      "name": "invalid: edge to an unknown skill",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "zz",
+              "strength": "hard"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SKILL_UNKNOWN"]
+      }
+    },
+    {
+      "name": "invalid: edge from an unknown skill",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "zz",
+              "to": "a",
+              "strength": "hard"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SKILL_UNKNOWN"]
+      }
+    },
+    {
+      "name": "invalid: self-edge",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "a",
+              "strength": "hard"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["EDGE_SELF"]
+      }
+    },
+    {
+      "name": "invalid: duplicate edge",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "b",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "hard"
+            },
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "soft"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["EDGE_DUPLICATE"]
+      }
+    },
+    {
+      "name": "invalid: hard prerequisite cycle",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "b",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "c",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "hard"
+            },
+            {
+              "kind": "prerequisite",
+              "from": "b",
+              "to": "c",
+              "strength": "hard"
+            },
+            {
+              "kind": "prerequisite",
+              "from": "c",
+              "to": "a",
+              "strength": "hard"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["GRAPH_CYCLE"]
+      }
+    },
+    {
+      "name": "invalid: soft prerequisite cycle",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "b",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "soft"
+            },
+            {
+              "kind": "prerequisite",
+              "from": "b",
+              "to": "a",
+              "strength": "hard"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["GRAPH_CYCLE"]
+      }
+    },
+    {
+      "name": "invalid: encompasses cycle",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "b",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "b",
+              "to": "a",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "a",
+              "to": "b",
+              "weight": 0.5
+            },
+            {
+              "kind": "encompasses",
+              "from": "b",
+              "to": "a",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["GRAPH_CYCLE"]
+      }
+    },
+    {
+      "name": "invalid: two separate cycles",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "b",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "c",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "d",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "hard"
+            },
+            {
+              "kind": "prerequisite",
+              "from": "b",
+              "to": "a",
+              "strength": "hard"
+            },
+            {
+              "kind": "prerequisite",
+              "from": "c",
+              "to": "d",
+              "strength": "hard"
+            },
+            {
+              "kind": "prerequisite",
+              "from": "d",
+              "to": "c",
+              "strength": "hard"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["GRAPH_CYCLE", "GRAPH_CYCLE"]
+      }
+    },
+    {
+      "name": "invalid: encompasses weight zero",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "w",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "p",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "p",
+              "to": "w",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "w",
+              "to": "p",
+              "weight": 0
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["EDGE_WEIGHT_INVALID"]
+      }
+    },
+    {
+      "name": "invalid: encompasses weight above 1",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "w",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "p",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "p",
+              "to": "w",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "w",
+              "to": "p",
+              "weight": 1.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["EDGE_WEIGHT_INVALID"]
+      }
+    },
+    {
+      "name": "invalid: mixed skill without stages",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "m",
+              "knowledge": "mixed"
+            }
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["LADDER_INVALID"]
+      }
+    },
+    {
+      "name": "invalid: empty ladder",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural",
+              "stages": []
+            }
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["LADDER_INVALID"]
+      }
+    },
+    {
+      "name": "invalid: ladder repeats a stage",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural",
+              "stages": ["write", "write"]
+            }
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["LADDER_INVALID"]
+      }
+    },
+    {
+      "name": "invalid: forms key outside the ladder",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural",
+              "forms": {
+                "recall": ["cloze"]
+              }
+            }
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["STAGE_NOT_IN_LADDER"]
+      }
+    },
+    {
+      "name": "invalid: desiredRetention below range",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural",
+              "desiredRetention": 0.5
+            }
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["RETENTION_OUT_OF_RANGE"]
+      }
+    },
+    {
+      "name": "invalid: desiredRetention above range",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural",
+              "desiredRetention": 0.99
+            }
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["RETENTION_OUT_OF_RANGE"]
+      }
+    },
+    {
+      "name": "invalid: ladder against the declared demand",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural",
+              "stages": ["write", "complete"]
+            }
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["STAGE_DEMAND_ORDER"]
+      }
+    },
+    {
+      "name": "invalid: undeclared stage with two fallbacks",
+      "kind": "graph",
+      "input": {
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            },
+            {
+              "id": "b",
+              "knowledge": "procedural",
+              "stages": ["use", "debug"]
+            }
+          ],
+          "edges": []
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["STAGE_DEMAND_AMBIGUOUS"]
+      }
+    },
+    {
+      "name": "valid: one-skill item",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 1
+              }
+            ],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "valid: equivalent stage for a component",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 0.7
+              },
+              {
+                "skillId": "arg",
+                "weight": 0.3
+              }
+            ],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "valid: transitive component",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 0.6
+              },
+              {
+                "skillId": "lit",
+                "weight": 0.4
+              }
+            ],
+            "stage": "transfer",
+            "origin": "authored",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "valid: shared stage on another skill",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "arg",
+                "weight": 0.5
+              },
+              {
+                "skillId": "other",
+                "weight": 0.5
+              }
+            ],
+            "stage": "recall",
+            "origin": "authored",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "valid: criteria on a component not listed",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 1
+              }
+            ],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven",
+            "criteria": [
+              {
+                "name": "argument",
+                "skillId": "arg"
+              }
+            ]
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "valid: timing in order",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 1
+              }
+            ],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven",
+            "fluentSeconds": 20,
+            "slowSeconds": 60
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "valid: weights summing to 1 within tolerance",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "arg",
+                "weight": 0.1
+              },
+              {
+                "skillId": "other",
+                "weight": 0.2
+              },
+              {
+                "skillId": "lit",
+                "weight": 0.7
+              }
+            ],
+            "stage": "recall",
+            "origin": "authored",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "invalid: not an array",
+      "kind": "items",
+      "input": {
+        "items": {
+          "id": "i1"
+        },
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SHAPE_INVALID"]
+      }
+    },
+    {
+      "name": "invalid: item without skills",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SHAPE_INVALID"]
+      }
+    },
+    {
+      "name": "invalid: unknown origin",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 1
+              }
+            ],
+            "stage": "write",
+            "origin": "scraped",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SHAPE_INVALID"]
+      }
+    },
+    {
+      "name": "invalid: duplicate item id",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 1
+              }
+            ],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven"
+          },
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 1
+              }
+            ],
+            "stage": "complete",
+            "origin": "authored",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["ID_DUPLICATE"]
+      }
+    },
+    {
+      "name": "invalid: skill listed twice",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 0.5
+              },
+              {
+                "skillId": "call",
+                "weight": 0.5
+              }
+            ],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["ID_DUPLICATE"]
+      }
+    },
+    {
+      "name": "invalid: unknown skill",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "nope",
+                "weight": 1
+              }
+            ],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SKILL_UNKNOWN"]
+      }
+    },
+    {
+      "name": "invalid: weights do not sum to 1",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 0.5
+              },
+              {
+                "skillId": "arg",
+                "weight": 0.4
+              }
+            ],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["ITEM_WEIGHTS_SUM"]
+      }
+    },
+    {
+      "name": "invalid: weight out of range",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 1.5
+              },
+              {
+                "skillId": "arg",
+                "weight": -0.5
+              }
+            ],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["ITEM_WEIGHT_INVALID", "ITEM_WEIGHT_INVALID"]
+      }
+    },
+    {
+      "name": "invalid: stage outside the primary ladder",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 1
+              }
+            ],
+            "stage": "recall",
+            "origin": "authored",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["STAGE_NOT_IN_LADDER"]
+      }
+    },
+    {
+      "name": "invalid: no equivalent for a non-component",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 0.5
+              },
+              {
+                "skillId": "other",
+                "weight": 0.5
+              }
+            ],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["STAGE_NO_EQUIVALENT"]
+      }
+    },
+    {
+      "name": "invalid: component without a less demanding stage",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 0.5
+              },
+              {
+                "skillId": "u",
+                "weight": 0.5
+              }
+            ],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven"
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "u",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "u",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["STAGE_NO_EQUIVALENT"]
+      }
+    },
+    {
+      "name": "invalid: criterion on an unrelated skill",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 1
+              }
+            ],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven",
+            "criteria": [
+              {
+                "name": "x",
+                "skillId": "other"
+              }
+            ]
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SKILL_NOT_IN_TASK"]
+      }
+    },
+    {
+      "name": "invalid: criterion on an unknown skill",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 1
+              }
+            ],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven",
+            "criteria": [
+              {
+                "name": "x",
+                "skillId": "nope"
+              }
+            ]
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SKILL_UNKNOWN"]
+      }
+    },
+    {
+      "name": "invalid: fluentSeconds not below slowSeconds",
+      "kind": "items",
+      "input": {
+        "items": [
+          {
+            "id": "i1",
+            "skills": [
+              {
+                "skillId": "call",
+                "weight": 1
+              }
+            ],
+            "stage": "write",
+            "origin": "authored",
+            "status": "proven",
+            "fluentSeconds": 60,
+            "slowSeconds": 60
+          }
+        ],
+        "graph": {
+          "version": "1",
+          "skills": [
+            {
+              "id": "call",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "arg",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "lit",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "other",
+              "knowledge": "declarative"
+            },
+            {
+              "id": "u",
+              "knowledge": "procedural",
+              "stages": ["use"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "arg",
+              "to": "call",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "call",
+              "to": "arg",
+              "weight": 0.5
+            },
+            {
+              "kind": "prerequisite",
+              "from": "lit",
+              "to": "arg",
+              "strength": "hard"
+            },
+            {
+              "kind": "encompasses",
+              "from": "arg",
+              "to": "lit",
+              "weight": 0.5
+            }
+          ]
+        }
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["ITEM_TIMING_ORDER"]
+      }
+    },
+    {
+      "name": "valid: no extensions keeps the base version",
+      "kind": "compose",
+      "input": {
+        "base": {
+          "version": "base-1",
+          "skills": [
+            {
+              "id": "base.imports",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "base.kwargs",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "base.imports",
+              "to": "base.kwargs",
+              "strength": "hard"
+            }
+          ]
+        },
+        "extensions": []
+      },
+      "expect": {
+        "ok": true,
+        "warnings": [],
+        "version": "base-1"
+      }
+    },
+    {
+      "name": "valid: one admitted extension",
+      "kind": "compose",
+      "input": {
+        "base": {
+          "version": "base-1",
+          "skills": [
+            {
+              "id": "base.imports",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "base.kwargs",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "base.imports",
+              "to": "base.kwargs",
+              "strength": "hard"
+            }
+          ]
+        },
+        "extensions": [
+          {
+            "id": "ext-call",
+            "goalId": "goal-ext-call",
+            "idPrefix": "llm.call",
+            "skills": [
+              {
+                "id": "llm.call",
+                "knowledge": "procedural"
+              },
+              {
+                "id": "llm.call.import",
+                "knowledge": "procedural"
+              },
+              {
+                "id": "llm.call.temperature",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [
+              {
+                "kind": "prerequisite",
+                "from": "base.imports",
+                "to": "llm.call.import",
+                "strength": "hard"
+              },
+              {
+                "kind": "prerequisite",
+                "from": "base.kwargs",
+                "to": "llm.call.temperature",
+                "strength": "hard"
+              },
+              {
+                "kind": "prerequisite",
+                "from": "llm.call.import",
+                "to": "llm.call",
+                "strength": "soft"
+              },
+              {
+                "kind": "prerequisite",
+                "from": "llm.call.temperature",
+                "to": "llm.call",
+                "strength": "soft"
+              },
+              {
+                "kind": "encompasses",
+                "from": "llm.call",
+                "to": "llm.call.import",
+                "weight": 1
+              },
+              {
+                "kind": "encompasses",
+                "from": "llm.call",
+                "to": "llm.call.temperature",
+                "weight": 1
+              }
+            ],
+            "status": "admitted"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "valid: version independent of extension order",
+      "kind": "compose",
+      "input": {
+        "base": {
+          "version": "base-1",
+          "skills": [
+            {
+              "id": "base.imports",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "base.kwargs",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "base.imports",
+              "to": "base.kwargs",
+              "strength": "hard"
+            }
+          ]
+        },
+        "extensions": [
+          {
+            "id": "ext-other",
+            "goalId": "goal-ext-other",
+            "idPrefix": "retry",
+            "skills": [
+              {
+                "id": "retry",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [
+              {
+                "kind": "prerequisite",
+                "from": "base.kwargs",
+                "to": "retry",
+                "strength": "hard"
+              }
+            ],
+            "status": "admitted"
+          },
+          {
+            "id": "ext-call",
+            "goalId": "goal-ext-call",
+            "idPrefix": "llm.call",
+            "skills": [
+              {
+                "id": "llm.call",
+                "knowledge": "procedural"
+              },
+              {
+                "id": "llm.call.import",
+                "knowledge": "procedural"
+              },
+              {
+                "id": "llm.call.temperature",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [
+              {
+                "kind": "prerequisite",
+                "from": "base.imports",
+                "to": "llm.call.import",
+                "strength": "hard"
+              },
+              {
+                "kind": "prerequisite",
+                "from": "base.kwargs",
+                "to": "llm.call.temperature",
+                "strength": "hard"
+              },
+              {
+                "kind": "prerequisite",
+                "from": "llm.call.import",
+                "to": "llm.call",
+                "strength": "soft"
+              },
+              {
+                "kind": "prerequisite",
+                "from": "llm.call.temperature",
+                "to": "llm.call",
+                "strength": "soft"
+              },
+              {
+                "kind": "encompasses",
+                "from": "llm.call",
+                "to": "llm.call.import",
+                "weight": 1
+              },
+              {
+                "kind": "encompasses",
+                "from": "llm.call",
+                "to": "llm.call.temperature",
+                "weight": 1
+              }
+            ],
+            "status": "admitted"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "warnings": []
+      }
+    },
+    {
+      "name": "invalid: proposed extension",
+      "kind": "compose",
+      "input": {
+        "base": {
+          "version": "base-1",
+          "skills": [
+            {
+              "id": "base.imports",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "base.kwargs",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "base.imports",
+              "to": "base.kwargs",
+              "strength": "hard"
+            }
+          ]
+        },
+        "extensions": [
+          {
+            "id": "ext-other",
+            "goalId": "goal-ext-other",
+            "idPrefix": "retry",
+            "skills": [
+              {
+                "id": "retry",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [
+              {
+                "kind": "prerequisite",
+                "from": "base.kwargs",
+                "to": "retry",
+                "strength": "hard"
+              }
+            ],
+            "status": "proposed"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["EXTENSION_NOT_ADMITTED"]
+      }
+    },
+    {
+      "name": "invalid: skill outside the prefix",
+      "kind": "compose",
+      "input": {
+        "base": {
+          "version": "base-1",
+          "skills": [
+            {
+              "id": "base.imports",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "base.kwargs",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "base.imports",
+              "to": "base.kwargs",
+              "strength": "hard"
+            }
+          ]
+        },
+        "extensions": [
+          {
+            "id": "e",
+            "goalId": "goal-e",
+            "idPrefix": "retry",
+            "skills": [
+              {
+                "id": "retrying",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [],
+            "status": "admitted"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["EXTENSION_ID_OUTSIDE_PREFIX"]
+      }
+    },
+    {
+      "name": "invalid: skill already in the base",
+      "kind": "compose",
+      "input": {
+        "base": {
+          "version": "base-1",
+          "skills": [
+            {
+              "id": "base.imports",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "base.kwargs",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "base.imports",
+              "to": "base.kwargs",
+              "strength": "hard"
+            }
+          ]
+        },
+        "extensions": [
+          {
+            "id": "e",
+            "goalId": "goal-e",
+            "idPrefix": "base",
+            "skills": [
+              {
+                "id": "base.kwargs",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [],
+            "status": "admitted"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["ID_DUPLICATE"]
+      }
+    },
+    {
+      "name": "invalid: edge into a base skill",
+      "kind": "compose",
+      "input": {
+        "base": {
+          "version": "base-1",
+          "skills": [
+            {
+              "id": "base.imports",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "base.kwargs",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "base.imports",
+              "to": "base.kwargs",
+              "strength": "hard"
+            }
+          ]
+        },
+        "extensions": [
+          {
+            "id": "e",
+            "goalId": "goal-e",
+            "idPrefix": "retry",
+            "skills": [
+              {
+                "id": "retry",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [
+              {
+                "kind": "prerequisite",
+                "from": "retry",
+                "to": "base.kwargs",
+                "strength": "hard"
+              }
+            ],
+            "status": "admitted"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["EXTENSION_EDGE_INTO_BASE"]
+      }
+    },
+    {
+      "name": "invalid: extension edge to an unknown skill",
+      "kind": "compose",
+      "input": {
+        "base": {
+          "version": "base-1",
+          "skills": [
+            {
+              "id": "base.imports",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "base.kwargs",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "base.imports",
+              "to": "base.kwargs",
+              "strength": "hard"
+            }
+          ]
+        },
+        "extensions": [
+          {
+            "id": "e",
+            "goalId": "goal-e",
+            "idPrefix": "retry",
+            "skills": [
+              {
+                "id": "retry",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [
+              {
+                "kind": "prerequisite",
+                "from": "retry",
+                "to": "retry.zz",
+                "strength": "hard"
+              }
+            ],
+            "status": "admitted"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SKILL_UNKNOWN"]
+      }
+    },
+    {
+      "name": "invalid: extension edge from an unknown skill",
+      "kind": "compose",
+      "input": {
+        "base": {
+          "version": "base-1",
+          "skills": [
+            {
+              "id": "base.imports",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "base.kwargs",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "base.imports",
+              "to": "base.kwargs",
+              "strength": "hard"
+            }
+          ]
+        },
+        "extensions": [
+          {
+            "id": "e",
+            "goalId": "goal-e",
+            "idPrefix": "retry",
+            "skills": [
+              {
+                "id": "retry",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [
+              {
+                "kind": "prerequisite",
+                "from": "zz",
+                "to": "retry",
+                "strength": "hard"
+              }
+            ],
+            "status": "admitted"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["SKILL_UNKNOWN"]
+      }
+    },
+    {
+      "name": "invalid: extension passed twice",
+      "kind": "compose",
+      "input": {
+        "base": {
+          "version": "base-1",
+          "skills": [
+            {
+              "id": "base.imports",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "base.kwargs",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "base.imports",
+              "to": "base.kwargs",
+              "strength": "hard"
+            }
+          ]
+        },
+        "extensions": [
+          {
+            "id": "ext-other",
+            "goalId": "goal-ext-other",
+            "idPrefix": "retry",
+            "skills": [
+              {
+                "id": "retry",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [
+              {
+                "kind": "prerequisite",
+                "from": "base.kwargs",
+                "to": "retry",
+                "strength": "hard"
+              }
+            ],
+            "status": "admitted"
+          },
+          {
+            "id": "ext-other",
+            "goalId": "goal-ext-other",
+            "idPrefix": "retry",
+            "skills": [
+              {
+                "id": "retry",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [
+              {
+                "kind": "prerequisite",
+                "from": "base.kwargs",
+                "to": "retry",
+                "strength": "hard"
+              }
+            ],
+            "status": "admitted"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["ID_DUPLICATE"]
+      }
+    },
+    {
+      "name": "invalid: two extensions share a skill id",
+      "kind": "compose",
+      "input": {
+        "base": {
+          "version": "base-1",
+          "skills": [
+            {
+              "id": "base.imports",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "base.kwargs",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "base.imports",
+              "to": "base.kwargs",
+              "strength": "hard"
+            }
+          ]
+        },
+        "extensions": [
+          {
+            "id": "ext-other",
+            "goalId": "goal-ext-other",
+            "idPrefix": "retry",
+            "skills": [
+              {
+                "id": "retry",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [
+              {
+                "kind": "prerequisite",
+                "from": "base.kwargs",
+                "to": "retry",
+                "strength": "hard"
+              }
+            ],
+            "status": "admitted"
+          },
+          {
+            "id": "ext-z",
+            "goalId": "goal-ext-z",
+            "idPrefix": "retry",
+            "skills": [
+              {
+                "id": "retry",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [],
+            "status": "admitted"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["ID_DUPLICATE"]
+      }
+    },
+    {
+      "name": "invalid: cycle inside an extension",
+      "kind": "compose",
+      "input": {
+        "base": {
+          "version": "base-1",
+          "skills": [
+            {
+              "id": "base.imports",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "base.kwargs",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "base.imports",
+              "to": "base.kwargs",
+              "strength": "hard"
+            }
+          ]
+        },
+        "extensions": [
+          {
+            "id": "e",
+            "goalId": "goal-e",
+            "idPrefix": "r",
+            "skills": [
+              {
+                "id": "r.a",
+                "knowledge": "procedural"
+              },
+              {
+                "id": "r.b",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [
+              {
+                "kind": "prerequisite",
+                "from": "r.a",
+                "to": "r.b",
+                "strength": "hard"
+              },
+              {
+                "kind": "prerequisite",
+                "from": "r.b",
+                "to": "r.a",
+                "strength": "hard"
+              }
+            ],
+            "status": "admitted"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["GRAPH_CYCLE"]
+      }
+    },
+    {
+      "name": "invalid: extension ladder against the demand",
+      "kind": "compose",
+      "input": {
+        "base": {
+          "version": "base-1",
+          "skills": [
+            {
+              "id": "base.imports",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "base.kwargs",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "base.imports",
+              "to": "base.kwargs",
+              "strength": "hard"
+            }
+          ]
+        },
+        "extensions": [
+          {
+            "id": "e",
+            "goalId": "goal-e",
+            "idPrefix": "r",
+            "skills": [
+              {
+                "id": "r.a",
+                "knowledge": "procedural",
+                "stages": ["transfer", "example"]
+              }
+            ],
+            "edges": [],
+            "status": "admitted"
+          }
+        ]
+      },
+      "expect": {
+        "ok": false,
+        "codes": ["STAGE_DEMAND_ORDER"]
+      }
+    },
+    {
+      "name": "warning: extension composite without prerequisites",
+      "kind": "compose",
+      "input": {
+        "base": {
+          "version": "base-1",
+          "skills": [
+            {
+              "id": "base.imports",
+              "knowledge": "procedural"
+            },
+            {
+              "id": "base.kwargs",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "base.imports",
+              "to": "base.kwargs",
+              "strength": "hard"
+            }
+          ]
+        },
+        "extensions": [
+          {
+            "id": "e",
+            "goalId": "goal-e",
+            "idPrefix": "r",
+            "skills": [
+              {
+                "id": "r",
+                "knowledge": "procedural"
+              },
+              {
+                "id": "r.p",
+                "knowledge": "procedural"
+              }
+            ],
+            "edges": [
+              {
+                "kind": "encompasses",
+                "from": "r",
+                "to": "r.p",
+                "weight": 0.5
+              }
+            ],
+            "status": "admitted"
+          }
+        ]
+      },
+      "expect": {
+        "ok": true,
+        "warnings": ["ENCOMPASSES_WITHOUT_PREREQUISITE"]
+      }
+    }
+  ]
+}

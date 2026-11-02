@@ -1,5 +1,8 @@
 /**
- * The root entry: re-exports only. Nothing is exported yet; each public name
- * is re-exported from here as it is built, and `api/surface.md` records it.
+ * @intellectif/lk-practice: a pure, deterministic engine for spaced,
+ * stage-based practice over a skill graph. The domain types, graph and item
+ * validation, and goal-driven graph composition (M2).
  */
-export {};
+
+export { composeGraph, validateGraph, validateItems } from './graph/index.js';
+export type * from './types.js';
