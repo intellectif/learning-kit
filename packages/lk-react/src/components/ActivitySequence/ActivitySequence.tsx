@@ -1775,6 +1775,16 @@ export function ActivitySequence({
         />
       );
     }
+    if (activity.type === 'speaking-response') {
+      // No built-in component yet: until there is one, a host draws a spoken
+      // answer through `renderers`, and without one it is shown as any type
+      // without a renderer is.
+      return (
+        <div className="lk-seq-unsupported" role="note">
+          {s.unsupportedActivity}
+        </div>
+      );
+    }
     everyBuiltInTypeHandled(activity);
     return (
       <div className="lk-seq-unsupported" role="note">

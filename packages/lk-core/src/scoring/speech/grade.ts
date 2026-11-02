@@ -39,13 +39,13 @@ import { describeValidationError, validateSpeechAssessment } from './assessment.
  * time is summed window by window, so it can land a hair above the duration it
  * was measured from without either number being wrong.
  */
-const MEASUREMENT_TOLERANCE = 1e-6;
+export const MEASUREMENT_TOLERANCE = 1e-6;
 
 /** What every assessor score is out of, and what a criterion declares. */
 const ASSESSMENT_SCALE = 100;
 
 /** A value named in an error message, without serialising the object it came from. */
-function describeValue(value: unknown): string {
+export function describeValue(value: unknown): string {
   return typeof value === 'number' ? String(value) : `of type ${typeof value}`;
 }
 
@@ -61,12 +61,15 @@ function describeValue(value: unknown): string {
  * recording-key binding. Every field is read once, and what is returned is what
  * was checked.
  */
-function readResponseRecording(value: unknown): { recording: RecordingRef | null } | undefined {
+export function readResponseRecording(
+  value: unknown,
+  expected: 'read-aloud' | 'speaking-response' = 'read-aloud',
+): { recording: RecordingRef | null } | undefined {
   if (typeof value !== 'object' || value === null) {
     return undefined;
   }
   const { type, recording } = value as { type?: unknown; recording?: unknown };
-  if (type !== 'read-aloud') {
+  if (type !== expected) {
     return undefined;
   }
   // `null` is the blank: the learner submitted without recording. A take that
@@ -96,7 +99,7 @@ function readResponseRecording(value: unknown): { recording: RecordingRef | null
  * a written response with, and a rate compared against a policy an application
  * set must be counted the same way every time.
  */
-function spokenWordCount(assessment: SpeechAssessment): number {
+export function spokenWordCount(assessment: SpeechAssessment): number {
   const recognized = assessment.recognizedText;
   if (recognized !== undefined && recognized.trim() !== '') {
     return countWords(recognized);

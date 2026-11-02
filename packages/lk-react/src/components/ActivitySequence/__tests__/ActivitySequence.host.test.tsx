@@ -1,7 +1,12 @@
-import type { InteractionEvent, MultipleChoiceData } from '@intellectif/lk-core';
+import type {
+  InteractionEvent,
+  MultipleChoiceData,
+  SpeakingResponseData,
+} from '@intellectif/lk-core';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_STRINGS } from '../../../i18n/strings.js';
 import type { ActivityProps } from '../../types.js';
 import { ActivitySequence, type SequenceItemOutcome, type SequenceQuestion } from '../index.js';
 
@@ -92,6 +97,18 @@ function Host({
 }
 
 const renderers = { 'multiple-choice': Host };
+
+/** A spoken answer: a built-in type with no built-in component yet. */
+const spoken: SpeakingResponseData = {
+  schemaVersion: '1.0',
+  type: 'speaking-response',
+  id: 's1',
+  title: 'City or country',
+  prompt: 'Would you rather live in a city? Say why.',
+  locale: 'en-US',
+  recording: { maxSeconds: 60 },
+  rubric: { criteria: [{ name: 'Content', weight: 1 }] },
+};
 
 beforeEach(() => {
   handed = [];
@@ -291,5 +308,17 @@ describe('ActivitySequence: a question the host draws', () => {
 
     await user.click(screen.getByRole('button', { name: 'Mark q1' }));
     expect(onFinished).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ActivitySequence: a spoken answer', () => {
+  it('is noted as unsupported until a host draws it, and a host can', () => {
+    const { unmount } = render(<ActivitySequence activities={[spoken]} />);
+    expect(screen.getByRole('note')).toHaveTextContent(DEFAULT_STRINGS.unsupportedActivity);
+    unmount();
+
+    render(<ActivitySequence activities={[spoken]} renderers={{ 'speaking-response': Host }} />);
+    expect(last('s1').question.active).toBe(true);
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
   });
 });

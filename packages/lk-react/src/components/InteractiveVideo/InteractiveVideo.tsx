@@ -1592,8 +1592,9 @@ function Player(props: InteractiveVideoProps) {
         );
       }
       case 'written-response':
-        // Never reached: a timeline refuses a written response
-        // (`INTERACTIVE_VIDEO_ITEM_TYPES`), so no quiz holds one.
+      case 'speaking-response':
+        // Never reached: a timeline refuses a written response and a spoken
+        // one (`INTERACTIVE_VIDEO_ITEM_TYPES`), so no quiz holds either.
         return null;
       default:
         everyBuiltInTypeHandled(activity);

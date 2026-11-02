@@ -8,6 +8,7 @@
  * and does the arithmetic.
  */
 import type { RoundingPolicy } from '../scoring/rounding.js';
+import type { AiGradingJudgement } from './ai.js';
 import type { Grader } from './grading.js';
 
 /**
@@ -114,6 +115,15 @@ export interface SpeechAssessment {
   /** What the assessor recognised, as text. */
   recognizedText?: string;
   /**
+   * An open answer's transcript, from a transcriber that is not the engine
+   * (1.9): its verbatim text — fillers, false starts and the learner's own
+   * grammar kept — and who wrote it. The engine measured the take against this
+   * text, and a judge grades the answer on it, so both read one record of what
+   * was said. For `unscripted` evidence; a scripted assessment has its
+   * `referenceText` instead.
+   */
+  transcript?: { text: string; source: Grader };
+  /**
    * Who judged omissions, insertions and mispronunciations. `assessor`: the
    * assessor did, and its word `error` labels are trusted. `none`: it did not,
    * so a heard word that differs from its reference word is marked
@@ -155,9 +165,10 @@ export interface SpeechPlausibilityPolicy {
 }
 
 /**
- * Why a read-aloud take cannot be graded:
+ * Why a read-aloud take, or a spoken answer (1.9), cannot be graded:
  * - `invalid_assessment` — the assessment fails `validateSpeechAssessment`;
- * - `task_mismatch` — it is not a scripted assessment;
+ * - `task_mismatch` — it is not a scripted assessment (a read-aloud), or not an
+ *   unscripted one (a spoken answer);
  * - `locale_mismatch` — it was made for another locale than the item's;
  * - `reference_mismatch` — it was made against another text than the item's;
  * - `recording_mismatch` — it was made for another recording than the response's;
@@ -165,7 +176,10 @@ export interface SpeechPlausibilityPolicy {
  * - `no_speech` — the assessor heard no speech;
  * - `insufficient_voiced_time` — the recording holds less voiced time than the policy requires;
  * - `implausible_speech_rate` — more words were recognised than the voiced time can hold;
- * - `missing_dimension` — a weighted dimension has no score in the assessment.
+ * - `missing_dimension` — a weighted dimension, or a weighted criterion's
+ *   measure, has no score in the assessment;
+ * - `judgement_mismatch` — a spoken answer's judgement does not judge each
+ *   criterion the judge scores exactly once, or judges one it does not score.
  */
 export type SpeechUnscorableCode =
   | 'invalid_assessment'
@@ -177,7 +191,8 @@ export type SpeechUnscorableCode =
   | 'no_speech'
   | 'insufficient_voiced_time'
   | 'implausible_speech_rate'
-  | 'missing_dimension';
+  | 'missing_dimension'
+  | 'judgement_mismatch';
 
 /** A read-aloud take that cannot be graded. Never a zero: see `outcomeFromUnscorable`. */
 export interface SpeechUnscorable {
@@ -201,6 +216,29 @@ export interface GradeReadAloudOptions {
   allowAiAssessor?: boolean;
   /** Compare the pass line with both sides rounded, as `gradeFromRubric` does. The score stays unrounded. */
   rounding?: RoundingPolicy;
+}
+
+/**
+ * What `gradeSpeakingResponse` grades from (1.9): the engine's unscripted
+ * assessment of the take, carrying the transcript it was measured against, and a
+ * judgement of the criteria a judge scores — from `checkAiGrading` on a model's
+ * reply, or a person's marks in the same shape. Either may be `null` when the
+ * rubric needs nothing of it, and both are `null` for a blank.
+ */
+export interface SpeakingEvidence {
+  assessment: SpeechAssessment | null;
+  judgement: AiGradingJudgement | null;
+}
+
+/** Options for `gradeSpeakingResponse`: `gradeReadAloud`'s, and who scores the measured criteria. */
+export interface GradeSpeakingResponseOptions extends GradeReadAloudOptions {
+  /**
+   * The judge scores the criteria that name a `measure` too, and the engine's
+   * measures are not read for them. Off: a measured criterion is the engine's.
+   * A model that judges pronunciation is behind the same calibration gate as
+   * one that judges content — see `routeGrade`.
+   */
+  judgeMeasures?: boolean;
 }
 
 /** How a word of a read-aloud attempt is marked. */

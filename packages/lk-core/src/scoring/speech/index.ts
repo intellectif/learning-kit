@@ -6,6 +6,7 @@
 export { alignReadAloud } from './align.js';
 export { validateSpeechAssessment } from './assessment.js';
 export { gradeReadAloud } from './grade.js';
+export { gradeSpeakingResponse } from './grade-speaking.js';
 export {
   READ_ALOUD_MAX_DIMENSION_WEIGHT,
   READ_ALOUD_MAX_REFERENCE_LENGTH,

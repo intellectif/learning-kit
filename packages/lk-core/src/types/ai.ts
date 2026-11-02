@@ -8,7 +8,7 @@
  * the SDK reached; it never reaches one.
  */
 
-import type { ActivityMedia } from './activity.js';
+import type { ActivityMedia, SpeakingMeasure } from './activity.js';
 import type { DraftValidationResult, ItemFinding } from './authoring.js';
 import type { CriterionScore, GraderUsage, InlineCorrection } from './grading.js';
 import type { StimulusKind } from './item-group.js';
@@ -506,6 +506,102 @@ export type AiGradingRequestProblem =
   | 'duplicate-criteria'
   | 'unreadable-levels'
   | 'empty-response';
+
+// ── Grading a spoken answer (1.9) ───────────────────────────────────────
+
+/** One criterion a judge scores on a spoken answer, as the author wrote it. */
+export interface AiSpeakingCriterionFact extends AiGradingCriterionFact {
+  /**
+   * The engine measure the criterion names, when the host has the judge score
+   * measured criteria too (`judgeMeasures`): what to listen for.
+   */
+  measure?: SpeakingMeasure;
+}
+
+/** A criterion the engine scores: the judge is told of it, and does not score it. */
+export interface AiSpeakingMeasureFact {
+  name: string;
+  measure: SpeakingMeasure;
+  weight: number;
+  /** The engine's score, 0..100, when it gave one. */
+  score?: number;
+}
+
+/**
+ * What a model is told about a spoken answer it grades: the task as the
+ * learner saw it, the transcript of what they said, verbatim, and the criteria
+ * it scores.
+ */
+export interface AiSpeakingGradingFacts {
+  activityType: 'speaking-response';
+  activityId: string;
+  title: string;
+  /** The language the answer is spoken in. */
+  locale: string;
+  instructions?: string;
+  prompt: string;
+  /** What the prompt is about, as the item describes its picture or recording. */
+  media?: { type: string; alt?: string };
+  /**
+   * What the learner said, from the evidence's transcript: verbatim, with its
+   * fillers, false starts and the learner's own grammar. Every correction
+   * quotes it.
+   */
+  text: string;
+  /** Counted with `countWords`, as the speech-rate check counts it. */
+  wordCount: number;
+  /** The criteria the judge scores, in the rubric's order. */
+  rubric: AiSpeakingCriterionFact[];
+  /** The criteria the engine scores, with what it measured: context for the feedback, never the judge's to score. */
+  measured: AiSpeakingMeasureFact[];
+  /** The target language and level, when the author gave one (e.g. `"en-B1"`). */
+  languageTarget?: string;
+}
+
+/**
+ * Asks a model to grade a spoken answer from its transcript. Built on the
+ * server, from the whole item and the take's evidence. `checkAiGrading` reads
+ * the reply, and `gradeSpeakingResponse` computes the grade.
+ */
+export interface AiSpeakingGradingRequest {
+  feature: 'speaking-grading';
+  facts: AiSpeakingGradingFacts;
+  /** The material of the group the task sits in; absent outside a group. */
+  material?: AiMaterialFacts;
+  /** The language to write comments and feedback in, when known. */
+  learnerLocale?: string;
+}
+
+/**
+ * Why `aiSpeakingGradingRequest` built no request:
+ *
+ * - `not-speaking-response` — the item is another type;
+ * - `redacted` — a `redact()` projection;
+ * - `no-rubric` — no rubric, a criterion without a name and a weight, or one
+ *   whose `measure` is not one of the engine's;
+ * - `duplicate-criteria` and `unreadable-levels` — as for a written response;
+ * - `nothing-to-judge` — the engine scores every criterion, so there is no
+ *   judgement to ask for;
+ * - `empty-response` — a blank, or a take the engine heard no speech in;
+ * - `invalid-assessment` — no assessment, or one `validateSpeechAssessment`
+ *   refuses;
+ * - `evidence-mismatch` — an assessment that is not `unscripted`, or not for
+ *   the item's locale or this response's recording, which the grade would
+ *   refuse;
+ * - `no-transcript` — the assessment carries no `transcript`: there is no
+ *   record of what was said for a judge to read.
+ */
+export type AiSpeakingGradingRequestProblem =
+  | 'not-speaking-response'
+  | 'redacted'
+  | 'no-rubric'
+  | 'duplicate-criteria'
+  | 'unreadable-levels'
+  | 'nothing-to-judge'
+  | 'empty-response'
+  | 'invalid-assessment'
+  | 'evidence-mismatch'
+  | 'no-transcript';
 
 /** A model's judgement of one criterion, as `checkAiGrading` accepted it. */
 export interface AiGradedCriterion {

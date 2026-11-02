@@ -32,7 +32,8 @@ function checked(assessment: SpeechAssessment): AzureAssessmentResult {
 
 /**
  * Azure pronunciation assessment results → lk-core's `SpeechAssessment`, for
- * a read-aloud take: pure, with no network, no key and no clock.
+ * a read-aloud take or — with `request.transcriber` — a spoken answer marked
+ * against its transcript: pure, with no network, no key and no clock.
  *
  * Pass every result of the take in order: the one result of single-shot
  * recognition or of a REST request, or each `recognized` result of continuous
@@ -43,8 +44,8 @@ function checked(assessment: SpeechAssessment): AzureAssessmentResult {
  *   is omitted, and every score is 0 but prosody, which it leaves out. A
  *   `NoMatch`, `InitialSilenceTimeout` or `BabbleTimeout` result recognises
  *   no word either. Such a take is `status: 'no_speech'`, which
- *   `gradeReadAloud` reports as unscorable, never a grade of 0, and before
- *   it checks for a missing dimension.
+ *   `gradeReadAloud` and `gradeSpeakingResponse` report as unscorable, never
+ *   a grade of 0, and before they check for a missing dimension.
  * - **One result keeps Azure's scores.** Several are scored over the whole
  *   take, as Microsoft's continuous sample scores one; see `merge.ts`.
  * - **What is not a probability is left out:** break confidences, and a
@@ -53,7 +54,8 @@ function checked(assessment: SpeechAssessment): AzureAssessmentResult {
  *   locale but en-US), phoneme symbols and candidates named `""`.
  * - **An omitted word has no score and no time.**
  * - The result is checked by `validateSpeechAssessment`, so an assessment it
- *   returns is one `gradeReadAloud` reads.
+ *   returns is one `gradeReadAloud` reads — or, for a spoken answer,
+ *   `gradeSpeakingResponse`.
  *
  * Choose single-shot recognition only below about 28 s, measured from the
  * recording: it stops at 30 s and reports the rest of the reading as omitted,
@@ -89,11 +91,19 @@ export function assessmentFromAzure(
     }
   }
 
+  // A reading is bound to the item's text; a spoken answer to the transcript
+  // it was marked against, which a judge then reads.
+  const binding: Pick<SpeechAssessment, 'task' | 'referenceText' | 'transcript'> =
+    request.transcriber === undefined
+      ? { task: 'scripted', referenceText: request.referenceText }
+      : {
+          task: 'unscripted',
+          transcript: { text: request.referenceText, source: { ...request.transcriber } },
+        };
   const base = {
     assessmentVersion: '1.0',
-    task: 'scripted',
+    ...binding,
     locale: request.locale,
-    referenceText: request.referenceText,
     recordingKey: request.recordingKey,
     assessor: { kind: 'auto', id: request.assessorId ?? DEFAULT_ASSESSOR_ID },
     scale: 100,

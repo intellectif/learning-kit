@@ -11,6 +11,8 @@
 
 It describes `@intellectif/lk-core` 0.14.0 and `@intellectif/lk-react` 14.0.0, the versions the changesets for this work produce. lk-core holds the grading half: the type, the evidence shape, `inspectWav`, `validateSpeechAssessment`, `alignReadAloud` and `gradeReadAloud`. lk-react holds the browser half: `useSpeechRecorder` captures a take as the WAV `inspectWav` measures, `<ReadAloud>` records one and hands it to your storage, and `<PronunciationFeedback>` renders the marks — see [In the browser](#in-the-browser-lk-react). Neither package calls a speech service, holds a key or keeps audio.
 
+A spoken answer to a prompt (`speaking-response`, lk-core 1.9) is graded from the same kind of evidence, measured against a transcript of what was said instead of an item's text: see [Spoken answers](#spoken-answers-19).
+
 ## What the SDK does, and what your application does
 
 The SDK never records audio on a server, stores it, calls a speech service or a model, holds a key, or schedules grading. It defines the shapes and does the arithmetic that decides a grade, so the same inputs always give the same grade.
@@ -535,6 +537,58 @@ Fine-tuning closes much of that gap ([2025](https://arxiv.org/abs/2509.15701)), 
 
 `gradeReadAloud` therefore refuses `assessor.kind: 'ai'` evidence unless you pass `allowAiAssessor: true`. When you do, label the feedback accordingly. A model is well suited to explaining an engine's marks to the learner. That explanation is display text, and never enters the grade.
 
+## Spoken answers (1.9)
+
+A `speaking-response` item asks the learner to answer a prompt out loud — optionally about a picture, or after a recording — and grades the answer on a rubric (see [the item](./authoring.md#speaking-response--answer-out-loud-19)). There is no text to read, so two things grade it:
+
+- **a judge** — a model behind the [calibration gate](./grading.md), or a person — scores the criteria that name no `measure`: what was said, how it was organised, the range and accuracy of the language. It reads a transcript.
+- **the engine** scores each criterion that names one: `pronunciation` from the assessment's accuracy, `fluency` from its fluency, `prosody` from its prosody, each out of 100. Pass `judgeMeasures: true` and the judge scores those too.
+
+lk-core 1.9 holds the grading half: the type, the evidence, `aiSpeakingGradingRequest` and `gradeSpeakingResponse`. lk-react has no `<SpeakingResponse>` yet: draw the item through `renderers`, record with `useSpeechRecorder`, and store the response as `{ type: 'speaking-response', recording: { key, mimeType } }`, or `recording: null` for a learner who submitted without speaking.
+
+### The flow
+
+1. Transcribe the take **verbatim**, keeping fillers, false starts and the learner's own grammar.
+2. Send the audio to the engine with that transcript as its reference text, and map the reply into a `SpeechAssessment` with `task: 'unscripted'`, `transcript: { text, source }` and the take's `recordingKey`. With [`@intellectif/lk-azure`](../packages/lk-azure), pass `referenceText: transcript` and `transcriber: { kind: 'auto', id: '…' }`: the assessment comes back in this shape.
+3. Build the judge's request with `aiSpeakingGradingRequest({ data: item, response, assessment, judgeMeasures?, group?, learnerLocale? })`, send it to your model, and read the reply with `checkAiGrading(reply, request)` — the same check a written response's grade goes through, held to the criteria the judge scores and to the transcript every correction quotes. A person's marks in the same shape (`AiGradingJudgement`) grade the same way.
+4. Grade with `gradeSpeakingResponse(item, response, { assessment, judgement }, { measured, plausibility, judgeMeasures?, allowAiAssessor?, rounding? })`.
+5. Route the grade with `routeGrade(grade, { mode, item, calibration? })`, exactly as a written one: the item is the calibration scope, and in `exam` a grade without a matching calibration goes to a person.
+
+**Why one verbatim transcript serves both.** In captures of takes with deliberate slips, a transcript cleaned of fillers also corrected the speaker's grammar ("she live" became "she lives"), so a judge reading it would not see the errors it grades. Used as the engine's reference, the cleaned transcript also cost fluency: the engine marked the words the learner said and the cleaner had removed as insertions, and charged fluency for them — up to 32 points, most where the speaker hesitated. The verbatim transcript matched the true text's fluency on every take. It is not literal ("um" may be written "uh"), but it is a faithful enough record for both readers.
+
+**The engine is lenient on pronunciation.** In the same captures it gave accuracy 96 to a take with three deliberate mispronunciations, and marked none of them. A pronunciation criterion scored from the engine measures what the engine measures; calibrate it against people before it counts in an exam.
+
+### What `aiSpeakingGradingRequest` builds
+
+`{ feature: 'speaking-grading', facts, material?, learnerLocale? }`, where `facts` holds the task as the learner saw it (`title`, `instructions`, `prompt`, `media` type and alt text, `locale`, `languageTarget`), `text` — the transcript, verbatim — and its `wordCount`, `rubric` — the criteria the judge scores, with their levels, and each one's `measure` when `judgeMeasures` is set — and `measured`: the criteria the engine scores, with its scores, as context for the feedback. The model does not score those.
+
+It builds no request, and says why, for another type (`not-speaking-response`), a `redact()` projection (`redacted`), a rubric a model cannot be held to (`no-rubric`, `duplicate-criteria`, `unreadable-levels`), a rubric the engine scores entirely (`nothing-to-judge`), a blank or a take with no speech (`empty-response`), no assessment or one `validateSpeechAssessment` refuses (`invalid-assessment`), evidence the grade would refuse — not unscripted, another locale, another recording (`evidence-mismatch`) — and evidence with no `transcript` (`no-transcript`). A model is never paid to judge a take the grade would refuse.
+
+### Grading: `gradeSpeakingResponse`
+
+It throws for the caller's bugs, in `gradeReadAloud`'s order: a plausibility or rounding policy it cannot apply (`RangeError`), data that is not speaking-response data (`ActivitySchemaError`), a projection (`RedactedScoringError`), a response it cannot read (`TypeError`); then, past a blank, a recording graded without an assessment, without a judgement when the judge scores a criterion, or without `measured` (`TypeError`), and a measurement that cannot be a recording (`RangeError`).
+
+**A blank** grades 0 with the authored feedback; neither the evidence nor the measurement is read.
+
+**Otherwise the checks run in this order**, and the first that fails decides the code:
+
+| Code | When | Another take helps |
+|---|---|---|
+| `invalid_assessment` | `validateSpeechAssessment` refuses the evidence | No: the adapter |
+| `task_mismatch` | the assessment is not `unscripted` | No: the server that grades |
+| `locale_mismatch` | it was made for another locale than the item's | No: the server that grades |
+| `recording_mismatch` | its `recordingKey` is not the response's key, or it names none — unscripted evidence need not to be valid, but must to be graded | No: the server that grades |
+| `assessor_not_accepted` | `assessor.kind` is `'ai'` without `allowAiAssessor` | No: the server's configuration |
+| `no_speech` | the engine found no speech | **Yes** |
+| `insufficient_voiced_time` | `measured.voicedMs` is below `plausibility.minVoicedMs` | **Yes** |
+| `implausible_speech_rate` | more words per second of voiced time than `maxWordsPerSecond` allows, counted from the transcript the judge reads (from what the engine recognised when there is no transcript) | **Yes**, and a person should listen if it repeats |
+| `missing_dimension` | a criterion weighted above 0 is scored from a measure the assessment has no score for | Usually not |
+| `judgement_mismatch` | the judgement does not score each criterion the judge scores exactly once, on its 0..1 scale: one left out, one twice, one the item does not have, or a measured criterion without `judgeMeasures` | No: the judge, or the server that asked it |
+
+A judgement is matched whenever one is given, case and spacing ignored as `checkAiGrading` matches names, so marks meant for another item are refused rather than scored.
+
+**When every check passes**, each criterion is scored once, by the judge or from the engine, and `gradeFromRubric` computes the weighted total over the item's weights; `GradeRecord.criteria` lists them in the rubric's order, the engine's out of 100. With a judge, the grade is the judge's record, as `gradeFromJudgement` makes one: its feedback (the authored feedback when it gave none), corrections, rationale, `requiresHumanReview`, usage, and `grader: { kind: 'ai', model, promptHash }`. Without one, the feedback is the authored feedback and `grader` is the engine's assessor.
+
 ---
 
 ## Appendix: filling `SpeechAssessment` from Azure pronunciation assessment
@@ -556,6 +610,8 @@ const read = assessmentFromAzure(results, {
 });
 // read.ok ? read.assessment : read.code ('invalid_assessment', 'recognition_failed', …)
 ```
+
+For a [spoken answer](#spoken-answers-19), send the verbatim transcript as the reference, pass it as `referenceText`, and add `transcriber` — who wrote it, a `Grader` such as `{ kind: 'auto', id: 'my-transcriber' }`. The assessment then comes back `task: 'unscripted'`, with `transcript: { text: referenceText, source: transcriber }` and no `referenceText`, ready for `gradeSpeakingResponse`. Everything else below holds for it, including the 30-second limit of single-shot recognition: most free answers are longer, so most go through continuous recognition with `miscue: false`.
 
 The rest of this appendix is what it does, and why, for an adapter written in another language.
 

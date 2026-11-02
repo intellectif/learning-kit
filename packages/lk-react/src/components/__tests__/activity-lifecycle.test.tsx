@@ -141,7 +141,12 @@ const COMPONENTS = {
       {...props}
     />
   ),
-} satisfies Record<BuiltInActivityType, (props: Shared) => ReactElement>;
+  // A spoken answer has no built-in component yet: a host draws it through
+  // `renderers`. Its entry joins this table with the component.
+} satisfies Record<
+  Exclude<BuiltInActivityType, 'speaking-response'>,
+  (props: Shared) => ReactElement
+>;
 
 const POLICIES: Record<string, DeliveryPolicy | undefined> = {
   'no policy': undefined,

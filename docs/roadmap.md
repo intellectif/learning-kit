@@ -1111,8 +1111,16 @@ it. It comes after the groundwork it needs, in this order.
      than its transcription. The transcript's source is recorded apart from the engine's.
    - **A capture run first,** with the maintainer's own voice speaking freely. It checks whether the
      transcriber writes a learner's mistakes as said or corrects them before the judge sees them.
+   - **Done in lk-core 1.9 and lk-azure 2.1** (2026-11-02). The capture run decided one verbatim
+     transcript, used both as the judge's text and as the engine's reference: the cleaned one
+     corrected grammar and cost fluency. `SpeechAssessment.transcript` records it and who wrote it;
+     lk-azure's `transcriber` makes the assessment `unscripted`.
 4. **`speaking-response`**, as the September plan drew it: a prompt and optional media as on
    `written-response`, a rubric, recording limits, and a deferred grade.
+   - **Server half done in lk-core 1.9** (2026-11-02): the type, drafts (`sr_*`),
+     `gradeSpeakingResponse`, `aiSpeakingGradingRequest` (a request of its own, `speaking-grading`,
+     so the written facts keep their shape), grade and validation vectors. lk-react 23.4.1 shows the
+     type as unsupported until `<SpeakingResponse>`; a host draws it through `renderers`.
    - **`gradeSpeakingResponse`, pure.** Content and language criteria come from the judge, on the
      transcript; pronunciation and fluency criteria come from the engine's measures by default.
      `gradeFromRubric` computes the total.

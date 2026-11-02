@@ -300,6 +300,15 @@ export function ActivityPreview({
       return <Dictation key={key} data={data} {...shared} />;
     case 'read-aloud':
       return <ReadAloud key={key} data={data} recordingBinding={PREVIEW_RECORDING} {...shared} />;
+    case 'speaking-response':
+      // No built-in component yet: until there is one, a host previews a
+      // spoken answer through `renderers`, and without one it is shown as any
+      // type without a renderer is.
+      return (
+        <div className="lk-preview-unsupported" role="note">
+          {s.unsupportedActivity}
+        </div>
+      );
     default:
       everyBuiltInTypeHandled(data);
       return (

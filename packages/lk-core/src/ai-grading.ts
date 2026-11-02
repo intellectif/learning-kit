@@ -14,7 +14,14 @@ import {
   levelKey,
   readRubricLevels,
 } from './rubric-levels.js';
-import type { LearnerResponse, WrittenResponseData } from './types/activity.js';
+import { SPEAKING_MEASURES } from './schemas/speaking-response.js';
+import { validateSpeechAssessment } from './scoring/speech/assessment.js';
+import type {
+  LearnerResponse,
+  SpeakingMeasure,
+  SpeakingResponseData,
+  WrittenResponseData,
+} from './types/activity.js';
 import type {
   AiActivityInput,
   AiGradedCriterion,
@@ -24,7 +31,12 @@ import type {
   AiGradingRequestProblem,
   AiGroupInput,
   AiRefusal,
+  AiSpeakingCriterionFact,
+  AiSpeakingGradingRequest,
+  AiSpeakingGradingRequestProblem,
+  AiSpeakingMeasureFact,
 } from './types/ai.js';
+import type { SpeechAssessment } from './types/speech.js';
 
 /**
  * How far a model's level probabilities may sum from 1 and still be a
@@ -100,12 +112,147 @@ export function aiGradingRequest(input: {
   };
 }
 
+const MEASURES: readonly unknown[] = SPEAKING_MEASURES;
+
+/**
+ * The request for a model's grade of a spoken answer (1.9), or why there is
+ * none to make.
+ *
+ * Built as a written response's is, on the server and from the whole item, with
+ * the take's evidence: the model reads `assessment.transcript` — the
+ * transcriber's verbatim text, the same text the engine measured the take
+ * against — and scores the criteria a judge scores: those that name no
+ * `measure`, or every criterion when `judgeMeasures` is set. The measured
+ * criteria go with it as context, with the engine's scores, so feedback can
+ * speak of them; the model does not score them.
+ *
+ * The evidence is checked as `gradeSpeakingResponse` checks it — valid,
+ * unscripted, for this item's locale and this response's recording — so a model
+ * is never paid to judge a take the grade would refuse. Read the reply with
+ * `checkAiGrading`, and grade with `gradeSpeakingResponse` under the same
+ * `judgeMeasures`.
+ */
+export function aiSpeakingGradingRequest(input: {
+  data: AiActivityInput;
+  response: LearnerResponse | null;
+  assessment: SpeechAssessment | null;
+  judgeMeasures?: boolean;
+  group?: AiGroupInput;
+  learnerLocale?: string;
+}):
+  | { ok: true; request: AiSpeakingGradingRequest }
+  | { ok: false; problem: AiSpeakingGradingRequestProblem; path?: (string | number)[] } {
+  const { data, response, learnerLocale } = input;
+  if (data.type !== 'speaking-response') {
+    return { ok: false, problem: 'not-speaking-response' };
+  }
+  if ((data as { redacted?: unknown }).redacted === true) {
+    return { ok: false, problem: 'redacted' };
+  }
+  const item = data as unknown as SpeakingResponseData;
+  const rubric = rubricFacts(item.rubric);
+  if (!rubric.ok) {
+    return rubric;
+  }
+  // `rubricFacts` read every criterion, in order, or answered with a problem.
+  const authored: readonly { measure?: unknown }[] = item.rubric.criteria;
+  const judged: AiSpeakingCriterionFact[] = [];
+  const measured: AiSpeakingMeasureFact[] = [];
+  for (const [index, fact] of rubric.criteria.entries()) {
+    const measure = (authored[index] as { measure?: unknown }).measure;
+    if (measure !== undefined && !MEASURES.includes(measure)) {
+      return { ok: false, problem: 'no-rubric', path: ['rubric', 'criteria', index, 'measure'] };
+    }
+    if (measure === undefined || input.judgeMeasures === true) {
+      judged.push({
+        ...fact,
+        ...(measure !== undefined ? { measure: measure as SpeakingMeasure } : {}),
+      });
+    } else {
+      measured.push({ name: fact.name, measure: measure as SpeakingMeasure, weight: fact.weight });
+    }
+  }
+  if (judged.length === 0) {
+    return { ok: false, problem: 'nothing-to-judge' };
+  }
+  const recording = response?.type === 'speaking-response' ? response.recording : null;
+  if (recording === null || recording === undefined) {
+    return { ok: false, problem: 'empty-response' };
+  }
+  const checked =
+    input.assessment === null || input.assessment === undefined
+      ? undefined
+      : validateSpeechAssessment(input.assessment);
+  if (checked === undefined || !checked.success) {
+    return { ok: false, problem: 'invalid-assessment' };
+  }
+  const evidence = checked.data;
+  if (evidence.status === 'no_speech') {
+    return { ok: false, problem: 'empty-response' };
+  }
+  if (
+    evidence.task !== 'unscripted' ||
+    evidence.locale !== item.locale ||
+    evidence.recordingKey !== recording.key
+  ) {
+    return { ok: false, problem: 'evidence-mismatch' };
+  }
+  if (evidence.transcript === undefined) {
+    return { ok: false, problem: 'no-transcript' };
+  }
+  const text = evidence.transcript.text;
+  const scores = evidence.scores;
+  const scoreOf = {
+    pronunciation: scores.accuracy,
+    fluency: scores.fluency,
+    prosody: scores.prosody,
+  };
+  const media =
+    isRecord(item.media) && typeof item.media.type === 'string' ? item.media : undefined;
+  const material = materialFacts(input.group);
+  return {
+    ok: true,
+    request: {
+      feature: 'speaking-grading',
+      facts: {
+        activityType: 'speaking-response',
+        activityId: data.id,
+        title: data.title,
+        locale: item.locale,
+        ...(typeof item.instructions === 'string' ? { instructions: item.instructions } : {}),
+        prompt: typeof item.prompt === 'string' ? item.prompt : '',
+        ...(media !== undefined
+          ? {
+              media: {
+                type: media.type,
+                ...(typeof media.alt === 'string' ? { alt: media.alt } : {}),
+              },
+            }
+          : {}),
+        text,
+        wordCount: countWords(text),
+        rubric: judged,
+        measured: measured.map((fact) => {
+          const score = scoreOf[fact.measure];
+          return score !== undefined ? { ...fact, score } : fact;
+        }),
+        ...(typeof item.languageTarget === 'string' ? { languageTarget: item.languageTarget } : {}),
+      },
+      ...(material !== null ? { material } : {}),
+      ...(learnerLocale !== undefined ? { learnerLocale } : {}),
+    },
+  };
+}
+
+/** Why a rubric cannot be given to a model, for either kind of answer. */
+type RubricProblem = 'no-rubric' | 'duplicate-criteria' | 'unreadable-levels';
+
 /** The rubric as a model is given it, each criterion's levels read. */
 function rubricFacts(
   rubric: unknown,
 ):
   | { ok: true; criteria: AiGradingCriterionFact[] }
-  | { ok: false; problem: AiGradingRequestProblem; path?: (string | number)[] } {
+  | { ok: false; problem: RubricProblem; path?: (string | number)[] } {
   const listed = isRecord(rubric) ? rubric.criteria : undefined;
   if (!Array.isArray(listed) || listed.length === 0) {
     return { ok: false, problem: 'no-rubric' };
@@ -254,7 +401,7 @@ function judgeCriterion(
  */
 export function checkAiGrading(
   raw: unknown,
-  request: AiGradingRequest,
+  request: AiGradingRequest | AiSpeakingGradingRequest,
 ): { ok: true; judgement: AiGradingJudgement } | Refused {
   if (!isRecord(raw)) {
     return { ok: false, refusal: 'malformed' };

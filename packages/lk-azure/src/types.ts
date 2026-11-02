@@ -1,4 +1,4 @@
-import type { ValidationError } from '@intellectif/lk-core';
+import type { Grader, ValidationError } from '@intellectif/lk-core';
 import type { SpeechAssessment } from '@intellectif/lk-core/scoring';
 
 /**
@@ -10,8 +10,21 @@ export type AzureResult = string | object;
 
 /** What the host sent Azure: the settings that decide how a result is read. */
 export interface AzureAssessmentRequest {
-  /** The text sent as `ReferenceText`: the item's `referenceText`, verbatim. */
+  /**
+   * The text sent as `ReferenceText`, verbatim: a read-aloud item's
+   * `referenceText`, or — with `transcriber` — the transcript of a spoken answer.
+   */
   referenceText: string;
+  /**
+   * Who wrote `referenceText`, when it is the transcript of a spoken answer
+   * rather than the text of an item: a transcriber's verbatim text, sent as the
+   * reference so the take is marked against what the learner said. The
+   * assessment is then `task: 'unscripted'`, carries
+   * `transcript: { text: referenceText, source: transcriber }` and no
+   * `referenceText`, and is graded by `gradeSpeakingResponse`. Without it the
+   * take is a reading, `scripted`, graded by `gradeReadAloud`.
+   */
+  transcriber?: Grader;
   /** The locale assessed: the item's `locale`, canonical, as sent. */
   locale: string;
   /** The storage key of the recording assessed: the response's `RecordingRef.key`. */
