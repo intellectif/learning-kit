@@ -168,9 +168,10 @@ packages/lk-practice/
     schema/
       shape.ts            strict, total shape checks of the stored JSON, state v1 (revised in M5)
       migrate.ts          migrateState (M5)
-      standard.ts         StandardSchemaV1 type (structural copy of the spec) (M7)
+      standard.ts         StandardSchemaV1 type (structural copy of the spec) and StandardSchemaIssue (M7)
       schemas.ts          practiceStateSchema, evidenceSchema, reviewLogEntrySchema, gradeResultSchema (M7)
-      json.ts             JSON Schema objects (M7)
+      json.ts             JSON Schema objects, generated from the shapes (M7)
+      copy.ts             frozen canonical copies of checked values (M7)
     adapters/lk-core/     (M10)
       types.ts            structural copies: ItemOutcomeLike, GradeRecordLike, CriterionScoreLike
       index.ts            evidenceFromOutcome, skillOutcomesFromCriteria
@@ -993,11 +994,11 @@ export function eloMasteryModel(options?: EloOptions): MasteryModel;
 // Contracts.
 export function checkGradeResult(value: unknown): CheckResult<GradeResult>;
 export function evidenceFromGrade(result: GradeResult, task: PracticeItem, meta: EvidenceMeta): Evidence;
-export function generationRequest(target: PracticeTarget, context: GenerationContext, options: GenerationOptions): GenerationRequest;
+export function generationRequest(target: PracticeTarget, context: GenerationContext, options: GenerationOptions, config?: PracticeConfig): GenerationRequest; // (revised in M7) config: 8.8
 export function checkCandidates(request: GenerationRequest, candidates: unknown): CandidateCheck;
 export function admitCandidate(candidate: CandidateItem, proof: CandidateProof, config?: ResolvedPracticeConfig): AdmitResult;
-export function decompositionRequest(goal: LearnerGoal, graph: SkillGraph, options: DecompositionOptions): DecompositionRequest;
-export function checkDecomposition(request: DecompositionRequest, graph: SkillGraph, candidate: unknown): DecompositionCheck;
+export function decompositionRequest(goal: LearnerGoal, graph: SkillGraph, options: DecompositionOptions, config?: ResolvedPracticeConfig): DecompositionRequest; // (revised in M7)
+export function checkDecomposition(request: DecompositionRequest, graph: SkillGraph, candidate: unknown, config?: ResolvedPracticeConfig): DecompositionCheck; // (revised in M7)
 export function admitExtension(extension: GraphExtension, approval: ExtensionApproval, options?: { readonly allowLearner?: boolean }): ExtensionAdmission;
 
 // Schemas: Standard Schema objects and JSON Schema; no exported type names zod.
@@ -1007,6 +1008,10 @@ export const evidenceSchema: StandardSchemaV1<unknown, Evidence>;
 export const gradeResultSchema: StandardSchemaV1<unknown, GradeResult>;
 export const practiceStateJsonSchema: JsonSchemaObject;
 export const reviewLogEntryJsonSchema: JsonSchemaObject;
+// (revised in M7) For a model's structured output; field rules only (8.8).
+export const gradeResultJsonSchema: JsonSchemaObject;
+export const candidatesJsonSchema: JsonSchemaObject;
+export const decompositionJsonSchema: JsonSchemaObject;
 
 export interface EvidenceMeta {
   readonly id: string;
@@ -1389,6 +1394,16 @@ Default `stageSeconds` (placeholders, Default, changeable, to be replaced by mea
 - `admitCandidate`: the proof kind is in `acceptProofs`; an `executable` proof has `referencePassed: true` and `wrongSolutionsFailed >= 1`; the result is the candidate without `content`, with `status: 'proven'` and the proof.
 - `checkDecomposition`: ids under the prefix and unknown to the graph; at most `maxSkills`; edges only among new skills or from base skills to new ones; acyclic in the union; every new skill reaches an anchor through edges; ladders valid; returns the extension with `status: 'proposed'` and its id.
 
+**As built in M7 (revised in M7).** Choices the rules above leave open, each pinned by `vectors/contracts.json` and the contract tests:
+
+- **Configuration.** `generationRequest` takes a fourth argument, the `PracticeConfig` given to `createPractice` (default `{}`): the expected successes and thetas need the mastery model instance, which the data-only `ResolvedPracticeConfig` does not carry (D26). It throws `PracticeConfigError` (`STATE_CONFIG_MISMATCH`, `GRAPH_VERSION_MISMATCH`) for a state built with another configuration or graph version, a `TypeError` for an unknown target skill, a `count` outside 1..20 or a non-string `seed`, and a `RangeError` for a target skill with no equivalent of the target's stage. `decompositionRequest` and `checkDecomposition` take an optional `ResolvedPracticeConfig` for the ladders and stage demand, as `admitCandidate` does; `decompositionRequest` throws a `TypeError` for no anchor, an unknown anchor, an empty `idPrefix`, a `maxSkills` that is not a positive integer, a knowledge list that is empty or names an unknown kind, or a non-string `seed`.
+- **Generation facts.** A coalesced component's `stage` is its equivalent of the target's stage; `avoid.itemIds` adds the state's items used within `itemCooldownMs` to the target's own, sorted and unique; `learner.recentLapses` are the target skills' lapses within `remediationWindowMs` before `now`, newest first; `learner.weakest` are all target skills by theta ascending, ties by `compareKeys`.
+- **Candidates.** "The target skills and their components" are the request's `skills` (the planner put the coalesced components there); `checkCandidates` takes no graph. A candidate lists a subset of them, and its primary (largest weight, first on a tie) must be the target's (`CANDIDATE_PRIMARY_MISMATCH`). `difficulty` is required. Ids and content hashes are unique among the accepted candidates, so a later duplicate is the rejected one; a value that is not an array is one rejection at index -1. The checks are total.
+- **Proof gate.** A `model-checked` proof needs `agreed: true`; malformed input is `SHAPE_INVALID` under `candidate` or `proof`; the admitted item keeps no `content`.
+- **Grades.** An `ai` grade without a confidence counts as `medium`, the reading R7.7 gives an `lk-core` grade without one, so a grade schedules the same whichever adapter it arrives through. `evidenceFromGrade` throws a `TypeError` for a result that fails `checkGradeResult` or a `meta.itemId` that is not `task.id`; a reported criterion the task does not bind is ignored, and two criteria bound to one skill are summed.
+- **Extensions.** The id is `fnv1a64` of the canonical skills sorted by id and edges sorted by their canonical JSON (5.5), so the same content has the same id whoever approves it and whatever goal proposed it; §9's "extension without id and status" is this. `admitExtension` rejects an id that is not the content id (`EXTENSION_ID_MISMATCH`, content changed after the check). An issue the composed graph raises is reported at the proposal's own path, or under `graph` for the base. A new skill is anchored when edges of the union, in either direction, connect it to an anchor.
+- **Schemas.** Besides 5.9's constants, `gradeResultJsonSchema`, `candidatesJsonSchema` (1 to 20 candidates) and `decompositionJsonSchema` are exported for a model's structured output; every JSON Schema is draft 2020-12, generated from the shapes the checks run, and states the field rules only (a document it accepts must still pass the check). `StandardSchemaV1` is the spec's structural copy except that its failure issue is the top-level `StandardSchemaIssue`: a namespace member named `Issue` made the type bundler rename the package's own `Issue` to `Issue$1` in every published signature.
+
 ### 8.9 Graph changes
 
 `composeGraph(base, extensions)` sorts admitted extensions by id, rejects a proposed one (`EXTENSION_NOT_ADMITTED`), re-checks the R2.6 rules against the base, unions skills and edges, runs `validateGraph`, and sets `version = base.version + '+' + fnv1a64(canonicalJson(sortedExtensionIds))`. Any graph version change - a new base or a new extension - makes `record` reject the old state (`GRAPH_VERSION_MISMATCH`); the host rebuilds it with `replay(entries, newGraph, learnerId)`. A full replay, rather than a cheaper rebind, keeps "replay equals record" exact when an extension unlocks skills retroactively; at the target speed (100,000 entries under 2 s) it is acceptable for an event that happens when a learner admits a goal.
@@ -1426,6 +1441,13 @@ Every `check*`, `validate*`, `record` and `act` failure is an `Issue` with a sta
 | `RETENTION_OUT_OF_RANGE` | `validateGraph` | A skill's `desiredRetention` is outside [0.7, 0.97]. |
 | `LADDER_INVALID` | `validateGraph` | A skill's `stages` override is empty, has an empty or repeated stage, or a `mixed` skill has none. |
 | `CANDIDATE_CRITERIA_MISSING`, `CANDIDATE_FORM_NOT_ALLOWED` | `checkCandidates` | Per-skill outcomes are needed and a target skill has no criterion; the declared form is not allowed. |
+| `CANDIDATE_STAGE_MISMATCH`, `CANDIDATE_SKILL_NOT_ALLOWED`, `CANDIDATE_PRIMARY_MISMATCH` (revised in M7) | `checkCandidates` | The stage is not the target's; a skill is not one of the request's; the candidate's primary (largest weight) is not the target's. |
+| `CANDIDATE_DIFFICULTY_OUT_OF_RANGE` (revised in M7) | `checkCandidates` | `difficulty` is more than `difficultyTolerance` from `targetDifficulty`. |
+| `CANDIDATE_AVOIDED`, `CANDIDATE_CONTENT_DUPLICATE` (revised in M7) | `checkCandidates` | The id or content hash is on the request's avoid list; the content hash repeats an accepted candidate's. (A repeated id is `ID_DUPLICATE`; `ITEM_WEIGHT_INVALID`, `ITEM_WEIGHTS_SUM`, `SKILL_NOT_IN_TASK` and `SHAPE_INVALID` are raised as for items.) |
+| `PROOF_NOT_ACCEPTED`, `PROOF_INCOMPLETE` (revised in M7) | `admitCandidate` | The proof kind is not in `acceptProofs`; an `executable` proof without `referencePassed: true` and a failed wrong solution, or a `model-checked` one without `agreed: true`. |
+| `GRADE_SCORE_OUT_OF_RANGE`, `GRADE_CRITERION_DUPLICATE` (revised in M7) | `checkGradeResult` | A score, the result's or a criterion's, outside [0, maxScore]; a criterion name reported twice. |
+| `DECOMPOSITION_TOO_MANY_SKILLS`, `DECOMPOSITION_KNOWLEDGE_NOT_ALLOWED`, `DECOMPOSITION_UNANCHORED` (revised in M7) | `checkDecomposition` | More than `maxSkills` skills; a knowledge type the request does not allow; a new skill no edge connects to an anchor. (The R2.6 and graph codes are raised as `composeGraph` raises them, at the proposal's path.) |
+| `EXTENSION_NOT_PROPOSED`, `EXTENSION_ID_MISMATCH`, `EXTENSION_LEARNER_NOT_ALLOWED` (revised in M7) | `admitExtension` | The extension is not `proposed`; its id is not its content id; a learner approval where `allowLearner` is false. |
 
 ## 9. Determinism
 
@@ -1451,7 +1473,7 @@ Every `check*`, `validate*`, `record` and `act` failure is an `Issue` with a sta
 | Unit and vectors | Elo against hand-computed values, per stage, with `derive`; the R7.2 table (including `slowSeconds`) and R7.4 branches; the implication rule, including cross-ladder equivalence; spaced promotion, the due cap and demotion; the mastery predicate. (revised in M4) The vector files record the outputs of src/ through `vectors/replay.mjs` and pin the current behaviour; the hand-computed values live in the unit tests | `vectors/evidence.json`, `vectors/stage.json` | M4 |
 | Property | `replay` equals `record`; `replayFrom` any checkpoint equals `replay`; any arrival order once sorted; held confirm and discard; host actions; the `mastered` flag and mastery loss by decay. (revised in M5) The properties compare states; held, host-action and mastery cases are also unit tests and vectors | `src/log/__tests__/replay.property.test.ts`, `vectors/log.json` (revised in M5: not `replay.json`) | M5 |
 | Property and vectors | Budget and caps; no locked, suspended or unproven item planned; one target per skill; difficulty identity within 1e-9; same seed same plan; post-promotion targeting; cross-ladder coalescing | `src/planner/__tests__/plan.property.test.ts`, `vectors/plan.json` | M6 |
-| Contracts | Candidate and decomposition checks; per-skill generation facts; the starter-fails, solution-passes proof | `vectors/contracts.json` | M7 |
+| Contracts | Candidate and decomposition checks; per-skill generation facts; the starter-fails, solution-passes proof. (revised in M7) Also a request's recent lapses and weakest skills, grader output to evidence, and the guards on each request's inputs; generated from src/ by `scripts/contracts-vectors.mjs`, pinning the current behaviour | `vectors/contracts.json` | M7 |
 | Fuzz | Random JSON never throws from `migrateState` or `check*` | `src/schema/__tests__/robustness.property.test.ts`, `src/contracts/__tests__/` | M5, M7 |
 | Vectors (revised in M5) | `log.json`: log to state, events, replay, checkpoints, recompute under another configuration, status and reconcile, and `migrateState` rows; generated from src/ by `scripts/log-vectors.mjs`, pinning the current behaviour. Issues only `replay` can raise (`LOG_SEQ_INVALID`, `ID_DUPLICATE` in a log) are unit tests | `vectors/log.json`, `src/__tests__/policy-vectors.test.mjs` | M5 |
 | Simulation | 90 simulated days; policy comparisons reported, not asserted | `src/testing/__tests__/simulate.test.ts` | M8 |

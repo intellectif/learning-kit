@@ -1,6 +1,7 @@
 /**
- * The public domain types (design §5.1 to §5.3 and §5.5 to §5.8; the result
- * types of §5.9 that the graph functions return). Every field is `readonly`,
+ * The public domain types (design §5.1 to §5.8; the result types of §5.9
+ * that the graph functions return, and (M7) `JsonSchemaObject`;
+ * `StandardSchemaV1` is in `schema/standard.ts`). Every field is `readonly`,
  * every number is finite and every instant is integer epoch milliseconds
  * (D12). Types only: nothing here runs.
  */
@@ -435,6 +436,74 @@ export type PlanReasonDetail =
       readonly softPrerequisitesMastered: boolean;
     }
   | { readonly code: 'pretest'; readonly forSkillId: string };
+
+// ---------------------------------------------------------------------------
+// §5.4 Grader contract (R8) (M7)
+// ---------------------------------------------------------------------------
+
+/** What a grader receives; the package defines it and never calls a grader (R8.1). */
+export interface GradeRequest<Response = unknown> {
+  readonly itemId: string;
+  readonly stage: StageId;
+  readonly skillIds: readonly string[];
+  /** Grade each of these separately, when present. */
+  readonly criteria?: readonly ItemCriterion[];
+  /** For example code, an answer or a transcript. */
+  readonly response: Response;
+  /** For example a reference solution or an answer key; host-defined. */
+  readonly reference?: unknown;
+  readonly rubric?: readonly RubricCriterion[];
+}
+
+export interface RubricCriterion {
+  readonly name: string;
+  readonly maxScore: number;
+  readonly description: string;
+}
+
+/** What a grader returns; `checkGradeResult` validates it (R8.2). */
+export interface GradeResult {
+  /** In [0, maxScore]. */
+  readonly score: number;
+  /** At least 0. */
+  readonly maxScore: number;
+  readonly passed: boolean;
+  /** Required in effect for an `ai` grade; `evidenceFromGrade` reads its absence as `low`. */
+  readonly confidence?: 'high' | 'medium' | 'low';
+  readonly requiresHumanReview?: boolean;
+  readonly checks?: { readonly passed: number; readonly total: number };
+  /** Unique names; each score in [0, its maxScore]. */
+  readonly criteria?: readonly {
+    readonly name: string;
+    readonly score: number;
+    readonly maxScore: number;
+  }[];
+  readonly feedback?: string;
+  readonly grader: {
+    readonly kind: 'auto' | 'ai' | 'human';
+    readonly id?: string;
+    readonly model?: string;
+    readonly promptHash?: string;
+  };
+}
+
+/** Implemented by the host: a test sandbox, a model, a person's queue. */
+export type Grader<Response = unknown> = (request: GradeRequest<Response>) => Promise<GradeResult>;
+
+/** The evidence fields a grade does not carry (`evidenceFromGrade`, design §5.9). */
+export interface EvidenceMeta {
+  readonly id: string;
+  readonly itemId: string;
+  readonly at: number;
+  readonly attempts?: number;
+  readonly hintsUsed?: number;
+  readonly durationMs?: number;
+  readonly context?: Evidence['context'];
+  readonly targetId?: string;
+  readonly learnerConfidence?: Evidence['learnerConfidence'];
+  readonly confirms?: string;
+  readonly supplements?: string;
+}
 
 // ---------------------------------------------------------------------------
 // §5.5 Generator and decomposition contracts (R9), types only
@@ -1188,3 +1257,10 @@ export interface ReconcileReport {
   /** A memory for a stage the skill's ladder no longer has; sorted by skill, then stage. */
   readonly missingStages: readonly { readonly skillId: string; readonly stage: StageId }[];
 }
+
+// ---------------------------------------------------------------------------
+// §5.9 Schema documents (R8.2, R10.1) (M7)
+// ---------------------------------------------------------------------------
+
+/** A JSON Schema (draft 2020-12) document, as plain JSON data. */
+export type JsonSchemaObject = Readonly<Record<string, unknown>>;

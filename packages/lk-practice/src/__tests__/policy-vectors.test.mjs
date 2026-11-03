@@ -1,6 +1,7 @@
 /**
- * Replays vectors/evidence.json, vectors/stage.json, vectors/log.json and
- * vectors/plan.json (revised in M6) against src/ through vectors/replay.mjs,
+ * Replays vectors/evidence.json, vectors/stage.json, vectors/log.json,
+ * vectors/plan.json (revised in M6) and vectors/contracts.json (revised in M7)
+ * against src/ through vectors/replay.mjs,
  * the way scripts/mutate.mjs replays them against each mutant. Plain ESM, as
  * the replay is.
  */
@@ -8,7 +9,9 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { differences, ENTRY, replay } from '../../vectors/replay.mjs';
 import * as config from '../config.js';
+import * as contracts from '../contracts/index.js';
 import * as evidence from '../evidence/index.js';
+import * as graph from '../graph/index.js';
 import * as mastery from '../mastery/index.js';
 import * as memory from '../memory/fsrs.js';
 import * as practice from '../practice.js';
@@ -17,7 +20,9 @@ import * as stage from '../stage/index.js';
 
 const MODULES = {
   'config.ts': config,
+  'contracts/index.ts': contracts,
   'evidence/index.ts': evidence,
+  'graph/index.ts': graph,
   'mastery/index.ts': mastery,
   'memory/fsrs.ts': memory,
   'practice.ts': practice,
@@ -32,12 +37,13 @@ for (const [module, names] of Object.entries(ENTRY)) {
 const corpus = (file) =>
   JSON.parse(readFileSync(new URL(`../../vectors/${file}`, import.meta.url), 'utf8'));
 
-describe('policy, log and plan vectors', () => {
+describe('policy, log, plan and contract vectors', () => {
   for (const [file, least] of [
     ['evidence.json', 10],
     ['stage.json', 10],
     ['log.json', 10],
     ['plan.json', 10],
+    ['contracts.json', 15],
   ]) {
     it(`${file} replays with no difference`, () => {
       const loaded = corpus(file);
@@ -79,6 +85,20 @@ describe('policy, log and plan vectors', () => {
     );
     thrown.expected.plans.find((entry) => entry.$throws !== undefined).$throws = 'Error';
     expect(replay(impl, changed)).toHaveLength(2);
+  });
+
+  it('reports a changed admission, a changed candidate rejection and a changed grade check', () => {
+    const loaded = corpus('contracts.json');
+    const changed = structuredClone(loaded);
+    const composed = changed.vectors.find((vector) => vector.expected.after !== undefined);
+    composed.expected.after.kind = 'applied';
+    const generated = changed.vectors.find(
+      (vector) => vector.kind === 'generate' && vector.expected.candidates?.rejected.length > 0,
+    );
+    generated.expected.candidates.rejected[0].index = 99;
+    const graded = changed.vectors.find((vector) => vector.kind === 'grade');
+    graded.expected.checks[0].ok = false;
+    expect(replay(impl, changed)).toHaveLength(3);
   });
 
   it('compares floats at a relative 1e-9 and everything else exactly', () => {

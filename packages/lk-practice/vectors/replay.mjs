@@ -4,7 +4,9 @@
  * the mastery predicate (design 8.2, 8.3, 8.5), the log vectors
  * (`log.json`) against `createPractice` and `migrateState` (design 6, 8.1,
  * 8.7; revised in M5), and the plan vectors (`plan.json`) against
- * `createPractice` (design 8.6; revised in M6).
+ * `createPractice` (design 8.6; revised in M6), and the contract vectors
+ * (`contracts.json`) against the grader, generator and decomposition
+ * contracts and `composeGraph` (design 8.8, 8.9; revised in M7).
  *
  * Plain ESM with no imports, so the unit tests, `scripts/mutate.mjs` and
  * another implementation can all run it. `impl` is an object holding the
@@ -20,7 +22,18 @@ export const CORPUS_VERSION = 1;
 /** The source modules (from `src/`) and the functions `impl` must hold. */
 export const ENTRY = {
   'config.ts': ['resolveConfig'],
+  'contracts/index.ts': [
+    'admitCandidate',
+    'admitExtension',
+    'checkCandidates',
+    'checkDecomposition',
+    'checkGradeResult',
+    'decompositionRequest',
+    'evidenceFromGrade',
+    'generationRequest',
+  ],
   'evidence/index.ts': ['contextWeight', 'mapEvidence', 'skillOutcomeIssues'],
+  'graph/index.ts': ['composeGraph'],
   'mastery/index.ts': [
     'abilityAt',
     'desiredRetentionFor',
@@ -204,6 +217,121 @@ function runLog(impl, v) {
   };
 }
 
+/** A check result: the value when it passes, the issues as code and path when it does not. */
+const checked = (result) =>
+  result.ok ? { ok: true, value: result.value } : { ok: false, issues: issuesOf(result.issues) };
+
+/** An admission: the admitted item or extension when it passes, the issues when it does not. */
+const admitted = (result, key) =>
+  result.ok ? { ok: true, [key]: result[key] } : { ok: false, issues: issuesOf(result.issues) };
+
+/**
+ * Generation (design 8.8, R9; revised in M7): the learner's steps (see
+ * `learn`), `plan` for `request`, `generationRequest` for the planned target
+ * whose first skill is `targetSkill` (with the fields of `target` over it, as
+ * a host that passes a wrong target would) under `requestConfig` when given,
+ * else `config`, `checkCandidates` over `candidates`,
+ * `admitCandidate` for each `proofs` entry (an index into the accepted
+ * candidates), then `record` of each admitted item and of each accepted
+ * candidate stored without a proof, as a host might (`unproven`), and the
+ * item each target of `request` gets from a pool of both (`pooled`).
+ */
+function runGenerate(impl, v) {
+  const practice = impl.createPractice(v.config ?? {});
+  const config = configOf(impl, v.config);
+  const { state, steps } = learn(practice, practice, v);
+  const graph = v.graphs.main;
+  const plan = practice.plan(state, graph, v.request);
+  const planned = plan.targets.find((entry) => entry.skillIds[0] === v.targetSkill);
+  if (planned === undefined) throw new Error(`no planned target for ${v.targetSkill}`);
+  const target = { ...planned, ...v.target };
+  const request = attempt(() =>
+    impl.generationRequest(
+      target,
+      { graph, state, now: v.request.now },
+      v.options,
+      v.requestConfig ?? v.config,
+    ),
+  );
+  if (request.$throws !== undefined) return { steps, request };
+  const candidates = impl.checkCandidates(request, v.candidates);
+  const evidence = (itemId) => ({ ...v.evidence, id: `${v.evidence.id}-${itemId}`, itemId });
+  const pool = [];
+  const proofs = (v.proofs ?? []).map(({ index, proof }) => {
+    const result = impl.admitCandidate(candidates.accepted[index], proof, config);
+    if (!result.ok) return admitted(result, 'item');
+    pool.push(result.item);
+    const recorded = practice.record(state, {
+      graph,
+      evidence: evidence(result.item.id),
+      item: result.item,
+    });
+    return { ...admitted(result, 'item'), record: outcome(recorded) };
+  });
+  const unproven = candidates.accepted.map(({ content: _content, ...item }) => {
+    pool.push(item);
+    return outcome(practice.record(state, { graph, evidence: evidence(item.id), item }));
+  });
+  const pooled = practice
+    .plan(state, graph, { ...v.request, pool })
+    .targets.map((entry) => ({ id: entry.id, item: entry.item ?? null }));
+  return {
+    steps,
+    request,
+    candidates: {
+      accepted: candidates.accepted,
+      rejected: candidates.rejected.map(({ index, issues }) => ({
+        index,
+        issues: issuesOf(issues),
+      })),
+    },
+    proofs,
+    unproven,
+    pooled,
+  };
+}
+
+/**
+ * Decomposition (design 8.8, 8.9, R9.5; revised in M7): `decompositionRequest`
+ * for `goal` over `graphs.main`, `checkDecomposition` of `proposal`, and when
+ * it passes `admitExtension` with `approval` and `composeGraph`. When the
+ * learner has `steps` on the base graph, one more `record` against the
+ * composed graph is refused for the graph change, and the log is replayed
+ * against the composed graph, as a host does after an admission.
+ */
+function runDecompose(impl, v) {
+  const base = v.graphs.main;
+  const config = configOf(impl, v.config);
+  const request = attempt(() => impl.decompositionRequest(v.goal, base, v.options, config));
+  if (request.$throws !== undefined) return { request };
+  const check = impl.checkDecomposition(request, base, v.proposal, config);
+  if (!check.ok) return { request, check: { ok: false, issues: issuesOf(check.issues) } };
+  const admission = impl.admitExtension(check.extension, v.approval, v.admit);
+  const result = {
+    request,
+    check: admitted(check, 'extension'),
+    admission: admitted(admission, 'extension'),
+  };
+  if (!admission.ok) return result;
+  const composed = impl.composeGraph(base, [admission.extension], config);
+  if (!composed.ok)
+    return { ...result, composed: { ok: false, issues: issuesOf(composed.issues) } };
+  const composition = {
+    ...result,
+    composed: { ok: true, graph: composed.graph, warnings: composed.warnings },
+  };
+  if (v.steps === undefined) return composition;
+  const practice = impl.createPractice(v.config ?? {});
+  const { state, entries, steps } = learn(practice, practice, v);
+  const stale = practice.record(state, { graph: composed.graph, ...v.after });
+  return {
+    ...composition,
+    steps,
+    after: outcome(stale),
+    replay: replayed(practice.replay(entries, composed.graph, v.learnerId)),
+  };
+}
+
 /** Each kind of vector, run to the value it records. */
 const RUN = {
   // `customMapper` stands for a configuration naming a host mapper, which JSON cannot hold.
@@ -319,6 +447,16 @@ const RUN = {
       ? { ok: true, state: result.state, events: result.events }
       : { ok: false, issues: issuesOf(result.issues) };
   },
+  // Grader output (design 8.8, R8.2; revised in M7): `checkGradeResult` for
+  // each of `rows`, and `evidenceFromGrade` for each of `evidence`.
+  grade: (impl, v) => ({
+    checks: (v.rows ?? []).map((raw) => checked(impl.checkGradeResult(raw))),
+    evidence: (v.evidence ?? []).map(({ result, task, meta }) =>
+      attempt(() => impl.evidenceFromGrade(result, task, meta)),
+    ),
+  }),
+  generate: runGenerate,
+  decompose: runDecompose,
   migrate: (impl, v) =>
     v.rows.map((raw) => {
       const result = impl.migrateState(raw);

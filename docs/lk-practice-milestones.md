@@ -169,6 +169,7 @@ Commands, with `<branch>` and `<title>` from the milestone:
   - [ ] Appendix A decomposition and a starter-fails, solution-passes proof as vectors.
 - **Gates:** property test: an `unproven` item is never planned or recorded.
 - **Acceptance:** criteria 11, 12.
+- **As built (revised in M7):** `src/contracts/` (`grade`, `generate`, `decompose`), the schema objects in `src/schema/` (`standard`, `schemas`, `json`, `copy`; the JSON Schemas are generated from the shapes the checks run), `vectors/contracts.json` from `scripts/contracts-vectors.mjs` (`vectors:contracts`), and the `contracts` kind in `vectors/replay.mjs`. `contracts/` is in the 100% coverage gate and runs with `pnpm mutate --package lk-practice --modules contracts`. The choices the design left open are listed under "As built in M7" in design 8.8, and the new issue codes in 8.10.
 - **Changeset:** none.
 
 ## M8 - Testing subpath and vectors runner
