@@ -16,6 +16,7 @@ export {
 export type { EloOptions, MasteryEstimate, MasteryModel, MasteryObservation } from './port.js';
 export {
   desiredRetentionFor,
+  expectedSuccessAtReference,
   isMastered,
   type MasteryCondition,
   type MasteryContext,

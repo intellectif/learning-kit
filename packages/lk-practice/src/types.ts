@@ -385,7 +385,11 @@ export interface PracticeTarget {
   /** The primary skill first, then coalesced components. */
   readonly skillIds: readonly string[];
   readonly stage: StageId;
-  /** Logits: Elo expected success equals `targetSuccess` here. */
+  /**
+   * Logits: Elo expected success equals `targetSuccess` here, except for a
+   * mastery check (`reason.masteryCheck`), which aims at the skill's
+   * `referenceDifficulty`.
+   */
   readonly targetDifficulty: number;
   /** A generated task should land within this of the target. */
   readonly difficultyTolerance: number;
@@ -412,7 +416,7 @@ export interface TaskConstraints {
 }
 
 export type PlanReason = PlanReasonDetail & {
-  /** Elo expected success at `targetDifficulty` (equals `targetSuccess`). */
+  /** Elo expected success at `targetDifficulty`: `targetSuccess`, or lower for a mastery check. */
   readonly expectedSuccess: number;
   /** Component ids that joined this target (R6.4c). */
   readonly coalesced: readonly string[];
@@ -420,15 +424,31 @@ export type PlanReason = PlanReasonDetail & {
   readonly newSkillsDeferred: boolean;
 };
 
+/**
+ * Why a target was planned. On a review (`overdue` or `due`), `masteryCheck`
+ * is true when the skill is at its top stage with an ability short of
+ * `mastery.minExpectedSuccess`: the target then aims at the skill's
+ * `referenceDifficulty`, where a success is what shows mastery (R3.5 (c)).
+ */
 export type PlanReasonDetail =
-  | { readonly code: 'overdue'; readonly due: number; readonly retrievability: number }
+  | {
+      readonly code: 'overdue';
+      readonly due: number;
+      readonly retrievability: number;
+      readonly masteryCheck: boolean;
+    }
   | {
       readonly code: 'remediation';
       readonly lapsedSkillId: string;
       readonly lapseAt: number;
       readonly retrievability: number;
     }
-  | { readonly code: 'due'; readonly due: number; readonly retrievability: number }
+  | {
+      readonly code: 'due';
+      readonly due: number;
+      readonly retrievability: number;
+      readonly masteryCheck: boolean;
+    }
   | { readonly code: 'stage-up'; readonly fromStage: StageId | null }
   | {
       readonly code: 'new';

@@ -23,7 +23,8 @@ It does not depend on `@intellectif/lk-core`, and works without it.
 - **A stage** on a ladder, from recognising to applying, or from a worked example to transfer.
   Spaced successes promote it; lapses demote it.
 - **Readiness**, from your prerequisite graph: a skill unlocks once its hard prerequisites are
-  mastered, or credited by a placement.
+  mastered, or credited by a placement. At the top stage, reviews become mastery checks at the
+  skill's reference difficulty until the learner meets the standard.
 
 ## Use
 

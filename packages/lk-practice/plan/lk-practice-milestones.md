@@ -209,6 +209,10 @@ Commands, with `<branch>` and `<title>` from the milestone:
   - These three documents moved to `packages/lk-practice/plan/` (D11).
   - The feature PR merges after the previous version PR's Release run; the first publish is by hand,
     from the version PR (`docs/releasing.md` §3a).
+  - The pre-release audit found mastery unreachable with the defaults, so no hard dependent
+    unlocked: mastery checks fix it (R3.5, design 8.1 and 8.6), with `reason.masteryCheck`, unit
+    tests, log and plan vectors, and `src/testing/__tests__/outcomes.test.ts` for the whole loop.
+    The guide's `duplicate` row now says `record` sees only the last `recentIdWindow` ids.
 - **Changeset:** minor, `0.0.0` to `0.1.0`.
 
 ## M10 - `./lk-core` adapter

@@ -397,12 +397,19 @@ describe('plan properties', () => {
     );
   });
 
-  it('property: expectedSuccess equals targetSuccess (relative 1e-9) at every targetDifficulty', () => {
+  it('property: expectedSuccess equals targetSuccess (relative 1e-9), or a mastery check aims at the reference below it', () => {
     fc.assert(
       fc.property(cases, (c) => {
         const goal = c.p.config.planner.targetSuccess;
         for (const target of plan(c).targets) {
-          expect(Math.abs(target.reason.expectedSuccess - goal)).toBeLessThanOrEqual(1e-9 * goal);
+          const { reason } = target;
+          if ((reason.code === 'overdue' || reason.code === 'due') && reason.masteryCheck) {
+            const node = c.graph.skills.find((skill) => skill.id === target.skillIds[0]);
+            expect(target.targetDifficulty).toBe(node?.referenceDifficulty ?? 0);
+            expect(reason.expectedSuccess).toBeLessThan(goal);
+            continue;
+          }
+          expect(Math.abs(reason.expectedSuccess - goal)).toBeLessThanOrEqual(1e-9 * goal);
         }
       }),
       RUNS,

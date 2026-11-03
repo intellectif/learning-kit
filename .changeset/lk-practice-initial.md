@@ -9,6 +9,7 @@
 - **Per skill:** an FSRS-7 memory at its current stage, through `ts-fsrs` 6.0.0; an Elo ability per stage; a stage on a ladder that spaced successes promote and lapses demote; and readiness from your prerequisite graph.
 - **A replayable log:** `createPractice(config)` gives `record`, `act`, `plan`, `status`, `replay`, `replayFrom`, `reconcile` and `exportReviewHistory`. Each is a pure function of the log, the graph and the time you pass. A new configuration or graph version is a replay.
 - **Planning:** `plan` returns targets in this order: overdue reviews, remediation, reviews due, stage-ups and new skills. Each aims at 85% expected success, and carries an item from your pool when one fits.
+- **Mastery checks:** while a skill at its top stage is short of the mastery standard, its reviews aim at the skill's reference difficulty instead (`reason.masteryCheck`). A passed check brings the next within 72 hours; a failed one is a `hard` review, not a lapse.
 - **Contracts for your AI:**
   - `generationRequest`, `checkCandidates` and `admitCandidate`: nothing unproven is ever planned or recorded;
   - `checkGradeResult` and `evidenceFromGrade`;

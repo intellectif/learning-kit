@@ -49,6 +49,13 @@ while the latest retrieval is no lapse, its expected success at the skill's refe
 at least 0.80, and its recall stays within 0.10 of the desired retention. Mastery can be lost to
 forgetting; the state reports it.
 
+While a skill at its top stage is short of that 0.80, its reviews are **mastery checks**: they aim at
+the skill's reference difficulty rather than at the target success, because passing tasks pitched
+for 85% success says little about the standard. A passed check brings the next one within 72 hours.
+A failed check counts as a `hard` review, not a lapse, so it neither demotes the skill nor counts
+toward a leech. A failure is still a lapse when the task was at the learner's level, when recall had
+fallen below the mastery floor, or when the last retrieval at that stage was a lapse too.
+
 ## The skill graph
 
 ```ts
@@ -151,7 +158,7 @@ const result = practice.record(state, { graph, item, evidence });
 |---|---|
 | `applied` | Store `state` and append `appended` in one transaction. `events` (a review recorded, a skill promoted, mastered, unlocked) are for your interface |
 | `replay-required` | The evidence is older than the newest entry. Append `appended`, then `replay` the whole log, or `replayFrom` your latest snapshot older than `replayFrom` |
-| `duplicate` | This evidence id was recorded already. Nothing to store |
+| `duplicate` | This id is among the last 256 the state has seen (`recentIdWindow`). Nothing to store. An older repeat is your unique constraint's to refuse |
 | `rejected` | `issues`, each with a `code` and a `path`. Nothing to append |
 
 The log is the source of truth; the state is a cache of it. Store the entries with a unique
@@ -206,7 +213,7 @@ Each **target** names one skill, or a composite and its due components. It also 
 
 - the stage;
 - a `targetDifficulty` at which the learner's expected success is the target success (0.85 by
-  default);
+  default), or the skill's reference difficulty for a mastery check (`reason.masteryCheck`);
 - a tolerance;
 - the expected seconds;
 - `constraints`: the skill's forms, whether each skill needs its own outcome, and the item ids and
@@ -320,6 +327,7 @@ resolved configuration, and `practice.configHash` its hash:
 | `contexts` | exams move no schedule; diagnostic 1; pretest 0 | How each context counts |
 | `ladders`, `stageDemand` | as above | Your own stage names |
 | `itemCooldownMs`, `itemUsageRetentionMs` | 7 days, 30 days | Item reuse |
+| `leechThreshold`, `recentIdWindow` | 8 lapses, 256 ids | When a skill suspends itself; how far back `record` reports a duplicate |
 | `acceptProofs` | `executable`, `reviewed` | Which proofs admit an item |
 
 `memoryModel`, `masteryModel`, `stagePolicy` and `evidenceMapper` take your own implementations of
@@ -349,7 +357,8 @@ const next = practice.record(state, { graph, evidence, item });
 The simulated learner succeeds with a logistic chance of its true ability against the task's
 difficulty, times its recall since its last attempt at the skill. Every draw comes from the seed, the
 time and the skill. Two settings compared on the same learner therefore meet the same chances. Use it
-to compare settings and in your own tests. It is a test tool, not a claim about real learners.
+to compare settings and in your own tests. It is a test tool, not a claim about real learners: its
+recall does not grow with practice, so it cannot show what spacing is worth.
 
 ## Performance
 

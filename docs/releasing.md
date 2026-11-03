@@ -75,6 +75,20 @@ The steps below name lk-azure. For lk-practice:
 
 1. Merge the feature PR that adds the package. The Release job opens the **"chore: version packages"**
    PR, which takes the new package to `1.0.0`.
+
+   **Check it is that PR before you go on.** The branch `changeset-release/main` stays on GitHub
+   after every version PR merges, so `origin/changeset-release/main` can still be the last release.
+   There must be an open version PR, and the package on its branch must have the new version and no
+   `"private"`:
+
+   ```bash
+   gh pr list --head changeset-release/main --state open
+   git fetch origin
+   git show origin/changeset-release/main:packages/lk-azure/package.json | grep -E '"(version|private)"'
+   ```
+
+   pnpm's `There are no new packages that should be published` means one of these failed: the
+   package is still private, or that version is already on npm.
 2. On your machine, check out that PR's branch and build the new package and lk-core:
 
    ```bash
