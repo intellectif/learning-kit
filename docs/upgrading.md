@@ -37,6 +37,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.20.0 | 20.0.0 | Delivery policies: `delivery` on every activity and both pagers switches off feedback, solutions, hints or AI help per paper; `resolveDeliveryPolicy`, `validateDeliveryPolicy`, `combineDeliveryPolicies`; `planAttempt(…, { delivery })` records it in the plan and its hash, and `verifyAttemptPlan` reports `deliveryChanged`. **No grade changes, and an absent policy changes nothing** — the major is the peer bump, plus a required `delivery` on `InteractiveVideoQuestion` |
 | 0.21.0 | 21.0.0 | Scoring policies: `scoring` on every activity and both pagers — "Try again" in `practice` (`retries`), which try `counts`, and what tries and hints cost (`retryPenalty`, `hintPenalty`); `scoreTries`, `evaluateTries` and `evaluate(…, { scoring })`; `resolveItemScoringPolicy` / `validateItemScoringPolicy`; `planAttempt(…, { scoring })` and `scoringChanged`; `hintsRevealed` on multiple-choice, fill-in-the-blanks and gap-select responses. **No grade changes without a policy.** One fix to 0.20's `solutions: false` on a dictation, and one possible type error — see [0.20 → 0.21](#020--021-lk-core--20x--21x-lk-react) |
 | 0.22.0 | 22.0.0 | Feedback on writing: a `writingFeedback` port gives `<WrittenResponse>` "Get feedback on my draft" in `practice`; `useAiWritingFeedback` for a written response you draw; `aiWritingFeedbackRequest` and `checkAiWritingFeedback` in lk-core, which refuses a correction of words the draft does not contain (`misquotes-answer`) and computes the rubric's indicative score itself; four writing cases in `ai-check`. **Additive, and nothing changes without the port** — the major is the peer bump, plus eight strings and the type errors in [0.21 → 0.22](#021--022-lk-core--21x--22x-lk-react) |
+| 1.10.1 | — | Every rounding policy is checked where it is passed: `roundGrade`, `gte`, `computePassThreshold`, `composeAssessmentScore` and `composeTimelineScore` throw a `RangeError` for a policy they cannot apply, as the `rounding` options already did. **Malformed policies only** — a well-formed one returns exactly what it did; see [1.10.0 → 1.10.1](#1100--1101-lk-core). lk-core only |
 | 1.10.0 | 23.7.0 | `<LkIntlProvider direction="auto">` reads a tag's script subtag, 35 right-to-left languages instead of 11, and `_` as a separator, from the tag alone. **No `lk-core` change** — a `lk-react` minor on the same peer range as 23.6.0. **One behaviour change**: the interface direction of the tags [23.6 → 23.7](#236--237-lk-react) lists |
 | 1.10.0 | 23.6.0 | Spoken answers inside an interactive video: `speaking-response` joins `INTERACTIVE_VIDEO_ITEM_TYPES`, and `<InteractiveVideo>` draws `<SpeakingResponse>` with the video's `recordingBinding`. **Additive** — see [1.9 → 1.10](#19--110-lk-core--235--236-lk-react) for the one exhaustive-switch edit |
 | 1.7.0 | 23.3.0 | A question's own instructions: an optional `instructions` on multiple choice, fill in the blanks and gap select, as read aloud has. Learner-visible, carried by hints, explanations and drafts, never graded; `<MultipleChoice>`, `<FillInTheBlanks>` and `<GapSelect>` draw it before the media and the question. **Additive** — see [1.6 → 1.7](#16--17-lk-core--232--233-lk-react) |
@@ -57,7 +58,9 @@ cannot be a grade — `NaN`, 85 "out of 1", a score out of 0 — stopped composi
 to a final result; see [0.17 → 0.18](#017--018-lk-core--17x--18x-lk-react). Both
 change numbers, deliberately, because every result they change was wrong.
 Everywhere else in this table, if you upgrade and change no code, the numbers
-you record stay exactly what they were.
+you record stay exactly what they were. (In 1.10.1, a rounding policy that cannot be applied — which
+recorded `NaN`, or rounded to a step nobody chose — throws instead of rounding;
+no well-formed policy's numbers change. See [1.10.0 → 1.10.1](#1100--1101-lk-core).)
 
 - On **0.3.x / 0.4.x / 0.5.x**? Start with [Grade-correctness first](#grade-correctness-first).
 - On **0.6.x**? Skip to [0.6 → 0.7](#06--07-lk-core--5x--6x-lk-react).
@@ -81,8 +84,36 @@ you record stay exactly what they were.
 - On **lk-core 1.4.x**? See [1.4 → 1.5](#14--15-lk-core) — additive, lk-core only: nothing grades until you call it; three new union members.
 - On **lk-core 1.6.x / 23.2.x**? See [1.6 → 1.7](#16--17-lk-core--232--233-lk-react) — additive: a question's own instructions; check a field you may already store under that name.
 - On **23.6.x**? See [23.6 → 23.7](#236--237-lk-react) — the interface turns the other way for some tags; check the ones you give `<LkIntlProvider locale>`.
+- On **lk-core 1.10.0**? See [1.10.0 → 1.10.1](#1100--1101-lk-core) — a patch: a rounding policy that cannot be applied now throws wherever it is passed.
 
 ---
+
+## 1.10.0 → 1.10.1 (`lk-core`)
+
+Every function that takes a rounding policy now checks it, as `score()`, `evaluate()`, `gradeFromRubric`
+and the speech graders already checked their `rounding` option: `roundGrade(value, policy)`,
+`gte(value, threshold, policy)`, `computePassThreshold(data, score, rounding?)`,
+`composeAssessmentScore(sections, policy)` and `composeTimelineScore(key, items, policy)`. **A well-formed
+policy returns exactly what it returned**, and every frozen grade vector replays unchanged.
+
+What can change for your code — only a policy outside `RoundingPolicy`'s contract, usually from
+untyped configuration:
+
+- **An unknown `mode`, or a `dp` that is not a whole number from 0 to 15, throws a `RangeError`** naming both
+  fields. It used to round silently: `{ mode: 'half-up' }` with no `dp` computed `10 ** undefined`, so
+  `roundGrade` returned `NaN`, `gte` and `computePassThreshold` failed even a perfect score, and
+  `composeAssessmentScore` recorded a `NaN` total; a fractional or negative `dp` rounded to a step nobody
+  chose, and a `dp` past 15 rounded past what a double holds. If you read the policy from a file or a
+  database, check it there, or catch the `RangeError` where you compose.
+- **A missing policy where one is required** — `roundGrade`, `gte`, a `CompositionPolicy` with no
+  `rounding` — throws the same `RangeError` rather than a `TypeError`. `roundGrade` checks the policy
+  for a non-finite value too, which it still returns unchanged.
+- **`computePassThreshold(data, score, null)`** compares raw, as with no policy, rather than throwing a
+  `TypeError`: `null` means no policy there, as it does in the options.
+- **The policy is read once per call.** A policy whose getter answers differently on a second read
+  used to round one side of a comparison under one `dp` and the other under another.
+
+See [Rounding is two operations](./authoring.md#rounding-is-two-operations).
 
 ## 23.6 → 23.7 (`lk-react`)
 

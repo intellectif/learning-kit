@@ -9,7 +9,7 @@
  * beside them stays internal.
  */
 import type { ActivityData, ActivityFeedback } from '../types/activity.js';
-import { gte, type RoundingPolicy } from './rounding.js';
+import { gte, type RoundingPolicy, roundingPolicyOf } from './rounding.js';
 
 /** Default minimum scaled score required to pass when `passThreshold` is absent. */
 export const DEFAULT_PASS_THRESHOLD = 0.7;
@@ -25,14 +25,20 @@ export const DEFAULT_PASS_THRESHOLD = 0.7;
  * the rounding band, and this SDK does not alter historical grades without an
  * explicit decision. Absent, the comparison is the exact raw `>=` it has
  * always been.
+ *
+ * The policy is checked at the call, as `score()`'s `rounding` option is:
+ * `null` reads as no policy, and one that cannot be applied — an unknown
+ * `mode`, or a `dp` that is not a whole number from 0 to 15 — throws a
+ * `RangeError` instead of quietly failing the comparison.
  */
 export function computePassThreshold(
   activityData: ActivityData,
   score: number,
   rounding?: RoundingPolicy,
 ): boolean {
+  const policy = roundingPolicyOf(rounding);
   const threshold = activityData.passThreshold ?? DEFAULT_PASS_THRESHOLD;
-  return rounding === undefined ? score >= threshold : gte(score, threshold, rounding);
+  return policy === undefined ? score >= threshold : gte(score, threshold, policy);
 }
 
 /**
