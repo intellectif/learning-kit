@@ -1,7 +1,7 @@
 import { hasGrade } from '../grading.js';
 import type { ItemOutcome } from '../types/activity.js';
 import { isGradeInRange } from './grade-numbers.js';
-import { gte, type RoundingPolicy, roundGrade } from './rounding.js';
+import { gte, type RoundingPolicy, requireRoundingPolicy, roundGrade } from './rounding.js';
 
 /**
  * Sectioned assessment scoring — weights, per-section thresholds, and an
@@ -51,6 +51,10 @@ export interface CompositionPolicy {
    * How grades are rounded. Required, with no default: see `RoundingPolicy` —
    * grade rounding and band classification are different operations and the
    * SDK must not choose either for you.
+   *
+   * Checked at the call: a missing policy, an unknown `mode`, or a `dp` that is
+   * not a whole number from 0 to 15 throws a `RangeError` before any section is
+   * scored.
    */
   rounding: RoundingPolicy;
 }
@@ -219,11 +223,15 @@ function rejectedField(slotIds: string[]): { rejectedSlotIds?: string[] } {
  * until every item has a grade. An outcome whose score cannot be a grade out of
  * its `maxScore` is not a grade either: it is held the same way and named in
  * `rejectedSlotIds`.
+ *
+ * @throws RangeError when `policy.rounding` is not a `RoundingPolicy`.
  */
 export function composeAssessmentScore(
   sections: readonly AssessmentSectionInput[],
   policy: CompositionPolicy,
 ): AssessmentScore {
+  // Read once: every section and the total are rounded under the same policy.
+  const rounding = requireRoundingPolicy(policy.rounding);
   const pendingAll: string[] = [];
   const rejectedAll: string[] = [];
   const unscorableAll: string[] = [];
@@ -266,7 +274,7 @@ export function composeAssessmentScore(
       earnedPoints,
       gradedMaxPoints,
       maxPoints,
-      score: roundGrade(raw, policy.rounding),
+      score: roundGrade(raw, rounding),
       appliedThreshold,
       pendingSlotIds,
       rejectedSlotIds,
@@ -303,7 +311,7 @@ export function composeAssessmentScore(
     passed:
       partial.appliedThreshold === null || partial.gradedMaxPoints === 0
         ? true
-        : gte(partial.score, partial.appliedThreshold, policy.rounding),
+        : gte(partial.score, partial.appliedThreshold, rounding),
     appliedThreshold: partial.appliedThreshold,
     pendingSlotIds: partial.pendingSlotIds,
     ...rejectedField(partial.rejectedSlotIds),
@@ -314,7 +322,7 @@ export function composeAssessmentScore(
     (sum, section) => sum + section.score * section.normalizedWeight,
     0,
   );
-  const score = roundGrade(weightedRaw, policy.rounding);
+  const score = roundGrade(weightedRaw, rounding);
 
   // Only work that is still COMING keeps the result provisional — a rejected
   // grade among it, since a real one is still owed. Work that can never be
@@ -355,7 +363,7 @@ export function composeAssessmentScore(
     };
   }
 
-  const overallOk = gte(score, policy.passThreshold, policy.rounding);
+  const overallOk = gte(score, policy.passThreshold, rounding);
   const sectionsOk = scored.every((section) => section.passed);
   const passed = overallOk && sectionsOk;
 

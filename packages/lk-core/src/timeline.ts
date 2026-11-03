@@ -61,6 +61,8 @@ export function readMediaProgress(value: unknown, duration?: number): MediaProgr
  * @throws Error when no item belongs to the entry. A mistyped key would
  *         otherwise compose nothing into a `final` result, and a refusal must
  *         never read as a grade.
+ * @throws RangeError when `policy.rounding` is not a `RoundingPolicy`, as
+ *         {@link composeAssessmentScore} does.
  */
 export function composeTimelineScore(
   entryKey: string,

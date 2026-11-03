@@ -20,7 +20,12 @@
 /** How a value is rounded to `dp` decimal places. */
 export type RoundingMode = 'half-up' | 'half-even' | 'floor' | 'ceil';
 
-/** A rounding policy. Both fields are required — the SDK never guesses either. */
+/**
+ * A rounding policy. Both fields are required — the SDK never guesses either.
+ *
+ * Every function that takes one checks it at the call: an unknown `mode`, or a
+ * `dp` that is not a whole number from 0 to 15, throws a `RangeError`.
+ */
 export interface RoundingPolicy {
   mode: RoundingMode;
   /** Decimal places. Load-bearing: `dp: 2` is what stops 69.6 becoming a fail at 70. */
@@ -33,18 +38,29 @@ const MAX_ROUNDING_DP = 15;
 
 /**
  * The rounding policy `value` holds, or `undefined` for none (`undefined` or
- * `null`). A malformed one would reach {@link gte} as `10 ** undefined` and
- * turn a perfect score into a fail with no error, so it throws here instead.
+ * `null`): the check for an optional `rounding`. Anything else is checked by
+ * {@link requireRoundingPolicy}.
  *
- * Internal. Every function that takes a `rounding` option checks it here, so
- * each refuses the same policies with the same message; `scoring/index.ts`
- * does not re-export it.
+ * Internal, as is {@link requireRoundingPolicy}: `scoring/index.ts` re-exports
+ * neither.
  */
 export function roundingPolicyOf(value: unknown): RoundingPolicy | undefined {
-  if (value === undefined || value === null) {
-    return undefined;
-  }
-  const { mode, dp } = value as { mode?: unknown; dp?: unknown };
+  return value === undefined || value === null ? undefined : requireRoundingPolicy(value);
+}
+
+/**
+ * The rounding policy `value` holds. A malformed one would reach the rounding
+ * as `10 ** undefined` and turn a perfect score into a fail with no error, so
+ * it throws here instead; so does a missing one, `undefined` or `null`, where a
+ * policy is required.
+ *
+ * Every function that takes a policy, as an argument or a `rounding` option,
+ * checks it here or through {@link roundingPolicyOf}, so each refuses the same
+ * policies with the same message.
+ */
+export function requireRoundingPolicy(value: unknown): RoundingPolicy {
+  // `undefined` and `null` hold no fields: refused as a policy missing both.
+  const { mode, dp } = (value ?? {}) as { mode?: unknown; dp?: unknown };
   if (
     !ROUNDING_MODES.includes(mode) ||
     typeof dp !== 'number' ||
@@ -95,8 +111,9 @@ function scaled(value: number, dp: number): number {
  * Normalises `-0` to `0` without touching anything else. `-0` JSON-serialises
  * as `0` but fails `Object.is(-0, 0)`, which surprises a strict-equality
  * gradebook comparison. Deliberately NOT `|| 0`: that also swallowed `NaN`
- * (reachable with an absurd `dp`, where `10 ** dp` overflows to Infinity) and
- * turned a visible failure into a plausible-looking grade of zero.
+ * (reached with an absurd `dp`, where `10 ** dp` overflows to Infinity, before
+ * policies were checked) and turned a visible failure into a plausible-looking
+ * grade of zero.
  */
 function noNegZero(value: number): number {
   return Object.is(value, -0) ? 0 : value;
@@ -108,8 +125,16 @@ function noNegZero(value: number): number {
  * Idempotent for every mode: rounding an already-rounded value returns it
  * unchanged. That matters because a composed score is rounded once and then
  * compared through {@link gte}, which rounds again.
+ *
+ * @throws RangeError when `policy` is not a {@link RoundingPolicy} — for a
+ * non-finite `value` too, which a policy returns unchanged.
  */
 export function roundGrade(value: number, policy: RoundingPolicy): number {
+  return round(value, requireRoundingPolicy(policy));
+}
+
+/** {@link roundGrade} under a policy {@link requireRoundingPolicy} returned. */
+function round(value: number, policy: RoundingPolicy): number {
   if (!Number.isFinite(value)) {
     return value;
   }
@@ -167,9 +192,13 @@ function halfAway(raw: number): number {
  * shown one number and recorded against another. Rounding both sides — and
  * allowing an epsilon — makes "what the learner sees" and "what the gradebook
  * decides" the same comparison.
+ *
+ * @throws RangeError when `policy` is not a {@link RoundingPolicy}. It is read
+ * once, so both sides are rounded under the same one.
  */
 export function gte(value: number, threshold: number, policy: RoundingPolicy): boolean {
-  return roundGrade(value, policy) >= roundGrade(threshold, policy) - EPSILON;
+  const checked = requireRoundingPolicy(policy);
+  return round(value, checked) >= round(threshold, checked) - EPSILON;
 }
 
 /** A named band with an inclusive lower bound, e.g. `{ name: 'B1', min: 0.6 }`. */

@@ -1874,6 +1874,15 @@ A single shared default would silently invert one of them, so the SDK ships no
 default for either. `gte(value, threshold, policy)` rounds **both** sides before
 comparing, so the displayed number and the pass decision cannot disagree.
 
+**Every policy is checked where it is passed** *(1.10.1)*. `roundGrade`, `gte`,
+`computePassThreshold`, `composeAssessmentScore` and `composeTimelineScore` check
+theirs as every `rounding` option already did. An unknown `mode`, or a `dp` that is
+not a whole number from 0 to 15, throws a `RangeError` that names both fields, so
+`{ mode: 'half-up' }` without a `dp` cannot quietly fail a perfect score. Where the
+policy is optional (`computePassThreshold`, the options), `null` means no policy.
+Where it is required, a missing one throws too. Each call reads the policy once
+and rounds every side from that one copy.
+
 ## Custom activity types end to end
 
 

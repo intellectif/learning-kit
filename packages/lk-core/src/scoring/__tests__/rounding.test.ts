@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { composeTimelineScore } from '../../timeline.js';
 import type { ActivityData } from '../../types/activity.js';
+import { type CompositionPolicy, composeAssessmentScore, type ScoredItem } from '../compose.js';
 import { computePassThreshold } from '../index.js';
 import {
   type Band,
@@ -7,6 +9,7 @@ import {
   gte,
   type RoundingMode,
   type RoundingPolicy,
+  requireRoundingPolicy,
   roundGrade,
   roundingPolicyOf,
 } from '../rounding.js';
@@ -442,6 +445,238 @@ describe('roundingPolicyOf', () => {
     expect(() => roundingPolicyOf(value)).toThrow(
       `Invalid rounding policy (${named}): expected { mode: 'half-up' | 'half-even' | 'floor' | 'ceil', dp: a whole number from 0 to 15 }.`,
     );
+  });
+});
+
+describe('requireRoundingPolicy', () => {
+  it('refuses a missing policy as one missing both fields', () => {
+    for (const missing of [undefined, null]) {
+      expect(() => requireRoundingPolicy(missing)).toThrow(
+        "Invalid rounding policy (mode undefined, dp undefined): expected { mode: 'half-up' | 'half-even' | 'floor' | 'ceil', dp: a whole number from 0 to 15 }.",
+      );
+    }
+  });
+
+  it('checks a present policy exactly as roundingPolicyOf does', () => {
+    const policy = { mode: 'half-even', dp: 4, scale: 100 };
+
+    expect(requireRoundingPolicy(policy)).toEqual({ mode: 'half-even', dp: 4 });
+    expect(requireRoundingPolicy(policy)).not.toBe(policy);
+    expect(() => requireRoundingPolicy({ mode: 'half-up' })).toThrow(RangeError);
+  });
+});
+
+// ==========================================================================
+// Every function that takes a policy directly checks it as the options do
+// ==========================================================================
+
+/** Message of the RangeError every check throws, for the fields it names. */
+const refusal = (named: string): string =>
+  `Invalid rounding policy (${named}): expected { mode: 'half-up' | 'half-even' | 'floor' | 'ceil', dp: a whole number from 0 to 15 }.`;
+
+describe('functions that take a policy directly', () => {
+  const activity = {
+    schemaVersion: '1.0',
+    type: 'multiple-choice',
+    id: 'x',
+    title: 't',
+    question: 'q',
+    mode: 'single',
+    scoringStrategy: 'all-or-nothing',
+    options: [],
+    passThreshold: 0.7,
+  } as unknown as ActivityData;
+
+  const scoredItem = (slotId: string, score: number): ScoredItem => ({
+    slotId,
+    points: 1,
+    outcome: { status: 'scored', score, maxScore: 1, passed: true, feedback: null, details: [] },
+  });
+
+  // 0.696 is shown as 70% at dp 2 and as 100% at dp 0, so a policy read twice
+  // with a different dp each time moves every answer below.
+  const SHOWN_AS_70 = 0.696;
+
+  /** Each public function, called with `rounding` as its policy. */
+  const CALLS: readonly [string, (rounding: unknown) => unknown][] = [
+    ['roundGrade', (rounding) => roundGrade(SHOWN_AS_70, rounding as RoundingPolicy)],
+    // Without the check a non-finite value came back before the policy was read.
+    ['roundGrade on NaN', (rounding) => roundGrade(Number.NaN, rounding as RoundingPolicy)],
+    ['gte', (rounding) => gte(SHOWN_AS_70, 0.7, rounding as RoundingPolicy)],
+    [
+      'computePassThreshold',
+      (rounding) => computePassThreshold(activity, SHOWN_AS_70, rounding as RoundingPolicy),
+    ],
+    [
+      'composeAssessmentScore',
+      (rounding) =>
+        composeAssessmentScore([{ id: 's', weight: 1, items: [scoredItem('a', SHOWN_AS_70)] }], {
+          passThreshold: 0.7,
+          sectionThreshold: 0.7,
+          rounding,
+        } as CompositionPolicy),
+    ],
+    [
+      'composeAssessmentScore with no sections',
+      (rounding) =>
+        composeAssessmentScore([], { passThreshold: 0.7, rounding } as CompositionPolicy),
+    ],
+    [
+      'composeTimelineScore',
+      (rounding) =>
+        composeTimelineScore('video', [scoredItem('video.0', SHOWN_AS_70)], {
+          passThreshold: 0.7,
+          rounding,
+        } as CompositionPolicy),
+    ],
+  ];
+
+  /** Policies that cannot be applied, with what the refusal names. */
+  const MALFORMED: readonly [string, () => unknown, string][] = [
+    ['a policy without dp', () => ({ mode: 'half-up' }), 'mode "half-up", dp undefined'],
+    ['a fractional dp', () => ({ mode: 'floor', dp: 1.5 }), 'mode "floor", dp 1.5'],
+    ['a negative dp', () => ({ mode: 'ceil', dp: -1 }), 'mode "ceil", dp -1'],
+    ['a dp past 15', () => ({ mode: 'half-even', dp: 16 }), 'mode "half-even", dp 16'],
+    ['a NaN dp', () => ({ mode: 'half-up', dp: Number.NaN }), 'mode "half-up", dp NaN'],
+    ['a dp given as a string', () => ({ mode: 'half-up', dp: '2' }), 'mode "half-up", dp "2"'],
+    ['a BigInt dp', () => ({ mode: 'half-up', dp: 2n }), 'mode "half-up", dp a bigint'],
+    ['an unknown mode', () => ({ mode: 'nearest', dp: 2 }), 'mode "nearest", dp 2'],
+    [
+      'a policy that refers to itself',
+      () => {
+        const policy: Record<string, unknown> = { mode: { name: 'floor' }, dp: 2n };
+        policy.self = policy;
+        return policy;
+      },
+      'mode an object, dp a bigint',
+    ],
+    [
+      'a getter that answers a whole dp only from its second read',
+      () => {
+        let reads = 0;
+        return {
+          mode: 'half-up',
+          get dp() {
+            reads += 1;
+            return reads === 1 ? 2.5 : 2;
+          },
+        };
+      },
+      'mode "half-up", dp 2.5',
+    ],
+    [
+      'a Proxy that answers a malformed policy',
+      () => new Proxy({}, { get: (_target, key) => (key === 'mode' ? 'half-up' : -2) }),
+      'mode "half-up", dp -2',
+    ],
+    ['a mode name alone', () => 'half-up', 'mode undefined, dp undefined'],
+  ];
+
+  describe.each(CALLS)('%s', (_name, call) => {
+    it.each(MALFORMED)('throws a RangeError for %s, naming it', (_label, malformed, named) => {
+      expect(() => call(malformed())).toThrow(RangeError);
+      expect(() => call(malformed())).toThrow(refusal(named));
+    });
+
+    it('answers a well-formed policy as before, the copy it reads included', () => {
+      const plain = call({ mode: 'half-up', dp: 2 });
+
+      expect(call({ mode: 'half-up', dp: 2, scale: 100 })).toEqual(plain);
+      expect(call(Object.freeze({ mode: 'half-up', dp: 2 }))).toEqual(plain);
+    });
+
+    it('reads a getter once, so a dp that changes between reads cannot move the answer', () => {
+      let reads = 0;
+      const shifting = {
+        mode: 'half-up',
+        get dp() {
+          reads += 1;
+          return reads === 1 ? 2 : 0;
+        },
+      };
+
+      expect(call(shifting)).toEqual(call({ mode: 'half-up', dp: 2 }));
+      expect(reads).toBe(1);
+    });
+
+    it('reads each field of a Proxy once, and only those fields', () => {
+      const read: PropertyKey[] = [];
+      const proxy = new Proxy(
+        { mode: 'half-up', dp: 2 },
+        {
+          get: (target, key, receiver) => {
+            read.push(key);
+            return Reflect.get(target, key, receiver);
+          },
+        },
+      );
+
+      expect(call(proxy)).toEqual(call({ mode: 'half-up', dp: 2 }));
+      expect(read).toEqual(['mode', 'dp']);
+    });
+  });
+
+  it('rounds under the policy the getter answered first', () => {
+    let reads = 0;
+    const shifting = (): RoundingPolicy =>
+      ({
+        mode: 'half-up',
+        get dp() {
+          reads += 1;
+          return reads === 1 ? 2 : 0;
+        },
+      }) as RoundingPolicy;
+
+    // Read twice, dp 2 then 0, this was 0.01 and a fail.
+    expect(roundGrade(SHOWN_AS_70, shifting())).toBe(0.7);
+    reads = 0;
+    expect(gte(SHOWN_AS_70, 0.7, shifting())).toBe(true);
+    reads = 0;
+    expect(computePassThreshold(activity, SHOWN_AS_70, shifting())).toBe(true);
+  });
+
+  it('reads a composition policy’s rounding once, however it is reached', () => {
+    let reads = 0;
+    const policy = {
+      passThreshold: 0.7,
+      sectionThreshold: 0.7,
+      get rounding(): RoundingPolicy {
+        reads += 1;
+        return reads === 1 ? { mode: 'half-up', dp: 2 } : { mode: 'floor', dp: 0 };
+      },
+    };
+    const sections = [{ id: 's', weight: 1, items: [scoredItem('a', SHOWN_AS_70)] }];
+
+    const result = composeAssessmentScore(sections, policy);
+
+    expect(result).toEqual(
+      composeAssessmentScore(sections, {
+        passThreshold: 0.7,
+        sectionThreshold: 0.7,
+        rounding: { mode: 'half-up', dp: 2 },
+      }),
+    );
+    expect(result.score).toBe(0.7);
+    expect(result.passed).toBe(true);
+    expect(reads).toBe(1);
+  });
+
+  it.each([
+    ['roundGrade', () => roundGrade(0.5, undefined as never)],
+    ['roundGrade, given null', () => roundGrade(0.5, null as never)],
+    ['gte', () => gte(0.5, 0.7, undefined as never)],
+    [
+      'composeAssessmentScore',
+      () => composeAssessmentScore([], { passThreshold: 0.7 } as CompositionPolicy),
+    ],
+  ])('%s refuses a missing policy: it is required', (_name, call) => {
+    expect(call).toThrow(refusal('mode undefined, dp undefined'));
+  });
+
+  it('computePassThreshold reads null as no policy, as the rounding options do', () => {
+    // 0.696 is below 0.7 raw: the exact comparison it has always made.
+    expect(computePassThreshold(activity, SHOWN_AS_70, null as never)).toBe(false);
+    expect(computePassThreshold(activity, 0.7, null as never)).toBe(true);
   });
 });
 
