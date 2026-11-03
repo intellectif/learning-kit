@@ -488,7 +488,7 @@ export interface GradeResult {
   /** At least 0. */
   readonly maxScore: number;
   readonly passed: boolean;
-  /** Required in effect for an `ai` grade; `evidenceFromGrade` reads its absence as `low`. */
+  /** For an `ai` grade; `evidenceFromGrade` reads its absence as `medium` (R7.7, R8.3). */
   readonly confidence?: 'high' | 'medium' | 'low';
   readonly requiresHumanReview?: boolean;
   readonly checks?: { readonly passed: number; readonly total: number };

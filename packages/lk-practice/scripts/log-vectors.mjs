@@ -4,7 +4,8 @@
 // look-ahead, late evidence and replay, checkpoints, duplicates, every record
 // and act rejection, each host action, a leech, the evidence contexts, a
 // recompute under another configuration, stored states into migrateState,
-// each log's review history (revised in M8), and mastery checks (revised in M9). The expected values are recorded from src/ through
+// each log's review history (revised in M8), mastery checks (revised in M9),
+// and the Appendix B placement flow (criterion 17; revised in M10). The expected values are recorded from src/ through
 // vectors/replay.mjs, so the file pins the current behaviour; the unit tests
 // check the same rules by hand. Run with `pnpm vectors:log`, then review the
 // diff: a changed output is a behaviour change and needs a version (D26).
@@ -230,6 +231,26 @@ const logVectors = [
     now: [T0 + 6 * DAY],
     reconcile: ['main', 'grown'],
   }),
+  log(
+    'the Appendix B placement flow: a prior per objective at its placed stage, credit where policy grants it, then practice',
+    {
+      steps: [
+        act('prior:pl1:a', T0, {
+          kind: 'prior',
+          skillId: 'a',
+          stage: 'produce',
+          theta: 1.2,
+          pseudoCount: 10,
+        }),
+        act('place:pl1:a', T0, { kind: 'place', skillId: 'a', stage: 'produce', credited: false }),
+        act('prior:pl1:c', T0, { kind: 'prior', skillId: 'c', theta: -0.4, pseudoCount: 10 }),
+        act('place:pl1:b', T0, { kind: 'place', skillId: 'b', stage: 'produce', credited: true }),
+        ev('e1', T0 + DAY, pass, { stage: 'produce' }),
+        ev('e2', T0 + DAY + 60_000, pass, { skill: 'c', stage: 'recognise' }),
+      ],
+      now: [T0 + 2 * DAY],
+    },
+  ),
   log('a leech suspends the skill at the threshold', {
     config: { leechThreshold: 2 },
     steps: [

@@ -1119,6 +1119,8 @@ export interface SimulatedLearner {
 
 The `ItemOutcomeLike` shapes (discriminated by `status`, as `lk-core`'s `ItemOutcome` is) are copied from `packages/lk-core/api/surface.md` as read on 2026-11-01, keeping only the fields the adapter reads, and are confirmed by the M10 contract test, which assigns real `lk-core` values to these types; any mismatch fails that test, not a host.
 
+**As built in M10 (revised in M10).** `src/adapters/lk-core/` is the `./lk-core` entry. `deferred` keeps lk-core's `reason` (typed `string`) and maps it as R7.7 (revised in M10) says; `evidenceFromOutcome` builds `graded` evidence through `evidenceFromGrade` and `pending` evidence through the same internal `evidenceOf`, and `skillOutcomesFromCriteria` uses its `skillOutcomesOf`, so the two paths cannot drift. The contract test (`src/adapters/lk-core/__tests__/contract.test.ts`) assigns `ItemOutcome`, `GradeRecord` and `CriterionScore` to the structural types (a type error fails `typecheck`) and records real outcomes from `evaluate`, `evaluateTries`, `outcomeFromGrade`, `outcomeFromRoutedGrade`, `routeGrade` and `outcomeFromUnscorable`, including a model grade held for a person and the person's grade confirming it. The `outcome` vectors in `contracts.json` are made by lk-core in `scripts/contracts-vectors.mjs`; `verify-dist` loads `./lk-core` under the purity trap and replays them over both builds. `examples/appendix-b.ts` imports the package by name and is type-checked against `dist/` (`tsconfig.examples.json`; `turbo.json` runs `lk-practice#typecheck` after its build). Size: 4.2 kB brotli (budget 5 kB), most of it the grade check it shares with the root.
+
 ## 6. Flows
 
 ### 6.1 Record

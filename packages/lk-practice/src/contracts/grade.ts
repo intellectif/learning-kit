@@ -91,17 +91,29 @@ export function evidenceFromGrade(
     throw new TypeError('lk-practice: meta.itemId must equal task.id.');
   }
   const grade = checked.value;
-  const outcomes = skillOutcomes(grade, task);
+  return evidenceOf(meta, sourceOf(grade), skillOutcomesOf(grade.criteria ?? [], task));
+}
+
+/**
+ * Evidence from `meta`, a source and per-skill outcomes, frozen; no outcomes,
+ * no `skillOutcomes`. Internal: the `./lk-core` adapter builds its evidence
+ * the same way (M10).
+ */
+export function evidenceOf(
+  meta: EvidenceMeta,
+  source: EvidenceSource,
+  outcomes: readonly SkillOutcome[],
+): Evidence {
   const evidence: Record<string, unknown> = {
     id: meta.id,
     itemId: meta.itemId,
     at: meta.at,
-    source: Object.freeze(sourceOf(grade)),
+    source: Object.freeze(source),
   };
   for (const key of META_KEYS) {
     if (meta[key] !== undefined) evidence[key] = meta[key];
   }
-  if (outcomes.length > 0) evidence.skillOutcomes = Object.freeze(outcomes);
+  if (outcomes.length > 0) evidence.skillOutcomes = Object.freeze([...outcomes]);
   return Object.freeze(evidence) as unknown as Evidence;
 }
 
@@ -142,9 +154,17 @@ function sourceOf(grade: GradeResult): EvidenceSource {
   }
 }
 
-function skillOutcomes(grade: GradeResult, task: PracticeItem): SkillOutcome[] {
+/**
+ * The reported criteria the task binds to skills, summed per skill in the
+ * order the task first names each skill (R8.3). Criterion names are unique.
+ * Internal: shared with the `./lk-core` adapter (M10).
+ */
+export function skillOutcomesOf(
+  criteria: readonly { readonly name: string; readonly score: number; readonly maxScore: number }[],
+  task: PracticeItem,
+): SkillOutcome[] {
   const reported = new Map<string, { score: number; maxScore: number }>();
-  for (const criterion of grade.criteria ?? []) reported.set(criterion.name, criterion);
+  for (const criterion of criteria) reported.set(criterion.name, criterion);
   const totals = new Map<string, { score: number; maxScore: number }>();
   for (const binding of task.criteria ?? []) {
     const found = reported.get(binding.name);

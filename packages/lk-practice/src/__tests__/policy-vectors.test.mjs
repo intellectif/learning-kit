@@ -1,6 +1,7 @@
 /**
  * Replays vectors/evidence.json, vectors/stage.json, vectors/log.json,
- * vectors/plan.json (revised in M6) and vectors/contracts.json (revised in M7)
+ * vectors/plan.json (revised in M6) and vectors/contracts.json (revised in M7;
+ * the `./lk-core` adapter's outcome vectors, revised in M10)
  * against src/ through vectors/replay.mjs,
  * the way scripts/mutate.mjs replays them against each mutant, with the
  * runtime purity trap installed (revised in M8). Plain ESM, as the replay is.
@@ -8,6 +9,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { differences, ENTRY, NEEDS, replay } from '../../vectors/replay.mjs';
+import * as lkCore from '../adapters/lk-core/index.js';
 import * as config from '../config.js';
 import * as contracts from '../contracts/index.js';
 import * as evidence from '../evidence/index.js';
@@ -20,6 +22,7 @@ import * as stage from '../stage/index.js';
 import { installTrap, removeTrap } from './trap.js';
 
 const MODULES = {
+  'adapters/lk-core/index.ts': lkCore,
   'config.ts': config,
   'contracts/index.ts': contracts,
   'evidence/index.ts': evidence,
@@ -44,7 +47,7 @@ describe('policy, log, plan and contract vectors', () => {
     ['stage.json', 10],
     ['log.json', 10],
     ['plan.json', 10],
-    ['contracts.json', 15],
+    ['contracts.json', 17],
   ]) {
     it(`${file} replays with no difference, under the purity trap`, () => {
       const loaded = corpus(file);

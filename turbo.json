@@ -39,6 +39,9 @@
     },
     "@intellectif/lk-react#typecheck": {
       "dependsOn": ["^build", "build"]
+    },
+    "@intellectif/lk-practice#typecheck": {
+      "dependsOn": ["^build", "build"]
     }
   }
 }

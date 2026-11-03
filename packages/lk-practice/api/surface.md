@@ -126,6 +126,16 @@ type StageId: type StageId = string;
 type TaskGenerator: type TaskGenerator = (request: GenerationRequest) => Promise<unknown>;
 ```
 
+## @intellectif/lk-practice/lk-core
+
+```ts
+function evidenceFromOutcome: declare function evidenceFromOutcome(outcome: ItemOutcomeLike, task: PracticeItem, meta: EvidenceMeta): Evidence | null;
+function skillOutcomesFromCriteria: declare function skillOutcomesFromCriteria(criteria: readonly CriterionScoreLike[], task: PracticeItem): readonly SkillOutcome[];
+interface CriterionScoreLike: interface CriterionScoreLike { readonly name: string; readonly score?: number; readonly maxScore?: number; readonly notApplicable?: boolean; }
+interface GradeRecordLike: interface GradeRecordLike { readonly score: number; readonly maxScore: number; readonly passed: boolean; readonly criteria?: readonly CriterionScoreLike[]; readonly confidence?: 'high' | 'low' | 'medium'; readonly requiresHumanReview?: boolean; readonly grader?: { readonly id?: string; readonly kind: 'ai' | 'auto' | 'human'; }; readonly routing?: { readonly to: 'model' | 'person'; }; }
+type ItemOutcomeLike: type ItemOutcomeLike = { readonly grade: GradeRecordLike; readonly maxScore: number; readonly passed: boolean; readonly score: number; readonly status: 'graded'; } | { readonly maxScore: number; readonly passed: boolean; readonly score: number; readonly status: 'scored'; } | { readonly maxScore: number; readonly pendingGrade?: GradeRecordLike; readonly reason: string; readonly status: 'deferred'; } | { readonly maxScore: number; readonly reason: string; readonly status: 'unscorable'; };
+```
+
 ## @intellectif/lk-practice/testing
 
 ```ts

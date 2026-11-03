@@ -78,7 +78,9 @@ patch never changes behaviour.
   plan and contract vectors, generated from the source. A vector that changes is a behaviour change,
   and its release says so.
 - **Its public API is `packages/lk-practice/api/surface.md`,** checked by CI like the others, for its
-  root and `./testing` entries. The `./testing` simulator's draws may change in any minor.
+  root, `./lk-core` and `./testing` entries. The `./testing` simulator's draws may change in any minor.
+  `./lk-core` copies the lk-core types it reads, and a test against the real lk-core keeps them in
+  step; it never imports lk-core.
 - **`ts-fsrs` is pinned exactly,** and no `ts-fsrs` type is part of the API. A `ts-fsrs` upgrade that
   changes a schedule is a behaviour change, released as above.
 - **It needs Node.js 24 or later.** It is pure: no clock, randomness, network or I/O, which the
