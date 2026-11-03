@@ -39,6 +39,7 @@
  *   pnpm mutate --package lk-practice --modules mastery/predicate.ts,evidence
  *   pnpm mutate --package lk-practice --modules log,status,schema   # the log
  *   pnpm mutate --package lk-practice --modules planner             # the planner
+ *   pnpm mutate --package lk-practice --modules contracts           # the contracts (M7)
  */
 
 import { execFileSync } from 'node:child_process';
@@ -90,6 +91,7 @@ const PACKAGES = {
       'vectors/stage.json',
       'vectors/log.json',
       'vectors/plan.json',
+      'vectors/contracts.json',
     ],
     replay: 'vectors/replay.mjs',
     failures: 'replay(core, corpus).length',

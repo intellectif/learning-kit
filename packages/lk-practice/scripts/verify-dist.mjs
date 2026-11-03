@@ -24,12 +24,29 @@ const failures = [];
 /** Everything the root entry exports at run time (the types have no runtime value). */
 const REQUIRED_EXPORTS = [
   'PracticeConfigError',
+  'admitCandidate',
+  'admitExtension',
+  'candidatesJsonSchema',
+  'checkCandidates',
+  'checkDecomposition',
+  'checkGradeResult',
   'composeGraph',
   'createPractice',
+  'decompositionJsonSchema',
+  'decompositionRequest',
   'eloMasteryModel',
+  'evidenceFromGrade',
+  'evidenceSchema',
   'fsrsMemoryModel',
+  'generationRequest',
+  'gradeResultJsonSchema',
+  'gradeResultSchema',
   'mapEvidence',
   'migrateState',
+  'practiceStateJsonSchema',
+  'practiceStateSchema',
+  'reviewLogEntryJsonSchema',
+  'reviewLogEntrySchema',
   'validateGraph',
   'validateItems',
 ];
@@ -175,6 +192,39 @@ function smoke(format, module) {
     ) {
       problems.push(`${format} createPractice().plan gives ${JSON.stringify(planned.targets)}.`);
     }
+  }
+  // The contracts (design 8.8; revised in M7): a grade read through the check
+  // and its Standard Schema, mapped to evidence, and a candidate that only an
+  // accepted proof admits.
+  const grade = { score: 1, maxScore: 2, passed: false, grader: { kind: 'auto' } };
+  const checkedGrade = module.checkGradeResult(grade);
+  const standard = module.gradeResultSchema['~standard'].validate(grade);
+  const fromGrade = module.evidenceFromGrade(grade, SMOKE_ITEMS[0], {
+    id: 'e2',
+    itemId: 'i1',
+    at: 1,
+  });
+  if (
+    !checkedGrade.ok ||
+    standard.issues !== undefined ||
+    fromGrade.source.kind !== 'auto' ||
+    fromGrade.source.score !== 1 ||
+    module.gradeResultJsonSchema.type !== 'object'
+  ) {
+    problems.push(`${format} checkGradeResult or evidenceFromGrade fails the smoke grade.`);
+  }
+  const candidate = {
+    ...SMOKE_ITEMS[0],
+    difficulty: 0,
+    content: 'smoke',
+    origin: 'generated',
+    status: 'unproven',
+  };
+  const proof = { kind: 'executable', at: 1, referencePassed: true, wrongSolutionsFailed: 1 };
+  const proven = module.admitCandidate(candidate, proof);
+  const refused = module.admitCandidate(candidate, { ...proof, referencePassed: false });
+  if (!proven.ok || proven.item.status !== 'proven' || refused.ok) {
+    problems.push(`${format} admitCandidate does not gate the smoke candidate on its proof.`);
   }
   return problems;
 }

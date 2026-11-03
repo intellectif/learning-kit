@@ -4,17 +4,31 @@
  * list of `SHAPE_INVALID` issues and never throws. Strict: a key the type
  * does not declare, or an optional key present as `undefined`, is an issue,
  * so whatever passes is canonical JSON of exactly the declared shape.
+ *
+ * (M7) Also the shapes of a grade result and of host model output (generated
+ * candidates, a decomposition proposal), and every shape carries the JSON
+ * Schema (draft 2020-12) of what it checks. A schema expresses the field
+ * rules; the cross-field rules (`rule`, the entry and state checks) are the
+ * check's alone, so a value the schema accepts can still fail the check.
  */
 
-import type { Issue } from '../types.js';
+import type { Issue, JsonSchemaObject } from '../types.js';
 
 type Path = readonly (string | number)[];
-type Check = (value: unknown, path: Path, out: Issue[]) => void;
+export type Check = ((value: unknown, path: Path, out: Issue[]) => void) & {
+  readonly schema: JsonSchemaObject;
+};
+type Run = (value: unknown, path: Path, out: Issue[]) => void;
+
+const MAX_SAFE = Number.MAX_SAFE_INTEGER;
+
+/** A check that carries its JSON Schema. */
+const make = (run: Run, schema: JsonSchemaObject): Check => Object.assign(run, { schema });
 
 const RATINGS = ['again', 'hard', 'good', 'easy'];
 const CONTEXTS = ['practice', 'exam', 'diagnostic', 'pretest'];
 const CONFIDENCES = ['sure', 'unsure', 'guess'];
-const PROOF_KINDS = ['executable', 'reviewed', 'grader-checked'];
+const PROOF_KINDS = ['executable', 'reviewed', 'model-checked'];
 const HELD_REASONS = ['low-confidence', 'human-review', 'deferred', 'routed-to-person'];
 
 function issue(path: Path, message: string): Issue {
@@ -31,37 +45,54 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 // Leaf checks
 // ---------------------------------------------------------------------------
 
-const leaf =
-  (test: (value: unknown) => boolean, what: string): Check =>
-  (value, path, out) => {
+const leaf = (test: (value: unknown) => boolean, what: string, schema: JsonSchemaObject): Check =>
+  make((value, path, out) => {
     if (!test(value)) out.push(issue(path, `${what}.`));
-  };
+  }, schema);
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
 
-const id = leaf((value) => typeof value === 'string' && value !== '', 'a non-empty string');
-const text = leaf((value) => typeof value === 'string', 'a string');
-const bool = leaf((value) => typeof value === 'boolean', 'a boolean');
-const finite = leaf(isFiniteNumber, 'a finite number');
-const positive = leaf((value) => isFiniteNumber(value) && value > 0, 'a positive number');
-const nonNegative = leaf((value) => isFiniteNumber(value) && value >= 0, 'a number of at least 0');
-const instant = leaf(Number.isSafeInteger, 'an integer epoch millisecond');
+const safe = { minimum: -MAX_SAFE, maximum: MAX_SAFE };
+
+const id = leaf((value) => typeof value === 'string' && value !== '', 'a non-empty string', {
+  type: 'string',
+  minLength: 1,
+});
+const text = leaf((value) => typeof value === 'string', 'a string', { type: 'string' });
+const bool = leaf((value) => typeof value === 'boolean', 'a boolean', { type: 'boolean' });
+const finite = leaf(isFiniteNumber, 'a finite number', { type: 'number' });
+const positive = leaf((value) => isFiniteNumber(value) && value > 0, 'a positive number', {
+  type: 'number',
+  exclusiveMinimum: 0,
+});
+const nonNegative = leaf((value) => isFiniteNumber(value) && value >= 0, 'a number of at least 0', {
+  type: 'number',
+  minimum: 0,
+});
+const instant = leaf(Number.isSafeInteger, 'an integer epoch millisecond', {
+  type: 'integer',
+  ...safe,
+});
 const count = leaf(
   (value) => Number.isSafeInteger(value) && (value as number) >= 0,
   'an integer of at least 0',
+  { type: 'integer', minimum: 0, maximum: MAX_SAFE },
 );
 const instantOrNull = leaf(
   (value) => value === null || Number.isSafeInteger(value),
   'an integer epoch millisecond or null',
+  { type: ['integer', 'null'], ...safe },
 );
 const oneOf = (values: readonly string[]): Check =>
-  leaf((value) => values.includes(value as string), `one of ${values.join(', ')}`);
-const literal = (expected: unknown): Check =>
-  leaf((value) => value === expected, `${JSON.stringify(expected)}`);
+  leaf((value) => values.includes(value as string), `one of ${values.join(', ')}`, {
+    enum: [...values],
+  });
+const literal = (expected: string | number): Check =>
+  leaf((value) => value === expected, `${JSON.stringify(expected)}`, { const: expected });
 
 /** Any JSON value: null, a boolean, a finite number, a string, an array or a plain object of them. */
-const json: Check = (value, path, out) => {
+const json: Check = make((value, path, out) => {
   const stack: { value: unknown; path: Path }[] = [{ value, path }];
   const seen = new Set<object>();
   while (stack.length > 0) {
@@ -82,29 +113,36 @@ const json: Check = (value, path, out) => {
     );
     return;
   }
-};
+}, {});
 
-const arrayOf =
-  (item: Check, nonEmpty = false): Check =>
-  (value, path, out) => {
-    if (!Array.isArray(value) || (nonEmpty && value.length === 0)) {
-      out.push(issue(path, nonEmpty ? 'a non-empty array.' : 'an array.'));
-      return;
-    }
-    value.forEach((entry, index) => {
-      item(entry, [...path, index], out);
-    });
-  };
+const arrayOf = (item: Check, nonEmpty = false): Check =>
+  make(
+    (value, path, out) => {
+      if (!Array.isArray(value) || (nonEmpty && value.length === 0)) {
+        out.push(issue(path, nonEmpty ? 'a non-empty array.' : 'an array.'));
+        return;
+      }
+      // (revised in M7) Every index, so an array hole is an issue: forEach
+      // skipped holes, and a hole has no JSON form.
+      for (let index = 0; index < value.length; index += 1) {
+        if (index in value) item(value[index], [...path, index], out);
+        else out.push(issue([...path, index], 'an array entry, not a hole.'));
+      }
+    },
+    { type: 'array', items: item.schema, ...(nonEmpty ? { minItems: 1 } : {}) },
+  );
 
-const recordOf =
-  (item: Check): Check =>
-  (value, path, out) => {
-    if (!isRecord(value)) {
-      out.push(issue(path, 'an object.'));
-      return;
-    }
-    for (const [key, entry] of Object.entries(value)) item(entry, [...path, key], out);
-  };
+const recordOf = (item: Check): Check =>
+  make(
+    (value, path, out) => {
+      if (!isRecord(value)) {
+        out.push(issue(path, 'an object.'));
+        return;
+      }
+      for (const [key, entry] of Object.entries(value)) item(entry, [...path, key], out);
+    },
+    { type: 'object', additionalProperties: item.schema },
+  );
 
 interface Fields {
   readonly [key: string]: Check | { readonly optional: Check };
@@ -112,10 +150,24 @@ interface Fields {
 
 const opt = (check: Check) => ({ optional: check });
 
+/** The JSON Schema of an object with exactly these keys. */
+function objectSchema(fields: Fields): JsonSchemaObject {
+  const properties: Record<string, JsonSchemaObject> = {};
+  const required: string[] = [];
+  for (const [key, field] of Object.entries(fields)) {
+    if (typeof field === 'function') {
+      properties[key] = field.schema;
+      required.push(key);
+    } else {
+      properties[key] = field.optional.schema;
+    }
+  }
+  return { type: 'object', properties, required, additionalProperties: false };
+}
+
 /** An object with exactly these keys (optional ones may be absent, never `undefined`). */
-const object =
-  (fields: Fields): Check =>
-  (value, path, out) => {
+const object = (fields: Fields): Check =>
+  make((value, path, out) => {
     if (!isRecord(value)) {
       out.push(issue(path, 'an object.'));
       return;
@@ -133,36 +185,42 @@ const object =
       }
       check(value[key], [...path, key], out);
     }
-  };
+  }, objectSchema(fields));
 
 /** An object whose `kind` picks its shape. */
-const variant =
-  (key: string, shapes: Readonly<Record<string, Fields>>): Check =>
-  (value, path, out) => {
-    if (!isRecord(value)) {
-      out.push(issue(path, 'an object.'));
-      return;
-    }
-    const tag = value[key];
-    if (typeof tag !== 'string' || !Object.hasOwn(shapes, tag)) {
-      out.push(issue([...path, key], `${key} is one of ${Object.keys(shapes).join(', ')}.`));
-      return;
-    }
-    object({ [key]: literal(tag), ...shapes[tag] })(value, path, out);
-  };
+const variant = (key: string, shapes: Readonly<Record<string, Fields>>): Check =>
+  make(
+    (value, path, out) => {
+      if (!isRecord(value)) {
+        out.push(issue(path, 'an object.'));
+        return;
+      }
+      const tag = value[key];
+      if (typeof tag !== 'string' || !Object.hasOwn(shapes, tag)) {
+        out.push(issue([...path, key], `${key} is one of ${Object.keys(shapes).join(', ')}.`));
+        return;
+      }
+      object({ [key]: literal(tag), ...shapes[tag] })(value, path, out);
+    },
+    {
+      oneOf: Object.entries(shapes).map(([tag, fields]) =>
+        objectSchema({ [key]: literal(tag), ...fields }),
+      ),
+    },
+  );
 
-const all =
-  (...checks: Check[]): Check =>
-  (value, path, out) => {
-    for (const check of checks) {
+/** Each check in turn, stopping at the first that fails; the schema is the first check's. */
+const all = (first: Check, ...rest: Run[]): Check =>
+  make((value, path, out) => {
+    for (const check of [first, ...rest]) {
       const before = out.length;
       check(value, path, out);
       if (out.length > before) return;
     }
-  };
+  }, first.schema);
 
 const rule =
-  (test: (value: Record<string, unknown>) => boolean, key: string, message: string): Check =>
+  (test: (value: Record<string, unknown>) => boolean, key: string, message: string): Run =>
   (value, path, out) => {
     if (!test(value as Record<string, unknown>)) out.push(issue([...path, key], message));
   };
@@ -257,7 +315,7 @@ export const entryShape: Check = all(
     evidence: { ...base, evidence: evidenceShape, task: opt(taskShape) },
     host: { ...base, id, action: hostActionShape },
   }),
-  (value, path, out) => {
+  (value: unknown, path: Path, out: Issue[]) => {
     const entry = value as Record<string, unknown>;
     if (entry.kind !== 'evidence') return;
     const evidence = entry.evidence as Record<string, unknown>;
@@ -312,6 +370,7 @@ const skillState = object({
   suspended: leaf(
     (value) => value === null || value === 'leech' || value === 'host',
     'leech, host or null',
+    { enum: ['leech', 'host', null] },
   ),
   memories: recordOf(stageMemory),
   ability: recordOf(json),
@@ -359,13 +418,124 @@ export const stateShape: Check = all(
     held: arrayOf(held),
     recentIds: arrayOf(id),
   }),
-  (value, path, out) => {
+  (value: unknown, path: Path, out: Issue[]) => {
     const log = (value as { log: { length: number; lastAt: number | null } }).log;
     if ((log.length === 0) !== (log.lastAt === null)) {
       out.push(issue([...path, 'log', 'lastAt'], 'lastAt is null exactly when the log is empty.'));
     }
   },
 );
+
+// ---------------------------------------------------------------------------
+// Grade result (§5.4, R8.2) and host model output (§5.5, R9) (M7)
+// ---------------------------------------------------------------------------
+
+/** The field rules of a `GradeResult`; `checkGradeResult` adds the range and uniqueness rules. */
+export const gradeResultShape: Check = object({
+  score: finite,
+  maxScore: nonNegative,
+  passed: bool,
+  confidence: opt(oneOf(['high', 'medium', 'low'])),
+  requiresHumanReview: opt(bool),
+  checks: opt(
+    all(
+      object({ passed: count, total: count }),
+      rule(
+        (v) => (v.passed as number) <= (v.total as number),
+        'passed',
+        'passed is at most total.',
+      ),
+    ),
+  ),
+  criteria: opt(arrayOf(object({ name: id, score: finite, maxScore: nonNegative }))),
+  feedback: opt(text),
+  grader: object({
+    kind: oneOf(['auto', 'ai', 'human']),
+    id: opt(text),
+    model: opt(text),
+    promptHash: opt(text),
+  }),
+});
+
+/** The most candidates one generation request asks for (R9.1). */
+export const MAX_CANDIDATES = 20;
+
+/**
+ * One generated task as a generator returns it: an item with a required
+ * `difficulty` and `content`, no `proof`, and `origin` and `status`, when
+ * present, `generated` and `unproven`.
+ */
+export const candidateShape: Check = object({
+  id,
+  skills: arrayOf(object({ skillId: id, weight: finite }), true),
+  stage: id,
+  difficulty: finite,
+  content: json,
+  expectedSeconds: opt(positive),
+  fluentSeconds: opt(positive),
+  slowSeconds: opt(positive),
+  criteria: opt(arrayOf(object({ name: id, skillId: id }))),
+  form: opt(text),
+  contentHash: opt(id),
+  origin: opt(literal('generated')),
+  status: opt(literal('unproven')),
+});
+
+/** A proof for `admitCandidate` (§5.5, R9.3); `admitCandidate` adds what a proof must hold. */
+export const proofShape: Check = variant('kind', {
+  executable: {
+    at: instant,
+    referencePassed: bool,
+    wrongSolutionsFailed: count,
+    runner: opt(text),
+  },
+  reviewed: { at: instant, reviewerId: id },
+  'model-checked': { at: instant, model: id, agreed: bool },
+});
+
+/** An extension approval for `admitExtension` (§5.5, R9.5). */
+export const approvalShape: Check = object({
+  by: oneOf(['author', 'human', 'learner']),
+  at: instant,
+  approverId: opt(id),
+});
+
+const skillNodeShape = object({
+  id,
+  knowledge: oneOf(['declarative', 'procedural', 'mixed']),
+  stages: opt(arrayOf(id)),
+  interleaveGroup: opt(text),
+  tags: opt(arrayOf(text)),
+  label: opt(text),
+  description: opt(text),
+  criteriaHint: opt(text),
+  forms: opt(recordOf(arrayOf(text))),
+  masteryPrior: opt(finite),
+  referenceDifficulty: opt(finite),
+  desiredRetention: opt(finite),
+});
+
+const edgeShape = variant('kind', {
+  prerequisite: { from: id, to: id, strength: oneOf(['hard', 'soft']) },
+  encompasses: { from: id, to: id, weight: finite },
+});
+
+/** A decomposer's proposal: the new skills and edges (R9.5). */
+export const proposalShape: Check = object({
+  skills: arrayOf(skillNodeShape, true),
+  edges: arrayOf(edgeShape),
+});
+
+/** A `GraphExtension` as `checkDecomposition` returns it (§5.5). */
+export const extensionShape: Check = object({
+  id,
+  goalId: id,
+  idPrefix: id,
+  skills: arrayOf(skillNodeShape, true),
+  edges: arrayOf(edgeShape),
+  status: oneOf(['proposed', 'admitted']),
+  approval: opt(approvalShape),
+});
 
 /** The issues of `value` against `shape`, under `path`. */
 export function shapeIssues(shape: Check, value: unknown, path: Path = []): Issue[] {
