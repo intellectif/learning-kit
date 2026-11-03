@@ -4,7 +4,7 @@
 // look-ahead, late evidence and replay, checkpoints, duplicates, every record
 // and act rejection, each host action, a leech, the evidence contexts, a
 // recompute under another configuration, stored states into migrateState,
-// and each log's review history (revised in M8). The expected values are recorded from src/ through
+// each log's review history (revised in M8), and mastery checks (revised in M9). The expected values are recorded from src/ through
 // vectors/replay.mjs, so the file pins the current behaviour; the unit tests
 // check the same rules by hand. Run with `pnpm vectors:log`, then review the
 // diff: a changed output is a behaviour change and needs a version (D26).
@@ -242,6 +242,24 @@ const logVectors = [
     ],
     now: [T0 + 10 * DAY],
   }),
+  log(
+    "mastery checks: a pass short of the standard, a failed check, then lapses at the learner's level",
+    {
+      steps: [
+        ev('k1', T0),
+        ev('k2', T0 + DAY),
+        ev('k3', T0 + 2 * DAY, pass, { stage: 'produce' }),
+        ev('k4', T0 + 5 * DAY, pass, { stage: 'produce' }),
+        ev('k5', T0 + 6 * DAY, fail, { stage: 'produce' }),
+        {
+          evidence: { id: 'k6', itemId: 'i-easy', at: T0 + 6 * DAY + 60_000, source: fail },
+          item: item('i-easy', 'a', 'produce', { difficulty: -5 }),
+        },
+        ev('k7', T0 + 6 * DAY + 120_000, fail, { stage: 'produce' }),
+      ],
+      now: [T0 + 7 * DAY],
+    },
+  ),
   log('evidence contexts, exposure and self ratings', {
     config: { contexts: { pretestWeight: 0, diagnosticWeight: 0.5, examsMoveSchedule: true } },
     steps: [

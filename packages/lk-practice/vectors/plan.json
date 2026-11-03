@@ -442,6 +442,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9194813547895234,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -481,6 +482,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9194813547895234,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -504,6 +506,7 @@
                   "code": "due",
                   "due": 1767484800000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -527,6 +530,7 @@
                   "code": "due",
                   "due": 1767484800000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -566,6 +570,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9194813547895234,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -726,6 +731,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9146521986429287,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -788,6 +794,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9146521986429287,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": true
@@ -1402,6 +1409,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.8983835777156751,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -1441,7 +1449,7 @@
     },
     {
       "kind": "plan",
-      "name": "remediation plans a hard prerequisite that fell below its floor after a lapse",
+      "name": "remediation plans a hard prerequisite that fell below its floor after a failed mastery check",
       "learnerId": "l1",
       "graphs": {
         "main": {
@@ -1692,8 +1700,8 @@
                 "evidenceId": "e4",
                 "skillId": "q",
                 "stage": "recall",
-                "rating": "again",
-                "due": 1767329880000
+                "rating": "hard",
+                "due": 1767312000000
               }
             ]
           }
@@ -1706,7 +1714,7 @@
                 "kind": "review",
                 "skillIds": ["q"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -1717,9 +1725,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767329880000,
-                  "retrievability": 0.7943437118804242,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9667450457790286,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -1769,7 +1778,7 @@
                 "kind": "review",
                 "skillIds": ["q"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -1780,9 +1789,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767329880000,
-                  "retrievability": 0.7943437118804242,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9667450457790286,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -1808,7 +1818,7 @@
                 "kind": "review",
                 "skillIds": ["q"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -1819,9 +1829,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767329880000,
-                  "retrievability": 0.7943437118804242,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9667450457790286,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -1834,6 +1845,316 @@
             "budgetUsed": {
               "targets": 1,
               "seconds": 30
+            },
+            "algorithm": {
+              "id": "planner",
+              "version": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "plan",
+      "name": "remediation plans a hard prerequisite that fell below its floor after a lapse",
+      "learnerId": "l1",
+      "graphs": {
+        "main": {
+          "version": "r1",
+          "skills": [
+            {
+              "id": "p",
+              "knowledge": "declarative",
+              "stages": ["recall"],
+              "desiredRetention": 0.99
+            },
+            {
+              "id": "q",
+              "knowledge": "declarative",
+              "stages": ["recall"]
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "p",
+              "to": "q",
+              "strength": "hard"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "evidence": {
+            "id": "e1",
+            "itemId": "e1-item",
+            "at": 1767225600000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "e1-item",
+            "skills": [
+              {
+                "skillId": "p",
+                "weight": 1
+              }
+            ],
+            "stage": "recall",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "act": {
+            "id": "h1",
+            "at": 1767225600000,
+            "action": {
+              "kind": "place",
+              "skillId": "q",
+              "stage": "recall",
+              "credited": false
+            }
+          }
+        },
+        {
+          "evidence": {
+            "id": "e2",
+            "itemId": "e2-item",
+            "at": 1767225600000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "e2-item",
+            "skills": [
+              {
+                "skillId": "q",
+                "weight": 1
+              }
+            ],
+            "stage": "recall",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "evidence": {
+            "id": "e3",
+            "itemId": "e3-item",
+            "at": 1767312000000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "e3-item",
+            "skills": [
+              {
+                "skillId": "p",
+                "weight": 1
+              }
+            ],
+            "stage": "recall",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "evidence": {
+            "id": "e4",
+            "itemId": "e4-item",
+            "at": 1767329280000,
+            "source": {
+              "kind": "auto",
+              "score": 0,
+              "maxScore": 1,
+              "passed": false
+            }
+          },
+          "item": {
+            "id": "e4-item",
+            "skills": [
+              {
+                "skillId": "q",
+                "weight": 1
+              }
+            ],
+            "stage": "recall",
+            "origin": "generated",
+            "status": "proven",
+            "difficulty": -5
+          }
+        }
+      ],
+      "requests": [
+        {
+          "request": {
+            "now": 1767355200000,
+            "seed": "s",
+            "budget": {}
+          }
+        }
+      ],
+      "config": {
+        "mastery": {
+          "retentionMargin": 0
+        }
+      },
+      "expected": {
+        "steps": [
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "skill.started",
+                "at": 1767225600000,
+                "skillId": "p",
+                "stage": "recall"
+              },
+              {
+                "type": "review.recorded",
+                "at": 1767225600000,
+                "evidenceId": "e1",
+                "skillId": "p",
+                "stage": "recall",
+                "rating": "good",
+                "due": 1767226200000
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "skill.placed",
+                "at": 1767225600000,
+                "skillId": "q",
+                "stage": "recall",
+                "credited": false
+              },
+              {
+                "type": "skill.started",
+                "at": 1767225600000,
+                "skillId": "q",
+                "stage": "recall"
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767225600000,
+                "evidenceId": "e2",
+                "skillId": "q",
+                "stage": "recall",
+                "rating": "good",
+                "due": 1767312000000
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767312000000,
+                "evidenceId": "e3",
+                "skillId": "p",
+                "stage": "recall",
+                "rating": "good",
+                "due": 1767398400000
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767329280000,
+                "evidenceId": "e4",
+                "skillId": "q",
+                "stage": "recall",
+                "rating": "again",
+                "due": 1767329880000
+              }
+            ]
+          }
+        ],
+        "plans": [
+          {
+            "targets": [
+              {
+                "id": "0dcebf431720d695",
+                "kind": "review",
+                "skillIds": ["q"],
+                "stage": "recall",
+                "targetDifficulty": -2.183105686134872,
+                "difficultyTolerance": 0.5,
+                "expectedSeconds": 30,
+                "constraints": {
+                  "needsSkillOutcomes": false,
+                  "avoidItemIds": ["e1-item", "e2-item", "e3-item", "e4-item"],
+                  "avoidContentHashes": [],
+                  "context": "practice"
+                },
+                "reason": {
+                  "code": "overdue",
+                  "due": 1767329880000,
+                  "retrievability": 0.7943437118804242,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
+                  "coalesced": [],
+                  "newSkillsDeferred": false
+                }
+              },
+              {
+                "id": "3de85ce10efbd435",
+                "kind": "remediation",
+                "skillIds": ["p"],
+                "stage": "recall",
+                "targetDifficulty": -0.8750385136755867,
+                "difficultyTolerance": 0.5,
+                "expectedSeconds": 30,
+                "constraints": {
+                  "needsSkillOutcomes": false,
+                  "avoidItemIds": ["e1-item", "e2-item", "e3-item", "e4-item"],
+                  "avoidContentHashes": [],
+                  "context": "practice"
+                },
+                "reason": {
+                  "code": "remediation",
+                  "lapsedSkillId": "q",
+                  "lapseAt": 1767329280000,
+                  "retrievability": 0.9772631711403537,
+                  "expectedSuccess": 0.85,
+                  "coalesced": [],
+                  "newSkillsDeferred": false
+                }
+              }
+            ],
+            "deferred": {
+              "reviewsDue": 0,
+              "newReady": 0
+            },
+            "budgetUsed": {
+              "targets": 2,
+              "seconds": 60
             },
             "algorithm": {
               "id": "planner",
@@ -3038,6 +3359,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9101762414406056,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": ["x", "v", "w"],
                   "newSkillsDeferred": false
@@ -3077,6 +3399,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9101762414406056,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": ["x"],
                   "newSkillsDeferred": false
@@ -3100,6 +3423,7 @@
                   "code": "due",
                   "due": 1767571200000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -3123,6 +3447,7 @@
                   "code": "due",
                   "due": 1767571200000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -3162,6 +3487,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9101762414406056,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": ["x", "v", "w"],
                   "newSkillsDeferred": false
@@ -3206,6 +3532,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9101762414406056,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": ["x"],
                   "newSkillsDeferred": false
@@ -3229,6 +3556,7 @@
                   "code": "due",
                   "due": 1767571200000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -3252,6 +3580,7 @@
                   "code": "due",
                   "due": 1767571200000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -3291,6 +3620,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9101762414406056,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": ["x"],
                   "newSkillsDeferred": false
@@ -3314,6 +3644,7 @@
                   "code": "due",
                   "due": 1767571200000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -3337,6 +3668,7 @@
                   "code": "due",
                   "due": 1767571200000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -3376,6 +3708,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9101762414406056,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": ["x"],
                   "newSkillsDeferred": false
@@ -3399,6 +3732,7 @@
                   "code": "due",
                   "due": 1767571200000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -3422,6 +3756,7 @@
                   "code": "due",
                   "due": 1767571200000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -3749,6 +4084,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9101762414406056,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -3772,6 +4108,7 @@
                   "code": "due",
                   "due": 1767571200000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -3795,6 +4132,7 @@
                   "code": "due",
                   "due": 1767571200000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -3818,6 +4156,7 @@
                   "code": "due",
                   "due": 1767571200000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -4119,6 +4458,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9247428936048204,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -4186,6 +4526,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9247428936048204,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -4253,6 +4594,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9247428936048204,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -4320,6 +4662,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.8745994119583264,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -6132,6 +6475,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.8983835777156751,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -6303,6 +6647,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.8983835777156751,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -6474,6 +6819,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.8983835777156751,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -6645,6 +6991,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.8983835777156751,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -6997,6 +7344,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.937199838005371,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -8186,6 +8534,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9194813547895234,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": true
@@ -8209,6 +8558,7 @@
                   "code": "due",
                   "due": 1767484800000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": true
@@ -8248,6 +8598,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9194813547895234,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -8271,6 +8622,7 @@
                   "code": "due",
                   "due": 1767484800000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -8565,6 +8917,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.937199838005371,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -8619,6 +8972,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9194813547895234,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -8642,6 +8996,7 @@
                   "code": "due",
                   "due": 1767484800000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -8665,6 +9020,7 @@
                   "code": "due",
                   "due": 1767484800000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -8704,6 +9060,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9194813547895234,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -8912,6 +9269,7 @@
                   "code": "overdue",
                   "due": 1767528060000,
                   "retrievability": 0.5067921330554983,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -8922,7 +9280,7 @@
                 "kind": "review",
                 "skillIds": ["x"],
                 "stage": "recall",
-                "targetDifficulty": -0.8750385136755867,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -8935,7 +9293,8 @@
                   "code": "overdue",
                   "due": 1767484800000,
                   "retrievability": 0.9504847689759693,
-                  "expectedSuccess": 0.85,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.7025692486691151,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -9144,6 +9503,7 @@
                   "code": "due",
                   "due": 1767441660000,
                   "retrievability": 0.9999899999999999,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -9154,7 +9514,7 @@
                 "kind": "review",
                 "skillIds": ["x"],
                 "stage": "recall",
-                "targetDifficulty": -0.8750385136755867,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -9167,7 +9527,8 @@
                   "code": "due",
                   "due": 1767484800000,
                   "retrievability": 0.9668588257479899,
-                  "expectedSuccess": 0.85,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.7025692486691151,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -9748,8 +10109,8 @@
                 "evidenceId": "e9",
                 "skillId": "q1",
                 "stage": "recall",
-                "rating": "again",
-                "due": 1767321240000
+                "rating": "hard",
+                "due": 1767312000000
               }
             ]
           },
@@ -9762,8 +10123,8 @@
                 "evidenceId": "e10",
                 "skillId": "q2",
                 "stage": "recall",
-                "rating": "again",
-                "due": 1767329880000
+                "rating": "hard",
+                "due": 1767312000000
               }
             ]
           }
@@ -9776,7 +10137,7 @@
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -9798,9 +10159,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767321240000,
-                  "retrievability": 0.8129230259901169,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9732757990844819,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -9810,7 +10172,7 @@
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -9832,9 +10194,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767329880000,
-                  "retrievability": 0.8348717923665414,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9828327104366802,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -9965,7 +10328,7 @@
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -9987,9 +10350,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767321240000,
-                  "retrievability": 0.8129230259901169,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9732757990844819,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -9999,7 +10363,7 @@
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -10021,9 +10385,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767329880000,
-                  "retrievability": 0.8348717923665414,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9828327104366802,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -10084,7 +10449,7 @@
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -10106,9 +10471,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767321240000,
-                  "retrievability": 0.8057066382153258,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9705687536347992,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -10118,7 +10484,7 @@
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -10140,9 +10506,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767329880000,
-                  "retrievability": 0.8221236184836878,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9771194462267113,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -10273,7 +10640,7 @@
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -10295,9 +10662,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767321240000,
-                  "retrievability": 0.8057066366788098,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9705687530753623,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -10307,7 +10675,7 @@
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -10329,9 +10697,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767329880000,
-                  "retrievability": 0.8221236161250791,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9771194452293452,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -10979,8 +11348,8 @@
                 "evidenceId": "e9",
                 "skillId": "q1",
                 "stage": "recall",
-                "rating": "again",
-                "due": 1767321240000
+                "rating": "hard",
+                "due": 1767312000000
               }
             ]
           },
@@ -10993,8 +11362,8 @@
                 "evidenceId": "e10",
                 "skillId": "q2",
                 "stage": "recall",
-                "rating": "again",
-                "due": 1767329880000
+                "rating": "hard",
+                "due": 1767312000000
               }
             ]
           }
@@ -11007,7 +11376,7 @@
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11029,9 +11398,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767321240000,
-                  "retrievability": 0.8129230259901169,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9732757990844819,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -11041,7 +11411,7 @@
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11063,9 +11433,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767329880000,
-                  "retrievability": 0.8348717923665414,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9828327104366802,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -11091,7 +11462,7 @@
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11113,9 +11484,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767321240000,
-                  "retrievability": 0.8129230259901169,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9732757990844819,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -11125,7 +11497,7 @@
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11147,9 +11519,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767329880000,
-                  "retrievability": 0.8348717923665414,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9828327104366802,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -11175,7 +11548,7 @@
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11197,9 +11570,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767321240000,
-                  "retrievability": 0.8057066382153258,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9705687536347992,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -11209,7 +11583,7 @@
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11231,9 +11605,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767329880000,
-                  "retrievability": 0.8221236184836878,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9771194462267113,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -11259,7 +11634,7 @@
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11281,9 +11656,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767321240000,
-                  "retrievability": 0.8057066366788098,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9705687530753623,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -11293,7 +11669,7 @@
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": -1.827419466056539,
+                "targetDifficulty": 0,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11315,9 +11691,10 @@
                 },
                 "reason": {
                   "code": "overdue",
-                  "due": 1767329880000,
-                  "retrievability": 0.8221236161250791,
-                  "expectedSuccess": 0.85,
+                  "due": 1767312000000,
+                  "retrievability": 0.9771194452293452,
+                  "masteryCheck": true,
+                  "expectedSuccess": 0.4768120424614897,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -11791,6 +12168,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9146521986429287,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -11858,6 +12236,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9146521986429287,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -11925,6 +12304,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9146521987503791,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -12658,6 +13038,7 @@
                   "code": "overdue",
                   "due": 1767399000000,
                   "retrievability": 0.4664313206379511,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -12725,6 +13106,7 @@
                   "code": "overdue",
                   "due": 1767399000000,
                   "retrievability": 0.4664313206379511,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -12792,6 +13174,7 @@
                   "code": "overdue",
                   "due": 1767399000000,
                   "retrievability": 0.4664313206379511,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -12859,6 +13242,7 @@
                   "code": "overdue",
                   "due": 1767399000000,
                   "retrievability": 0.4664313206379511,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -12926,6 +13310,7 @@
                   "code": "overdue",
                   "due": 1767399000000,
                   "retrievability": 0.4664313206379511,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -12993,6 +13378,7 @@
                   "code": "overdue",
                   "due": 1767399000000,
                   "retrievability": 0.4664313206379511,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -13060,6 +13446,7 @@
                   "code": "overdue",
                   "due": 1767399000000,
                   "retrievability": 0.4664313206379511,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -13127,6 +13514,7 @@
                   "code": "overdue",
                   "due": 1767399000000,
                   "retrievability": 0.4664313206379511,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -13194,6 +13582,7 @@
                   "code": "overdue",
                   "due": 1767399000000,
                   "retrievability": 0.4664313206379511,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -13261,6 +13650,7 @@
                   "code": "overdue",
                   "due": 1767399000000,
                   "retrievability": 0.4664313206379511,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -13328,6 +13718,7 @@
                   "code": "overdue",
                   "due": 1767399000000,
                   "retrievability": 0.4664313206379511,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -13395,6 +13786,7 @@
                   "code": "overdue",
                   "due": 1767399000000,
                   "retrievability": 0.4664313206379511,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -13462,6 +13854,7 @@
                   "code": "overdue",
                   "due": 1767399000000,
                   "retrievability": 0.4664313206379511,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -13735,6 +14128,7 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9194813547895234,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -13758,6 +14152,7 @@
                   "code": "due",
                   "due": 1767484800000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
@@ -13781,6 +14176,7 @@
                   "code": "due",
                   "due": 1767484800000,
                   "retrievability": 0.9453981337640296,
+                  "masteryCheck": false,
                   "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false

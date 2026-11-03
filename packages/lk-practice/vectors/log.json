@@ -220,7 +220,7 @@
           "evidence": {
             "id": "m5",
             "itemId": "m5",
-            "at": 1770679166604,
+            "at": 1767916800000,
             "source": {
               "kind": "auto",
               "score": 1,
@@ -245,7 +245,7 @@
           "evidence": {
             "id": "m6",
             "itemId": "m6",
-            "at": 1780928187187,
+            "at": 1768176000000,
             "source": {
               "kind": "auto",
               "score": 1,
@@ -268,7 +268,7 @@
         }
       ],
       "checkpoints": [1, 3, 7],
-      "now": [1812994861329, 2676994861329],
+      "now": [1775290376763, 2639290376763],
       "expected": {
         "configHash": "5067a166c2be0874",
         "steps": [
@@ -351,7 +351,7 @@
                 "skillId": "a",
                 "stage": "produce",
                 "rating": "good",
-                "due": 1770679166604
+                "due": 1767916800000
               }
             ]
           },
@@ -360,12 +360,12 @@
             "events": [
               {
                 "type": "review.recorded",
-                "at": 1770679166604,
+                "at": 1767916800000,
                 "evidenceId": "m5",
                 "skillId": "a",
                 "stage": "produce",
                 "rating": "good",
-                "due": 1780928187187
+                "due": 1768176000000
               }
             ]
           },
@@ -374,21 +374,21 @@
             "events": [
               {
                 "type": "review.recorded",
-                "at": 1780928187187,
+                "at": 1768176000000,
                 "evidenceId": "m6",
                 "skillId": "a",
                 "stage": "produce",
                 "rating": "good",
-                "due": 1812994861329
+                "due": 1775290376763
               },
               {
                 "type": "skill.mastered",
-                "at": 1780928187187,
+                "at": 1768176000000,
                 "skillId": "a"
               },
               {
                 "type": "skill.unlocked",
-                "at": 1780928187187,
+                "at": 1768176000000,
                 "skillId": "b"
               }
             ]
@@ -548,13 +548,13 @@
           {
             "schemaVersion": 1,
             "seq": 5,
-            "at": 1770679166604,
+            "at": 1767916800000,
             "configHash": "5067a166c2be0874",
             "kind": "evidence",
             "evidence": {
               "id": "m5",
               "itemId": "m5",
-              "at": 1770679166604,
+              "at": 1767916800000,
               "source": {
                 "kind": "auto",
                 "score": 1,
@@ -578,13 +578,13 @@
           {
             "schemaVersion": 1,
             "seq": 6,
-            "at": 1780928187187,
+            "at": 1768176000000,
             "configHash": "5067a166c2be0874",
             "kind": "evidence",
             "evidence": {
               "id": "m6",
               "itemId": "m6",
-              "at": 1780928187187,
+              "at": 1768176000000,
               "source": {
                 "kind": "auto",
                 "score": 1,
@@ -613,8 +613,8 @@
           "configHash": "5067a166c2be0874",
           "log": {
             "length": 7,
-            "lastAt": 1780928187187,
-            "hash": "23747ab12a3ee528"
+            "lastAt": 1768176000000,
+            "hash": "21319f9ab55dc53c"
           },
           "skills": {
             "a": {
@@ -627,24 +627,24 @@
                 "produce": {
                   "model": "fsrs-7@1",
                   "memory": {
-                    "stabilityFast": 1542.98022215,
-                    "stability": 105.99294873,
+                    "stabilityFast": 804.67876923,
+                    "stability": 27.0136902,
                     "difficulty": 3.40066229,
                     "state": 2,
                     "learningStep": 0,
                     "scheduleStatus": "review",
-                    "dueAt": 1812994861329,
-                    "lastReviewAt": 1780928187187
+                    "dueAt": 1775290376763,
+                    "lastReviewAt": 1768176000000
                   },
-                  "due": 1812994861329,
-                  "modelDue": 1812994861329,
-                  "lastReviewAt": 1780928187187,
+                  "due": 1775290376763,
+                  "modelDue": 1775290376763,
+                  "lastReviewAt": 1768176000000,
                   "reviews": 5,
                   "lapses": 0,
                   "streak": {
                     "successes": 5,
                     "firstSuccessAt": 1767398400000,
-                    "lastSuccessAt": 1780928187187,
+                    "lastSuccessAt": 1768176000000,
                     "lapses": 0
                   },
                   "superseded": false
@@ -691,14 +691,14 @@
               "top": {
                 "successes": 4,
                 "firstSuccessAt": 1767398400000,
-                "lastSuccessAt": 1780928187187,
+                "lastSuccessAt": 1768176000000,
                 "lastWasLapse": false
               }
             },
             "b": {
               "stage": "recall",
               "startedAt": null,
-              "unlockedAt": 1780928187187,
+              "unlockedAt": 1768176000000,
               "credited": false,
               "suspended": null,
               "memories": {},
@@ -715,9 +715,33 @@
             }
           },
           "items": {
+            "m0": {
+              "uses": 1,
+              "lastUsedAt": 1767225600000
+            },
+            "m1": {
+              "uses": 1,
+              "lastUsedAt": 1767312000000
+            },
+            "m2": {
+              "uses": 1,
+              "lastUsedAt": 1767398400000
+            },
+            "m3": {
+              "uses": 1,
+              "lastUsedAt": 1767484800000
+            },
+            "m4": {
+              "uses": 1,
+              "lastUsedAt": 1767657600000
+            },
+            "m5": {
+              "uses": 1,
+              "lastUsedAt": 1767916800000
+            },
             "m6": {
               "uses": 1,
-              "lastUsedAt": 1780928187187
+              "lastUsedAt": 1768176000000
             }
           },
           "held": [],
@@ -782,34 +806,34 @@
               "skillId": "a",
               "stage": "produce",
               "rating": "good",
-              "due": 1770679166604
+              "due": 1767916800000
             },
             {
               "type": "review.recorded",
-              "at": 1770679166604,
+              "at": 1767916800000,
               "evidenceId": "m5",
               "skillId": "a",
               "stage": "produce",
               "rating": "good",
-              "due": 1780928187187
+              "due": 1768176000000
             },
             {
               "type": "review.recorded",
-              "at": 1780928187187,
+              "at": 1768176000000,
               "evidenceId": "m6",
               "skillId": "a",
               "stage": "produce",
               "rating": "good",
-              "due": 1812994861329
+              "due": 1775290376763
             },
             {
               "type": "skill.mastered",
-              "at": 1780928187187,
+              "at": 1768176000000,
               "skillId": "a"
             },
             {
               "type": "skill.unlocked",
-              "at": 1780928187187,
+              "at": 1768176000000,
               "skillId": "b"
             }
           ]
@@ -825,8 +849,8 @@
               "configHash": "5067a166c2be0874",
               "log": {
                 "length": 7,
-                "lastAt": 1780928187187,
-                "hash": "23747ab12a3ee528"
+                "lastAt": 1768176000000,
+                "hash": "21319f9ab55dc53c"
               },
               "skills": {
                 "a": {
@@ -839,24 +863,24 @@
                     "produce": {
                       "model": "fsrs-7@1",
                       "memory": {
-                        "stabilityFast": 1542.98022215,
-                        "stability": 105.99294873,
+                        "stabilityFast": 804.67876923,
+                        "stability": 27.0136902,
                         "difficulty": 3.40066229,
                         "state": 2,
                         "learningStep": 0,
                         "scheduleStatus": "review",
-                        "dueAt": 1812994861329,
-                        "lastReviewAt": 1780928187187
+                        "dueAt": 1775290376763,
+                        "lastReviewAt": 1768176000000
                       },
-                      "due": 1812994861329,
-                      "modelDue": 1812994861329,
-                      "lastReviewAt": 1780928187187,
+                      "due": 1775290376763,
+                      "modelDue": 1775290376763,
+                      "lastReviewAt": 1768176000000,
                       "reviews": 5,
                       "lapses": 0,
                       "streak": {
                         "successes": 5,
                         "firstSuccessAt": 1767398400000,
-                        "lastSuccessAt": 1780928187187,
+                        "lastSuccessAt": 1768176000000,
                         "lapses": 0
                       },
                       "superseded": false
@@ -903,14 +927,14 @@
                   "top": {
                     "successes": 4,
                     "firstSuccessAt": 1767398400000,
-                    "lastSuccessAt": 1780928187187,
+                    "lastSuccessAt": 1768176000000,
                     "lastWasLapse": false
                   }
                 },
                 "b": {
                   "stage": "recall",
                   "startedAt": null,
-                  "unlockedAt": 1780928187187,
+                  "unlockedAt": 1768176000000,
                   "credited": false,
                   "suspended": null,
                   "memories": {},
@@ -927,9 +951,33 @@
                 }
               },
               "items": {
+                "m0": {
+                  "uses": 1,
+                  "lastUsedAt": 1767225600000
+                },
+                "m1": {
+                  "uses": 1,
+                  "lastUsedAt": 1767312000000
+                },
+                "m2": {
+                  "uses": 1,
+                  "lastUsedAt": 1767398400000
+                },
+                "m3": {
+                  "uses": 1,
+                  "lastUsedAt": 1767484800000
+                },
+                "m4": {
+                  "uses": 1,
+                  "lastUsedAt": 1767657600000
+                },
+                "m5": {
+                  "uses": 1,
+                  "lastUsedAt": 1767916800000
+                },
                 "m6": {
                   "uses": 1,
-                  "lastUsedAt": 1780928187187
+                  "lastUsedAt": 1768176000000
                 }
               },
               "held": [],
@@ -946,8 +994,8 @@
               "configHash": "5067a166c2be0874",
               "log": {
                 "length": 7,
-                "lastAt": 1780928187187,
-                "hash": "23747ab12a3ee528"
+                "lastAt": 1768176000000,
+                "hash": "21319f9ab55dc53c"
               },
               "skills": {
                 "a": {
@@ -960,24 +1008,24 @@
                     "produce": {
                       "model": "fsrs-7@1",
                       "memory": {
-                        "stabilityFast": 1542.98022215,
-                        "stability": 105.99294873,
+                        "stabilityFast": 804.67876923,
+                        "stability": 27.0136902,
                         "difficulty": 3.40066229,
                         "state": 2,
                         "learningStep": 0,
                         "scheduleStatus": "review",
-                        "dueAt": 1812994861329,
-                        "lastReviewAt": 1780928187187
+                        "dueAt": 1775290376763,
+                        "lastReviewAt": 1768176000000
                       },
-                      "due": 1812994861329,
-                      "modelDue": 1812994861329,
-                      "lastReviewAt": 1780928187187,
+                      "due": 1775290376763,
+                      "modelDue": 1775290376763,
+                      "lastReviewAt": 1768176000000,
                       "reviews": 5,
                       "lapses": 0,
                       "streak": {
                         "successes": 5,
                         "firstSuccessAt": 1767398400000,
-                        "lastSuccessAt": 1780928187187,
+                        "lastSuccessAt": 1768176000000,
                         "lapses": 0
                       },
                       "superseded": false
@@ -1024,14 +1072,14 @@
                   "top": {
                     "successes": 4,
                     "firstSuccessAt": 1767398400000,
-                    "lastSuccessAt": 1780928187187,
+                    "lastSuccessAt": 1768176000000,
                     "lastWasLapse": false
                   }
                 },
                 "b": {
                   "stage": "recall",
                   "startedAt": null,
-                  "unlockedAt": 1780928187187,
+                  "unlockedAt": 1768176000000,
                   "credited": false,
                   "suspended": null,
                   "memories": {},
@@ -1048,9 +1096,33 @@
                 }
               },
               "items": {
+                "m0": {
+                  "uses": 1,
+                  "lastUsedAt": 1767225600000
+                },
+                "m1": {
+                  "uses": 1,
+                  "lastUsedAt": 1767312000000
+                },
+                "m2": {
+                  "uses": 1,
+                  "lastUsedAt": 1767398400000
+                },
+                "m3": {
+                  "uses": 1,
+                  "lastUsedAt": 1767484800000
+                },
+                "m4": {
+                  "uses": 1,
+                  "lastUsedAt": 1767657600000
+                },
+                "m5": {
+                  "uses": 1,
+                  "lastUsedAt": 1767916800000
+                },
                 "m6": {
                   "uses": 1,
-                  "lastUsedAt": 1780928187187
+                  "lastUsedAt": 1768176000000
                 }
               },
               "held": [],
@@ -1067,8 +1139,8 @@
               "configHash": "5067a166c2be0874",
               "log": {
                 "length": 7,
-                "lastAt": 1780928187187,
-                "hash": "23747ab12a3ee528"
+                "lastAt": 1768176000000,
+                "hash": "21319f9ab55dc53c"
               },
               "skills": {
                 "a": {
@@ -1081,24 +1153,24 @@
                     "produce": {
                       "model": "fsrs-7@1",
                       "memory": {
-                        "stabilityFast": 1542.98022215,
-                        "stability": 105.99294873,
+                        "stabilityFast": 804.67876923,
+                        "stability": 27.0136902,
                         "difficulty": 3.40066229,
                         "state": 2,
                         "learningStep": 0,
                         "scheduleStatus": "review",
-                        "dueAt": 1812994861329,
-                        "lastReviewAt": 1780928187187
+                        "dueAt": 1775290376763,
+                        "lastReviewAt": 1768176000000
                       },
-                      "due": 1812994861329,
-                      "modelDue": 1812994861329,
-                      "lastReviewAt": 1780928187187,
+                      "due": 1775290376763,
+                      "modelDue": 1775290376763,
+                      "lastReviewAt": 1768176000000,
                       "reviews": 5,
                       "lapses": 0,
                       "streak": {
                         "successes": 5,
                         "firstSuccessAt": 1767398400000,
-                        "lastSuccessAt": 1780928187187,
+                        "lastSuccessAt": 1768176000000,
                         "lapses": 0
                       },
                       "superseded": false
@@ -1145,14 +1217,14 @@
                   "top": {
                     "successes": 4,
                     "firstSuccessAt": 1767398400000,
-                    "lastSuccessAt": 1780928187187,
+                    "lastSuccessAt": 1768176000000,
                     "lastWasLapse": false
                   }
                 },
                 "b": {
                   "stage": "recall",
                   "startedAt": null,
-                  "unlockedAt": 1780928187187,
+                  "unlockedAt": 1768176000000,
                   "credited": false,
                   "suspended": null,
                   "memories": {},
@@ -1169,9 +1241,33 @@
                 }
               },
               "items": {
+                "m0": {
+                  "uses": 1,
+                  "lastUsedAt": 1767225600000
+                },
+                "m1": {
+                  "uses": 1,
+                  "lastUsedAt": 1767312000000
+                },
+                "m2": {
+                  "uses": 1,
+                  "lastUsedAt": 1767398400000
+                },
+                "m3": {
+                  "uses": 1,
+                  "lastUsedAt": 1767484800000
+                },
+                "m4": {
+                  "uses": 1,
+                  "lastUsedAt": 1767657600000
+                },
+                "m5": {
+                  "uses": 1,
+                  "lastUsedAt": 1767916800000
+                },
                 "m6": {
                   "uses": 1,
-                  "lastUsedAt": 1780928187187
+                  "lastUsedAt": 1768176000000
                 }
               },
               "held": [],
@@ -1181,7 +1277,7 @@
         ],
         "status": [
           {
-            "at": 1812994861329,
+            "at": 1775290376763,
             "counts": {
               "locked": 0,
               "ready": 2,
@@ -1197,8 +1293,8 @@
                 "skillId": "a",
                 "status": "mastered",
                 "stage": "produce",
-                "due": 1812994861329,
-                "retrievability": 0.9000000000006998,
+                "due": 1775290376763,
+                "retrievability": 0.9000000000054708,
                 "ability": {
                   "model": "elo@1",
                   "value": 1.4674993039343247,
@@ -1225,7 +1321,7 @@
                 "expectedSuccessAtReference": 0.2689414213699951,
                 "masteryLapsed": false,
                 "lapses": 0,
-                "unlockedAt": 1780928187187
+                "unlockedAt": 1768176000000
               },
               {
                 "skillId": "c",
@@ -1243,7 +1339,7 @@
             "held": []
           },
           {
-            "at": 2676994861329,
+            "at": 2639290376763,
             "counts": {
               "locked": 0,
               "ready": 2,
@@ -1259,8 +1355,8 @@
                 "skillId": "a",
                 "status": "reviewing",
                 "stage": "produce",
-                "due": 1812994861329,
-                "retrievability": 0.7073226066541606,
+                "due": 1775290376763,
+                "retrievability": 0.6296484582058642,
                 "ability": {
                   "model": "elo@1",
                   "value": 1.4674993039343247,
@@ -1287,7 +1383,7 @@
                 "expectedSuccessAtReference": 0.2689414213699951,
                 "masteryLapsed": false,
                 "lapses": 0,
-                "unlockedAt": 1780928187187
+                "unlockedAt": 1768176000000
               },
               {
                 "skillId": "c",
@@ -1349,12 +1445,12 @@
                       "evidenceId": "m4"
                     },
                     {
-                      "at": 1770679166604,
+                      "at": 1767916800000,
                       "rating": "good",
                       "evidenceId": "m5"
                     },
                     {
-                      "at": 1780928187187,
+                      "at": 1768176000000,
                       "rating": "good",
                       "evidenceId": "m6"
                     }
@@ -1593,7 +1689,7 @@
           "evidence": {
             "id": "m5",
             "itemId": "m5",
-            "at": 1770679166604,
+            "at": 1767916800000,
             "source": {
               "kind": "auto",
               "score": 1,
@@ -1618,7 +1714,7 @@
           "evidence": {
             "id": "m6",
             "itemId": "m6",
-            "at": 1780928187187,
+            "at": 1768176000000,
             "source": {
               "kind": "auto",
               "score": 1,
@@ -1643,7 +1739,7 @@
           "evidence": {
             "id": "late-c",
             "itemId": "i-c-recall",
-            "at": 2676994861329,
+            "at": 2639290376763,
             "source": {
               "kind": "auto",
               "score": 1,
@@ -1668,7 +1764,7 @@
           "evidence": {
             "id": "late-a",
             "itemId": "i-a-produce",
-            "at": 2676994861329,
+            "at": 2639290376763,
             "source": {
               "kind": "exposure"
             }
@@ -1687,7 +1783,7 @@
           }
         }
       ],
-      "now": [1812994861329, 2676994861329],
+      "now": [1775290376763, 2639290376763],
       "expected": {
         "configHash": "5067a166c2be0874",
         "steps": [
@@ -1770,7 +1866,7 @@
                 "skillId": "a",
                 "stage": "produce",
                 "rating": "good",
-                "due": 1770679166604
+                "due": 1767916800000
               }
             ]
           },
@@ -1779,12 +1875,12 @@
             "events": [
               {
                 "type": "review.recorded",
-                "at": 1770679166604,
+                "at": 1767916800000,
                 "evidenceId": "m5",
                 "skillId": "a",
                 "stage": "produce",
                 "rating": "good",
-                "due": 1780928187187
+                "due": 1768176000000
               }
             ]
           },
@@ -1793,21 +1889,21 @@
             "events": [
               {
                 "type": "review.recorded",
-                "at": 1780928187187,
+                "at": 1768176000000,
                 "evidenceId": "m6",
                 "skillId": "a",
                 "stage": "produce",
                 "rating": "good",
-                "due": 1812994861329
+                "due": 1775290376763
               },
               {
                 "type": "skill.mastered",
-                "at": 1780928187187,
+                "at": 1768176000000,
                 "skillId": "a"
               },
               {
                 "type": "skill.unlocked",
-                "at": 1780928187187,
+                "at": 1768176000000,
                 "skillId": "b"
               }
             ]
@@ -1817,18 +1913,18 @@
             "events": [
               {
                 "type": "skill.started",
-                "at": 2676994861329,
+                "at": 2639290376763,
                 "skillId": "c",
                 "stage": "recognise"
               },
               {
                 "type": "review.recorded",
-                "at": 2676994861329,
+                "at": 2639290376763,
                 "evidenceId": "late-c",
                 "skillId": "c",
                 "stage": "recognise",
                 "rating": "good",
-                "due": 2677081261329
+                "due": 2639376776763
               }
             ]
           },
@@ -1837,7 +1933,7 @@
             "events": [
               {
                 "type": "skill.mastery-lost",
-                "at": 2676994861329,
+                "at": 2639290376763,
                 "skillId": "a",
                 "failed": ["retrievability"]
               }
@@ -1998,13 +2094,13 @@
           {
             "schemaVersion": 1,
             "seq": 5,
-            "at": 1770679166604,
+            "at": 1767916800000,
             "configHash": "5067a166c2be0874",
             "kind": "evidence",
             "evidence": {
               "id": "m5",
               "itemId": "m5",
-              "at": 1770679166604,
+              "at": 1767916800000,
               "source": {
                 "kind": "auto",
                 "score": 1,
@@ -2028,13 +2124,13 @@
           {
             "schemaVersion": 1,
             "seq": 6,
-            "at": 1780928187187,
+            "at": 1768176000000,
             "configHash": "5067a166c2be0874",
             "kind": "evidence",
             "evidence": {
               "id": "m6",
               "itemId": "m6",
-              "at": 1780928187187,
+              "at": 1768176000000,
               "source": {
                 "kind": "auto",
                 "score": 1,
@@ -2058,13 +2154,13 @@
           {
             "schemaVersion": 1,
             "seq": 7,
-            "at": 2676994861329,
+            "at": 2639290376763,
             "configHash": "5067a166c2be0874",
             "kind": "evidence",
             "evidence": {
               "id": "late-c",
               "itemId": "i-c-recall",
-              "at": 2676994861329,
+              "at": 2639290376763,
               "source": {
                 "kind": "auto",
                 "score": 1,
@@ -2088,13 +2184,13 @@
           {
             "schemaVersion": 1,
             "seq": 8,
-            "at": 2676994861329,
+            "at": 2639290376763,
             "configHash": "5067a166c2be0874",
             "kind": "evidence",
             "evidence": {
               "id": "late-a",
               "itemId": "i-a-produce",
-              "at": 2676994861329,
+              "at": 2639290376763,
               "source": {
                 "kind": "exposure"
               }
@@ -2120,8 +2216,8 @@
           "configHash": "5067a166c2be0874",
           "log": {
             "length": 9,
-            "lastAt": 2676994861329,
-            "hash": "42540bd8cacf2172"
+            "lastAt": 2639290376763,
+            "hash": "88f5917fb8eb8eb9"
           },
           "skills": {
             "a": {
@@ -2134,24 +2230,24 @@
                 "produce": {
                   "model": "fsrs-7@1",
                   "memory": {
-                    "stabilityFast": 1542.98022215,
-                    "stability": 105.99294873,
+                    "stabilityFast": 804.67876923,
+                    "stability": 27.0136902,
                     "difficulty": 3.40066229,
                     "state": 2,
                     "learningStep": 0,
                     "scheduleStatus": "review",
-                    "dueAt": 1812994861329,
-                    "lastReviewAt": 1780928187187
+                    "dueAt": 1775290376763,
+                    "lastReviewAt": 1768176000000
                   },
-                  "due": 1812994861329,
-                  "modelDue": 1812994861329,
-                  "lastReviewAt": 1780928187187,
+                  "due": 1775290376763,
+                  "modelDue": 1775290376763,
+                  "lastReviewAt": 1768176000000,
                   "reviews": 5,
                   "lapses": 0,
                   "streak": {
                     "successes": 5,
                     "firstSuccessAt": 1767398400000,
-                    "lastSuccessAt": 1780928187187,
+                    "lastSuccessAt": 1768176000000,
                     "lapses": 0
                   },
                   "superseded": false
@@ -2198,14 +2294,14 @@
               "top": {
                 "successes": 4,
                 "firstSuccessAt": 1767398400000,
-                "lastSuccessAt": 1780928187187,
+                "lastSuccessAt": 1768176000000,
                 "lastWasLapse": false
               }
             },
             "b": {
               "stage": "recall",
               "startedAt": null,
-              "unlockedAt": 1780928187187,
+              "unlockedAt": 1768176000000,
               "credited": false,
               "suspended": null,
               "memories": {},
@@ -2222,7 +2318,7 @@
             },
             "c": {
               "stage": "recognise",
-              "startedAt": 2676994861329,
+              "startedAt": 2639290376763,
               "unlockedAt": null,
               "credited": false,
               "suspended": null,
@@ -2236,18 +2332,18 @@
                     "state": 2,
                     "learningStep": 0,
                     "scheduleStatus": "review",
-                    "dueAt": 2677407656493,
-                    "lastReviewAt": 2676994861329
+                    "dueAt": 2639703171927,
+                    "lastReviewAt": 2639290376763
                   },
-                  "due": 2677081261329,
-                  "modelDue": 2677407656493,
-                  "lastReviewAt": 2676994861329,
+                  "due": 2639376776763,
+                  "modelDue": 2639703171927,
+                  "lastReviewAt": 2639290376763,
                   "reviews": 1,
                   "lapses": 0,
                   "streak": {
                     "successes": 1,
-                    "firstSuccessAt": 2676994861329,
-                    "lastSuccessAt": 2676994861329,
+                    "firstSuccessAt": 2639290376763,
+                    "lastSuccessAt": 2639290376763,
                     "lapses": 0
                   },
                   "superseded": false
@@ -2273,11 +2369,11 @@
           "items": {
             "i-a-produce": {
               "uses": 1,
-              "lastUsedAt": 2676994861329
+              "lastUsedAt": 2639290376763
             },
             "i-c-recall": {
               "uses": 1,
-              "lastUsedAt": 2676994861329
+              "lastUsedAt": 2639290376763
             }
           },
           "held": [],
@@ -2342,54 +2438,54 @@
               "skillId": "a",
               "stage": "produce",
               "rating": "good",
-              "due": 1770679166604
+              "due": 1767916800000
             },
             {
               "type": "review.recorded",
-              "at": 1770679166604,
+              "at": 1767916800000,
               "evidenceId": "m5",
               "skillId": "a",
               "stage": "produce",
               "rating": "good",
-              "due": 1780928187187
+              "due": 1768176000000
             },
             {
               "type": "review.recorded",
-              "at": 1780928187187,
+              "at": 1768176000000,
               "evidenceId": "m6",
               "skillId": "a",
               "stage": "produce",
               "rating": "good",
-              "due": 1812994861329
+              "due": 1775290376763
             },
             {
               "type": "skill.mastered",
-              "at": 1780928187187,
+              "at": 1768176000000,
               "skillId": "a"
             },
             {
               "type": "skill.unlocked",
-              "at": 1780928187187,
+              "at": 1768176000000,
               "skillId": "b"
             },
             {
               "type": "skill.started",
-              "at": 2676994861329,
+              "at": 2639290376763,
               "skillId": "c",
               "stage": "recognise"
             },
             {
               "type": "review.recorded",
-              "at": 2676994861329,
+              "at": 2639290376763,
               "evidenceId": "late-c",
               "skillId": "c",
               "stage": "recognise",
               "rating": "good",
-              "due": 2677081261329
+              "due": 2639376776763
             },
             {
               "type": "skill.mastery-lost",
-              "at": 2676994861329,
+              "at": 2639290376763,
               "skillId": "a",
               "failed": ["retrievability"]
             }
@@ -2398,7 +2494,7 @@
         "checkpoints": [],
         "status": [
           {
-            "at": 1812994861329,
+            "at": 1775290376763,
             "counts": {
               "locked": 0,
               "ready": 1,
@@ -2414,8 +2510,8 @@
                 "skillId": "a",
                 "status": "mastered",
                 "stage": "produce",
-                "due": 1812994861329,
-                "retrievability": 0.9000000000006998,
+                "due": 1775290376763,
+                "retrievability": 0.9000000000054708,
                 "ability": {
                   "model": "elo@1",
                   "value": 1.4674993039343247,
@@ -2442,13 +2538,13 @@
                 "expectedSuccessAtReference": 0.2689414213699951,
                 "masteryLapsed": false,
                 "lapses": 0,
-                "unlockedAt": 1780928187187
+                "unlockedAt": 1768176000000
               },
               {
                 "skillId": "c",
                 "status": "learning",
                 "stage": "recognise",
-                "due": 2677081261329,
+                "due": 2639376776763,
                 "retrievability": 0.9999899999999999,
                 "ability": {
                   "model": "elo@1",
@@ -2465,7 +2561,7 @@
             "held": []
           },
           {
-            "at": 2676994861329,
+            "at": 2639290376763,
             "counts": {
               "locked": 0,
               "ready": 1,
@@ -2481,8 +2577,8 @@
                 "skillId": "a",
                 "status": "reviewing",
                 "stage": "produce",
-                "due": 1812994861329,
-                "retrievability": 0.7073226066541606,
+                "due": 1775290376763,
+                "retrievability": 0.6296484582058642,
                 "ability": {
                   "model": "elo@1",
                   "value": 1.4674993039343247,
@@ -2509,13 +2605,13 @@
                 "expectedSuccessAtReference": 0.2689414213699951,
                 "masteryLapsed": false,
                 "lapses": 0,
-                "unlockedAt": 1780928187187
+                "unlockedAt": 1768176000000
               },
               {
                 "skillId": "c",
                 "status": "learning",
                 "stage": "recognise",
-                "due": 2677081261329,
+                "due": 2639376776763,
                 "retrievability": 0.9999899999999999,
                 "ability": {
                   "model": "elo@1",
@@ -2576,12 +2672,12 @@
                       "evidenceId": "m4"
                     },
                     {
-                      "at": 1770679166604,
+                      "at": 1767916800000,
                       "rating": "good",
                       "evidenceId": "m5"
                     },
                     {
-                      "at": 1780928187187,
+                      "at": 1768176000000,
                       "rating": "good",
                       "evidenceId": "m6"
                     }
@@ -2592,7 +2688,7 @@
                   "stage": "recognise",
                   "reviews": [
                     {
-                      "at": 2676994861329,
+                      "at": 2639290376763,
                       "rating": "good",
                       "evidenceId": "late-c"
                     }
@@ -7090,6 +7186,923 @@
     },
     {
       "kind": "log",
+      "name": "mastery checks: a pass short of the standard, a failed check, then lapses at the learner's level",
+      "learnerId": "l1",
+      "graphs": {
+        "main": {
+          "version": "g1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "b",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "c",
+              "knowledge": "declarative"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "hard"
+            }
+          ]
+        },
+        "next": {
+          "version": "g2",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "b",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "c",
+              "knowledge": "declarative"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "hard"
+            }
+          ]
+        },
+        "grown": {
+          "version": "g3",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "b",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "d",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "hard"
+            }
+          ]
+        }
+      },
+      "history": ["l1"],
+      "steps": [
+        {
+          "evidence": {
+            "id": "k1",
+            "itemId": "i-a-recall",
+            "at": 1767225600000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "i-a-recall",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "recall",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "evidence": {
+            "id": "k2",
+            "itemId": "i-a-recall",
+            "at": 1767312000000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "i-a-recall",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "recall",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "evidence": {
+            "id": "k3",
+            "itemId": "i-a-produce",
+            "at": 1767398400000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "i-a-produce",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "produce",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "evidence": {
+            "id": "k4",
+            "itemId": "i-a-produce",
+            "at": 1767657600000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "i-a-produce",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "produce",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "evidence": {
+            "id": "k5",
+            "itemId": "i-a-produce",
+            "at": 1767744000000,
+            "source": {
+              "kind": "auto",
+              "score": 0,
+              "maxScore": 1,
+              "passed": false
+            }
+          },
+          "item": {
+            "id": "i-a-produce",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "produce",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "evidence": {
+            "id": "k6",
+            "itemId": "i-easy",
+            "at": 1767744060000,
+            "source": {
+              "kind": "auto",
+              "score": 0,
+              "maxScore": 1,
+              "passed": false
+            }
+          },
+          "item": {
+            "id": "i-easy",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "produce",
+            "origin": "generated",
+            "status": "proven",
+            "difficulty": -5
+          }
+        },
+        {
+          "evidence": {
+            "id": "k7",
+            "itemId": "i-a-produce",
+            "at": 1767744120000,
+            "source": {
+              "kind": "auto",
+              "score": 0,
+              "maxScore": 1,
+              "passed": false
+            }
+          },
+          "item": {
+            "id": "i-a-produce",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "produce",
+            "origin": "generated",
+            "status": "proven"
+          }
+        }
+      ],
+      "now": [1767830400000],
+      "expected": {
+        "configHash": "5067a166c2be0874",
+        "steps": [
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "skill.started",
+                "at": 1767225600000,
+                "skillId": "a",
+                "stage": "recall"
+              },
+              {
+                "type": "review.recorded",
+                "at": 1767225600000,
+                "evidenceId": "k1",
+                "skillId": "a",
+                "stage": "recall",
+                "rating": "good",
+                "due": 1767312000000
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767312000000,
+                "evidenceId": "k2",
+                "skillId": "a",
+                "stage": "recall",
+                "rating": "good",
+                "due": 1768867601440
+              },
+              {
+                "type": "stage.promoted",
+                "at": 1767312000000,
+                "skillId": "a",
+                "from": "recall",
+                "to": "produce"
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767398400000,
+                "evidenceId": "k3",
+                "skillId": "a",
+                "stage": "produce",
+                "rating": "good",
+                "due": 1767484800000
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767657600000,
+                "evidenceId": "k4",
+                "skillId": "a",
+                "stage": "produce",
+                "rating": "good",
+                "due": 1767916800000
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767744000000,
+                "evidenceId": "k5",
+                "skillId": "a",
+                "stage": "produce",
+                "rating": "hard",
+                "due": 1769037342496
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767744060000,
+                "evidenceId": "k6",
+                "skillId": "a",
+                "stage": "produce",
+                "rating": "again",
+                "due": 1767744880510
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767744120000,
+                "evidenceId": "k7",
+                "skillId": "a",
+                "stage": "produce",
+                "rating": "again",
+                "due": 1767744720000
+              },
+              {
+                "type": "stage.demoted",
+                "at": 1767744120000,
+                "skillId": "a",
+                "from": "produce",
+                "to": "recall"
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "schemaVersion": 1,
+            "seq": 0,
+            "at": 1767225600000,
+            "configHash": "5067a166c2be0874",
+            "kind": "evidence",
+            "evidence": {
+              "id": "k1",
+              "itemId": "i-a-recall",
+              "at": 1767225600000,
+              "source": {
+                "kind": "auto",
+                "score": 1,
+                "maxScore": 1,
+                "passed": true
+              }
+            },
+            "task": {
+              "itemId": "i-a-recall",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "weight": 1
+                }
+              ],
+              "stage": "recall",
+              "difficulty": 0,
+              "origin": "generated"
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 1,
+            "at": 1767312000000,
+            "configHash": "5067a166c2be0874",
+            "kind": "evidence",
+            "evidence": {
+              "id": "k2",
+              "itemId": "i-a-recall",
+              "at": 1767312000000,
+              "source": {
+                "kind": "auto",
+                "score": 1,
+                "maxScore": 1,
+                "passed": true
+              }
+            },
+            "task": {
+              "itemId": "i-a-recall",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "weight": 1
+                }
+              ],
+              "stage": "recall",
+              "difficulty": 0,
+              "origin": "generated"
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 2,
+            "at": 1767398400000,
+            "configHash": "5067a166c2be0874",
+            "kind": "evidence",
+            "evidence": {
+              "id": "k3",
+              "itemId": "i-a-produce",
+              "at": 1767398400000,
+              "source": {
+                "kind": "auto",
+                "score": 1,
+                "maxScore": 1,
+                "passed": true
+              }
+            },
+            "task": {
+              "itemId": "i-a-produce",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "weight": 1
+                }
+              ],
+              "stage": "produce",
+              "difficulty": 0,
+              "origin": "generated"
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 3,
+            "at": 1767657600000,
+            "configHash": "5067a166c2be0874",
+            "kind": "evidence",
+            "evidence": {
+              "id": "k4",
+              "itemId": "i-a-produce",
+              "at": 1767657600000,
+              "source": {
+                "kind": "auto",
+                "score": 1,
+                "maxScore": 1,
+                "passed": true
+              }
+            },
+            "task": {
+              "itemId": "i-a-produce",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "weight": 1
+                }
+              ],
+              "stage": "produce",
+              "difficulty": 0,
+              "origin": "generated"
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 4,
+            "at": 1767744000000,
+            "configHash": "5067a166c2be0874",
+            "kind": "evidence",
+            "evidence": {
+              "id": "k5",
+              "itemId": "i-a-produce",
+              "at": 1767744000000,
+              "source": {
+                "kind": "auto",
+                "score": 0,
+                "maxScore": 1,
+                "passed": false
+              }
+            },
+            "task": {
+              "itemId": "i-a-produce",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "weight": 1
+                }
+              ],
+              "stage": "produce",
+              "difficulty": 0,
+              "origin": "generated"
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 5,
+            "at": 1767744060000,
+            "configHash": "5067a166c2be0874",
+            "kind": "evidence",
+            "evidence": {
+              "id": "k6",
+              "itemId": "i-easy",
+              "at": 1767744060000,
+              "source": {
+                "kind": "auto",
+                "score": 0,
+                "maxScore": 1,
+                "passed": false
+              }
+            },
+            "task": {
+              "itemId": "i-easy",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "weight": 1
+                }
+              ],
+              "stage": "produce",
+              "difficulty": -5,
+              "origin": "generated"
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 6,
+            "at": 1767744120000,
+            "configHash": "5067a166c2be0874",
+            "kind": "evidence",
+            "evidence": {
+              "id": "k7",
+              "itemId": "i-a-produce",
+              "at": 1767744120000,
+              "source": {
+                "kind": "auto",
+                "score": 0,
+                "maxScore": 1,
+                "passed": false
+              }
+            },
+            "task": {
+              "itemId": "i-a-produce",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "weight": 1
+                }
+              ],
+              "stage": "produce",
+              "difficulty": 0,
+              "origin": "generated"
+            }
+          }
+        ],
+        "state": {
+          "schemaVersion": 1,
+          "learnerId": "l1",
+          "graphVersion": "g1",
+          "configHash": "5067a166c2be0874",
+          "log": {
+            "length": 7,
+            "lastAt": 1767744120000,
+            "hash": "9007b54ff9e87d1e"
+          },
+          "skills": {
+            "a": {
+              "stage": "recall",
+              "startedAt": 1767225600000,
+              "unlockedAt": null,
+              "credited": false,
+              "suspended": null,
+              "memories": {
+                "produce": {
+                  "model": "fsrs-7@1",
+                  "memory": {
+                    "stabilityFast": 0.02246073,
+                    "stability": 0.86905168,
+                    "difficulty": 9.82867411,
+                    "state": 3,
+                    "learningStep": 0,
+                    "scheduleStatus": "learning",
+                    "dueAt": 1767744720000,
+                    "lastReviewAt": 1767744120000
+                  },
+                  "due": 1767744720000,
+                  "modelDue": 1767744720000,
+                  "lastReviewAt": 1767744120000,
+                  "reviews": 5,
+                  "lapses": 2,
+                  "streak": {
+                    "successes": 0,
+                    "firstSuccessAt": null,
+                    "lastSuccessAt": null,
+                    "lapses": 0
+                  },
+                  "superseded": false
+                },
+                "recall": {
+                  "model": "fsrs-7@1",
+                  "memory": {
+                    "stabilityFast": 135.76995787,
+                    "stability": 8.21439398,
+                    "difficulty": 3.49771674,
+                    "state": 2,
+                    "learningStep": 0,
+                    "scheduleStatus": "review",
+                    "dueAt": 1768867601440,
+                    "lastReviewAt": 1767312000000
+                  },
+                  "due": 1768867601440,
+                  "modelDue": 1768867601440,
+                  "lastReviewAt": 1767312000000,
+                  "reviews": 2,
+                  "lapses": 0,
+                  "streak": {
+                    "successes": 0,
+                    "firstSuccessAt": null,
+                    "lastSuccessAt": null,
+                    "lapses": 0
+                  },
+                  "superseded": false
+                }
+              },
+              "ability": {
+                "recall": {
+                  "theta": 0.8595625417125194,
+                  "n": 2
+                },
+                "produce": {
+                  "theta": -0.9842499000549101,
+                  "n": 5
+                }
+              },
+              "mastered": false,
+              "evidenceCount": 7,
+              "lastLapseAt": 1767744120000,
+              "top": {
+                "successes": 2,
+                "firstSuccessAt": 1767398400000,
+                "lastSuccessAt": 1767657600000,
+                "lastWasLapse": true
+              }
+            }
+          },
+          "items": {
+            "i-a-produce": {
+              "uses": 4,
+              "lastUsedAt": 1767744120000
+            },
+            "i-a-recall": {
+              "uses": 2,
+              "lastUsedAt": 1767312000000
+            },
+            "i-easy": {
+              "uses": 1,
+              "lastUsedAt": 1767744060000
+            }
+          },
+          "held": [],
+          "recentIds": ["k1", "k2", "k3", "k4", "k5", "k6", "k7"]
+        },
+        "replay": {
+          "ok": true,
+          "events": [
+            {
+              "type": "skill.started",
+              "at": 1767225600000,
+              "skillId": "a",
+              "stage": "recall"
+            },
+            {
+              "type": "review.recorded",
+              "at": 1767225600000,
+              "evidenceId": "k1",
+              "skillId": "a",
+              "stage": "recall",
+              "rating": "good",
+              "due": 1767312000000
+            },
+            {
+              "type": "review.recorded",
+              "at": 1767312000000,
+              "evidenceId": "k2",
+              "skillId": "a",
+              "stage": "recall",
+              "rating": "good",
+              "due": 1768867601440
+            },
+            {
+              "type": "stage.promoted",
+              "at": 1767312000000,
+              "skillId": "a",
+              "from": "recall",
+              "to": "produce"
+            },
+            {
+              "type": "review.recorded",
+              "at": 1767398400000,
+              "evidenceId": "k3",
+              "skillId": "a",
+              "stage": "produce",
+              "rating": "good",
+              "due": 1767484800000
+            },
+            {
+              "type": "review.recorded",
+              "at": 1767657600000,
+              "evidenceId": "k4",
+              "skillId": "a",
+              "stage": "produce",
+              "rating": "good",
+              "due": 1767916800000
+            },
+            {
+              "type": "review.recorded",
+              "at": 1767744000000,
+              "evidenceId": "k5",
+              "skillId": "a",
+              "stage": "produce",
+              "rating": "hard",
+              "due": 1769037342496
+            },
+            {
+              "type": "review.recorded",
+              "at": 1767744060000,
+              "evidenceId": "k6",
+              "skillId": "a",
+              "stage": "produce",
+              "rating": "again",
+              "due": 1767744880510
+            },
+            {
+              "type": "review.recorded",
+              "at": 1767744120000,
+              "evidenceId": "k7",
+              "skillId": "a",
+              "stage": "produce",
+              "rating": "again",
+              "due": 1767744720000
+            },
+            {
+              "type": "stage.demoted",
+              "at": 1767744120000,
+              "skillId": "a",
+              "from": "produce",
+              "to": "recall"
+            }
+          ]
+        },
+        "checkpoints": [],
+        "status": [
+          {
+            "at": 1767830400000,
+            "counts": {
+              "locked": 1,
+              "ready": 1,
+              "learning": 1,
+              "reviewing": 0,
+              "mastered": 0,
+              "credited": 0,
+              "suspended": 0
+            },
+            "dueNow": 0,
+            "skills": [
+              {
+                "skillId": "a",
+                "status": "learning",
+                "stage": "recall",
+                "due": 1768867601440,
+                "retrievability": 0.9403628247940904,
+                "ability": {
+                  "model": "elo@1",
+                  "value": 0.8595625417125194,
+                  "uncertainty": 0.9090909090909091,
+                  "evidenceCount": 2
+                },
+                "expectedSuccessAtReference": 0.2720493249917175,
+                "masteryLapsed": false,
+                "lapses": 0,
+                "unlockedAt": null
+              },
+              {
+                "skillId": "b",
+                "status": "locked",
+                "stage": null,
+                "due": null,
+                "retrievability": null,
+                "ability": null,
+                "expectedSuccessAtReference": null,
+                "masteryLapsed": false,
+                "lapses": 0,
+                "unlockedAt": null
+              },
+              {
+                "skillId": "c",
+                "status": "ready",
+                "stage": null,
+                "due": null,
+                "retrievability": null,
+                "ability": null,
+                "expectedSuccessAtReference": null,
+                "masteryLapsed": false,
+                "lapses": 0,
+                "unlockedAt": null
+              }
+            ],
+            "held": []
+          }
+        ],
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "5067a166c2be0874",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767225600000,
+                      "rating": "good",
+                      "evidenceId": "k1"
+                    },
+                    {
+                      "at": 1767312000000,
+                      "rating": "good",
+                      "evidenceId": "k2"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "a",
+                  "stage": "produce",
+                  "reviews": [
+                    {
+                      "at": 1767398400000,
+                      "rating": "good",
+                      "evidenceId": "k3"
+                    },
+                    {
+                      "at": 1767657600000,
+                      "rating": "good",
+                      "evidenceId": "k4"
+                    },
+                    {
+                      "at": 1767744000000,
+                      "rating": "hard",
+                      "evidenceId": "k5"
+                    },
+                    {
+                      "at": 1767744060000,
+                      "rating": "again",
+                      "evidenceId": "k6"
+                    },
+                    {
+                      "at": 1767744120000,
+                      "rating": "again",
+                      "evidenceId": "k7"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "log",
       "name": "evidence contexts, exposure and self ratings",
       "learnerId": "l1",
       "graphs": {
@@ -8055,7 +9068,7 @@
           "evidence": {
             "id": "m5",
             "itemId": "m5",
-            "at": 1770679166604,
+            "at": 1767916800000,
             "source": {
               "kind": "auto",
               "score": 1,
@@ -8165,7 +9178,7 @@
                 "skillId": "a",
                 "stage": "produce",
                 "rating": "good",
-                "due": 1770679166604
+                "due": 1767916800000
               }
             ]
           },
@@ -8174,12 +9187,12 @@
             "events": [
               {
                 "type": "review.recorded",
-                "at": 1770679166604,
+                "at": 1767916800000,
                 "evidenceId": "m5",
                 "skillId": "a",
                 "stage": "produce",
                 "rating": "good",
-                "due": 1780928187187
+                "due": 1768176000000
               }
             ]
           }
@@ -8338,13 +9351,13 @@
           {
             "schemaVersion": 1,
             "seq": 5,
-            "at": 1770679166604,
+            "at": 1767916800000,
             "configHash": "5067a166c2be0874",
             "kind": "evidence",
             "evidence": {
               "id": "m5",
               "itemId": "m5",
-              "at": 1770679166604,
+              "at": 1767916800000,
               "source": {
                 "kind": "auto",
                 "score": 1,
@@ -8373,8 +9386,8 @@
           "configHash": "5067a166c2be0874",
           "log": {
             "length": 6,
-            "lastAt": 1770679166604,
-            "hash": "0be05799f550385c"
+            "lastAt": 1767916800000,
+            "hash": "f33931ca34c44c5e"
           },
           "skills": {
             "a": {
@@ -8387,24 +9400,24 @@
                 "produce": {
                   "model": "fsrs-7@1",
                   "memory": {
-                    "stabilityFast": 833.6443637,
-                    "stability": 37.68789455,
+                    "stabilityFast": 578.60237139,
+                    "stability": 20.03435691,
                     "difficulty": 3.43268918,
                     "state": 2,
                     "learningStep": 0,
                     "scheduleStatus": "review",
-                    "dueAt": 1780928187187,
-                    "lastReviewAt": 1770679166604
+                    "dueAt": 1772884373817,
+                    "lastReviewAt": 1767916800000
                   },
-                  "due": 1780928187187,
-                  "modelDue": 1780928187187,
-                  "lastReviewAt": 1770679166604,
+                  "due": 1768176000000,
+                  "modelDue": 1772884373817,
+                  "lastReviewAt": 1767916800000,
                   "reviews": 4,
                   "lapses": 0,
                   "streak": {
                     "successes": 4,
                     "firstSuccessAt": 1767398400000,
-                    "lastSuccessAt": 1770679166604,
+                    "lastSuccessAt": 1767916800000,
                     "lapses": 0
                   },
                   "superseded": false
@@ -8451,15 +9464,35 @@
               "top": {
                 "successes": 3,
                 "firstSuccessAt": 1767398400000,
-                "lastSuccessAt": 1770679166604,
+                "lastSuccessAt": 1767916800000,
                 "lastWasLapse": false
               }
             }
           },
           "items": {
+            "m0": {
+              "uses": 1,
+              "lastUsedAt": 1767225600000
+            },
+            "m1": {
+              "uses": 1,
+              "lastUsedAt": 1767312000000
+            },
+            "m2": {
+              "uses": 1,
+              "lastUsedAt": 1767398400000
+            },
+            "m3": {
+              "uses": 1,
+              "lastUsedAt": 1767484800000
+            },
+            "m4": {
+              "uses": 1,
+              "lastUsedAt": 1767657600000
+            },
             "m5": {
               "uses": 1,
-              "lastUsedAt": 1770679166604
+              "lastUsedAt": 1767916800000
             }
           },
           "held": [],
@@ -8524,16 +9557,16 @@
               "skillId": "a",
               "stage": "produce",
               "rating": "good",
-              "due": 1770679166604
+              "due": 1767916800000
             },
             {
               "type": "review.recorded",
-              "at": 1770679166604,
+              "at": 1767916800000,
               "evidenceId": "m5",
               "skillId": "a",
               "stage": "produce",
               "rating": "good",
-              "due": 1780928187187
+              "due": 1768176000000
             }
           ]
         },
@@ -8547,8 +9580,8 @@
             "configHash": "855132353939bb41",
             "log": {
               "length": 6,
-              "lastAt": 1770679166604,
-              "hash": "0be05799f550385c"
+              "lastAt": 1767916800000,
+              "hash": "f33931ca34c44c5e"
             },
             "skills": {
               "a": {
@@ -8561,24 +9594,24 @@
                   "produce": {
                     "model": "fsrs-7@1",
                     "memory": {
-                      "stabilityFast": 599.96920403,
-                      "stability": 30.10309319,
+                      "stabilityFast": 391.15555145,
+                      "stability": 15.44692389,
                       "difficulty": 3.46503957,
                       "state": 2,
                       "learningStep": 0,
                       "scheduleStatus": "review",
-                      "dueAt": 1816576093974,
-                      "lastReviewAt": 1770679166604
+                      "dueAt": 1789368927219,
+                      "lastReviewAt": 1767916800000
                     },
-                    "due": 1816576093974,
-                    "modelDue": 1816576093974,
-                    "lastReviewAt": 1770679166604,
+                    "due": 1768176000000,
+                    "modelDue": 1789368927219,
+                    "lastReviewAt": 1767916800000,
                     "reviews": 3,
                     "lapses": 0,
                     "streak": {
                       "successes": 3,
                       "firstSuccessAt": 1767484800000,
-                      "lastSuccessAt": 1770679166604,
+                      "lastSuccessAt": 1767916800000,
                       "lapses": 0
                     },
                     "superseded": false
@@ -8625,15 +9658,35 @@
                 "top": {
                   "successes": 2,
                   "firstSuccessAt": 1767484800000,
-                  "lastSuccessAt": 1770679166604,
+                  "lastSuccessAt": 1767916800000,
                   "lastWasLapse": false
                 }
               }
             },
             "items": {
+              "m0": {
+                "uses": 1,
+                "lastUsedAt": 1767225600000
+              },
+              "m1": {
+                "uses": 1,
+                "lastUsedAt": 1767312000000
+              },
+              "m2": {
+                "uses": 1,
+                "lastUsedAt": 1767398400000
+              },
+              "m3": {
+                "uses": 1,
+                "lastUsedAt": 1767484800000
+              },
+              "m4": {
+                "uses": 1,
+                "lastUsedAt": 1767657600000
+              },
               "m5": {
                 "uses": 1,
-                "lastUsedAt": 1770679166604
+                "lastUsedAt": 1767916800000
               }
             },
             "held": [],
@@ -8685,7 +9738,7 @@
                       "evidenceId": "m4"
                     },
                     {
-                      "at": 1770679166604,
+                      "at": 1767916800000,
                       "rating": "good",
                       "evidenceId": "m5"
                     }

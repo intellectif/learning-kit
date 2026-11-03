@@ -1,12 +1,13 @@
 # Stability
 
-What `@intellectif/lk-core` 1.x, `@intellectif/lk-react` 23.x and `@intellectif/lk-azure` 2.x promise, and what they don't.
+What `@intellectif/lk-core` 1.x, `@intellectif/lk-react` 23.x, `@intellectif/lk-azure` 2.x and `@intellectif/lk-practice` 0.x promise, and what they don't.
 Versions follow [semantic versioning](https://semver.org): anything this page says is covered changes
 only in a **major**.
 
 - [The two version numbers](#the-two-version-numbers)
 - [Grades](#grades)
 - [Azure results](#azure-results)
+- [Practice planning](#practice-planning)
 - [The public API](#the-public-api)
 - [Content](#content)
 - [Registering your own activity types](#registering-your-own-activity-types)
@@ -57,6 +58,33 @@ re-map of a stored response is a regrade, so the same rule applies to it as to a
   `scripts/check-release-plan.mjs` proves it.
 - **Azure is not covered.** Microsoft updates its models without an API change, so the same audio can
   come back with other scores. Store the raw response.
+
+## Practice planning
+
+`@intellectif/lk-practice` plans a learner's practice from a log of evidence. It is at **0.x**: under
+semantic versioning a `0.x` minor may break, and this package uses minors that way until 1.0. A
+patch never changes behaviour.
+
+- **The same log, graph and configuration give the same state and the same plan** for every patch of
+  a minor. A change to any default that alters a schedule, an ability, a stage move or a plan is a
+  new minor, and its changeset says what changed under **Action required**. From 1.0, it is a major.
+  A new option that is off by default is a minor too, and changes nothing until you turn it on.
+- **The log keeps its meaning; the state is rebuilt.** Each model and policy has an id and a version,
+  hashed into the configuration hash every state and log entry carries. Rules that change refuse a
+  state built under the old ones (`STATE_CONFIG_MISMATCH`), and `replay` rebuilds it from the log.
+- **Stored data carries `schemaVersion: 1`.** A later version that changes the state or the log entry
+  ships a migration in `migrateState`, and never drops a log entry.
+- **The vectors are the record.** `packages/lk-practice/vectors/` holds the evidence, stage, log,
+  plan and contract vectors, generated from the source. A vector that changes is a behaviour change,
+  and its release says so.
+- **Its public API is `packages/lk-practice/api/surface.md`,** checked by CI like the others, for its
+  root and `./testing` entries. The `./testing` simulator's draws may change in any minor.
+- **`ts-fsrs` is pinned exactly,** and no `ts-fsrs` type is part of the API. A `ts-fsrs` upgrade that
+  changes a schedule is a behaviour change, released as above.
+- **It needs Node.js 24 or later.** It is pure: no clock, randomness, network or I/O, which the
+  build's tests prove by running it with the clock and the random source trapped.
+- **1.0** follows real use: at least 60 days in a code-practice product and 30 days in a
+  language-practice product.
 
 ## The public API
 
@@ -136,5 +164,5 @@ Deprecated now, each still working throughout 1.x:
 ## Runtimes
 
 - **Node.js 22 or later** (lk-core's `engines`), and **React 19** (lk-react's peer). Requiring a newer
-  version of either is a major.
+  version of either is a major. lk-practice needs **Node.js 24 or later**.
 - **ES modules and CommonJS** are both published, with types for both.

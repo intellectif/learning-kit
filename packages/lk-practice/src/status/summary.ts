@@ -10,7 +10,12 @@ import type { Engine } from '../log/context.js';
 import { indexGraph } from '../log/context.js';
 import { compareKeys } from '../log/draft.js';
 import { mismatchIssues } from '../log/validate.js';
-import { abilityAt, isMastered, skillStatus } from '../mastery/index.js';
+import {
+  abilityAt,
+  expectedSuccessAtReference,
+  isMastered,
+  skillStatus,
+} from '../mastery/index.js';
 import type {
   LearnerSummary,
   PracticeState,
@@ -102,10 +107,7 @@ export function learnerStatus(
         ability: Object.freeze(
           model.estimate(abilityAt(skill.ability, node, skill.stage, context)),
         ),
-        expectedSuccessAtReference: model.expectedSuccess(
-          abilityAt(skill.ability, node, top, context),
-          node.referenceDifficulty ?? 0,
-        ),
+        expectedSuccessAtReference: expectedSuccessAtReference(skill.ability, node, context),
         masteryLapsed: skill.mastered && !mastered,
         lapses: memory?.lapses ?? 0,
         unlockedAt: skill.unlockedAt,

@@ -1159,8 +1159,8 @@ or dependency in `lk-*`, a standing decision. Where its shape helps:
 | Assistants for authors | A structured critique ("is distractor B also defensible?"), and accepted answers suggested from learners' answers, for a person to approve | Advice an editor can sort by confidence; nothing reaches scoring without a person |
 
 Not for scoring the types the SDK scores itself (multiple choice, the gap types, dictation, and
-read-aloud's measured marks), which no model decides; and not for adaptive sequencing, which stays the
-host's. A vendor's calibration is not taken on trust: the gate in step 1 is how a host measures it on
+read-aloud's measured marks), which no model decides; and not for adaptive sequencing, which stays out
+of `lk-core` and `lk-react` (see `lk-practice`). A vendor's calibration is not taken on trust: the gate in step 1 is how a host measures it on
 its own marks.
 
 #### Held for the next major (2.0)
@@ -1185,4 +1185,5 @@ Changes the 1.x promise rules out, collected so a 2.0 can be weighed on them:
 | `react`/`react-dom` as peers; `lk-react` ships no runtime `dependencies` | Keep. Confirmed correct by an integrator — React duplication incidents trace to consumer-side nested workspaces, not to this packaging. |
 | Authoring UI, storage, taxonomy, identity, delivery, timers, proctoring | Consumer-side, permanently. SDK ships contracts (`validateDraft`, descriptors, preview) only. |
 | Generality without a second consumer | Rejected (no registry instances, no version negotiator, no plugin loader). Add when consumer #2 exists. |
+| Adaptive sequencing (what to practise next, and when) | Only in @intellectif/lk-practice, an opt-in package (2026-11-01). lk-core and lk-react stay free of it; storage, delivery, timers and taxonomy stay the host's. |
 | Interactive video in summative exams | Not a use it serves (2026-09-22). It is formative: the learner controls the recording while the questions are open, and nothing times a question or holds a single pass. Its `exam` mode is a check-in without feedback, not exam conditions. Papers of record go through `<ActivitySequence>`. Its questions still grade exactly, under the same vectors. |

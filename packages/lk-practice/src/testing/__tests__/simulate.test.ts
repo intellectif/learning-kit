@@ -36,6 +36,7 @@ function target(id: string, skillIds: string[], difficulty = 0): PracticeTarget 
       code: 'due',
       due: 0,
       retrievability: 0.9,
+      masteryCheck: false,
       expectedSuccess: 0.85,
       coalesced: [],
       newSkillsDeferred: false,

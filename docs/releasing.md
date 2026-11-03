@@ -59,12 +59,36 @@ The workflow (`.github/workflows/release.yml`) is already OIDC-ready: it declare
 ### 3a. A package added later
 
 A Trusted Publisher can only be set on a package that exists, so CI cannot publish a package's first
-version. A new package (as `@intellectif/lk-azure` was, starting at `0.0.0` with a `major` changeset)
-is published once by hand, **from the version PR, before that PR is merged**. Merged first, the
-Release job would try to publish it through OIDC and fail.
+version. A new package (as `@intellectif/lk-azure` was, starting at `0.0.0` with a `major` changeset,
+and `@intellectif/lk-practice` was, with a `minor` changeset to `0.1.0`) is published once by hand,
+**from the version PR, before that PR is merged**. Merged first, the Release job would try to
+publish it through OIDC and fail.
+
+Merge the feature PR that adds a package only once the version PR before it has merged and its
+Release run has finished, so the new package's version PR holds nothing else to publish.
+
+The steps below name lk-azure. For lk-practice:
+- Use **Node 24** (`node --version`), which the package requires.
+- It needs no lk-core build. Use `pnpm --filter @intellectif/lk-practice build`, `test` and
+  `verify-dist`, and publish it the same way.
+- Its first version is `0.1.0`, and it has no peer to check on the package page.
 
 1. Merge the feature PR that adds the package. The Release job opens the **"chore: version packages"**
    PR, which takes the new package to `1.0.0`.
+
+   **Check it is that PR before you go on.** The branch `changeset-release/main` stays on GitHub
+   after every version PR merges, so `origin/changeset-release/main` can still be the last release.
+   There must be an open version PR, and the package on its branch must have the new version and no
+   `"private"`:
+
+   ```bash
+   gh pr list --head changeset-release/main --state open
+   git fetch origin
+   git show origin/changeset-release/main:packages/lk-azure/package.json | grep -E '"(version|private)"'
+   ```
+
+   pnpm's `There are no new packages that should be published` means one of these failed: the
+   package is still private, or that version is already on npm.
 2. On your machine, check out that PR's branch and build the new package and lk-core:
 
    ```bash

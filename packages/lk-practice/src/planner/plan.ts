@@ -126,7 +126,12 @@ export function planSession(
     const node = index.nodes.get(skillId) as SkillNode;
     const skill = Object.hasOwn(state.skills, skillId) ? state.skills[skillId] : undefined;
     const ability = abilityAt(skill?.ability ?? {}, node, stage, index.mastery(skillId));
-    const targetDifficulty = model.estimate(ability).value - logit;
+    // A mastery check aims at the standard R3.5 (c) measures (8.6; revised in M9).
+    const masteryCheck =
+      (detail.code === 'overdue' || detail.code === 'due') && detail.masteryCheck;
+    const targetDifficulty = masteryCheck
+      ? (node.referenceDifficulty ?? 0)
+      : model.estimate(ability).value - logit;
     const coalesced = kind === 'pretest' ? [] : coalesce(skillId, stage);
     const skillIds = [skillId, ...coalesced];
     const needsSkillOutcomes = coalesced.length > 0;

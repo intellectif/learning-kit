@@ -9,7 +9,9 @@ import { logHashStep } from '../determinism/keys.js';
 import { contextWeight, heldReason } from '../evidence/index.js';
 import { equivalentStage } from '../graph/index.js';
 import {
+  abilityAt,
   desiredRetentionFor,
+  expectedSuccessAtReference,
   isMastered,
   masteryFailures,
   priorAbility,
@@ -20,6 +22,7 @@ import type {
   Evidence,
   HostAction,
   MappedEvidence,
+  Rating,
   ReviewLogEntry,
   SkillEffect,
   SkillNode,
@@ -218,6 +221,14 @@ function applyEffect(
     draft.emit({ type: 'skill.started', at, skillId, stage: skill.stage });
   }
 
+  // Read before this evidence updates the ability (8.2; revised in M9).
+  const topStage = ladder[ladder.length - 1] as StageId;
+  const failedCheck =
+    effect.rating === 'again' &&
+    skill.stage === topStage &&
+    evidenceStage === topStage &&
+    isMasteryCheck(skill, node, topStage, task.difficulty, at, context);
+
   // Ability (D27): the skill's equivalent of the task's stage.
   if (effect.reason !== 'exposure') {
     const weight = effect.weight * contextWeight(evidence.context, config);
@@ -242,8 +253,9 @@ function applyEffect(
   }
   skill = { ...skill, evidenceCount: skill.evidenceCount + 1 };
 
-  // Memory and the stage policy (8.2), on the current stage's memory.
-  const { rating } = effect;
+  // Memory and the stage policy (8.2), on the current stage's memory. A
+  // failed mastery check is reviewed as `hard`: no lapse, demotion or leech.
+  const rating: Rating | null = failedCheck ? 'hard' : effect.rating;
   if (effect.memory === 'review' && rating !== null && skill.suspended === null) {
     const current = skill.stage;
     const previous = memoryAt(skill, current);
@@ -265,7 +277,7 @@ function applyEffect(
       );
       let due = decision.dueCap === null ? review.due : Math.min(review.due, decision.dueCap);
       const lapse = rating === 'again';
-      if (current === ladder[ladder.length - 1]) {
+      if (current === topStage) {
         const top = { ...skill.top };
         if (decision.effect === 'lapse') {
           top.lastWasLapse = true;
@@ -282,6 +294,15 @@ function applyEffect(
         }
         if (top.successes > 0 && top.successes < config.mastery.topSuccesses) {
           due = Math.min(due, (top.lastSuccessAt as number) + config.mastery.topGapMs);
+        }
+        // A success while the ability is still short of R3.5 (c) brings the
+        // next mastery check within `topGapMs` (8.6; revised in M9).
+        if (
+          decision.effect === 'success' &&
+          expectedSuccessAtReference(skill.ability, node, graph.mastery(skillId)) <
+            config.mastery.minExpectedSuccess
+        ) {
+          due = Math.min(due, at + config.mastery.topGapMs);
         }
         skill = { ...skill, top };
       }
@@ -306,7 +327,8 @@ function applyEffect(
         rating,
         due,
       });
-      if (lapse) skill = { ...skill, lastLapseAt: at };
+      // A failed mastery check is a failure that remediation and generation see (R6.5).
+      if (lapse || failedCheck) skill = { ...skill, lastLapseAt: at };
 
       const index = ladder.indexOf(current);
       if (decision.move === 'promote' && index < ladder.length - 1) {
@@ -329,10 +351,45 @@ function applyEffect(
       }
     }
   }
-  if (rating === 'again' && evidence.learnerConfidence === 'sure') {
+  if (effect.rating === 'again' && evidence.learnerConfidence === 'sure') {
     draft.emit({ type: 'evidence.confident-error', at, evidenceId: evidence.id, skillId });
   }
   draft.setSkill(skillId, skill);
+}
+
+/**
+ * Whether a task at the top stage `stage` is a mastery check (8.2; revised in
+ * M9): the last top-stage retrieval was not a lapse, the stage's ability is
+ * short of R3.5 (c), the task is harder than the learner's `targetSuccess`
+ * difficulty there by more than the tolerance, and the stage's memory still
+ * predicts recall at the mastery floor (R3.5 (d)) at `at`. A failure then says
+ * the standard is not met yet, not that the skill was forgotten.
+ */
+function isMasteryCheck(
+  skill: SkillState,
+  node: SkillNode,
+  stage: StageId,
+  difficulty: number,
+  at: number,
+  context: ApplyContext,
+): boolean {
+  const { config, mastery, memory: memoryModel } = context.engine;
+  const memory = memoryAt(skill, stage);
+  if (memory === undefined || skill.top.lastWasLapse) return false;
+  const abilityContext = context.graph.mastery(node.id);
+  if (
+    expectedSuccessAtReference(skill.ability, node, abilityContext) >=
+    config.mastery.minExpectedSuccess
+  ) {
+    return false;
+  }
+  const p = config.planner.targetSuccess;
+  const training =
+    mastery.estimate(abilityAt(skill.ability, node, stage, abilityContext)).value -
+    Math.log(p / (1 - p));
+  if (difficulty <= training + config.planner.difficultyTolerance) return false;
+  const floor = desiredRetentionFor(node, stage, config) - config.mastery.retentionMargin;
+  return memoryModel.retrievability(memoryModel.deserialize(memory.memory), at) >= floor;
 }
 
 function memoryAt(skill: SkillState, stage: StageId): StageMemory | undefined {

@@ -199,6 +199,20 @@ Commands, with `<branch>` and `<title>` from the milestone:
   - [ ] After the version PR, publish `0.1.0` by hand from the version-PR branch as `docs/releasing.md` §3a describes (first publish cannot use trusted publishing); then configure trusted publishing.
 - **Gates:** `pnpm verify-release`; `check-readme-packages` and `check-changesets` now apply.
 - **Acceptance:** criterion 15; the package installs from npm on Node 24.
+- **As built (revised in M9):** the package is public, with `README.md` and `docs/practice.md`.
+  - Repository wiring: the README row, `CONTRIBUTING.md`, `docs/releasing.md` §3a,
+    `docs/stability.md` ("Practice planning"), `docs/roadmap.md` §4 and §5 (D3), and
+    `scripts/check-doc-imports.mjs`.
+  - Size budgets: the root at 43 kB, `createPractice` at 39 kB and `./testing` at 2 kB, brotli
+    (R12.5).
+  - `.changeset/lk-practice-initial.md`.
+  - These three documents moved to `packages/lk-practice/plan/` (D11).
+  - The feature PR merges after the previous version PR's Release run; the first publish is by hand,
+    from the version PR (`docs/releasing.md` §3a).
+  - The pre-release audit found mastery unreachable with the defaults, so no hard dependent
+    unlocked: mastery checks fix it (R3.5, design 8.1 and 8.6), with `reason.masteryCheck`, unit
+    tests, log and plan vectors, and `src/testing/__tests__/outcomes.test.ts` for the whole loop.
+    The guide's `duplicate` row now says `record` sees only the last `recentIdWindow` ids.
 - **Changeset:** minor, `0.0.0` to `0.1.0`.
 
 ## M10 - `./lk-core` adapter

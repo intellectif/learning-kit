@@ -12,7 +12,7 @@ import type {
   SkillStatus,
   StageId,
 } from '../types.js';
-import { type AbilityContext, abilityAt } from './ability.js';
+import { type AbilityContext, abilityAt, type StoredAbility } from './ability.js';
 
 /** A condition of R3.5, as named in `skill.mastery-lost`. */
 export type MasteryCondition = 'stage' | 'successes' | 'ability' | 'retrievability';
@@ -37,6 +37,23 @@ export function desiredRetentionFor(
 }
 
 /**
+ * The expected success at the top stage against the skill's
+ * `referenceDifficulty` (default 0), with the top stage's ability derived when
+ * absent: what R3.5 (c) compares with `minExpectedSuccess`.
+ */
+export function expectedSuccessAtReference(
+  stored: StoredAbility,
+  skill: SkillNode,
+  context: AbilityContext,
+): number {
+  const top = context.ladder[context.ladder.length - 1] as StageId;
+  return context.model.expectedSuccess(
+    abilityAt(stored, skill, top, context),
+    skill.referenceDifficulty ?? 0,
+  );
+}
+
+/**
  * The conditions of R3.5 that fail at `t`, in the order (a) to (d); empty when
  * the skill is mastered. Every condition is checked, so a lost mastery reports
  * all the reasons at once.
@@ -54,17 +71,15 @@ export function masteryFailures(
   t: number,
   context: MasteryContext,
 ): MasteryCondition[] {
-  const { config, ladder, memoryModel, model } = context;
+  const { config, ladder, memoryModel } = context;
   const top = ladder[ladder.length - 1] as StageId;
   const failed: MasteryCondition[] = [];
   if (state.stage !== top) failed.push('stage');
   if (state.top.successes < config.mastery.topSuccesses || state.top.lastWasLapse) {
     failed.push('successes');
   }
-  const ability = abilityAt(state.ability, skill, top, context);
   if (
-    model.expectedSuccess(ability, skill.referenceDifficulty ?? 0) <
-    config.mastery.minExpectedSuccess
+    expectedSuccessAtReference(state.ability, skill, context) < config.mastery.minExpectedSuccess
   ) {
     failed.push('ability');
   }

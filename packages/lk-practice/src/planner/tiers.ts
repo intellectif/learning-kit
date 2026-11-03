@@ -8,7 +8,7 @@
 
 import type { Engine, GraphIndex } from '../log/context.js';
 import { compareKeys } from '../log/draft.js';
-import { desiredRetentionFor, isMastered } from '../mastery/index.js';
+import { desiredRetentionFor, expectedSuccessAtReference, isMastered } from '../mastery/index.js';
 import type {
   PlanReasonDetail,
   PracticeState,
@@ -82,6 +82,24 @@ export function buildTiers(
     const skill = skillOf(id);
     return skill === undefined || (skill.suspended === null && ladder.includes(skill.stage));
   };
+  /**
+   * A review is a mastery check (8.6; revised in M9) when the skill is at its
+   * top stage and its last retrieval there was not a lapse, its expected
+   * success at the reference is short of R3.5 (c) and of `targetSuccess` (so
+   * the reference is above the usual target), and its retrievability `r` is
+   * at least the mastery floor (R3.5 (d)).
+   */
+  const masteryCheck = (
+    skill: SkillState,
+    node: SkillNode,
+    ladder: readonly StageId[],
+    r: number,
+  ): boolean =>
+    skill.stage === ladder[ladder.length - 1] &&
+    !skill.top.lastWasLapse &&
+    r >= desiredRetentionFor(node, skill.stage, config) - config.mastery.retentionMargin &&
+    expectedSuccessAtReference(skill.ability, node, index.mastery(node.id)) <
+      Math.min(config.mastery.minExpectedSuccess, config.planner.targetSuccess);
   /** The current-stage memory of a started, active skill, once retrieved. */
   const currentMemory = (skill: SkillState): StageMemory | undefined => {
     const memory = own(skill.memories, skill.stage);
@@ -132,7 +150,12 @@ export function buildTiers(
         kind: 'review',
         skillId: id,
         stage: skill.stage,
-        detail: { code, due: dueAt, retrievability: r },
+        detail: {
+          code,
+          due: dueAt,
+          retrievability: r,
+          masteryCheck: masteryCheck(skill, node, ladder, r),
+        },
       },
       key: code === 'overdue' ? r : dueAt,
       tie: tie(id),

@@ -2,8 +2,8 @@
 // cases are chosen by hand: the tiers and their order, the caps, the backlog
 // rule, a stage-up after a promotion, remediation, the focus closure, pretests,
 // coalescing, pool matching (proof, cooldown, exclusion, preference), the
-// seconds budget, difficulty targeting from a prior, and the request and
-// state checks; then the boundaries and orders that tell close rules apart:
+// seconds budget, difficulty targeting from a prior, mastery checks (revised
+// in M9), and the request and state checks; then the boundaries and orders that tell close rules apart:
 // interleave groups, soft prerequisites, the backlog, due and lapse-window
 // edges, tier keys, the remediation floor, empty and one-stage ladders, and
 // the tolerance, cooldown and tie rules of matching. Each vector builds a learner from `steps` as the log vectors
@@ -361,7 +361,7 @@ const vectors = [
     [ask(T0 + 5 * DAY), ask(T0 + 5 * DAY, { excludeSkills: ['a'] })],
   ),
   plan(
-    'remediation plans a hard prerequisite that fell below its floor after a lapse',
+    'remediation plans a hard prerequisite that fell below its floor after a failed mastery check',
     REMEDY,
     [
       ev('e1', 'p', 'recall', T0),
@@ -375,6 +375,22 @@ const vectors = [
       ask(T0 + 1.5 * DAY, { limits: { maxRemediation: 0 } }),
       ask(T0 + 1.5 * DAY, { excludeSkills: ['p'] }),
     ],
+    { config: { mastery: { retentionMargin: 0 } } },
+  ),
+  plan(
+    'remediation plans a hard prerequisite that fell below its floor after a lapse',
+    REMEDY,
+    [
+      ev('e1', 'p', 'recall', T0),
+      place('h1', 'q', 'recall'),
+      ev('e2', 'q', 'recall', T0),
+      ev('e3', 'p', 'recall', T0 + DAY),
+      {
+        evidence: { id: 'e4', itemId: 'e4-item', at: T0 + 1.2 * DAY, source: fail },
+        item: item('e4-item', 'q', 'recall', { difficulty: -5 }),
+      },
+    ],
+    [ask(T0 + 1.5 * DAY)],
     { config: { mastery: { retentionMargin: 0 } } },
   ),
   plan(
