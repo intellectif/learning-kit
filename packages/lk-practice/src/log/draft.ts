@@ -11,6 +11,7 @@
 
 import type {
   HeldEvidence,
+  HypothesisState,
   ItemUsage,
   PracticeEvent,
   PracticeState,
@@ -31,6 +32,8 @@ export class Draft {
 
   private readonly skills: RecordDraft<SkillState>;
   private readonly items: RecordDraft<ItemUsage>;
+  /** Prerequisite hypotheses (R14.5; revised in M12). */
+  private readonly hypotheses: RecordDraft<HypothesisState>;
   /** The smallest `lastUsedAt` in `items`, or null when unknown; skips the prune scan. */
   private oldestUse: number | null = null;
 
@@ -45,6 +48,20 @@ export class Draft {
     this.recentIds = [...state.recentIds];
     this.skills = new RecordDraft(state.skills);
     this.items = new RecordDraft(state.items);
+    this.hypotheses = new RecordDraft(state.hypotheses ?? {});
+  }
+
+  hypothesis(id: string): HypothesisState | undefined {
+    return this.hypotheses.get(id);
+  }
+
+  setHypothesis(id: string, hypothesis: HypothesisState): void {
+    this.hypotheses.set(id, Object.freeze(hypothesis));
+  }
+
+  /** Every hypothesis, in no particular order. */
+  forEachHypothesis(visit: (id: string, hypothesis: HypothesisState) => void): void {
+    this.hypotheses.forEach(visit);
   }
 
   skill(skillId: string): SkillState | undefined {
@@ -96,6 +113,7 @@ export class Draft {
       items: this.items.finish(),
       held: Object.freeze([...this.held]),
       recentIds: Object.freeze([...this.recentIds]),
+      hypotheses: this.hypotheses.finish(),
     });
   }
 }

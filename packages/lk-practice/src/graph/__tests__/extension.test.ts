@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { canonicalJson } from '../../determinism/canonical.js';
 import { fnv1a64 } from '../../determinism/fnv.js';
-import type { GraphExtension, SkillGraph } from '../../types.js';
+import type { DiscoveryExtension, GraphExtension, SkillGraph } from '../../types.js';
 import { composeGraph, extensionIssues, isUnderPrefix } from '../extension.js';
 
 const base: SkillGraph = {
@@ -111,5 +111,114 @@ describe('composeGraph', () => {
       ok: false,
       issues: [{ code: 'GRAPH_CYCLE', path: ['edges', 1] }],
     });
+  });
+});
+
+describe('composeGraph with prerequisite-discovery extensions (R2.6, R14.8; revised in M12)', () => {
+  const discovery = (id: string, extra: Partial<DiscoveryExtension> = {}): DiscoveryExtension => ({
+    kind: 'prerequisite-discovery',
+    id,
+    hypothesisId: `h-${id}`,
+    forSkillId: 'b',
+    skills: [{ id: 'n', knowledge: 'procedural' }],
+    edges: [{ kind: 'prerequisite', from: 'n', to: 'b', strength: 'soft' }],
+    status: 'admitted',
+    confirmedAt: 0,
+    ...extra,
+  });
+  const codes = (...extensions: (GraphExtension | DiscoveryExtension)[]) => {
+    const result = composeGraph(base, extensions);
+    return result.ok ? [] : result.issues.map((issue) => `${issue.code}@${issue.path.join('.')}`);
+  };
+
+  it('adds one skill and one soft edge into a base skill, or one soft edge from a base skill', () => {
+    const composed = composeGraph(base, [discovery('d1')]);
+    expect(composed.ok && composed.graph.skills.map((skill) => skill.id)).toEqual(['a', 'b', 'n']);
+    expect(composed.ok && composed.graph.edges.at(-1)).toEqual({
+      kind: 'prerequisite',
+      from: 'n',
+      to: 'b',
+      strength: 'soft',
+    });
+    const reversed: SkillGraph = { ...base, edges: [] };
+    const fromBase = composeGraph(reversed, [
+      discovery('d2', {
+        skills: [],
+        edges: [{ kind: 'prerequisite', from: 'b', to: 'a', strength: 'soft' }],
+        forSkillId: 'a',
+      }),
+    ]);
+    expect(fromBase.ok).toBe(true);
+  });
+
+  it('takes the same new skill from two extensions once; a different one with its id is a duplicate', () => {
+    const forA = discovery('d2', {
+      forSkillId: 'a',
+      edges: [{ kind: 'prerequisite', from: 'n', to: 'a', strength: 'soft' }],
+    });
+    const composed = composeGraph(base, [discovery('d1'), forA]);
+    expect(composed.ok && composed.graph.skills.map((skill) => skill.id)).toEqual(['a', 'b', 'n']);
+    const other = { ...forA, skills: [{ id: 'n', knowledge: 'declarative' as const }] };
+    expect(codes(discovery('d1'), other)).toEqual(['ID_DUPLICATE@skills.3.id']);
+    // A goal extension's skill is never shared, even with the same content, in either order.
+    const goal = extension('g1', 'n', { skills: [{ id: 'n', knowledge: 'procedural' }] });
+    expect(codes(goal, discovery('h1'))).toEqual(['ID_DUPLICATE@skills.3.id']);
+    expect(codes(goal, discovery('f1'))).toEqual(['ID_DUPLICATE@skills.3.id']);
+  });
+
+  it('reports each broken rule at the extension as passed', () => {
+    expect(codes(discovery('d1', { status: 'proposed' as never }))).toEqual([
+      'EXTENSION_NOT_ADMITTED@extensions.0.status',
+    ]);
+    expect(
+      codes(
+        discovery('d1', {
+          skills: [
+            { id: 'n', knowledge: 'procedural' },
+            { id: 'm', knowledge: 'procedural' },
+          ],
+        }),
+      ),
+    ).toEqual(['DISCOVERY_EDGE_INVALID@extensions.0.skills']);
+    expect(
+      codes(
+        discovery('d1', {
+          skills: [{ id: 'a', knowledge: 'procedural' }],
+          edges: [{ kind: 'prerequisite', from: 'a', to: 'b', strength: 'soft' }],
+        }),
+      ),
+    ).toEqual([
+      'ID_DUPLICATE@extensions.0.skills.0.id',
+      'DISCOVERY_EDGE_EXISTS@extensions.0.edges.0',
+    ]);
+    const edges = (list: DiscoveryExtension['edges']) => codes(discovery('d1', { edges: list }));
+    expect(edges([])).toEqual(['DISCOVERY_EDGE_INVALID@extensions.0.edges']);
+    const soft = { kind: 'prerequisite' as const, from: 'n', to: 'b', strength: 'soft' as const };
+    expect(edges([soft, { ...soft, from: 'a' }])).toEqual([
+      'DISCOVERY_EDGE_INVALID@extensions.0.edges',
+    ]);
+    expect(edges([{ kind: 'encompasses', from: 'n', to: 'b', weight: 1 }])).toEqual([
+      'DISCOVERY_EDGE_INVALID@extensions.0.edges',
+    ]);
+    expect(edges([{ ...soft, strength: 'hard' }])).toEqual([
+      'DISCOVERY_EDGE_INVALID@extensions.0.edges',
+    ]);
+    expect(edges([{ ...soft, to: 'a' }])).toEqual(['DISCOVERY_EDGE_INVALID@extensions.0.edges']);
+    expect(
+      codes(
+        discovery('d1', {
+          forSkillId: 'z',
+          edges: [{ ...soft, from: 'q', to: 'z' }],
+        }),
+      ),
+    ).toEqual(['SKILL_UNKNOWN@extensions.0.edges.0.to', 'SKILL_UNKNOWN@extensions.0.edges.0.from']);
+    expect(
+      codes(
+        discovery('d1', {
+          skills: [],
+          edges: [{ kind: 'prerequisite', from: 'a', to: 'b', strength: 'soft' }],
+        }),
+      ),
+    ).toEqual(['DISCOVERY_EDGE_EXISTS@extensions.0.edges.0']);
   });
 });

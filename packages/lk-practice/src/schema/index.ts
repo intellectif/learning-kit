@@ -3,6 +3,7 @@ export {
   candidatesJsonSchema,
   decompositionJsonSchema,
   gradeResultJsonSchema,
+  hypothesesJsonSchema,
   practiceStateJsonSchema,
   reviewLogEntryJsonSchema,
 } from './json.js';
@@ -10,6 +11,7 @@ export { migrateState, STATE_SCHEMA_VERSION } from './migrate.js';
 export {
   evidenceSchema,
   gradeResultSchema,
+  hypothesesSchema,
   practiceStateSchema,
   reviewLogEntrySchema,
 } from './schemas.js';
@@ -23,6 +25,8 @@ export {
   gradeResultShape,
   hostActionShape,
   hostInputShape,
+  hypothesesShape,
+  hypothesisShape,
   isRecord,
   MAX_CANDIDATES,
   proofShape,

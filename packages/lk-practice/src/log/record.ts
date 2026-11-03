@@ -6,6 +6,7 @@
  */
 
 import { deepFreeze } from '../determinism/freeze.js';
+import { probeGraph } from '../graph/index.js';
 import { evidenceShape, hostInputShape, shapeIssues } from '../schema/shape.js';
 import type {
   Evidence,
@@ -28,6 +29,9 @@ import {
   itemIssues,
   mismatchIssues,
   outcomeIssues,
+  probeIssues,
+  probeTaskIssues,
+  stateHypotheses,
 } from './validate.js';
 
 function rejected(issues: readonly Issue[]): RecordResult {
@@ -75,6 +79,18 @@ export function recordEvidence(
     }
     const issues = confirmationIssues(evidence, held, index, ['evidence']);
     if (issues.length > 0) return rejected(issues);
+  } else if (evidence.probe !== undefined) {
+    // A probe answer is checked in the hypothesis's probe graph (R14.6; revised in M12).
+    const known = stateHypotheses(state)(evidence.probe);
+    const issues = probeIssues(evidence, known, ['evidence']);
+    if (issues.length > 0 || known === undefined) return rejected(issues);
+    const probeIndex = indexGraph(probeGraph(graph, known.hypothesis), engine);
+    const itemFound = itemIssues(evidence, input.item, probeIndex, engine);
+    if (itemFound.length > 0) return rejected(itemFound);
+    const item = input.item as NonNullable<RecordInput['item']>;
+    const taskFound = probeTaskIssues(item, known, ['item']);
+    if (taskFound.length > 0) return rejected(taskFound);
+    task = taskSnapshot(item);
   } else {
     const issues = itemIssues(evidence, input.item, index, engine);
     if (issues.length > 0) return rejected(issues);
@@ -110,6 +126,9 @@ export function recordHostAction(
     index,
     (id) => state.held.some((record) => record.evidenceId === id),
     ['input', 'action'],
+    stateHypotheses(state),
+    engine.config,
+    true,
   );
   if (issues.length > 0) return rejected(issues);
   const entry = hostEntry(state.log.length, engine.hash, input);

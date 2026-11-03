@@ -234,7 +234,9 @@ Commands, with `<branch>` and `<title>` from the milestone:
 M1 to M10 build the engine and connect it to lk-core. Nothing yet shows that a learner using it
 learns more than with card-level spaced repetition (FSRS on flashcards, as Anki schedules them).
 The milestones below make that claim measurable, then test it. Each has an exit that is a number,
-not a feature.
+not a feature. **(revised in M12)** M12, prerequisite discovery, was inserted before the first host
+because that host's first learner will meet a prerequisite the hand-made map lacks; the later
+milestones moved up one (M13 to M17).
 
 **What "better" means here.** For the same practice time:
 
@@ -297,9 +299,59 @@ need data from real learners before this package can claim them.
     cannot tell 0.73 from 0.80 (design 13). The achievable goal is met instead: 0 of 20 at 0.50 and
     1 of 20 at 0.62, while 17 of 20 learners at 0.82 are mastered (11 before).
 
-### M12 - First host, real logs
+### M12 - Prerequisite discovery (revised in M12)
 
-- **Where:** the first host, not this repository. This repository ships what the host needs: a
+- **Branch:** `feat/lk-practice-prerequisite-discovery`. **Title:** `feat: lk-practice prerequisite discovery`.
+- **Why:** the first host is a new course platform whose first learner (the course's author) will
+  fail skills for reasons the hand-made map does not contain: a forgotten Python prerequisite
+  (reading values from a dict or a list) behind a LangChain skill. Today the engine can only say
+  the skill is weak: remediation follows mapped prerequisites only, per-skill grades cover mapped
+  skills only, and the M7 decomposition contract refuses an edge into a base skill
+  (`EXTENSION_EDGE_INTO_BASE`).
+- **Scope (R14, D29):** discovery as a tested hypothesis, never an AI verdict: a failure suggests a
+  diagnosis; an AI names candidate prerequisites (`prerequisiteRequest`,
+  `checkPrerequisiteHypothesis`); the host opens one (`open-hypothesis`); the planner plans short
+  diagnostic probes on the candidate alone; the probes decide (`prerequisiteVerdict`); a confirmed
+  one becomes a soft prerequisite edge (`discoveryExtension`, composed with `composeGraph`), planned
+  before the blocked skill; later evidence advises hardening it or revoking it
+  (`prerequisiteReport`). The package never calls a model.
+- **Files:** `src/contracts/diagnose.ts`, `src/graph/extension.ts` (the new extension kind),
+  `src/log/*` (the host action, probe evidence, the trigger), `src/planner/*` (probe and discovered
+  targets), `src/testing/simulate.ts` (hidden prerequisites), `bench/discovery.mjs`, schemas,
+  vectors, `api/surface.md`, docs, `.changeset/lk-practice-prerequisite-discovery.md`.
+- **Tasks:**
+  - [x] The diagnosis request (facts only) and its trigger in configuration.
+  - [x] The hypothesis check (total), with JSON Schema and Standard Schema for the model's output.
+  - [x] The `prerequisite-discovery` extension kind: soft prerequisite edges into the one blocked
+    base skill (R2.6 revised).
+  - [x] Hypotheses in the log: `open-hypothesis` and `close-hypothesis` host actions, probe
+    evidence that changes no skill's memory or ability.
+  - [x] Probe targets (a new target kind) and discovered-prerequisite targets in the planner.
+  - [x] The verdict and the report (harden or revoke), thresholds in configuration.
+  - [x] Hidden prerequisites in the simulated learner, and `bench/discovery.mjs`.
+- **Gates:** 100% coverage on `src/contracts`, `src/log` and `src/planner`; a mutation sweep with
+  every survivor triaged; vectors for every new kind in `vectors/replay.mjs` `NEEDS`; verify-dist.
+- **Exit:** the LangChain scenario runs end to end as a vector (skill 2 fails on dict access;
+  hypothesis `py.dict-access`; probe planned; probe fails; soft edge admitted; `py.dict-access`
+  planned before skill 2; skill 2 later passes; the report advises hardening); the refuted path is
+  a vector too; the simulator report shows discovery shortening time to mastery when a prerequisite
+  is hidden, and adding few false prerequisites when none is.
+- **Changeset:** minor.
+- **As built (revised in M12):** `src/contracts/diagnose.ts`, `src/log/discovery.ts`,
+  `src/graph/hypothesis.ts` (content ids and the probe graph), the second extension kind in
+  `src/graph/extension.ts`, probe and discovered tiers in `src/planner/`, the `diagnose` vector kind
+  in `vectors/replay.mjs` (ten vectors in `contracts.json`, among them the exit scenario as
+  `llm.chat.params` and `py.dict-access`, and the refuted path), probe and hypothesis vectors in
+  `log.json` and `plan.json`, and `bench/discovery.mjs` (`pnpm discovery`). The simulator changed
+  four rules from the first design, each recorded in R14 and D29: doubt at `maxProbes` confirms;
+  readiness is `readyAfter` passed re-probes in a row, not one practice pass; the blocked skill
+  waits until then; and readiness gives it a fresh start. The numbers are in design 13; the
+  rules are in design 8.11.
+
+### M13 - First host, real logs
+
+- **Where:** the first host (revised in M12: a new course platform, with its author as the first
+  learner), not this repository. This repository ships what the host needs: a
   storage and integration guide (log table, unique ids, state cache, replay on a graph change).
 - **Tasks:**
   - [ ] One course's lk-core activities tagged with skills; every attempt recorded through
@@ -307,7 +359,7 @@ need data from real learners before this package can claim them.
   - [ ] A consented, anonymised export of logs (`exportReviewHistory`) for analysis.
 - **Exit:** at least 50 learners with 4 weeks of logs each.
 
-### M13 - Prediction benchmark
+### M14 - Prediction benchmark
 
 - **Branch:** `feat/lk-practice-benchmark`.
 - **Tasks:**
@@ -316,21 +368,21 @@ need data from real learners before this package can claim them.
     loss, calibration by bin and AUC.
   - [ ] Baselines on the same log: card-level FSRS (each item its own card), skill memory without
     ability, ability without memory, and a constant.
-  - [ ] Run it on the M12 logs and on the simulator.
+  - [ ] Run it on the M13 logs and on the simulator.
 - **Exit:** a report in `docs/` with the numbers. Lower log loss than card-level FSRS on items that
   repeat is claim (1); on generated items, seen once, card-level FSRS cannot predict at all.
 
-### M14 - Parameters fitted from data
+### M15 - Parameters fitted from data
 
 - **Tasks:**
   - [ ] Fit FSRS weights per course, and later per learner, from exported reviews, as Anki's
     optimiser does, and pass them to `fsrsMemoryModel({ weights })`.
-  - [ ] Fit the Elo step, `stageOffset`, `stageSeconds` and the mastery thresholds on the M12
+  - [ ] Fit the Elo step, `stageOffset`, `stageSeconds` and the mastery thresholds on the M13
     logs; they are placeholders today (design 13).
-- **Exit:** fitted parameters lower held-out log loss in the M13 benchmark; the new defaults ship
+- **Exit:** fitted parameters lower held-out log loss in the M14 benchmark; the new defaults ship
   in a minor with **Action required** (a configuration change is a replay).
 
-### M15 - Generated practice that hits its target
+### M16 - Generated practice that hits its target
 
 - **Tasks:**
   - [ ] A reference generator flow: plan targets, lk-core activity generation, the proof gate,
@@ -339,7 +391,7 @@ need data from real learners before this package can claim them.
 - **Exit:** observed success on generated tasks within 0.1 of the target on average, so a
   learner practises at the intended difficulty without anyone writing cards.
 
-### M16 - A learning-gain experiment
+### M17 - A learning-gain experiment
 
 - **Where:** the first host, with a pre-registered analysis.
 - **Tasks:**

@@ -50,6 +50,7 @@ export function createPractice(config: PracticeConfig = {}): Practice {
       items: Object.freeze({}),
       held: Object.freeze([]),
       recentIds: Object.freeze([]),
+      hypotheses: Object.freeze({}),
     });
   };
 

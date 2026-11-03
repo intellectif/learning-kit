@@ -1,4 +1,5 @@
 export { composeGraph, extensionIssues, isUnderPrefix } from './extension.js';
+export { hypothesisId, probeGraph } from './hypothesis.js';
 export {
   DEFAULT_STAGE_DEMAND,
   equivalentStage,

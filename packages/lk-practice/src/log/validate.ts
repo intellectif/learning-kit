@@ -5,17 +5,20 @@
  */
 
 import { heldReason, skillOutcomeIssues } from '../evidence/index.js';
-import { validateItemsOn } from '../graph/index.js';
+import { hypothesisId, ladderOf, validateItemsOn } from '../graph/index.js';
 import type {
   Evidence,
   HostAction,
   Issue,
   PracticeItem,
   PracticeState,
+  PrerequisiteHypothesis,
+  ResolvedPracticeConfig,
   StageId,
   TaskSnapshot,
 } from '../types.js';
 import type { Engine, GraphIndex } from './context.js';
+import { probing } from './discovery.js';
 
 type Path = readonly (string | number)[];
 
@@ -162,13 +165,74 @@ export function confirmationIssues(
   return outcomeIssues(evidence, held.task, graph, path);
 }
 
-/** The rule checks of a host action against the graph; `heldIds` are the evidence ids a discard may name. */
+/**
+ * A hypothesis as the checks see it (R14.5; revised in M12). `record` and
+ * `act` read the state, so a decided or closed one is known as such; `replay`
+ * knows only which ones were opened, and leaves both flags false: what the
+ * apply step does with a late answer is decided there, in order.
+ */
+export interface KnownHypothesis {
+  readonly hypothesis: Pick<PrerequisiteHypothesis, 'forSkillId' | 'skillId' | 'skill'>;
+  /** Takes probe answers: open, or confirmed with its prerequisite not ready (R14.9). */
+  readonly probing: boolean;
+  readonly closed: boolean;
+}
+
+export type HypothesisLookup = (id: string) => KnownHypothesis | undefined;
+
+/** The lookup of a state's hypotheses. */
+export function stateHypotheses(state: PracticeState): HypothesisLookup {
+  return (id) => {
+    const found =
+      state.hypotheses !== undefined && Object.hasOwn(state.hypotheses, id)
+        ? state.hypotheses[id]
+        : undefined;
+    return found === undefined
+      ? undefined
+      : { hypothesis: found, probing: probing(found), closed: found.closedAt !== null };
+  };
+}
+
+/**
+ * The rule checks of a host action against the graph; `isHeld` says which
+ * evidence a discard may name and `hypotheses` which hypotheses exist.
+ * `fresh` is true for `act` and false for `replay`: an opened hypothesis
+ * stays valid in the log once its own discovery extension has put its
+ * candidate and edge into the graph (R14.8; revised in M12).
+ */
 export function hostActionIssues(
   action: HostAction,
   graph: GraphIndex,
   isHeld: (evidenceId: string) => boolean,
   path: Path,
+  hypotheses: HypothesisLookup,
+  config: ResolvedPracticeConfig,
+  fresh: boolean,
 ): Issue[] {
+  if (action.kind === 'open-hypothesis') {
+    return openIssues(action.hypothesis, graph, hypotheses, config, fresh, [...path, 'hypothesis']);
+  }
+  if (action.kind === 'close-hypothesis') {
+    const known = hypotheses(action.hypothesisId);
+    if (known === undefined) {
+      return [
+        issue(
+          'HYPOTHESIS_UNKNOWN',
+          [...path, 'hypothesisId'],
+          `No hypothesis "${action.hypothesisId}" was opened.`,
+        ),
+      ];
+    }
+    return known.closed
+      ? [
+          issue(
+            'HYPOTHESIS_CLOSED',
+            [...path, 'hypothesisId'],
+            `Hypothesis "${action.hypothesisId}" is closed.`,
+          ),
+        ]
+      : [];
+  }
   if (action.kind === 'discard-held') {
     return isHeld(action.evidenceId)
       ? []
@@ -205,6 +269,181 @@ export function hostActionIssues(
         `Stage "${stage}" is not in the ladder of skill "${action.skillId}".`,
       ),
     ];
+  }
+  return [];
+}
+
+/**
+ * The checks of `open-hypothesis` (R14.5): the content id
+ * (`HYPOTHESIS_ID_MISMATCH`); a hypothesis not opened before
+ * (`HYPOTHESIS_EXISTS`, so a refuted one stays refuted); the blocked skill in
+ * the graph with a ladder; a candidate other than it (`HYPOTHESIS_SELF`), in
+ * the graph or, when `skill` is given, one with a ladder
+ * (`HYPOTHESIS_SKILL_MISMATCH`). When `fresh` (`act`), also: a new candidate
+ * not in the graph yet (`HYPOTHESIS_SKILL_EXISTS`), no prerequisite edge
+ * between them yet (`HYPOTHESIS_EDGE_EXISTS`), and no path of prerequisites
+ * from the candidate back to the blocked skill (`GRAPH_CYCLE`). Replay skips these
+ * three: admitting the hypothesis is what makes them true.
+ */
+function openIssues(
+  hypothesis: PrerequisiteHypothesis,
+  graph: GraphIndex,
+  hypotheses: HypothesisLookup,
+  config: ResolvedPracticeConfig,
+  fresh: boolean,
+  path: Path,
+): Issue[] {
+  const { forSkillId, skillId, skill } = hypothesis;
+  const expected = hypothesisId(hypothesis);
+  if (hypothesis.id !== expected) {
+    return [
+      issue(
+        'HYPOTHESIS_ID_MISMATCH',
+        [...path, 'id'],
+        `Hypothesis id "${hypothesis.id}" is not its content id "${expected}".`,
+      ),
+    ];
+  }
+  if (hypotheses(hypothesis.id) !== undefined) {
+    return [
+      issue('HYPOTHESIS_EXISTS', [...path, 'id'], `Hypothesis "${hypothesis.id}" was opened.`),
+    ];
+  }
+  if (!graph.nodes.has(forSkillId)) {
+    return [
+      issue('SKILL_UNKNOWN', [...path, 'forSkillId'], `Skill "${forSkillId}" is not in the graph.`),
+    ];
+  }
+  if (graph.ladder(forSkillId) === null) {
+    return [
+      issue('LADDER_INVALID', [...path, 'forSkillId'], `Skill "${forSkillId}" has no ladder.`),
+    ];
+  }
+  if (skillId === forSkillId) {
+    return [issue('HYPOTHESIS_SELF', [...path, 'skillId'], 'A skill is not its own prerequisite.')];
+  }
+  if (skill === undefined) {
+    if (!graph.nodes.has(skillId)) {
+      return [
+        issue('SKILL_UNKNOWN', [...path, 'skillId'], `Skill "${skillId}" is not in the graph.`),
+      ];
+    }
+  } else if (skill.id !== skillId) {
+    return [
+      issue('HYPOTHESIS_SKILL_MISMATCH', [...path, 'skill', 'id'], 'skill.id equals skillId.'),
+    ];
+  } else if (ladderOf(skill, config) === null) {
+    return [issue('LADDER_INVALID', [...path, 'skill'], `Skill "${skillId}" has no ladder.`)];
+  } else if (fresh && graph.nodes.has(skillId)) {
+    return [
+      issue(
+        'HYPOTHESIS_SKILL_EXISTS',
+        [...path, 'skill'],
+        `Skill "${skillId}" is in the graph; name it without a new skill.`,
+      ),
+    ];
+  }
+  if (!fresh) return [];
+  if (
+    graph.graph.edges.some(
+      (edge) => edge.kind === 'prerequisite' && edge.from === skillId && edge.to === forSkillId,
+    )
+  ) {
+    return [
+      issue(
+        'HYPOTHESIS_EDGE_EXISTS',
+        [...path, 'skillId'],
+        `Skill "${skillId}" is already a prerequisite of "${forSkillId}".`,
+      ),
+    ];
+  }
+  if (needs(graph, skillId, forSkillId)) {
+    return [
+      issue(
+        'GRAPH_CYCLE',
+        [...path, 'skillId'],
+        `Skill "${skillId}" needs "${forSkillId}", so it cannot also come before it.`,
+      ),
+    ];
+  }
+  return [];
+}
+
+/** True when `skillId` reaches `target` through prerequisite edges (it needs it, directly or not). */
+function needs(graph: GraphIndex, skillId: string, target: string): boolean {
+  const before = new Map<string, string[]>();
+  for (const edge of graph.graph.edges) {
+    if (edge.kind !== 'prerequisite') continue;
+    const list = before.get(edge.to);
+    if (list === undefined) before.set(edge.to, [edge.from]);
+    else list.push(edge.from);
+  }
+  const seen = new Set<string>();
+  const stack = [...(before.get(skillId) ?? [])];
+  while (stack.length > 0) {
+    const id = stack.pop() as string;
+    if (id === target) return true;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    stack.push(...(before.get(id) ?? []));
+  }
+  return false;
+}
+
+/**
+ * The checks of a probe answer itself (R14.6; revised in M12): the hypothesis
+ * is known (`HYPOTHESIS_UNKNOWN`) and takes probes: open, or confirmed with
+ * its prerequisite not ready (`HYPOTHESIS_CLOSED`), and the answer stands
+ * alone, graded or self-rated:
+ * no confirmation, supplement, exposure or skill outcomes (`PROBE_INVALID`).
+ */
+export function probeIssues(
+  evidence: Evidence,
+  known: KnownHypothesis | undefined,
+  path: Path,
+): Issue[] {
+  const probe = [...path, 'probe'];
+  if (known === undefined) {
+    return [issue('HYPOTHESIS_UNKNOWN', probe, `No hypothesis "${evidence.probe}" was opened.`)];
+  }
+  if (!known.probing) {
+    return [
+      issue('HYPOTHESIS_CLOSED', probe, `Hypothesis "${evidence.probe}" takes no more probes.`),
+    ];
+  }
+  for (const key of ['confirms', 'supplements', 'skillOutcomes'] as const) {
+    if (evidence[key] !== undefined) {
+      return [issue('PROBE_INVALID', [...path, key], `A probe answer has no ${key}.`)];
+    }
+  }
+  if (evidence.source.kind === 'exposure') {
+    return [issue('PROBE_INVALID', [...path, 'source'], 'A probe answer is graded or self-rated.')];
+  }
+  return [];
+}
+
+/**
+ * The checks of a probe's task (R14.6): on the candidate alone, with no
+ * criteria (`PROBE_INVALID`). The item's other rules are the item checks, run
+ * in the hypothesis's probe graph.
+ */
+export function probeTaskIssues(
+  task: Pick<TaskSnapshot, 'skills' | 'criteria'>,
+  known: KnownHypothesis,
+  path: Path,
+): Issue[] {
+  const [only, ...rest] = task.skills;
+  if (only?.skillId !== known.hypothesis.skillId || rest.length > 0) {
+    return [
+      issue(
+        'PROBE_INVALID',
+        [...path, 'skills'],
+        `A probe is on the candidate "${known.hypothesis.skillId}" alone.`,
+      ),
+    ];
+  }
+  if (task.criteria !== undefined) {
+    return [issue('PROBE_INVALID', [...path, 'criteria'], 'A probe binds no criteria.')];
   }
   return [];
 }

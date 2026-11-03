@@ -7,6 +7,7 @@
 import { defaultConfig } from '../config.js';
 import { hashCanonical } from '../determinism/fnv.js';
 import type {
+  DiscoveryExtension,
   GraphComposition,
   GraphExtension,
   Issue,
@@ -23,9 +24,10 @@ export function isUnderPrefix(id: string, prefix: string): boolean {
 /** The R2.6 rules for one extension against the base graph. */
 export function extensionIssues(
   base: SkillGraph,
-  extension: GraphExtension,
+  extension: GraphExtension | DiscoveryExtension,
   path: readonly (string | number)[],
 ): Issue[] {
+  if (extension.kind === 'prerequisite-discovery') return discoveryIssues(base, extension, path);
   const issues: Issue[] = [];
   const baseIds = new Set(base.skills.map((skill) => skill.id));
   const ownIds = new Set(extension.skills.map((skill) => skill.id));
@@ -78,14 +80,97 @@ export function extensionIssues(
 }
 
 /**
+ * The rules for a `prerequisite-discovery` extension (R2.6, R14.8; revised in
+ * M12): admitted; at most one skill, new to the base; exactly one edge, a
+ * soft prerequisite into a base skill (the blocked one) from its own skill or
+ * a base skill (`DISCOVERY_EDGE_INVALID`, `SKILL_UNKNOWN`); and an edge the
+ * base does not have yet (`DISCOVERY_EDGE_EXISTS`). The union's cycles and
+ * ladders are `validateGraph`'s.
+ */
+function discoveryIssues(
+  base: SkillGraph,
+  extension: DiscoveryExtension,
+  path: readonly (string | number)[],
+): Issue[] {
+  const issues: Issue[] = [];
+  const add = (code: string, at: readonly (string | number)[], message: string) =>
+    issues.push({ code, path: [...path, ...at], message });
+  const baseIds = new Set(base.skills.map((skill) => skill.id));
+  const ownIds = new Set(extension.skills.map((skill) => skill.id));
+  if (extension.status !== 'admitted') {
+    add(
+      'EXTENSION_NOT_ADMITTED',
+      ['status'],
+      `Extension "${extension.id}" is ${String(extension.status)}; only admitted extensions are composed.`,
+    );
+  }
+  if (extension.skills.length > 1) {
+    add('DISCOVERY_EDGE_INVALID', ['skills'], 'A discovery extension adds at most one skill.');
+  }
+  extension.skills.forEach((skill, i) => {
+    if (baseIds.has(skill.id)) {
+      add(
+        'ID_DUPLICATE',
+        ['skills', i, 'id'],
+        `Skill "${skill.id}" already exists in the base graph.`,
+      );
+    }
+  });
+  const [edge, ...more] = extension.edges;
+  if (
+    edge === undefined ||
+    more.length > 0 ||
+    edge.kind !== 'prerequisite' ||
+    edge.strength !== 'soft' ||
+    edge.to !== extension.forSkillId
+  ) {
+    add(
+      'DISCOVERY_EDGE_INVALID',
+      ['edges'],
+      `A discovery extension adds one soft prerequisite edge into "${extension.forSkillId}".`,
+    );
+    return issues;
+  }
+  if (!baseIds.has(edge.to)) {
+    add(
+      'SKILL_UNKNOWN',
+      ['edges', 0, 'to'],
+      `Edge to "${edge.to}" names no skill of the base graph.`,
+    );
+  }
+  if (!baseIds.has(edge.from) && !ownIds.has(edge.from)) {
+    add(
+      'SKILL_UNKNOWN',
+      ['edges', 0, 'from'],
+      `Edge from "${edge.from}" names no skill of the base graph or this extension.`,
+    );
+  }
+  if (
+    base.edges.some(
+      (found) => found.kind === 'prerequisite' && found.from === edge.from && found.to === edge.to,
+    )
+  ) {
+    add(
+      'DISCOVERY_EDGE_EXISTS',
+      ['edges', 0],
+      `"${edge.from}" is already a prerequisite of "${edge.to}".`,
+    );
+  }
+  return issues;
+}
+
+/**
  * Composes a base graph with admitted extensions (R2.6, design §8.9). The
  * version is `base.version + '+' + fnv1a64(canonicalJson(sortedExtensionIds))`;
  * with no extensions the base is returned as it is. `config` is passed to
- * `validateGraph`; it defaults to the resolved default configuration.
+ * `validateGraph`; it defaults to the resolved default configuration. A
+ * skill that two discovery extensions add the same is added once (revised in
+ * M12): one new prerequisite confirmed for two skills before either was
+ * admitted. Any other skill id used twice is `ID_DUPLICATE`.
  */
 export function composeGraph(
   base: SkillGraph,
-  extensions: readonly GraphExtension[],
+  extensions: readonly (GraphExtension | DiscoveryExtension)[],
   config?: ResolvedPracticeConfig,
 ): GraphComposition {
   const resolved = config ?? defaultConfig();
@@ -114,9 +199,19 @@ export function composeGraph(
   if (issues.length > 0) return { ok: false, issues };
 
   const ids = order.map(({ extension }) => extension.id);
+  const discovered = new Map<string, string>();
+  const skills = order.flatMap(({ extension }) => {
+    if (extension.kind !== 'prerequisite-discovery') return extension.skills;
+    return extension.skills.filter((skill) => {
+      const content = hashCanonical(skill);
+      const known = discovered.get(skill.id);
+      if (known === undefined) discovered.set(skill.id, content);
+      return known !== content;
+    });
+  });
   const union: SkillGraph = {
     version: `${base.version}+${hashCanonical(ids)}`,
-    skills: [...base.skills, ...order.flatMap(({ extension }) => extension.skills)],
+    skills: [...base.skills, ...skills],
     edges: [...base.edges, ...order.flatMap(({ extension }) => extension.edges)],
   };
   return validateGraph(union, resolved);

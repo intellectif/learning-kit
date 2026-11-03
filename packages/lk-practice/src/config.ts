@@ -12,6 +12,7 @@ import { FSRS_DEFAULT_PARAMS } from './memory/fsrs.js';
 import type {
   CandidateProof,
   CheckResult,
+  DiscoveryOptions,
   EvidenceOptions,
   Issue,
   JsonValue,
@@ -32,9 +33,10 @@ export const PLANNER_VERSION = 'planner@1';
  * replay, the mastery predicate); enters the hash, so a state built under
  * other rules is refused and rebuilt by replay. (revised in M11) Version 2:
  * one memory review per sitting, a settled ability for mastery, a quick
- * re-check after a failed one, and repeated leech flags.
+ * re-check after a failed one, and repeated leech flags. (revised in M12)
+ * Version 3: prerequisite hypotheses, probe answers and the diagnosis trigger.
  */
-export const RULES_VERSION = 'rules@2';
+export const RULES_VERSION = 'rules@3';
 
 /** `mastery.uncertaintyMargin` by default (revised in M11). */
 const DEFAULT_UNCERTAINTY_MARGIN = 0.5;
@@ -67,6 +69,7 @@ const DEFAULT_STAGE_SECONDS: Readonly<Record<StageId, number>> = {
 };
 
 type Path = readonly (string | number)[];
+type Range = { min: number; max: number; integer?: boolean; minExclusive?: boolean };
 
 /** Collects `CONFIG_INVALID` issues while reading one configuration. */
 class Reader {
@@ -94,12 +97,7 @@ class Reader {
     return record;
   }
 
-  number(
-    value: unknown,
-    path: Path,
-    fallback: number,
-    range: { min: number; max: number; integer?: boolean; minExclusive?: boolean },
-  ): number {
+  number(value: unknown, path: Path, fallback: number, range: Range): number {
     if (value === undefined) return fallback;
     const ok =
       typeof value === 'number' &&
@@ -241,6 +239,7 @@ const TOP_LEVEL_KEYS = [
   'itemUsageRetentionMs',
   'recentIdWindow',
   'acceptProofs',
+  'discovery',
 ];
 
 const UNIT = { min: 0, max: 1 };
@@ -484,6 +483,7 @@ export function resolveConfig(config?: PracticeConfig): CheckResult<ResolvedPrac
     ),
     recentIdWindow: r.number(input.recentIdWindow, ['recentIdWindow'], 256, POSITIVE_INT),
     acceptProofs: readAcceptProofs(r, input.acceptProofs),
+    discovery: readDiscovery(r, input.discovery),
   };
 
   const demand = resolveStageDemand(
@@ -516,6 +516,43 @@ export function configHash(config: ResolvedPracticeConfig): string {
     planner: PLANNER_VERSION,
     rules: RULES_VERSION,
   });
+}
+
+/**
+ * Prerequisite discovery thresholds (R14.2, R14.7, R14.10; revised in M12).
+ * `maxProbes` below `minProbes`, or `refuteFrom` below `confirmBelow`, is
+ * `CONFIG_INVALID` on the later option.
+ */
+function readDiscovery(r: Reader, value: unknown): Required<DiscoveryOptions> {
+  const path = ['discovery'];
+  const input =
+    r.object(value, path, [
+      'diagnoseAfter',
+      'minProbes',
+      'maxProbes',
+      'confirmBelow',
+      'refuteFrom',
+      'readyAfter',
+      'revokeAfter',
+    ]) ?? {};
+  const read = (key: keyof DiscoveryOptions, fallback: number, range: Range) =>
+    r.number(input[key], [...path, key], fallback, range);
+  const discovery = {
+    diagnoseAfter: read('diagnoseAfter', 2, POSITIVE_INT),
+    minProbes: read('minProbes', 2, POSITIVE_INT),
+    maxProbes: read('maxProbes', 4, POSITIVE_INT),
+    confirmBelow: read('confirmBelow', 0.5, UNIT),
+    refuteFrom: read('refuteFrom', 0.75, UNIT),
+    readyAfter: read('readyAfter', 2, POSITIVE_INT),
+    revokeAfter: read('revokeAfter', 2, POSITIVE_INT),
+  };
+  if (discovery.maxProbes < discovery.minProbes) {
+    r.invalid([...path, 'maxProbes'], 'discovery.maxProbes is at least minProbes.');
+  }
+  if (discovery.refuteFrom < discovery.confirmBelow) {
+    r.invalid([...path, 'refuteFrom'], 'discovery.refuteFrom is at least confirmBelow.');
+  }
+  return discovery;
 }
 
 /**

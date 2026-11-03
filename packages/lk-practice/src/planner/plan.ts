@@ -6,13 +6,14 @@
 
 import { deepFreeze } from '../determinism/index.js';
 import { PracticeConfigError } from '../errors.js';
-import { equivalentStage } from '../graph/index.js';
+import { equivalentStage, probeGraph } from '../graph/index.js';
 import type { Engine } from '../log/context.js';
 import { indexGraph } from '../log/context.js';
 import { compareKeys } from '../log/draft.js';
 import { mismatchIssues } from '../log/validate.js';
 import { abilityAt } from '../mastery/index.js';
 import type {
+  HypothesisState,
   PlanReasonDetail,
   PlanRequest,
   PracticeState,
@@ -107,7 +108,7 @@ export function planSession(
     return reviews
       .filter((candidate) => {
         const id = candidate.skillId;
-        if (!reach.has(id) || used.has(id)) return false;
+        if (!reach.has(id) || used.has(id) || tiers.waiting.has(id)) return false;
         const ladder = index.ladder(id) as readonly StageId[];
         return equivalentStage(stage, ladder, index.demand) === reviewStage.get(id);
       })
@@ -207,11 +208,81 @@ export function planSession(
     );
   };
 
+  /**
+   * The probe of an open hypothesis (R14.6; revised in M12): the candidate
+   * alone, at the top stage of its ladder and its reference difficulty (the
+   * standard a dependent relies on), in context `diagnostic`, built in the
+   * hypothesis's probe graph so a candidate new to the graph has a ladder and
+   * an ability. A pool item is matched only for a candidate in the graph.
+   */
+  const tryProbe = (hypothesis: HypothesisState): void => {
+    if (targets >= input.maxTargets || used.has(hypothesis.skillId)) return;
+    const probeIndex =
+      hypothesis.skill === undefined ? index : indexGraph(probeGraph(graph, hypothesis), engine);
+    const { skillId } = hypothesis;
+    const node = probeIndex.nodes.get(skillId) as SkillNode;
+    const ladder = probeIndex.ladder(skillId) as readonly StageId[];
+    const stage = ladder[ladder.length - 1] as StageId;
+    const skill = Object.hasOwn(state.skills, skillId) ? state.skills[skillId] : undefined;
+    const ability = abilityAt(skill?.ability ?? {}, node, stage, probeIndex.mastery(skillId));
+    const targetDifficulty = node.referenceDifficulty ?? 0;
+    const item = index.nodes.has(skillId)
+      ? matcher.match({ skillIds: [skillId], stage, targetDifficulty, needsSkillOutcomes: false })
+      : undefined;
+    const stageSeconds = config.planner.stageSeconds;
+    const forms =
+      node.forms !== undefined && Object.hasOwn(node.forms, stage) ? node.forms[stage] : undefined;
+    const target: PracticeTarget = {
+      id: targetId(state.learnerId, state.log.hash, 'probe', [skillId], stage),
+      kind: 'probe',
+      skillIds: [skillId],
+      stage,
+      targetDifficulty,
+      difficultyTolerance: config.planner.difficultyTolerance,
+      expectedSeconds:
+        item?.expectedSeconds ??
+        (Object.hasOwn(stageSeconds, stage)
+          ? (stageSeconds[stage] as number)
+          : OTHER_STAGE_SECONDS),
+      constraints: {
+        ...(forms === undefined ? {} : { forms: [...forms] }),
+        needsSkillOutcomes: false,
+        avoidItemIds,
+        avoidContentHashes,
+        context: 'diagnostic',
+      },
+      ...(item === undefined
+        ? {}
+        : {
+            item: {
+              itemId: item.id,
+              difficulty: item.difficulty ?? 0,
+              expectedSuccess: model.expectedSuccess(ability, item.difficulty ?? 0),
+            },
+          }),
+      reason: {
+        code: 'probe',
+        hypothesisId: hypothesis.id,
+        forSkillId: hypothesis.forSkillId,
+        expectedSuccess: model.expectedSuccess(ability, targetDifficulty),
+        coalesced: [],
+        newSkillsDeferred: tiers.backlogBlocked,
+      },
+    };
+    if (!fits([target])) return;
+    targets += 1;
+    seconds += target.expectedSeconds;
+    if (item !== undefined) matcher.take(item.id);
+    used.add(skillId);
+    units.push(unitOf(node, ladder, target, undefined));
+  };
+
   const tryCandidate = (candidate: Candidate): boolean => {
     // A full plan fits no more targets, and building one has no effect, so
     // the rest are not built (R12.4; revised in M8). `deferred` counts them
-    // from the tiers either way.
-    if (targets >= input.maxTargets) return false;
+    // from the tiers either way, as it does a skill that waits for a
+    // confirmed prerequisite (R14.9; revised in M12).
+    if (targets >= input.maxTargets || tiers.waiting.has(candidate.skillId)) return false;
     const main = build(candidate, candidate.kind, candidate.stage, candidate.detail);
     if (candidate.pretestStage !== undefined) {
       const pretest = build(candidate, 'pretest', candidate.pretestStage, {
@@ -228,17 +299,23 @@ export function planSession(
     return true;
   };
 
+  // Probes, then confirmed prerequisites, before every other target (R14.6, R14.9; revised in M12).
+  for (const hypothesis of tiers.probes) tryProbe(hypothesis);
+  for (const candidate of tiers.discovered) {
+    if (!used.has(candidate.skillId)) tryCandidate(candidate);
+  }
   for (const candidate of tiers.overdue) if (!used.has(candidate.skillId)) tryCandidate(candidate);
   for (const candidate of tiers.remediation) {
     if (remediations >= input.maxRemediation) break;
     if (!used.has(candidate.skillId) && tryCandidate(candidate)) remediations += 1;
   }
   for (const candidate of tiers.due) if (!used.has(candidate.skillId)) tryCandidate(candidate);
-  // A stage-up or new skill has no current memory, so no earlier target used it.
-  for (const candidate of tiers.stageUp) tryCandidate(candidate);
+  // A stage-up or new skill has no current memory, so no review used it; a
+  // probe or a discovered prerequisite may have (revised in M12).
+  for (const candidate of tiers.stageUp) if (!used.has(candidate.skillId)) tryCandidate(candidate);
   for (const candidate of tiers.fresh) {
     if (news >= input.maxNewSkills) break;
-    if (tryCandidate(candidate)) news += 1;
+    if (!used.has(candidate.skillId) && tryCandidate(candidate)) news += 1;
   }
 
   return deepFreeze({

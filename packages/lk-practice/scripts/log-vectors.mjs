@@ -5,7 +5,9 @@
 // and act rejection, each host action, a leech, the evidence contexts, a
 // recompute under another configuration, stored states into migrateState,
 // each log's review history (revised in M8), mastery checks (revised in M9),
-// and the Appendix B placement flow (criterion 17; revised in M10). The expected values are recorded from src/ through
+// the Appendix B placement flow (criterion 17; revised in M10), and
+// hypotheses in the log: every open, probe and close rule, and probe answers
+// that change only their hypothesis (revised in M12). The expected values are recorded from src/ through
 // vectors/replay.mjs, so the file pins the current behaviour; the unit tests
 // check the same rules by hand. Run with `pnpm vectors:log`, then review the
 // diff: a changed output is a behaviour change and needs a version (D26).
@@ -457,6 +459,74 @@ const logVectors = [
   }),
 ];
 
+/** A hypothesis for `forSkillId` with its content id (R14.4; revised in M12). */
+const hypothesis = (forSkillId, skillId, skill) => ({
+  id: impl.hypothesisId({ forSkillId, skillId, skill }),
+  forSkillId,
+  skillId,
+  ...(skill === undefined ? {} : { skill }),
+});
+const NEW = hypothesis('c', 'n', {
+  id: 'n',
+  knowledge: 'declarative',
+  stages: ['recall', 'produce'],
+});
+const open = (id, at, opened) => act(id, at, { kind: 'open-hypothesis', hypothesis: opened });
+/** A probe answer on `skills` (the candidate alone when valid) at its top stage. */
+const probe = (id, at, source, probeId = NEW.id, { skills = ['n'], extra = {} } = {}) => ({
+  evidence: {
+    id,
+    itemId: `${id}-item`,
+    at,
+    source,
+    context: 'diagnostic',
+    probe: probeId,
+    ...extra,
+  },
+  item: {
+    id: `${id}-item`,
+    skills: skills.map((skillId) => ({ skillId, weight: 1 / skills.length })),
+    stage: 'produce',
+    origin: 'generated',
+    status: 'proven',
+  },
+});
+
+logVectors.push(
+  log('hypotheses: every open, probe and close rule; probe answers change only their hypothesis', {
+    steps: [
+      ev('c1', T0, fail, { skill: 'c', stage: 'recognise' }),
+      ev('c2', T0 + DAY, fail, { skill: 'c', stage: 'recognise' }),
+      open('o1', T0 + DAY + 1, NEW),
+      open('o2', T0 + DAY + 2, NEW),
+      open('o3', T0 + DAY + 2, { ...NEW, id: 'not-its-content-id' }),
+      open('o4', T0 + DAY + 2, hypothesis('c', 'c')),
+      open('o5', T0 + DAY + 2, hypothesis('zz', 'a')),
+      open('o6', T0 + DAY + 2, hypothesis('c', 'zz')),
+      open('o7', T0 + DAY + 2, hypothesis('c', 'a', { id: 'a', knowledge: 'declarative' })),
+      open('o8', T0 + DAY + 2, hypothesis('c', 'n2', { id: 'n3', knowledge: 'declarative' })),
+      open('o9', T0 + DAY + 2, hypothesis('a', 'b')),
+      open('o10', T0 + DAY + 2, hypothesis('b', 'a')),
+      probe('q1', T0 + 2 * DAY, pass),
+      probe('q2', T0 + 2 * DAY + 1, pass, NEW.id, { skills: ['n', 'c'] }),
+      probe('q3', T0 + 2 * DAY + 2, pass, 'no-such-hypothesis'),
+      probe('q4', T0 + 2 * DAY + 3, pass, NEW.id, {
+        extra: { skillOutcomes: [{ skillId: 'n', score: 1, maxScore: 1 }] },
+      }),
+      probe('q5', T0 + 2 * DAY + 4, { kind: 'exposure' }),
+      probe('q6', T0 + 3 * DAY, fail),
+      probe('q7', T0 + 4 * DAY, fail),
+      probe('q8', T0 + 5 * DAY, pass),
+      act('x1', T0 + 6 * DAY, { kind: 'close-hypothesis', hypothesisId: NEW.id }),
+      probe('q9', T0 + 6 * DAY + 1, pass),
+      act('x2', T0 + 6 * DAY + 2, { kind: 'close-hypothesis', hypothesisId: NEW.id }),
+      act('x3', T0 + 6 * DAY + 3, { kind: 'close-hypothesis', hypothesisId: 'no-such-hypothesis' }),
+    ],
+    checkpoints: [3, 6],
+    now: [T0 + 7 * DAY],
+  }),
+);
+
 const stored = (steps) => {
   const practice = impl.createPractice({});
   let state = practice.initState('l1', MAIN);
@@ -587,7 +657,48 @@ const replayCase = (name, fields) => ({
   graph: MAIN,
   ...fields,
 });
+/** `c` fails twice and a hypothesis for it is opened (revised in M12). */
+const diagnosed = [
+  ev('c1', T0, fail, { skill: 'c', stage: 'recognise' }),
+  ev('c2', T0 + DAY, fail, { skill: 'c', stage: 'recognise' }),
+];
+const closeNew = (id, at) => act(id, at, { kind: 'close-hypothesis', hypothesisId: NEW.id });
+/** A probe and a close appended after the open but timed before it: replay applies them first. */
+const lateToOpen = recorded([
+  ...diagnosed,
+  open('o1', T0 + DAY + 10, NEW),
+  probe('q1', T0 + DAY + 5, fail),
+  closeNew('x1', T0 + DAY + 6),
+]);
+/** A hypothesis probed once and closed; a second close and a probe are appended by hand. */
+const closedLog = recorded([
+  ...diagnosed,
+  open('o1', T0 + DAY + 1, NEW),
+  probe('q1', T0 + 2 * DAY, fail),
+  closeNew('x1', T0 + 3 * DAY),
+]);
+const afterClose = (() => {
+  const { entries } = closedLog;
+  const close = entries.at(-1);
+  const answer = entries.at(-2);
+  return [
+    ...entries,
+    { ...structuredClone(close), seq: entries.length, at: T0 + 4 * DAY, id: 'x2' },
+    {
+      ...moved(structuredClone(answer), T0 + 5 * DAY),
+      seq: entries.length + 1,
+      evidence: { ...answer.evidence, id: 'q2', at: T0 + 5 * DAY },
+    },
+  ];
+})();
+
 const replayVectors = [
+  replayCase('a probe and a close timed before their hypothesis was opened change nothing', {
+    entries: lateToOpen.entries,
+  }),
+  replayCase('a second close and a probe after the close change nothing (revised in M12)', {
+    entries: afterClose,
+  }),
   replayCase('a stored log replays to the recorded state', { entries: base.entries }),
   replayCase('entries stored out of seq order replay in seq and time order', {
     entries: [...base.entries].reverse(),

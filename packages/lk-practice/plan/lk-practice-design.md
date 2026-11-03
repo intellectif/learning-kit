@@ -1103,7 +1103,7 @@ export function skillOutcomesFromCriteria(criteria: readonly CriterionScoreLike[
 // ./testing
 export interface SimulatedLearnerOptions {
   readonly seed: string;
-  readonly skills: Readonly<Record<string, { readonly trueAbility: number; readonly forgettingDays: number }>>;
+  readonly skills: Readonly<Record<string, { readonly trueAbility: number; readonly forgettingDays: number; readonly consolidation?: number; readonly learning?: number; readonly requires?: readonly string[] }>>;
   readonly noise?: number; // default 0.1
 }
 export function simulateLearner(options: SimulatedLearnerOptions): SimulatedLearner;
@@ -1120,6 +1120,56 @@ export interface SimulatedLearner {
 The `ItemOutcomeLike` shapes (discriminated by `status`, as `lk-core`'s `ItemOutcome` is) are copied from `packages/lk-core/api/surface.md` as read on 2026-11-01, keeping only the fields the adapter reads, and are confirmed by the M10 contract test, which assigns real `lk-core` values to these types; any mismatch fails that test, not a host.
 
 **As built in M10 (revised in M10).** `src/adapters/lk-core/` is the `./lk-core` entry. `deferred` keeps lk-core's `reason` (typed `string`) and maps it as R7.7 (revised in M10) says; `evidenceFromOutcome` builds `graded` evidence through `evidenceFromGrade` and `pending` evidence through the same internal `evidenceOf`, and `skillOutcomesFromCriteria` uses its `skillOutcomesOf`, so the two paths cannot drift. The contract test (`src/adapters/lk-core/__tests__/contract.test.ts`) assigns `ItemOutcome`, `GradeRecord` and `CriterionScore` to the structural types (a type error fails `typecheck`) and records real outcomes from `evaluate`, `evaluateTries`, `outcomeFromGrade`, `outcomeFromRoutedGrade`, `routeGrade` and `outcomeFromUnscorable`, including a model grade held for a person and the person's grade confirming it. The `outcome` vectors in `contracts.json` are made by lk-core in `scripts/contracts-vectors.mjs`; `verify-dist` loads `./lk-core` under the purity trap and replays them over both builds. `examples/appendix-b.ts` imports the package by name and is type-checked against `dist/` (`tsconfig.examples.json`; `turbo.json` runs `lk-practice#typecheck` after its build). Size: 4.2 kB brotli (budget 5 kB), most of it the grade check it shares with the root.
+
+### 5.11 Prerequisite discovery (R14, D29; revised in M12)
+
+```ts
+// The model's output, checked; the id is the content id of the rest (R14.4).
+export interface PrerequisiteHypothesis {
+  readonly id: string;
+  readonly forSkillId: string;  // the blocked skill
+  readonly skillId: string;     // the candidate prerequisite
+  readonly skill?: SkillNode;   // present when the candidate is new to the graph
+  readonly rationale?: string;
+}
+// One hypothesis in PracticeState.hypotheses (optional; read as none in older states).
+export interface HypothesisState extends Omit<PrerequisiteHypothesis, 'rationale'> {
+  readonly openedAt: number;
+  readonly probes: { readonly passed: number; readonly failed: number };
+  readonly verdict: 'open' | 'confirmed' | 'refuted';
+  readonly decidedAt: number | null;
+  readonly practisedAt: number | null;   // a passed practice answer since the verdict or the last failed re-probe
+  readonly reprobeStreak: number;        // passed re-probes in a row
+  readonly readyAt: number | null;       // readyAfter passed re-probes in a row
+  readonly blockedPassedAt: number | null;
+  readonly blockedFailures: number;      // after readyAt, before blockedPassedAt
+  readonly closedAt: number | null;
+}
+// Host actions, evidence and targets
+type HostAction = ... | { kind: 'open-hypothesis'; hypothesis: PrerequisiteHypothesis } | { kind: 'close-hypothesis'; hypothesisId: string };
+interface Evidence { ...; readonly probe?: string }        // a probe answer, for that hypothesis
+type PracticeTarget['kind'] = ... | 'probe';               // context 'diagnostic', reason { code: 'probe', hypothesisId, forSkillId }
+type PlanReasonDetail = ... | { code: 'discovered'; hypothesisId: string; forSkillId: string }; // on a 'remediation' target
+// Events: skill.diagnosis-suggested, hypothesis.opened, .probed, .decided, .ready, .closed.
+// Configuration: discovery { diagnoseAfter 2, minProbes 2, maxProbes 4, confirmBelow 0.5, refuteFrom 0.75, readyAfter 2, revokeAfter 2 }.
+
+export function prerequisiteRequest(input: PrerequisiteRequestInput, options: PrerequisiteRequestOptions, config?: ResolvedPracticeConfig): PrerequisiteRequest;
+export function checkPrerequisiteHypothesis(request: PrerequisiteRequest, graph: SkillGraph, candidate: unknown, config?: ResolvedPracticeConfig): HypothesisCheck;
+export function prerequisiteVerdict(state: PracticeState, hypothesisId: string): 'confirmed' | 'refuted' | 'inconclusive' | null;
+export function discoveryExtension(state: PracticeState, hypothesisId: string): DiscoveryAdmission;
+export function prerequisiteReport(state: PracticeState, graph: SkillGraph, config?: ResolvedPracticeConfig): readonly PrerequisiteAdvice[];
+export const hypothesesJsonSchema: JsonSchema;
+export const hypothesesSchema: StandardSchemaV1<unknown, { hypotheses: unknown[] }>;
+export interface DiscoveryExtension {
+  readonly kind: 'prerequisite-discovery';
+  readonly id: string; readonly hypothesisId: string; readonly forSkillId: string;
+  readonly skills: readonly SkillNode[];          // at most one
+  readonly edges: readonly SkillEdge[];           // exactly one soft prerequisite into forSkillId
+  readonly status: 'admitted'; readonly confirmedAt: number;
+}
+// composeGraph(base, extensions: readonly (GraphExtension | DiscoveryExtension)[], config?)
+// ./testing: SimulatedSkill.requires (hidden prerequisites), SimulatedSkill.learning (logits per attempt).
+```
 
 ## 6. Flows
 
@@ -1222,6 +1272,47 @@ sequenceDiagram
 ```
 
 A new graph version means the learner's state is rebuilt by `replay` before the next `record` (8.9).
+
+### 6.5 Prerequisite discovery (R14; revised in M12)
+
+```mermaid
+sequenceDiagram
+  participant H as Host
+  participant P as lk-practice
+  participant M as Host's model
+  participant L as Learner
+  L->>H: fails the skill twice in a row
+  H->>P: record(...)
+  P-->>H: skill.diagnosis-suggested
+  H->>P: prerequisiteRequest({ graph, state, evidence, item, failedCriteria, excerpt }, { idPrefix, seed })
+  P-->>H: facts: the blocked skill, the failure, prerequisites, skills nearby, open and refuted ids
+  H->>M: prompt built by the host
+  M-->>H: { hypotheses: [...] }
+  H->>P: checkPrerequisiteHypothesis(request, graph, output)
+  P-->>H: accepted hypotheses with content ids, or issues
+  H->>P: act(open-hypothesis)
+  loop until a verdict
+    H->>P: plan(...)
+    P-->>H: a probe target first: the candidate alone, top stage, reference difficulty
+    L->>H: answers the probe
+    H->>P: record(evidence with probe)
+    P-->>H: hypothesis.probed, then hypothesis.decided
+  end
+  alt confirmed
+    H->>P: discoveryExtension(state, id), composeGraph(base, extensions)
+    H->>P: replay(entries, newGraph, learnerId)
+    loop until ready
+      P-->>H: plan: the prerequisite (remediation, discovered); the blocked skill waits
+      L->>H: practises it, then re-probes
+      H->>P: record(...)
+    end
+    P-->>H: hypothesis.ready: the blocked skill has a fresh start and is planned again
+    H->>P: prerequisiteReport(state, graph)
+    P-->>H: harden, keep or revoke advice for the author
+  else refuted
+    P-->>H: nothing changes; the hypothesis is remembered and refused if proposed again
+  end
+```
 
 ## 7. Persistence
 
@@ -1464,6 +1555,25 @@ Every `check*`, `validate*`, `record` and `act` failure is an `Issue` with a sta
 | `GRADE_SCORE_OUT_OF_RANGE`, `GRADE_CRITERION_DUPLICATE` (revised in M7) | `checkGradeResult` | A score, the result's or a criterion's, outside [0, maxScore]; a criterion name reported twice. |
 | `DECOMPOSITION_TOO_MANY_SKILLS`, `DECOMPOSITION_KNOWLEDGE_NOT_ALLOWED`, `DECOMPOSITION_UNANCHORED` (revised in M7) | `checkDecomposition` | More than `maxSkills` skills; a knowledge type the request does not allow; a new skill no edge connects to an anchor. (The R2.6 and graph codes are raised as `composeGraph` raises them, at the proposal's path.) |
 | `EXTENSION_NOT_PROPOSED`, `EXTENSION_ID_MISMATCH`, `EXTENSION_LEARNER_NOT_ALLOWED` (revised in M7) | `admitExtension` | The extension is not `proposed`; its id is not its content id; a learner approval where `allowLearner` is false. |
+| `HYPOTHESIS_TOO_MANY`, `HYPOTHESIS_EDGE_INVALID`, `HYPOTHESIS_SELF`, `HYPOTHESIS_SKILL_MISMATCH`, `HYPOTHESIS_SKILL_EXISTS`, `HYPOTHESIS_ID_OUTSIDE_PREFIX`, `HYPOTHESIS_KNOWLEDGE_NOT_ALLOWED`, `HYPOTHESIS_DUPLICATE_LABEL`, `HYPOTHESIS_EDGE_EXISTS`, `HYPOTHESIS_OPEN`, `HYPOTHESIS_REFUTED`, `HYPOTHESIS_DUPLICATE` (revised in M12) | `checkPrerequisiteHypothesis` | Past `maxCandidates`; an edge that is not a soft prerequisite from the candidate into the blocked skill; the blocked skill itself; a new skill whose id is not `skillId`, already in the graph, outside the prefix, of a knowledge type not allowed, or labelled like an existing skill; an edge the graph has; a hypothesis already open or refuted for the learner, or earlier in the output. `SKILL_UNKNOWN` names an existing skill the graph lacks; the union's codes (`GRAPH_CYCLE` among them) come from `composeGraph`. |
+| `HYPOTHESIS_ID_MISMATCH`, `HYPOTHESIS_EXISTS` (revised in M12) | `act`, `replay` | An opened hypothesis whose id is not its content id; one the state has already seen. `act` also raises `SKILL_UNKNOWN`, `LADDER_INVALID`, `HYPOTHESIS_SELF`, `HYPOTHESIS_SKILL_MISMATCH`, and, at act time only, `HYPOTHESIS_SKILL_EXISTS`, `HYPOTHESIS_EDGE_EXISTS` and `GRAPH_CYCLE`. |
+| `HYPOTHESIS_UNKNOWN`, `HYPOTHESIS_CLOSED` (revised in M12) | `record`, `act`, `replay`, `discoveryExtension` | No such hypothesis; one that takes no more probes (closed, refuted or ready) or is closed. |
+| `PROBE_INVALID` (revised in M12) | `record`, `replay` | A probe answer with a confirmation, supplement, skill outcomes or an exposure source, or whose task is not on the candidate alone or binds criteria. |
+| `HYPOTHESIS_NOT_CONFIRMED` (revised in M12) | `discoveryExtension` | The hypothesis is open or refuted. |
+| `DISCOVERY_EDGE_INVALID`, `DISCOVERY_EDGE_EXISTS` (revised in M12) | `composeGraph` | A discovery extension with more than one skill, or not exactly one soft prerequisite edge into its blocked skill; an edge the base already has. |
+
+### 8.11 Prerequisite discovery (R14, D29; revised in M12)
+
+**As built in M12.**
+
+- **In the log, not the request.** `open-hypothesis` and `close-hypothesis` are host actions; `state.hypotheses` keeps every hypothesis, so a verdict is a pure read and replay rebuilds it. `act` checks an open with the freshness rules (the candidate is new to the graph, the edge is new, no cycle); replay applies those only at act time, so a log stays valid after its hypothesis is admitted. Replay validates entries in `seq` order and applies them in `(at, seq)` order, so a late probe or close can apply before its open: it changes nothing.
+- **Probes** are evidence with `probe`, checked in the hypothesis's probe graph (the graph plus a new candidate, no edge, same version) and on the candidate alone. They change only the hypothesis, and the probe item's use. The planner builds a probe in that probe graph, at the candidate's top stage and reference difficulty, in context `diagnostic`, and matches a pool item only for a candidate already in the graph; probes come first, open ones by opening time, then re-probes by verdict time, ties by id. `generationRequest` reads a probe target's candidate from the hypothesis.
+- **Verdict** (`probeVerdict`): from `minProbes` on, refuted at `refuteFrom`, confirmed below `confirmBelow` or at `maxProbes`. A refuted hypothesis takes no probe (`HYPOTHESIS_CLOSED`).
+- **After a confirmation**, once the extension is in the graph and the candidate is active: practice (`remediation`, reason `discovered`, at the candidate's current stage, its first before it starts), then re-probes; `readyAfter` passed re-probes in a row make it ready, a failed one sends it back to practice. A pretest, a diagnostic answer or an answer on another skill is not practice. The blocked skill gets no target meanwhile and is never coalesced into another; `deferred.reviewsDue` still counts it. A confirmed hypothesis closed before it is ready plans nothing more.
+- **Fresh start on readiness** (`freshStart` in `apply.ts`): each stored stage ability of the blocked skill below the mastery model's `init`, derived to that stage, takes it (evidence count included); stage memories keep their FSRS state and `due` but restart `reviews`, `lapses` and `streak`; a `leech` suspension is lifted (`skill.unsuspended`), a host's stays. Then the mastery and unlock step runs for the skill.
+- **Trigger**: `skill.diagnosis-suggested` is the answer's last event. A diagnosis is under way while a hypothesis for the skill is open, or confirmed with the blocked skill neither passed since readiness nor failed `revokeAfter` times; the count is read before the current answer is tracked, so the failure that reaches `revokeAfter` is suppressed and the next pair of lapses is not.
+- **Composition**: `discoveryIssues` applies R2.6's second kind; a skill two discovery extensions add identically is added once, so one prerequisite confirmed for two skills before either is admitted composes.
+- **Rules version** `rules@3` and the `discovery` options are in the configuration hash, so 0.4.0 replays every stored state.
 
 ## 9. Determinism
 
@@ -1577,3 +1687,7 @@ On Node 24, a **practice module** in the LMS backend: on enrolment it records `a
 | Exact-hash duplicate detection only | Deferred | Near-duplicate generated tasks are the host's to detect (normalised hash). |
 | Graph credit (Phase 3), `costAdr`, hierarchical Elo, an `fsrs-6` model option, `1.0.0` | Deferred | See the milestones document, "Later". |
 | Requirements risks | Shared | The risk table in [the requirements](lk-sdk-practice-requirements.md#risks) applies unchanged. |
+| Prerequisite discovery on simulated learners (revised in M12) | Measured, reported | `bench/discovery.mjs`, 400 learners, 180 days, a diagnoser that names the true prerequisite with probability 0.8 and otherwise a decoy (a skill the learner has, or one it lacks but the skill does not need). Hidden prerequisite, without discovery: the blocked skill mastered by 0 learners, a leech for all 400. With discovery: true prerequisite admitted for 358, mastered by 164 (median day 77), at its top stage for 243, a leech for 84; 97 decoys admitted; 1,044 diagnoses, 490 proposals rejected (mostly the known cause proposed again). Nothing hidden: mastered by 354 (median day 64) with and without discovery; 17 diagnoses, 5 decoys admitted. |
+| `harden` advice on a decoy (revised in M12) | Limitation, accepted | `harden` rests on the blocked skill passing after readiness, which a needless prerequisite confirmed later does not change: 76 of 434 `harden` advices in the bench named a decoy. The report is advice; the author judges the content. |
+| `discovery.readyAfter` default 2 (revised in M12) | Default, changeable | In the bench (400 learners): 164 mastered at 2 (median day 77), 190 at 3 (82), 187 at 4 (85). Kept at 2: one pass at the reference difficulty by a learner at -1.5 logits is 18% likely, two in a row 3%; a higher value trades days for fewer early releases. |
+| Discovery bench assumptions (revised in M12) | Design judgement | A probe teaches nothing; every skill consolidates (2) with 30 forgetting days; the hidden prerequisite caps the blocked skill by its recall times its chance at a typical task. Before those choices the bench measured artefacts: probes that taught refuted the true prerequisite, and a prerequisite forgotten at a fixed rate kept the blocked skill failing after mastery. |

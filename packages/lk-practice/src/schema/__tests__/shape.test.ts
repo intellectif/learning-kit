@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { evidence, item, masterA, practice, run, T0 } from '../../log/__tests__/fixtures.js';
 import type { ReviewLogEntry } from '../../types.js';
-import { entryShape, shapeIssues, stateShape } from '../shape.js';
+import { entryShape, isRecord, shapeIssues, stateShape } from '../shape.js';
 
 const p = practice();
 const [entry] = run(p, [{ evidence: evidence('e1', 'i1', T0), item: item('i1') }]).entries as [
@@ -79,5 +79,28 @@ describe('state shape', () => {
     );
     empty.log.lastAt = T0;
     expect(messages(stateShape, empty)).toHaveLength(1);
+  });
+
+  it('reads hypotheses as a record, absent in an old state (revised in M12)', () => {
+    const state = JSON.parse(
+      JSON.stringify(p.initState('l1', { version: 'g1', skills: [], edges: [] })),
+    );
+    expect(messages(stateShape, state)).toEqual([]);
+    delete state.hypotheses;
+    expect(messages(stateShape, state)).toEqual([]);
+    for (const value of [1, [], null]) {
+      state.hypotheses = value;
+      expect(messages(stateShape, state).map(([path]) => path)).toEqual(['hypotheses']);
+    }
+  });
+});
+
+describe('isRecord', () => {
+  it('takes a plain or null-prototype object, and nothing else', () => {
+    expect(isRecord({})).toBe(true);
+    expect(isRecord(Object.create(null))).toBe(true);
+    expect(isRecord(new Map())).toBe(false);
+    expect(isRecord([])).toBe(false);
+    expect(isRecord(null)).toBe(false);
   });
 });

@@ -226,6 +226,83 @@ describe('simulateLearner', () => {
   });
 });
 
+describe('simulated learning and hidden prerequisites (R14.11; revised in M12)', () => {
+  const diagnostic = (base: PracticeTarget): PracticeTarget => ({
+    ...base,
+    kind: 'probe',
+    constraints: { ...base.constraints, context: 'diagnostic' },
+    reason: {
+      code: 'probe',
+      hypothesisId: 'h1',
+      forSkillId: 'b',
+      expectedSuccess: 0.5,
+      coalesced: [],
+      newSkillsDeferred: false,
+    },
+  });
+
+  it('raises the true ability with each attempt, but not with a diagnostic one', () => {
+    const skills = { a: { trueAbility: -40, forgettingDays: 1000, learning: 50 } };
+    const learner = simulateLearner({ seed: 's', skills, noise: 0 });
+    expect(passed(learner.attempt(target('t1', ['a']), T0))).toBe(false);
+    expect(passed(learner.attempt(target('t2', ['a']), T0 + 1))).toBe(true);
+    const probed = simulateLearner({ seed: 's', skills, noise: 0 });
+    const probe = diagnostic(target('t1', ['a']));
+    expect(passed(probed.attempt(probe, T0))).toBe(false);
+    expect(passed(probed.attempt({ ...probe, id: 't2' }, T0 + 1))).toBe(false);
+  });
+
+  it('marks an answer to a probe target with its hypothesis', () => {
+    const learner = simulateLearner({
+      seed: 's',
+      skills: { a: { trueAbility: 0, forgettingDays: 5 } },
+    });
+    expect(learner.attempt(diagnostic(target('t', ['a'])), T0).evidence.probe).toBe('h1');
+    expect(learner.attempt(target('u', ['a']), T0 + 1).evidence).not.toHaveProperty('probe');
+  });
+
+  it('caps a skill by each hidden prerequisite, by its ability and its recall', () => {
+    const strong = { trueAbility: 40, forgettingDays: 1 };
+    const rate = (
+      prerequisite: { trueAbility: number; forgettingDays: number },
+      practisedAt?: number,
+    ) => {
+      let wins = 0;
+      for (let i = 0; i < 400; i += 1) {
+        const learner = simulateLearner({
+          seed: `cap${i}`,
+          skills: { b: { ...strong, requires: ['a'] }, a: prerequisite },
+          noise: 0,
+        });
+        if (practisedAt !== undefined) learner.attempt(target(`a${i}`, ['a']), practisedAt);
+        wins += passed(learner.attempt(target(`b${i}`, ['b']), T0)) ? 1 : 0;
+      }
+      return wins / 400;
+    };
+    // Never attempted: recall 1, so the cap is the prerequisite's chance at a typical task.
+    expect(rate({ trueAbility: 40, forgettingDays: 1 })).toBe(1);
+    expect(rate({ trueAbility: -40, forgettingDays: 1 })).toBe(0);
+    expect(rate({ trueAbility: 0, forgettingDays: 1 })).toBeGreaterThan(0.4);
+    expect(rate({ trueAbility: 0, forgettingDays: 1 })).toBeLessThan(0.6);
+    // Attempted ten forgetting times ago: forgotten, whatever its ability.
+    expect(rate({ trueAbility: 40, forgettingDays: 1 }, T0 - 10 * DAY)).toBeLessThan(0.01);
+  });
+
+  it.each([
+    [
+      'a learning rate that is not finite',
+      { a: { trueAbility: 0, forgettingDays: 1, learning: Number.NaN } },
+    ],
+    ['a skill that requires itself', { a: { trueAbility: 0, forgettingDays: 1, requires: ['a'] } }],
+    [
+      'a skill that requires one it does not have',
+      { a: { trueAbility: 0, forgettingDays: 1, requires: ['z'] } },
+    ],
+  ])('throws for %s', (_name, skills) => {
+    expect(() => simulateLearner({ seed: 's', skills: skills as never })).toThrow(RangeError);
+  });
+});
+
 /** A ladder of skills: `p` before `q` and `r` (hard), `q` and `r` inside `s`. */
 const GRAPH: SkillGraph = {
   version: 'sim1',

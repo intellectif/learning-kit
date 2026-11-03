@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import type { PracticeState, SkillGraph } from '../../types.js';
+import { Draft } from '../draft.js';
 import { applied, DAY, evidence, GRAPH, item, practice, run, T0 } from './fixtures.js';
 
 const p = practice();
 
 describe("a state's records (revised in M8)", () => {
+  it('reads a deleted key as absent, and a key set again as set', () => {
+    const { state } = run(p, [{ evidence: evidence('e1', 'i1', T0), item: item('i1', 'a') }]);
+    const draft = new Draft(state);
+    const a = draft.skill('a');
+    draft.deleteSkill('a');
+    expect(draft.skill('a')).toBeUndefined();
+    draft.setSkill('a', a as NonNullable<typeof a>);
+    expect(draft.skill('a')).toBe(a);
+  });
+
   it('keep their keys in order whatever order the skills and items arrive in', () => {
     const { state } = run(p, [
       { evidence: evidence('e1', 'i3', T0), item: item('i3', 'c') },

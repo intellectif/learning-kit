@@ -4,8 +4,9 @@
  * validation, goal-driven graph composition (M2), the default FSRS-7 memory
  * model (M3), the default Elo mastery model and evidence mapper (M4), and
  * the practice object with its log, replay, host actions and status (M5),
- * the session planner (M6), and the grader, generator and decomposition
- * contracts with the Standard Schema and JSON Schema objects (M7).
+ * the session planner (M6), the grader, generator and decomposition
+ * contracts with the Standard Schema and JSON Schema objects (M7), and
+ * prerequisite discovery (M12).
  */
 
 export {
@@ -14,9 +15,14 @@ export {
   checkCandidates,
   checkDecomposition,
   checkGradeResult,
+  checkPrerequisiteHypothesis,
   decompositionRequest,
+  discoveryExtension,
   evidenceFromGrade,
   generationRequest,
+  prerequisiteReport,
+  prerequisiteRequest,
+  prerequisiteVerdict,
 } from './contracts/index.js';
 
 export { PracticeConfigError } from './errors.js';
@@ -31,6 +37,8 @@ export {
   evidenceSchema,
   gradeResultJsonSchema,
   gradeResultSchema,
+  hypothesesJsonSchema,
+  hypothesesSchema,
   migrateState,
   practiceStateJsonSchema,
   practiceStateSchema,

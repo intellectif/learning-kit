@@ -206,6 +206,7 @@ time. A host action `{ kind: 'discard-held' }` drops it.
 | `suspend`, `unsuspend` | Takes a skill out of planning, and puts it back. A leech suspends itself: 8 lapses by default, and again every 4, while it fails at least twice as often as planned (30% at the default target) |
 | `reset-skill` | Starts a skill over |
 | `discard-held` | Drops a held answer |
+| `open-hypothesis`, `close-hypothesis` | Opens or withdraws a missing-prerequisite hypothesis (below) |
 
 ## Planning a session
 
@@ -234,11 +235,13 @@ Each **target** names one skill, or a composite and its due components. It also 
 
 Targets come in this order:
 
-1. Overdue reviews, least recalled first.
-2. Remediation: hard prerequisites of a skill that just lapsed, now below their mastery floor.
-3. Reviews due by `dueBy`.
-4. Stage-ups: skills just promoted.
-5. New skills: the focus set first, in prerequisite order.
+1. Probes and re-probes of missing-prerequisite hypotheses, then the practice of confirmed ones
+   (below).
+2. Overdue reviews, least recalled first.
+3. Remediation: hard prerequisites of a skill that just lapsed, now below their mastery floor.
+4. Reviews due by `dueBy`.
+5. Stage-ups: skills just promoted.
+6. New skills: the focus set first, in prerequisite order.
 
 A large review backlog (100 by default) holds back new skills. `plan.deferred` counts what did not
 fit the budget.
@@ -349,6 +352,46 @@ When a learner sets a goal the graph does not cover, a model may propose the ski
 4. **Compose:** `composeGraph(base, extensions)` builds the new graph, with a new version. Replay the
    learner's log against it.
 
+## Missing prerequisites
+
+A learner may fail a skill because of something the graph does not contain: a forgotten language
+feature behind a library skill, say. One failure cannot show that, and a model asked why tends to
+blame prerequisites, so the package treats a model's answer as a hypothesis and tests it with short
+probes. It never calls a model.
+
+1. **Notice:** `record` emits `skill.diagnosis-suggested` when a skill fails twice in a row at its
+   stage (`discovery.diagnoseAfter`) and no diagnosis of it is under way.
+2. **Ask:** `prerequisiteRequest({ graph, state, evidence, item, failedCriteria, excerpt }, { idPrefix, seed })`
+   gives the facts: the blocked skill, the failure, its prerequisites, the skills near it, and the
+   hypotheses already open or refuted for this learner. Write your own prompt around them.
+3. **Check:** `checkPrerequisiteHypothesis(request, graph, output)` checks the model's
+   `{ hypotheses: [...] }` (`hypothesesJsonSchema`, `hypothesesSchema`). Each names an existing skill,
+   or a new one under the prefix, and one soft prerequisite edge into the blocked skill. Accepted
+   hypotheses carry a content id.
+4. **Open:** `practice.act(state, graph, { id, at, action: { kind: 'open-hypothesis', hypothesis } })`.
+5. **Probe:** the next plans start with a `probe` target: the candidate alone, at its top stage and
+   reference difficulty, in context `diagnostic`. Record the answer with `probe: hypothesis.id`. A
+   probe answer changes no skill. Two failed probes confirm; a probe share of 0.75 or more refutes;
+   a split asks for more, and at four probes doubt confirms. `prerequisiteVerdict(state, id)` reads
+   it. A refuted hypothesis is remembered, and the check refuses it if a model proposes it again.
+6. **Admit:** for a confirmed one, `discoveryExtension(state, id)` returns a
+   `prerequisite-discovery` extension: the candidate if it is new, and the soft edge. Compose it with
+   `composeGraph(base, extensions)` and replay the learner's log against the new graph.
+7. **Practise:** the planner now plans the prerequisite first (a `remediation` target with the reason
+   `discovered`), then re-probes it. Two passed re-probes in a row (`discovery.readyAfter`) make it
+   ready (`hypothesis.ready`). Until then the blocked skill waits. At readiness it gets a fresh
+   start: failures the missing prerequisite explains stop counting against its ability, its leech
+   count and a leech suspension.
+8. **Decide:** `prerequisiteReport(state, graph)` advises, per confirmed hypothesis: `admit`,
+   `practise`, `harden` (the blocked skill passed afterwards), `revoke` (it failed twice afterwards
+   and never passed) or `keep`. Hardening the edge, revoking it, or adding it to your base map for
+   every learner is yours to decide. `harden` cannot tell a needed prerequisite from one that was
+   merely missing, so judge the content too.
+
+`practice.act` with `{ kind: 'close-hypothesis', hypothesisId }` withdraws a hypothesis at any time.
+A plan's targets now include `kind: 'probe'`, and its events the `hypothesis.*` ones: give both a
+default branch in your code.
+
 ## Configuration
 
 `createPractice(config)` resolves every default and hashes the result. `practice.config` holds the
@@ -371,6 +414,7 @@ resolved configuration, and `practice.configHash` its hash:
 | `itemCooldownMs`, `itemUsageRetentionMs` | 7 days, 30 days | Item reuse |
 | `leechThreshold`, `recentIdWindow` | 8 lapses, 256 ids | When a skill suspends itself (and every half of it after); how far back `record` reports a duplicate |
 | `acceptProofs` | `executable`, `reviewed` | Which proofs admit an item |
+| `discovery` | diagnose after 2 lapses; 2 to 4 probes, confirm below 0.5, refute from 0.75; ready after 2 re-probes; revoke after 2 failures | Missing prerequisites, above |
 
 `memoryModel`, `masteryModel`, `stagePolicy` and `evidenceMapper` take your own implementations of
 each port. Each has an id and a version that enter the configuration hash.
@@ -399,7 +443,12 @@ const next = practice.record(state, { graph, evidence, item });
 The simulated learner succeeds with a logistic chance of its true ability against the task's
 difficulty, times its recall since its last attempt at the skill. With `consolidation`, a success
 lengthens its forgetting time by more the more it had forgotten, so spaced practice is worth more than
-massed practice; without it, the forgetting time never changes. Its true ability never changes.
+massed practice; without it, the forgetting time never changes. Its true ability changes only
+with `learning`, by that many logits after each attempt but a diagnostic one. `requires` names
+hidden prerequisites, other skills of the learner that the graph may lack: their recall and their
+chance at a typical task multiply the chance on the skill. `bench/discovery.mjs`
+(`pnpm --filter @intellectif/lk-practice discovery`) uses both to report how often discovery finds
+a hidden prerequisite and how much sooner the blocked skill is mastered.
 Every draw comes from the seed, the time and the skill. Two settings compared on the same learner
 therefore meet the same chances. Use it to compare settings and in your own tests. It is a test
 tool, not a claim about real learners.
