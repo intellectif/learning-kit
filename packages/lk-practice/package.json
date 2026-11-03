@@ -1,7 +1,6 @@
 {
   "name": "@intellectif/lk-practice",
   "version": "0.0.0",
-  "private": true,
   "description": "Practice planning for a learner's skills: memory, ability and stage per skill over a prerequisite graph, as pure functions of a replayable log.",
   "keywords": [
     "spaced-repetition",

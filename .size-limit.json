@@ -115,6 +115,24 @@
     "limit": "6 kB"
   },
   {
+    "name": "lk-practice: everything",
+    "path": "packages/lk-practice/dist/index.js",
+    "import": "*",
+    "limit": "43 kB"
+  },
+  {
+    "name": "lk-practice: createPractice",
+    "path": "packages/lk-practice/dist/index.js",
+    "import": "{ createPractice }",
+    "limit": "39 kB"
+  },
+  {
+    "name": "lk-practice/testing: simulateLearner",
+    "path": "packages/lk-practice/dist/testing.js",
+    "import": "{ simulateLearner }",
+    "limit": "2 kB"
+  },
+  {
     "name": "useSpeechRecorder",
     "path": "packages/lk-react/dist/hooks/useSpeechRecorder.js",
     "import": "{ useSpeechRecorder }",
