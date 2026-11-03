@@ -9,8 +9,16 @@
  * The item types an interactive video may present. CLOSED on purpose: a type
  * added to the SDK later, or a custom type a host registers, is not silently
  * embeddable. Each one here was chosen, and each works inside a paused video —
- * a read-aloud's microphone included, because every quiz pauses the video
- * first.
+ * a read-aloud's and a spoken answer's microphone included, because every quiz
+ * pauses the video first.
+ *
+ * A question's own media is allowed as on any other item, under its own
+ * playback policy: a picture to describe, or a recording to answer, which
+ * plays only when the learner presses play while the video is paused. A
+ * dictation must carry its own recording (the timeline rule).
+ *
+ * `speaking-response` joined in 1.10.0: a host with an exhaustive `switch` or
+ * `Record` over {@link InteractiveVideoItemType} needs one more entry.
  */
 export const INTERACTIVE_VIDEO_ITEM_TYPES = [
   'multiple-choice',
@@ -18,6 +26,7 @@ export const INTERACTIVE_VIDEO_ITEM_TYPES = [
   'gap-select',
   'dictation',
   'read-aloud',
+  'speaking-response',
 ] as const;
 
 /** One of {@link INTERACTIVE_VIDEO_ITEM_TYPES}. */

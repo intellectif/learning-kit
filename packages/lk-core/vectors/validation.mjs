@@ -138,6 +138,19 @@ export function validationCases(seeds) {
     add(`validateItemGroup|${label}`, (core) => validation(core.validateItemGroup(input)));
     add(`validateItemGroupDraft|${label}`, (core) => issuesOf(core.validateItemGroupDraft(input)));
   }
+  // Interactive videos (1.10.0): one holding a spoken answer, with every
+  // variant, and one holding a written response, which a video refuses.
+  for (const [name, group] of Object.entries(seeds.timelineGroups ?? {})) {
+    const inputs = name === 'written-response' ? [['seed', group]] : variants(group);
+    for (const [label, input] of inputs) {
+      add(`validateItemGroup|timeline|${name}|${label}`, (core) =>
+        validation(core.validateItemGroup(input)),
+      );
+      add(`validateItemGroupDraft|timeline|${name}|${label}`, (core) =>
+        issuesOf(core.validateItemGroupDraft(input)),
+      );
+    }
+  }
   for (const [name, assessment] of Object.entries(seeds.assessments)) {
     for (const [label, input] of variants(assessment)) {
       add(`validateSpeechAssessment|${name}|${label}`, (core) =>

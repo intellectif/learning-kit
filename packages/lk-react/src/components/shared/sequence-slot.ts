@@ -17,8 +17,11 @@ import type { RenderMode } from '../types.js';
  *   the SAME take. The set waits for it while the learner is on that question.
  * - `settled` — nothing more will come of it: a grade, a take with no grade, a
  *   failure nobody can retry, or a take the learner walked away from.
+ * - `awaiting-grade` — settled, and its grade will come from a person: the
+ *   assessor answered `pending` for a spoken answer. A pager treats it as
+ *   `settled`; an interactive video marks its quiz pending (lk-react 23.6.0).
  */
-export type TakeState = 'in-flight' | 'retryable' | 'settled';
+export type TakeState = 'in-flight' | 'retryable' | 'settled' | 'awaiting-grade';
 
 /**
  * Where a question is with its tries, as a pager deciding whether its set is

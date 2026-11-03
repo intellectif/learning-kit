@@ -104,6 +104,9 @@ function takeStateOf(phase: SubmitPhase, uploaded: RecordingRef | null): TakeSta
   if (phase.kind === 'uploading' || phase.kind === 'assessing') {
     return 'in-flight';
   }
+  if (phase.kind === 'pending') {
+    return 'awaiting-grade';
+  }
   return offersRetry(phase, uploaded) ? 'retryable' : 'settled';
 }
 

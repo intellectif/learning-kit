@@ -15,6 +15,7 @@ import type {
   GapSelectData,
   MultipleChoiceData,
   ReadAloudData,
+  SpeakingResponseData,
   WrittenResponseData,
 } from '../types/activity.js';
 import type { ItemGroup, MediaTimeline } from '../types/item-group.js';
@@ -81,6 +82,35 @@ const ra: ReadAloudData = {
   recording: { maxSeconds: 20 },
   scoring: { dimensions: [{ name: 'accuracy', weight: 1 }] },
 };
+
+/** A spoken answer with a picture to describe and a rubric the engine helps measure. */
+const sr: SpeakingResponseData = {
+  schemaVersion: '1.0',
+  type: 'speaking-response',
+  id: 'sr',
+  title: 'Describe the scene',
+  prompt: 'Where are they, and how do they greet each other?',
+  locale: 'en-US',
+  media: { type: 'image', url: 'https://media.example/scene.png', alt: 'Two people meeting' },
+  recording: { minSeconds: 5, maxSeconds: 45 },
+  rubric: {
+    criteria: [
+      { name: 'Content', weight: 2, description: 'Says where they are and how they greet.' },
+      { name: 'Pronunciation', weight: 1, measure: 'pronunciation' },
+    ],
+  },
+};
+
+/** The video with a spoken answer in a quiz of its own at 4:30 (1.10.0). */
+function withSpeaking(item: SpeakingResponseData = sr): ItemGroup {
+  return video({
+    items: [...video().items, item],
+    timeline: {
+      ...timeline,
+      cues: [...timeline.cues, { id: 'speak', at: 270, itemIds: [item.id] }],
+    },
+  });
+}
 
 const wr: WrittenResponseData = {
   schemaVersion: '1.0',
@@ -151,15 +181,17 @@ function errorPaths(result: ReturnType<typeof validateItemGroup>): string[] {
   return result.success ? [] : result.errors.map((error) => error.path.join('.'));
 }
 
-describe('the five item types', () => {
-  it('names exactly multiple choice, fill-in-the-blanks, gap select, dictation and read-aloud', () => {
+describe('the six item types', () => {
+  it('names exactly multiple choice, fill-in-the-blanks, gap select, dictation, read-aloud and a spoken answer', () => {
     expect([...INTERACTIVE_VIDEO_ITEM_TYPES]).toEqual([
       'multiple-choice',
       'fill-in-the-blanks',
       'gap-select',
       'dictation',
       'read-aloud',
+      'speaking-response',
     ]);
+    expect(isInteractiveVideoItemType('speaking-response')).toBe(true);
     expect(isInteractiveVideoItemType('written-response')).toBe(false);
     expect(isInteractiveVideoItemType('item-group')).toBe(false);
     expect(isInteractiveVideoItemType(undefined)).toBe(false);
@@ -171,6 +203,24 @@ describe('validateItemGroup with a timeline', () => {
     const result = validateItemGroup(video());
     expect(errorPaths(result)).toEqual([]);
     expect(result.success && result.data.timeline?.cues).toHaveLength(4);
+  });
+
+  it('accepts a spoken answer, with a picture, a recording to answer, or no media (1.10.0)', () => {
+    expect(errorPaths(validateItemGroup(withSpeaking()))).toEqual([]);
+    const recording = {
+      ...sr,
+      media: {
+        type: 'audio' as const,
+        url: 'https://media.example/question.mp3',
+        playback: { maxPlays: 2, seek: 'none' as const },
+      },
+    };
+    expect(errorPaths(validateItemGroup(withSpeaking(recording)))).toEqual([]);
+    const { media: _media, ...bare } = sr;
+    expect(errorPaths(validateItemGroup(withSpeaking(bare)))).toEqual([]);
+    const draft = validateItemGroupDraft(withSpeaking());
+    expect(draft.issues.map((issue) => issue.code)).not.toContain('ig_timeline_item_type');
+    expect(draft.status).toBe('complete');
   });
 
   it('refuses a written response, the one built-in type a video may not hold', () => {
@@ -387,6 +437,20 @@ describe('media tracks and poster', () => {
     expect(MediaSchema.safeParse({ type: 'audio', url: '/a.mp3', poster: '/p.jpg' }).success).toBe(
       false,
     );
+  });
+});
+
+describe('redactItemGroup with a timeline and a spoken answer (1.10.0)', () => {
+  it('projects it as a loose spoken answer is projected, rubric and measure included', () => {
+    const projection = redactItemGroup(withSpeaking());
+    expect(() => assertRedactedItemGroup(projection)).not.toThrow();
+    const spoken = projection.items.find((item) => item.id === 'sr') as unknown as {
+      redacted: boolean;
+      rubric: SpeakingResponseData['rubric'];
+    };
+    expect(spoken.redacted).toBe(true);
+    expect(spoken.rubric).toEqual(sr.rubric);
+    expect(RedactedItemGroupSchema.safeParse(projection).success).toBe(true);
   });
 });
 
@@ -624,6 +688,31 @@ describe('composeTimelineScore', () => {
     expect(() => composeTimelineScore('videoo', [graded('video.0', 1)], policy)).toThrow(
       /no scored item belongs/,
     );
+  });
+
+  it('holds the video provisional while a spoken answer waits for its grade (1.10.0)', () => {
+    const spoken = (outcome: ScoredItem['outcome']): ScoredItem => ({
+      slotId: 'video.6',
+      points: 1,
+      outcome,
+    });
+    const later = spoken({ status: 'deferred', reason: 'requires_async_grading', maxScore: 1 });
+    const waiting = composeTimelineScore('video', [graded('video.0', 1), later], policy);
+    expect(waiting.status).toBe('provisional');
+    expect(waiting.passed).toBeNull();
+    expect(waiting.pendingSlotIds).toEqual(['video.6']);
+    const person = spoken({ status: 'deferred', reason: 'awaiting_human_review', maxScore: 1 });
+    expect(composeTimelineScore('video', [graded('video.0', 1), person], policy).status).toBe(
+      'provisional',
+    );
+    const grade = { score: 0.5, maxScore: 1, passed: false, feedback: null };
+    const done = composeTimelineScore(
+      'video',
+      [graded('video.0', 1), spoken({ status: 'graded', grade, ...grade })],
+      policy,
+    );
+    expect(done.status).toBe('final');
+    expect(done.score).toBe(0.75);
   });
 });
 
