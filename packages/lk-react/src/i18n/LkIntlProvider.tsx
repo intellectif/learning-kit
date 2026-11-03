@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useMemo } from 'react';
+import { localeDirectionOf } from './direction.js';
 import type { LkStrings, LkStringsOverride } from './strings.js';
 import { DEFAULT_STRINGS, mergeStrings } from './strings.js';
 
@@ -19,22 +20,34 @@ interface LkIntlValue {
 const LkIntlContext = createContext<LkIntlValue | null>(null);
 
 /**
- * Locales written right-to-left, by language subtag.
- *
- * A short list rather than a dependency: these are the RTL scripts in living
- * use, and the set has not changed in decades. `Intl.Locale.textInfo` would be
- * better but is not available everywhere this package runs, and an explicit
- * `direction` prop overrides this in either direction anyway.
+ * Kurdish, Sindhi and Uyghur are written in both directions, so a tag naming
+ * only the language names no direction. The interface still needs one, and
+ * these have always been laid out right to left; `ku-Latn`, `sd-Deva` and
+ * `ug-Cyrl` name their script and are not.
  */
-const RTL_LANGUAGES = new Set(['ar', 'arc', 'dv', 'fa', 'he', 'ku', 'ps', 'sd', 'ug', 'ur', 'yi']);
+const RTL_WITHOUT_A_SCRIPT = new Set(['ku', 'sd', 'ug']);
 
-/** Resolves a BCP 47 tag to a writing direction. */
+/**
+ * Resolves a BCP 47 tag to a writing direction, read from the tag alone as a
+ * dictation's is: its script subtag when it has one, then the languages written
+ * right to left in every script they are commonly written in, with `-` and `_`
+ * both separating subtags. A tag that names no direction is left-to-right,
+ * except the three languages above.
+ *
+ * Not `Intl.Locale`: the likely script of a bare language comes from the
+ * runtime's CLDR, which a server and a browser need not share, and a provider
+ * rendered on one and hydrated on the other must write the same `dir`.
+ */
 export function directionForLocale(locale: string | undefined): 'ltr' | 'rtl' {
   if (locale === undefined) {
     return 'ltr';
   }
-  const language = locale.split('-')[0]?.toLowerCase() ?? '';
-  return RTL_LANGUAGES.has(language) ? 'rtl' : 'ltr';
+  const named = localeDirectionOf(locale);
+  if (named !== undefined) {
+    return named;
+  }
+  const language = locale.toLowerCase().split(/[-_]/)[0] as string;
+  return RTL_WITHOUT_A_SCRIPT.has(language) ? 'rtl' : 'ltr';
 }
 
 export interface LkIntlProviderProps {

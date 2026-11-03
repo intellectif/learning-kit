@@ -37,6 +37,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.20.0 | 20.0.0 | Delivery policies: `delivery` on every activity and both pagers switches off feedback, solutions, hints or AI help per paper; `resolveDeliveryPolicy`, `validateDeliveryPolicy`, `combineDeliveryPolicies`; `planAttempt(…, { delivery })` records it in the plan and its hash, and `verifyAttemptPlan` reports `deliveryChanged`. **No grade changes, and an absent policy changes nothing** — the major is the peer bump, plus a required `delivery` on `InteractiveVideoQuestion` |
 | 0.21.0 | 21.0.0 | Scoring policies: `scoring` on every activity and both pagers — "Try again" in `practice` (`retries`), which try `counts`, and what tries and hints cost (`retryPenalty`, `hintPenalty`); `scoreTries`, `evaluateTries` and `evaluate(…, { scoring })`; `resolveItemScoringPolicy` / `validateItemScoringPolicy`; `planAttempt(…, { scoring })` and `scoringChanged`; `hintsRevealed` on multiple-choice, fill-in-the-blanks and gap-select responses. **No grade changes without a policy.** One fix to 0.20's `solutions: false` on a dictation, and one possible type error — see [0.20 → 0.21](#020--021-lk-core--20x--21x-lk-react) |
 | 0.22.0 | 22.0.0 | Feedback on writing: a `writingFeedback` port gives `<WrittenResponse>` "Get feedback on my draft" in `practice`; `useAiWritingFeedback` for a written response you draw; `aiWritingFeedbackRequest` and `checkAiWritingFeedback` in lk-core, which refuses a correction of words the draft does not contain (`misquotes-answer`) and computes the rubric's indicative score itself; four writing cases in `ai-check`. **Additive, and nothing changes without the port** — the major is the peer bump, plus eight strings and the type errors in [0.21 → 0.22](#021--022-lk-core--21x--22x-lk-react) |
+| 1.10.0 | 23.7.0 | `<LkIntlProvider direction="auto">` reads a tag's script subtag, 35 right-to-left languages instead of 11, and `_` as a separator, from the tag alone. **No `lk-core` change** — a `lk-react` minor on the same peer range as 23.6.0. **One behaviour change**: the interface direction of the tags [23.6 → 23.7](#236--237-lk-react) lists |
 | 1.10.0 | 23.6.0 | Spoken answers inside an interactive video: `speaking-response` joins `INTERACTIVE_VIDEO_ITEM_TYPES`, and `<InteractiveVideo>` draws `<SpeakingResponse>` with the video's `recordingBinding`. **Additive** — see [1.9 → 1.10](#19--110-lk-core--235--236-lk-react) for the one exhaustive-switch edit |
 | 1.7.0 | 23.3.0 | A question's own instructions: an optional `instructions` on multiple choice, fill in the blanks and gap select, as read aloud has. Learner-visible, carried by hints, explanations and drafts, never graded; `<MultipleChoice>`, `<FillInTheBlanks>` and `<GapSelect>` draw it before the media and the question. **Additive** — see [1.6 → 1.7](#16--17-lk-core--232--233-lk-react) |
 | 1.6.0 | — | Exporting and importing content: `listMediaRefs` / `mapMediaRefs`, an author-only `transcript` and `script` on recordings, `transcriptOf`, `withoutAuthorOnly`, `contentJsonSchema`, and `jsonSchemaFor(type, { target })`. lk-core only; see its changelog |
@@ -79,8 +80,85 @@ you record stay exactly what they were.
 - On **lk-core 1.3.x / 23.1.x**? See [1.3 → 1.4](#13--14-lk-core--231--232-lk-react) — additive: a grouped question's material reaches your port, and your prompt decides what to do with it.
 - On **lk-core 1.4.x**? See [1.4 → 1.5](#14--15-lk-core) — additive, lk-core only: nothing grades until you call it; three new union members.
 - On **lk-core 1.6.x / 23.2.x**? See [1.6 → 1.7](#16--17-lk-core--232--233-lk-react) — additive: a question's own instructions; check a field you may already store under that name.
+- On **23.6.x**? See [23.6 → 23.7](#236--237-lk-react) — the interface turns the other way for some tags; check the ones you give `<LkIntlProvider locale>`.
 
 ---
+
+## 23.6 → 23.7 (`lk-react`)
+
+`<LkIntlProvider direction="auto">` reads more of the tag you give it. **No grade changes, and no
+`lk-core` change.** The interface's direction changes for some tags: the `dir` a provider with a
+`locale` and no `direction` writes, which everything inside it inherits, what `useLkDirection()`
+reports beneath it, and what `directionForLocale()` returns. A dictation's own words keep the
+direction their own tag or text names; only one whose tag and text name none inherits the
+interface's, as it did before.
+
+**Why.** 23.6 read only the language subtag, and split the tag at `-` alone: it laid out `ku-Latn`
+and `ar-Latn` right to left, and `ckb`, `syr`, `iw` and `ar_EG` left to right. The provider now
+reads a tag as a [dictation reads its own](./i18n.md#a-dictations-own-words), from the tag alone. It
+never asks `Intl.Locale`, whose script for a bare language comes from the runtime's own locale data:
+a server and a browser need not share that data, and a provider rendered on one and hydrated on the
+other must write the same `dir`.
+
+**What moved.** Found by running 23.6.0's build and 23.7.0's, ES module and CommonJS, over every
+two- and three-letter language subtag — alone; followed by a region, `Latn` or `Arab`, after `-` and
+after `_`; followed by `-Zyyy`; and followed by `-x-latn` — every four-letter subtag in the script's
+place after ten language subtags, and extended-language, private-use, grandfathered, extension,
+underscore and malformed tags: 4.7 million in all. A tag changed exactly when it is in one of these
+four groups.
+
+- **Right-to-left → left-to-right: one of the 11 languages 23.6 knew, followed by `-`, with a
+  left-to-right script subtag.** The 11 are `ar`, `arc`, `dv`, `fa`, `he`, `ku`, `ps`, `sd`, `ug`,
+  `ur` and `yi`; the tags include `ar-Latn`, `he-Latn-IL`, `fa-Cyrl`, `ku-Latn`, `ku-Cyrl`,
+  `sd-Deva`, `sd-Khoj`, `ug-Cyrl`, `ug-Latn` and `ar-arz-Latn`. The script subtag is the four-letter
+  subtag after the language, or after up to three three-letter extended-language subtags. It is
+  left-to-right unless it is one of the right-to-left scripts below, and it decides nothing when it
+  is a `Z` code (`Zyyy`, `Zxxx`, `Zinh`, …) or private-use (`Qaaa`–`Qabx`). A code ISO 15924 does
+  not assign is left-to-right too: `ar-Abcd`.
+- **Left-to-right → right-to-left: 27 more languages written right to left in every script they are
+  commonly written in**, with a region, any other subtag or none, unless a script subtag says
+  otherwise (`ckb-Latn` stays left-to-right): `acm`, `aeb`, `aii`, `ajp`, `apc`, `ars`, `ary`, `arz`,
+  `azb`, `bqi`, `ckb`, `glk`, `hbo`, `iw`, `ji`, `jrb`, `khw`, `lrc`, `mzn`, `nqo`, `ota`, `pnb`,
+  `prs`, `sdh`, `skr`, `syc` and `syr`.
+- **Left-to-right → right-to-left: any other language with a right-to-left script subtag** — `Adlm`,
+  `Arab`, `Aran`, `Armi`, `Avst`, `Chrs`, `Cprt`, `Elym`, `Gara`, `Hatr`, `Hebr`, `Hung`, `Khar`,
+  `Lydi`, `Mand`, `Mani`, `Mend`, `Merc`, `Mero`, `Narb`, `Nbat`, `Nkoo`, `Orkh`, `Ougr`, `Palm`,
+  `Phli`, `Phlp`, `Phlv`, `Phnx`, `Prti`, `Rohg`, `Samr`, `Sarb`, `Sidt`, `Sogd`, `Sogo`, `Syrc`,
+  `Syre`, `Syrj`, `Syrn`, `Thaa` or `Yezi`: `pa-Arab`, `ks-Arab`, `ms-Arab`, `az-Arab-IR`,
+  `uz-Arab-AF`, `ff-Adlm`, `man-Nkoo`, `rhg-Rohg`, `pal-Phlv`, `en-Hebr`, `und-Arab`,
+  `zh-yue-Arab`, and a private-use language with one, `qaa-Arab`.
+- **Left-to-right → right-to-left: a tag whose first separator is `_` and that now reads
+  right-to-left.** 23.6 read everything up to the first `-` as the language, so it took `ar_EG` for
+  one unknown language: `ar_EG`, `he_IL`, `fa_IR`, `ur_PK`, `ku_IQ`, `sd_PK`, `ug_CN`, `ckb_IQ`,
+  `iw_IL`, `pa_Arab_PK`, `ar_Arab` and `ar__EG`. `ar_Latn` and `ku_Latn` were left-to-right and
+  still are; `ar-EG_x`, whose first separator is `-`, was right-to-left and still is.
+
+**Unchanged:** every other tag, in particular
+
+- `ku`, `sd` and `ug` without a script subtag — `ku`, `ku-IQ`, `ku-TR`, `sd-PK`, `ug-CN` — stay
+  right-to-left. These are written in both directions; a dictation leaves such a tag to its text, and
+  the interface has no text to read, so it keeps the direction it always had. Name the script
+  (`ku-Latn`, `ku-Arab`) to choose.
+- The 11 languages with no script subtag, with a `Z` code or with a private-use script (`ar-EG`,
+  `AR-EG`, `ar-Zyyy`, `ar-Qaaa`), or with an extended-language subtag alone (`ar-arz`): right-to-left.
+- A private-use or grandfathered tag — `x-arab`, `x-ku-latn`, `i-klingon`, `zh-min-nan`,
+  `art-lojban`: left-to-right. Extension values are not scripts: `en-US-u-nu-arab` is left-to-right,
+  `ar-EG-u-nu-latn` right-to-left.
+- No `locale` is left-to-right, and writes no `dir`. A `locale` that is not a string still throws a
+  `TypeError` from `directionForLocale()`.
+
+What to do:
+
+- **Look for the tags above in what you pass to `<LkIntlProvider locale>`** and to
+  `directionForLocale()`. For each one you find, the interface turns the other way when you upgrade.
+  If that is wrong for your interface text, the tag names the wrong script: fix the tag, or pass
+  `direction` explicitly, which wins as it always has.
+- **Give `lang` a tag with `-`.** The provider now reads `ar_EG` as Arabic, but it writes `lang` as
+  you give it, and Chromium and WebKit do not read `lang="ar_EG"` as Arabic: give it `ar-EG`.
+- **Render and hydrate with one version.** A page a server rendered with 23.6 and a browser hydrates
+  with 23.7 keeps 23.6's `dir` for the tags above: React does not correct an attribute while
+  hydrating, and only its development build says so. Within 23.7 a server and a browser always
+  agree. See [Writing direction](./i18n.md#writing-direction).
 
 ## 1.9 → 1.10 (`lk-core`) / 23.5 → 23.6 (`lk-react`)
 

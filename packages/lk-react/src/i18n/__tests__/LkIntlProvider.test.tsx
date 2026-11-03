@@ -1,5 +1,8 @@
-import { cleanup, render, renderHook, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
+import { hydrateRoot, type Root } from 'react-dom/client';
+import { renderToString } from 'react-dom/server';
+import { describe, expect, it, vi } from 'vitest';
+import { localeDirectionOf } from '../direction.js';
 import {
   DEFAULT_STRINGS,
   directionForLocale,
@@ -91,20 +94,127 @@ describe('the English defaults', () => {
   });
 });
 
+/**
+ * The comments mark the tags 23.6 answered the other way. The upgrading guide
+ * lists every such tag, found by running both builds over every 2- and 3-letter
+ * language and every 4-letter script subtag.
+ */
+const DIRECTIONS: readonly (readonly [string | undefined, 'ltr' | 'rtl'])[] = [
+  [undefined, 'ltr'],
+  ['en', 'ltr'],
+  ['es-MX', 'ltr'],
+  ['pt-BR', 'ltr'],
+  ['ar', 'rtl'],
+  ['ar-EG', 'rtl'],
+  ['AR-EG', 'rtl'],
+  ['he', 'rtl'],
+  ['fa-IR', 'rtl'],
+  ['ur', 'rtl'],
+  // Written in both directions: right-to-left without a script, as before.
+  ['ku', 'rtl'],
+  ['ku-IQ', 'rtl'],
+  ['sd', 'rtl'],
+  ['ug-CN', 'rtl'],
+  ['ku-Arab', 'rtl'],
+  // A script subtag decides. Was right-to-left.
+  ['ku-Latn', 'ltr'],
+  ['sd-Deva', 'ltr'],
+  ['ug-Cyrl', 'ltr'],
+  ['ar-Latn', 'ltr'],
+  ['he-Latn-IL', 'ltr'],
+  ['ar-arz-Latn', 'ltr'],
+  // Was left-to-right.
+  ['pa-Arab', 'rtl'],
+  ['ff-Adlm', 'rtl'],
+  ['und-Hebr', 'rtl'],
+  ['zh-yue-Arab', 'rtl'],
+  // A code for no particular script, or a private-use one, decides nothing.
+  ['ar-Zyyy', 'rtl'],
+  ['ar-Qaaa', 'rtl'],
+  ['en-Zxxx', 'ltr'],
+  // Languages written right to left in every common script. Were left-to-right.
+  ['ckb', 'rtl'],
+  ['syr', 'rtl'],
+  ['nqo', 'rtl'],
+  ['iw', 'rtl'],
+  ['ji', 'rtl'],
+  ['azb-IR', 'rtl'],
+  ['mzn', 'rtl'],
+  ['pnb', 'rtl'],
+  ['prs-AF', 'rtl'],
+  ['ckb-Latn', 'ltr'], // unchanged: its script decides
+  // `_` separates subtags as `-` does. Were left-to-right.
+  ['he_IL', 'rtl'],
+  ['ar_EG', 'rtl'],
+  ['ku_IQ', 'rtl'],
+  ['ar_Latn', 'ltr'], // unchanged
+  // A private-use or grandfathered tag names nothing, and an extension's
+  // value is not a script.
+  ['x-arab', 'ltr'],
+  ['i-klingon', 'ltr'],
+  ['zh-min-nan', 'ltr'],
+  ['en-US-u-nu-arab', 'ltr'],
+  ['ar-EG-u-nu-latn', 'rtl'],
+];
+
 describe('directionForLocale', () => {
-  it.each([
-    [undefined, 'ltr'],
-    ['en', 'ltr'],
-    ['es-MX', 'ltr'],
-    ['pt-BR', 'ltr'],
-    ['ar', 'rtl'],
-    ['ar-EG', 'rtl'],
-    ['AR-EG', 'rtl'],
-    ['he', 'rtl'],
-    ['fa-IR', 'rtl'],
-    ['ur', 'rtl'],
-  ])('%s is written %s', (locale, expected) => {
+  it.each(DIRECTIONS)('%s is written %s', (locale, expected) => {
     expect(directionForLocale(locale)).toBe(expected);
+  });
+
+  it('agrees with a dictation wherever the tag names a direction', () => {
+    // The two read a tag with one resolver, so a provider and a dictation
+    // given the same tag never lay it out in opposite directions.
+    for (const [locale] of DIRECTIONS) {
+      const named = localeDirectionOf(locale);
+      if (named !== undefined) {
+        expect(directionForLocale(locale), String(locale)).toBe(named);
+      }
+    }
+  });
+
+  it('reads the tag alone, so it answers the same with no Intl at all', () => {
+    // A server and a browser can disagree on what `Intl.Locale` says about a
+    // tag; a provider rendered on one and hydrated on the other must not.
+    vi.stubGlobal('Intl', {});
+    try {
+      for (const [locale, expected] of DIRECTIONS) {
+        expect(directionForLocale(locale), String(locale)).toBe(expected);
+      }
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('declares that direction, and hydrates its own server HTML without a warning', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const recoverable = vi.fn();
+    try {
+      for (const [locale, expected] of DIRECTIONS) {
+        const tree = (
+          <LkIntlProvider {...(locale === undefined ? {} : { locale })}>
+            <span>child</span>
+          </LkIntlProvider>
+        );
+        const island = document.createElement('div');
+        island.innerHTML = renderToString(tree);
+        document.body.appendChild(island);
+        let root: Root | undefined;
+        await act(async () => {
+          root = hydrateRoot(island, tree, { onRecoverableError: recoverable });
+        });
+        const declared = locale === undefined ? null : expected;
+        expect((island.firstElementChild as HTMLElement).getAttribute('dir'), String(locale)).toBe(
+          declared,
+        );
+        act(() => root?.unmount());
+        island.remove();
+      }
+      expect(errors).not.toHaveBeenCalled();
+      expect(recoverable).not.toHaveBeenCalled();
+    } finally {
+      errors.mockRestore();
+    }
   });
 });
 
