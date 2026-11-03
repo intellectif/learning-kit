@@ -786,6 +786,11 @@ function Player(props: InteractiveVideoProps) {
     }
     let cancel = () => {};
     const tick = (): void => {
+      // The next frame first, so a frame that throws does not end the loop
+      // and let every quiz after it play past unopened. Firefox can leave
+      // `window.event` set to an event from another compartment while a frame
+      // runs, and React's update throws reading its `type`.
+      cancel = onNextFrame(tick);
       const video = videoRef.current;
       if (video !== null) {
         setCurrent(video.currentTime);
@@ -796,7 +801,6 @@ function Player(props: InteractiveVideoProps) {
         }
         reportProgress(false);
       }
-      cancel = onNextFrame(tick);
     };
     cancel = onNextFrame(tick);
     return () => cancel();

@@ -123,6 +123,47 @@ describe('InteractiveVideo', () => {
     );
   });
 
+  it('still stops at a quiz after a frame of the playhead loop throws', async () => {
+    // What Firefox does to a page with a video: while a frame runs it can leave
+    // `window.event` set to an event from another compartment, and reading its
+    // `type` — React does, for every update scheduled outside an event handler —
+    // throws "Permission denied". One such frame ended the loop for good, and
+    // the video played through every quiz after it.
+    await start(<InteractiveVideo group={group()} />);
+    const own = Object.getOwnPropertyDescriptor(window, 'event');
+    const restore = () => {
+      if (own === undefined) {
+        Reflect.deleteProperty(window, 'event');
+      } else {
+        Object.defineProperty(window, 'event', own);
+      }
+    };
+    const denied = {
+      get type(): string {
+        restore();
+        throw new Error('Permission denied to access property "type"');
+      },
+    };
+    const thrown: unknown[] = [];
+    const swallow = (event: ErrorEvent) => {
+      thrown.push(event.error);
+      event.preventDefault();
+    };
+    window.addEventListener('error', swallow);
+    Object.defineProperty(window, 'event', { configurable: true, get: () => denied });
+    try {
+      await playTo(10);
+      expect(thrown).toHaveLength(1);
+    } finally {
+      restore();
+      window.removeEventListener('error', swallow);
+    }
+
+    await playTo(31);
+    await waitFor(() => expect(quizPanel()).toBeVisible());
+    expect(video().currentTime).toBe(30);
+  });
+
   it('holds the learner in the quiz until they continue, then plays on', async () => {
     const user = userEvent.setup();
     await start(<InteractiveVideo group={group()} />);

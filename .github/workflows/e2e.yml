@@ -35,9 +35,10 @@ jobs:
 
       # No step is skipped when something is missing: a moved config or an
       # empty spec folder fails the job (Playwright exits non-zero on "No tests
-      # found") instead of passing it with nothing run.
+      # found") instead of passing it with nothing run. All three engines the
+      # config has projects for: a missing one fails its tests at launch.
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
 
       - name: Build
         run: pnpm turbo run build

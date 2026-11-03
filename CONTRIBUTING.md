@@ -39,18 +39,24 @@ pnpm coverage   # coverage; 80% gate globally, 100% for packages/lk-core/src/sco
 pnpm lint       # Biome (lint + format check)
 pnpm build      # tsdown build (ESM + CJS + d.ts)
 
-# End-to-end (Playwright, Chromium) against the built Vite example:
+# End-to-end (Playwright: Chromium, Firefox and WebKit) against the built Vite example:
 pnpm turbo run build
-pnpm exec playwright install chromium   # first time only
+pnpm exec playwright install chromium firefox webkit   # first time only
 pnpm turbo run e2e
 ```
+
+Playwright's Windows build of WebKit has no media backend and no Web Audio, so
+the specs that play a video or record skip it there, by name
+(`packages/lk-react/e2e/engines.ts`); they run in Linux WebKit. Read-aloud also
+skips a browser that cannot run an audio graph on the machine, as Firefox cannot
+in a Linux container with no sound device; Chromium never takes that skip.
 
 The gates CI enforces on a pull request, and on `main` after each merge (`.github/workflows/ci.yml` and `e2e.yml`):
 
 ```bash
 pnpm verify-release                                     # Node 24: exactly what the release runs
 pnpm turbo run build lint typecheck coverage publint attw verify-dist   # Node 22
-pnpm turbo run e2e                                      # the example app in Chromium
+pnpm turbo run e2e                                      # the example app in Chromium, Firefox and WebKit
 pnpm --filter @intellectif/lk-storybook build-storybook # then every story rendered:
 pnpm --filter @intellectif/lk-storybook smoke
 ```

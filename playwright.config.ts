@@ -47,6 +47,30 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], launchOptions: { args: FAKE_MEDIA_ARGS } },
     },
+    // Firefox and WebKit for what Chromium cannot show: how an engine paints a
+    // mark, lays out bidirectional text, draws a conjunct, or schedules work.
+    // Neither plays a file into its fake microphone, and neither needs to:
+    // Firefox's fake device is an unbroken tone, and WebKit's mock device is
+    // a steady signal, so the plausibility policy `fake-speech.ts` describes
+    // accepts both as voiced.
+    {
+      name: 'firefox',
+      use: {
+        ...devices['Desktop Firefox'],
+        launchOptions: {
+          firefoxUserPrefs: {
+            'media.navigator.streams.fake': true,
+            'media.navigator.permission.disabled': true,
+          },
+        },
+      },
+    },
+    {
+      name: 'webkit',
+      // WebKit's mock capture device is there already; without the grant,
+      // `getUserMedia` is refused as NotAllowedError.
+      use: { ...devices['Desktop Safari'], permissions: ['microphone'] },
+    },
   ],
   webServer: {
     // Serves the pre-built dist (turbo builds the app before `turbo run e2e`

@@ -1,4 +1,5 @@
 import { expect, type Locator, test } from '@playwright/test';
+import { isWindowsWebKit, NO_MEDIA_IN_WINDOWS_WEBKIT } from './engines.js';
 
 /**
  * The interactive video in a real browser: a real `<video>` decoding a real
@@ -19,7 +20,16 @@ test.beforeEach(async ({ page }) => {
   await expect(player.getByRole('button', { name: 'Play' }).first()).toBeVisible();
 });
 
-test('pauses for each quiz, reports each grade, and finishes at the end', async ({ page }) => {
+test('pauses for each quiz, reports each grade, and finishes at the end', async ({
+  page,
+  browserName,
+}) => {
+  test.skip(isWindowsWebKit(browserName), NO_MEDIA_IN_WINDOWS_WEBKIT);
+  // Eight seconds of it are the video playing in real time, which no machine
+  // makes faster, and a page load in Firefox under a parallel run took most of
+  // what remained of the default budget: one run in six timed out waiting for
+  // the second quiz, with the video still playing towards it.
+  test.slow();
   await player.getByRole('button', { name: 'Play' }).first().click();
 
   // 0:02 — the video pauses and asks.
