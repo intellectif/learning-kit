@@ -1,53 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { installTrap, PurityViolation, removeTrap } from './trap.js';
 
 /**
  * The runtime purity trap (R1.1). The clock, the random source and argument-
  * less `new Date()` are replaced by functions that throw, and the package is
  * loaded and run with them in place: a path that reaches one of them fails
  * here, however it was reached. `scripts/verify-dist.mjs` sets the same trap
- * around the built entry, and scans its text as well.
+ * around the built entries, and scans their text as well. Every vector also
+ * replays under it (`policy-vectors.test.mjs`; revised in M8).
  */
-class PurityViolation extends Error {
-  constructor(source: string) {
-    super(`lk-practice reached ${source}, which it must never call.`);
-    this.name = 'PurityViolation';
-  }
-}
-
-const RealDate = Date;
-
-/** `Date` with a date given still works; the current time does not. */
-class TrappedDate extends RealDate {
-  constructor(...args: [] | [value: number | string | Date]) {
-    if (args.length === 0) {
-      throw new PurityViolation('new Date()');
-    }
-    super(args[0]);
-  }
-
-  static override now(): number {
-    throw new PurityViolation('Date.now()');
-  }
-}
-
-function installTrap(): void {
-  vi.stubGlobal('Date', TrappedDate);
-  vi.spyOn(Math, 'random').mockImplementation(() => {
-    throw new PurityViolation('Math.random()');
-  });
-  vi.spyOn(globalThis.crypto, 'randomUUID').mockImplementation(() => {
-    throw new PurityViolation('crypto.randomUUID()');
-  });
-}
-
 describe('the runtime purity trap', () => {
   beforeEach(() => {
     installTrap();
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
+    removeTrap();
   });
 
   // A trap that never fires proves nothing, so each vector is sprung first.
@@ -209,5 +177,35 @@ describe('the runtime purity trap', () => {
     });
     expect(planned.targets[0]?.skillIds).toEqual(['a']);
     expect(entry.migrateState(JSON.parse(JSON.stringify(second.state))).ok).toBe(true);
+    // The history export (revised in M8).
+    const history = practice.exportReviewHistory(
+      [...first.appended, ...second.appended],
+      graph,
+      'l',
+    );
+    expect(history.ok && history.history.skills.map((skill) => skill.skillId)).toEqual(['a']);
+  });
+
+  it('loads and runs the testing entry without reaching any of them (revised in M8)', async () => {
+    vi.resetModules();
+    const testing = await import('../testing/index.js');
+    expect(Object.keys(testing).sort()).toEqual(['simulateLearner']);
+    const { createPractice } = await import('../index.js');
+    const graph = {
+      version: '1',
+      skills: [{ id: 'a', knowledge: 'declarative' as const }],
+      edges: [],
+    };
+    const practice = createPractice();
+    const state = practice.initState('l', graph);
+    const now = 1_767_225_600_000;
+    const [target] = practice.plan(state, graph, { now, seed: 's', budget: {} }).targets;
+    if (target === undefined) throw new Error('no target');
+    const learner = testing.simulateLearner({
+      seed: 's',
+      skills: { a: { trueAbility: 0, forgettingDays: 5 } },
+    });
+    const attempt = learner.attempt(target, now);
+    expect(practice.record(state, { graph, ...attempt }).kind).toBe('applied');
   });
 });

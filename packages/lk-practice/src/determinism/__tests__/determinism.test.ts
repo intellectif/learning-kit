@@ -20,6 +20,28 @@ describe('fnv1a64', () => {
     expect(fnv1a64('\u00e9')).toBe(fnv1a64(String.fromCodePoint(0xe9)));
   });
 
+  // (revised in M8) fnv1a64 runs on two 32-bit halves; this is the BigInt form it replaced.
+  it('equals the BigInt computation on any string', () => {
+    const reference = (input: string): string => {
+      let hash = 0xcbf29ce484222325n;
+      for (const byte of new TextEncoder().encode(input)) {
+        hash = ((hash ^ BigInt(byte)) * 0x100000001b3n) & 0xffffffffffffffffn;
+      }
+      return hash.toString(16).padStart(16, '0');
+    };
+    fc.assert(
+      fc.property(
+        fc.oneof(fc.string({ unit: 'binary' }), fc.string({ unit: 'binary', maxLength: 2000 })),
+        (input) => fnv1a64(input) === reference(input),
+      ),
+      { numRuns: 1000 },
+    );
+    for (let i = 0; i < 256; i += 1) {
+      const input = String.fromCharCode(i).repeat(i % 17);
+      expect(fnv1a64(input)).toBe(reference(input));
+    }
+  });
+
   it('always returns 16 lowercase hex characters', () => {
     fc.assert(
       fc.property(fc.string({ unit: 'binary' }), (input) => /^[0-9a-f]{16}$/.test(fnv1a64(input))),

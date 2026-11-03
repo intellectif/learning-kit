@@ -580,6 +580,17 @@ describe('plan: pool matching (R6.7)', () => {
   it('rejects unfit items and keeps planning', () => {
     const cases: unknown[] = [
       null,
+      'not an item',
+      { ...near('no-skills'), skills: 'a' },
+      // (revised in M8) the pool index skips a skill entry without an id and
+      // reads a skill listed twice once; the item check still rejects both.
+      near('odd-skill', { skills: [null, { skillId: 'a', weight: 1 }] as never }),
+      near('twice', {
+        skills: [
+          { skillId: 'a', weight: 0.5 },
+          { skillId: 'a', weight: 0.5 },
+        ],
+      }),
       near('wrong-stage', { stage: 'produce' }),
       near('unproven', { status: 'unproven' }),
       near('proof', { proof: { kind: 'model-checked', at: T0, model: 'm', agreed: true } }),

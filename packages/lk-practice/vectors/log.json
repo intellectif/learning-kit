@@ -89,6 +89,7 @@
           ]
         }
       },
+      "history": ["l1", ""],
       "steps": [
         {
           "evidence": {
@@ -1304,7 +1305,74 @@
             "held": []
           }
         ],
-        "reconcile": []
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "5067a166c2be0874",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767225600000,
+                      "rating": "good",
+                      "evidenceId": "m0"
+                    },
+                    {
+                      "at": 1767312000000,
+                      "rating": "good",
+                      "evidenceId": "m1"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "a",
+                  "stage": "produce",
+                  "reviews": [
+                    {
+                      "at": 1767398400000,
+                      "rating": "good",
+                      "evidenceId": "m2"
+                    },
+                    {
+                      "at": 1767484800000,
+                      "rating": "good",
+                      "evidenceId": "m3"
+                    },
+                    {
+                      "at": 1767657600000,
+                      "rating": "good",
+                      "evidenceId": "m4"
+                    },
+                    {
+                      "at": 1770679166604,
+                      "rating": "good",
+                      "evidenceId": "m5"
+                    },
+                    {
+                      "at": 1780928187187,
+                      "rating": "good",
+                      "evidenceId": "m6"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "ok": false,
+            "issues": [
+              {
+                "code": "SHAPE_INVALID",
+                "path": ["learnerId"]
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -1394,6 +1462,7 @@
           ]
         }
       },
+      "history": ["l1"],
       "steps": [
         {
           "evidence": {
@@ -2463,7 +2532,76 @@
             "held": []
           }
         ],
-        "reconcile": []
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "5067a166c2be0874",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767225600000,
+                      "rating": "good",
+                      "evidenceId": "m0"
+                    },
+                    {
+                      "at": 1767312000000,
+                      "rating": "good",
+                      "evidenceId": "m1"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "a",
+                  "stage": "produce",
+                  "reviews": [
+                    {
+                      "at": 1767398400000,
+                      "rating": "good",
+                      "evidenceId": "m2"
+                    },
+                    {
+                      "at": 1767484800000,
+                      "rating": "good",
+                      "evidenceId": "m3"
+                    },
+                    {
+                      "at": 1767657600000,
+                      "rating": "good",
+                      "evidenceId": "m4"
+                    },
+                    {
+                      "at": 1770679166604,
+                      "rating": "good",
+                      "evidenceId": "m5"
+                    },
+                    {
+                      "at": 1780928187187,
+                      "rating": "good",
+                      "evidenceId": "m6"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "c",
+                  "stage": "recognise",
+                  "reviews": [
+                    {
+                      "at": 2676994861329,
+                      "rating": "good",
+                      "evidenceId": "late-c"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
       }
     },
     {
@@ -2553,6 +2691,7 @@
           ]
         }
       },
+      "history": ["l1"],
       "steps": [
         {
           "evidence": {
@@ -3361,7 +3500,50 @@
             ]
           }
         ],
-        "reconcile": []
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "5067a166c2be0874",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767225600000,
+                      "rating": "good",
+                      "evidenceId": "e1"
+                    },
+                    {
+                      "at": 1767312000000,
+                      "rating": "good",
+                      "evidenceId": "h1"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "a",
+                  "stage": "produce",
+                  "reviews": [
+                    {
+                      "at": 1767744000000,
+                      "rating": "again",
+                      "evidenceId": "f1"
+                    },
+                    {
+                      "at": 1767830400000,
+                      "rating": "again",
+                      "evidenceId": "f2"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
       }
     },
     {
@@ -3451,6 +3633,7 @@
           ]
         }
       },
+      "history": ["l1"],
       "steps": [
         {
           "evidence": {
@@ -4511,7 +4694,50 @@
             "held": []
           }
         ],
-        "reconcile": []
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "5067a166c2be0874",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767225600000,
+                      "rating": "again",
+                      "evidenceId": "h1"
+                    },
+                    {
+                      "at": 1767398400000,
+                      "rating": "good",
+                      "evidenceId": "e2"
+                    },
+                    {
+                      "at": 1767571200000,
+                      "rating": "good",
+                      "evidenceId": "e0"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "c",
+                  "stage": "recognise",
+                  "reviews": [
+                    {
+                      "at": 1767312000000,
+                      "rating": "good",
+                      "evidenceId": "e1"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
       }
     },
     {
@@ -4601,6 +4827,7 @@
           ]
         }
       },
+      "history": ["l1"],
       "alternate": {
         "desiredRetention": 0.85
       },
@@ -5295,7 +5522,29 @@
         },
         "checkpoints": [],
         "status": [],
-        "reconcile": []
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "5067a166c2be0874",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767225600000,
+                      "rating": "good",
+                      "evidenceId": "e1"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
       }
     },
     {
@@ -5385,6 +5634,7 @@
           ]
         }
       },
+      "history": ["l1"],
       "steps": [
         {
           "act": {
@@ -6011,6 +6261,28 @@
             "newSkills": ["a", "d"],
             "missingStages": []
           }
+        ],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "5067a166c2be0874",
+              "skills": [
+                {
+                  "skillId": "b",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767312000000,
+                      "rating": "good",
+                      "evidenceId": "e1"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
         ]
       }
     },
@@ -6101,6 +6373,7 @@
           ]
         }
       },
+      "history": ["l1"],
       "config": {
         "leechThreshold": 2
       },
@@ -6769,7 +7042,50 @@
             "held": []
           }
         ],
-        "reconcile": []
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "ed02c238e815d0b6",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767225600000,
+                      "rating": "good",
+                      "evidenceId": "e1"
+                    },
+                    {
+                      "at": 1767312000000,
+                      "rating": "good",
+                      "evidenceId": "e2"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "a",
+                  "stage": "produce",
+                  "reviews": [
+                    {
+                      "at": 1767484800000,
+                      "rating": "again",
+                      "evidenceId": "f1"
+                    },
+                    {
+                      "at": 1767916800000,
+                      "rating": "again",
+                      "evidenceId": "f2"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
       }
     },
     {
@@ -6859,6 +7175,7 @@
           ]
         }
       },
+      "history": ["l1"],
       "config": {
         "contexts": {
           "pretestWeight": 0,
@@ -7479,7 +7796,45 @@
             "held": []
           }
         ],
-        "reconcile": []
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "e6389e36b40c47c5",
+              "skills": [
+                {
+                  "skillId": "c",
+                  "stage": "recognise",
+                  "reviews": [
+                    {
+                      "at": 1767398400000,
+                      "rating": "easy",
+                      "evidenceId": "s1"
+                    },
+                    {
+                      "at": 1767484800000,
+                      "rating": "good",
+                      "evidenceId": "q1"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "c",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767571200000,
+                      "rating": "again",
+                      "evidenceId": "q2"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
       }
     },
     {
@@ -7569,6 +7924,7 @@
           ]
         }
       },
+      "history": ["l1"],
       "steps": [
         {
           "evidence": {
@@ -8285,7 +8641,60 @@
           }
         },
         "status": [],
-        "reconcile": []
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "5067a166c2be0874",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767225600000,
+                      "rating": "good",
+                      "evidenceId": "m0"
+                    },
+                    {
+                      "at": 1767312000000,
+                      "rating": "good",
+                      "evidenceId": "m1"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "a",
+                  "stage": "produce",
+                  "reviews": [
+                    {
+                      "at": 1767398400000,
+                      "rating": "good",
+                      "evidenceId": "m2"
+                    },
+                    {
+                      "at": 1767484800000,
+                      "rating": "good",
+                      "evidenceId": "m3"
+                    },
+                    {
+                      "at": 1767657600000,
+                      "rating": "good",
+                      "evidenceId": "m4"
+                    },
+                    {
+                      "at": 1770679166604,
+                      "rating": "good",
+                      "evidenceId": "m5"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
       }
     },
     {
@@ -8375,6 +8784,7 @@
           ]
         }
       },
+      "history": ["l1"],
       "config": {
         "leechThreshold": -1
       },
@@ -8462,6 +8872,7 @@
           ]
         }
       },
+      "history": ["l1"],
       "config": {
         "mastery": {
           "topSuccesses": 1,
@@ -9735,7 +10146,951 @@
             "held": []
           }
         ],
-        "reconcile": []
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "5780c1cde788d880",
+              "skills": [
+                {
+                  "skillId": "q",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767312000000,
+                      "rating": "good",
+                      "evidenceId": "e1"
+                    },
+                    {
+                      "at": 1767571200000,
+                      "rating": "good",
+                      "evidenceId": "e2"
+                    },
+                    {
+                      "at": 1767744000000,
+                      "rating": "again",
+                      "evidenceId": "h1"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "r",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767312000000,
+                      "rating": "good",
+                      "evidenceId": "e1"
+                    },
+                    {
+                      "at": 1767571200000,
+                      "rating": "good",
+                      "evidenceId": "e2"
+                    },
+                    {
+                      "at": 1767744000000,
+                      "rating": "good",
+                      "evidenceId": "h1"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "log",
+      "name": "the review history lists skills in graph order and stages in ladder order, whatever order they were first reviewed in",
+      "learnerId": "l1",
+      "graphs": {
+        "main": {
+          "version": "g1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "b",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "c",
+              "knowledge": "declarative"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "hard"
+            }
+          ]
+        },
+        "next": {
+          "version": "g2",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "b",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "c",
+              "knowledge": "declarative"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "hard"
+            }
+          ]
+        },
+        "grown": {
+          "version": "g3",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "b",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "d",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "hard"
+            }
+          ]
+        }
+      },
+      "history": ["l1"],
+      "steps": [
+        {
+          "evidence": {
+            "id": "h1",
+            "itemId": "i-c-recognise",
+            "at": 1767225600000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "i-c-recognise",
+            "skills": [
+              {
+                "skillId": "c",
+                "weight": 1
+              }
+            ],
+            "stage": "recognise",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "act": {
+            "id": "p1",
+            "at": 1767312000000,
+            "action": {
+              "kind": "place",
+              "skillId": "a",
+              "stage": "produce",
+              "credited": false
+            }
+          }
+        },
+        {
+          "evidence": {
+            "id": "h2",
+            "itemId": "i-a-produce",
+            "at": 1767398400000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "i-a-produce",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "produce",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "act": {
+            "id": "p2",
+            "at": 1767484800000,
+            "action": {
+              "kind": "place",
+              "skillId": "a",
+              "stage": "recall",
+              "credited": false
+            }
+          }
+        },
+        {
+          "evidence": {
+            "id": "h3",
+            "itemId": "i-a-recall",
+            "at": 1767571200000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "i-a-recall",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "recall",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "evidence": {
+            "id": "h4",
+            "itemId": "i-b-recall",
+            "at": 1767657600000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "i-b-recall",
+            "skills": [
+              {
+                "skillId": "b",
+                "weight": 1
+              }
+            ],
+            "stage": "recall",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "evidence": {
+            "id": "h5",
+            "itemId": "i-c-recognise",
+            "at": 1767744000000,
+            "source": {
+              "kind": "auto",
+              "score": 0,
+              "maxScore": 1,
+              "passed": false
+            }
+          },
+          "item": {
+            "id": "i-c-recognise",
+            "skills": [
+              {
+                "skillId": "c",
+                "weight": 1
+              }
+            ],
+            "stage": "recognise",
+            "origin": "generated",
+            "status": "proven"
+          }
+        }
+      ],
+      "expected": {
+        "configHash": "5067a166c2be0874",
+        "steps": [
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "skill.started",
+                "at": 1767225600000,
+                "skillId": "c",
+                "stage": "recognise"
+              },
+              {
+                "type": "review.recorded",
+                "at": 1767225600000,
+                "evidenceId": "h1",
+                "skillId": "c",
+                "stage": "recognise",
+                "rating": "good",
+                "due": 1767312000000
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "skill.placed",
+                "at": 1767312000000,
+                "skillId": "a",
+                "stage": "produce",
+                "credited": false
+              },
+              {
+                "type": "skill.started",
+                "at": 1767312000000,
+                "skillId": "a",
+                "stage": "produce"
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767398400000,
+                "evidenceId": "h2",
+                "skillId": "a",
+                "stage": "produce",
+                "rating": "good",
+                "due": 1767484800000
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "skill.placed",
+                "at": 1767484800000,
+                "skillId": "a",
+                "stage": "recall",
+                "credited": false
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767571200000,
+                "evidenceId": "h3",
+                "skillId": "a",
+                "stage": "recall",
+                "rating": "good",
+                "due": 1767657600000
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "skill.started",
+                "at": 1767657600000,
+                "skillId": "b",
+                "stage": "recall"
+              },
+              {
+                "type": "review.recorded",
+                "at": 1767657600000,
+                "evidenceId": "h4",
+                "skillId": "b",
+                "stage": "recall",
+                "rating": "good",
+                "due": 1767744000000
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767744000000,
+                "evidenceId": "h5",
+                "skillId": "c",
+                "stage": "recognise",
+                "rating": "again",
+                "due": 1767744600000
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "schemaVersion": 1,
+            "seq": 0,
+            "at": 1767225600000,
+            "configHash": "5067a166c2be0874",
+            "kind": "evidence",
+            "evidence": {
+              "id": "h1",
+              "itemId": "i-c-recognise",
+              "at": 1767225600000,
+              "source": {
+                "kind": "auto",
+                "score": 1,
+                "maxScore": 1,
+                "passed": true
+              }
+            },
+            "task": {
+              "itemId": "i-c-recognise",
+              "skills": [
+                {
+                  "skillId": "c",
+                  "weight": 1
+                }
+              ],
+              "stage": "recognise",
+              "difficulty": 0,
+              "origin": "generated"
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 1,
+            "at": 1767312000000,
+            "configHash": "5067a166c2be0874",
+            "kind": "host",
+            "id": "p1",
+            "action": {
+              "kind": "place",
+              "skillId": "a",
+              "stage": "produce",
+              "credited": false
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 2,
+            "at": 1767398400000,
+            "configHash": "5067a166c2be0874",
+            "kind": "evidence",
+            "evidence": {
+              "id": "h2",
+              "itemId": "i-a-produce",
+              "at": 1767398400000,
+              "source": {
+                "kind": "auto",
+                "score": 1,
+                "maxScore": 1,
+                "passed": true
+              }
+            },
+            "task": {
+              "itemId": "i-a-produce",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "weight": 1
+                }
+              ],
+              "stage": "produce",
+              "difficulty": 0,
+              "origin": "generated"
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 3,
+            "at": 1767484800000,
+            "configHash": "5067a166c2be0874",
+            "kind": "host",
+            "id": "p2",
+            "action": {
+              "kind": "place",
+              "skillId": "a",
+              "stage": "recall",
+              "credited": false
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 4,
+            "at": 1767571200000,
+            "configHash": "5067a166c2be0874",
+            "kind": "evidence",
+            "evidence": {
+              "id": "h3",
+              "itemId": "i-a-recall",
+              "at": 1767571200000,
+              "source": {
+                "kind": "auto",
+                "score": 1,
+                "maxScore": 1,
+                "passed": true
+              }
+            },
+            "task": {
+              "itemId": "i-a-recall",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "weight": 1
+                }
+              ],
+              "stage": "recall",
+              "difficulty": 0,
+              "origin": "generated"
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 5,
+            "at": 1767657600000,
+            "configHash": "5067a166c2be0874",
+            "kind": "evidence",
+            "evidence": {
+              "id": "h4",
+              "itemId": "i-b-recall",
+              "at": 1767657600000,
+              "source": {
+                "kind": "auto",
+                "score": 1,
+                "maxScore": 1,
+                "passed": true
+              }
+            },
+            "task": {
+              "itemId": "i-b-recall",
+              "skills": [
+                {
+                  "skillId": "b",
+                  "weight": 1
+                }
+              ],
+              "stage": "recall",
+              "difficulty": 0,
+              "origin": "generated"
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 6,
+            "at": 1767744000000,
+            "configHash": "5067a166c2be0874",
+            "kind": "evidence",
+            "evidence": {
+              "id": "h5",
+              "itemId": "i-c-recognise",
+              "at": 1767744000000,
+              "source": {
+                "kind": "auto",
+                "score": 0,
+                "maxScore": 1,
+                "passed": false
+              }
+            },
+            "task": {
+              "itemId": "i-c-recognise",
+              "skills": [
+                {
+                  "skillId": "c",
+                  "weight": 1
+                }
+              ],
+              "stage": "recognise",
+              "difficulty": 0,
+              "origin": "generated"
+            }
+          }
+        ],
+        "state": {
+          "schemaVersion": 1,
+          "learnerId": "l1",
+          "graphVersion": "g1",
+          "configHash": "5067a166c2be0874",
+          "log": {
+            "length": 7,
+            "lastAt": 1767744000000,
+            "hash": "aa6d6aca550e94a7"
+          },
+          "skills": {
+            "a": {
+              "stage": "recall",
+              "startedAt": 1767312000000,
+              "unlockedAt": null,
+              "credited": false,
+              "suspended": null,
+              "memories": {
+                "produce": {
+                  "model": "fsrs-7@1",
+                  "memory": {
+                    "stabilityFast": 3.13768,
+                    "stability": 3.9221,
+                    "difficulty": 3.53072398,
+                    "state": 2,
+                    "learningStep": 0,
+                    "scheduleStatus": "review",
+                    "dueAt": 1767811195164,
+                    "lastReviewAt": 1767398400000
+                  },
+                  "due": 1767484800000,
+                  "modelDue": 1767811195164,
+                  "lastReviewAt": 1767398400000,
+                  "reviews": 1,
+                  "lapses": 0,
+                  "streak": {
+                    "successes": 1,
+                    "firstSuccessAt": 1767398400000,
+                    "lastSuccessAt": 1767398400000,
+                    "lapses": 0
+                  },
+                  "superseded": false
+                },
+                "recall": {
+                  "model": "fsrs-7@1",
+                  "memory": {
+                    "stabilityFast": 3.13768,
+                    "stability": 3.9221,
+                    "difficulty": 3.53072398,
+                    "state": 2,
+                    "learningStep": 0,
+                    "scheduleStatus": "review",
+                    "dueAt": 1767983995164,
+                    "lastReviewAt": 1767571200000
+                  },
+                  "due": 1767657600000,
+                  "modelDue": 1767983995164,
+                  "lastReviewAt": 1767571200000,
+                  "reviews": 1,
+                  "lapses": 0,
+                  "streak": {
+                    "successes": 1,
+                    "firstSuccessAt": 1767571200000,
+                    "lastSuccessAt": 1767571200000,
+                    "lapses": 0
+                  },
+                  "superseded": false
+                }
+              },
+              "ability": {
+                "recall": {
+                  "theta": 1.0560210512531811,
+                  "n": 1
+                },
+                "produce": {
+                  "theta": -0.2689414213699951,
+                  "n": 1
+                }
+              },
+              "mastered": false,
+              "evidenceCount": 2,
+              "lastLapseAt": null,
+              "top": {
+                "successes": 1,
+                "firstSuccessAt": 1767398400000,
+                "lastSuccessAt": 1767398400000,
+                "lastWasLapse": false
+              }
+            },
+            "b": {
+              "stage": "recall",
+              "startedAt": 1767657600000,
+              "unlockedAt": null,
+              "credited": false,
+              "suspended": null,
+              "memories": {
+                "recall": {
+                  "model": "fsrs-7@1",
+                  "memory": {
+                    "stabilityFast": 3.13768,
+                    "stability": 3.9221,
+                    "difficulty": 3.53072398,
+                    "state": 2,
+                    "learningStep": 0,
+                    "scheduleStatus": "review",
+                    "dueAt": 1768070395164,
+                    "lastReviewAt": 1767657600000
+                  },
+                  "due": 1767744000000,
+                  "modelDue": 1768070395164,
+                  "lastReviewAt": 1767657600000,
+                  "reviews": 1,
+                  "lapses": 0,
+                  "streak": {
+                    "successes": 1,
+                    "firstSuccessAt": 1767657600000,
+                    "lastSuccessAt": 1767657600000,
+                    "lapses": 0
+                  },
+                  "superseded": false
+                }
+              },
+              "ability": {
+                "recall": {
+                  "theta": 0.5,
+                  "n": 1
+                }
+              },
+              "mastered": false,
+              "evidenceCount": 1,
+              "lastLapseAt": null,
+              "top": {
+                "successes": 0,
+                "firstSuccessAt": null,
+                "lastSuccessAt": null,
+                "lastWasLapse": false
+              }
+            },
+            "c": {
+              "stage": "recognise",
+              "startedAt": 1767225600000,
+              "unlockedAt": null,
+              "credited": false,
+              "suspended": null,
+              "memories": {
+                "recognise": {
+                  "model": "fsrs-7@1",
+                  "memory": {
+                    "stabilityFast": 0.2685893,
+                    "stability": 1.22875668,
+                    "difficulty": 8.6920928,
+                    "state": 3,
+                    "learningStep": 0,
+                    "scheduleStatus": "learning",
+                    "dueAt": 1767744600000,
+                    "lastReviewAt": 1767744000000
+                  },
+                  "due": 1767744600000,
+                  "modelDue": 1767744600000,
+                  "lastReviewAt": 1767744000000,
+                  "reviews": 2,
+                  "lapses": 1,
+                  "streak": {
+                    "successes": 0,
+                    "firstSuccessAt": null,
+                    "lastSuccessAt": null,
+                    "lapses": 1
+                  },
+                  "superseded": false
+                }
+              },
+              "ability": {
+                "recognise": {
+                  "theta": -0.09281841066843288,
+                  "n": 2
+                }
+              },
+              "mastered": false,
+              "evidenceCount": 2,
+              "lastLapseAt": 1767744000000,
+              "top": {
+                "successes": 0,
+                "firstSuccessAt": null,
+                "lastSuccessAt": null,
+                "lastWasLapse": false
+              }
+            }
+          },
+          "items": {
+            "i-a-produce": {
+              "uses": 1,
+              "lastUsedAt": 1767398400000
+            },
+            "i-a-recall": {
+              "uses": 1,
+              "lastUsedAt": 1767571200000
+            },
+            "i-b-recall": {
+              "uses": 1,
+              "lastUsedAt": 1767657600000
+            },
+            "i-c-recognise": {
+              "uses": 2,
+              "lastUsedAt": 1767744000000
+            }
+          },
+          "held": [],
+          "recentIds": ["h1", "p1", "h2", "p2", "h3", "h4", "h5"]
+        },
+        "replay": {
+          "ok": true,
+          "events": [
+            {
+              "type": "skill.started",
+              "at": 1767225600000,
+              "skillId": "c",
+              "stage": "recognise"
+            },
+            {
+              "type": "review.recorded",
+              "at": 1767225600000,
+              "evidenceId": "h1",
+              "skillId": "c",
+              "stage": "recognise",
+              "rating": "good",
+              "due": 1767312000000
+            },
+            {
+              "type": "skill.placed",
+              "at": 1767312000000,
+              "skillId": "a",
+              "stage": "produce",
+              "credited": false
+            },
+            {
+              "type": "skill.started",
+              "at": 1767312000000,
+              "skillId": "a",
+              "stage": "produce"
+            },
+            {
+              "type": "review.recorded",
+              "at": 1767398400000,
+              "evidenceId": "h2",
+              "skillId": "a",
+              "stage": "produce",
+              "rating": "good",
+              "due": 1767484800000
+            },
+            {
+              "type": "skill.placed",
+              "at": 1767484800000,
+              "skillId": "a",
+              "stage": "recall",
+              "credited": false
+            },
+            {
+              "type": "review.recorded",
+              "at": 1767571200000,
+              "evidenceId": "h3",
+              "skillId": "a",
+              "stage": "recall",
+              "rating": "good",
+              "due": 1767657600000
+            },
+            {
+              "type": "skill.started",
+              "at": 1767657600000,
+              "skillId": "b",
+              "stage": "recall"
+            },
+            {
+              "type": "review.recorded",
+              "at": 1767657600000,
+              "evidenceId": "h4",
+              "skillId": "b",
+              "stage": "recall",
+              "rating": "good",
+              "due": 1767744000000
+            },
+            {
+              "type": "review.recorded",
+              "at": 1767744000000,
+              "evidenceId": "h5",
+              "skillId": "c",
+              "stage": "recognise",
+              "rating": "again",
+              "due": 1767744600000
+            }
+          ]
+        },
+        "checkpoints": [],
+        "status": [],
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "5067a166c2be0874",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767571200000,
+                      "rating": "good",
+                      "evidenceId": "h3"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "a",
+                  "stage": "produce",
+                  "reviews": [
+                    {
+                      "at": 1767398400000,
+                      "rating": "good",
+                      "evidenceId": "h2"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "b",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767657600000,
+                      "rating": "good",
+                      "evidenceId": "h4"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "c",
+                  "stage": "recognise",
+                  "reviews": [
+                    {
+                      "at": 1767225600000,
+                      "rating": "good",
+                      "evidenceId": "h1"
+                    },
+                    {
+                      "at": 1767744000000,
+                      "rating": "again",
+                      "evidenceId": "h5"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
       }
     },
     {
@@ -9825,6 +11180,7 @@
           ]
         }
       },
+      "history": ["l1"],
       "config": {
         "itemUsageRetentionMs": 172800000,
         "recentIdWindow": 2
@@ -10483,7 +11839,34 @@
             "held": []
           }
         ],
-        "reconcile": []
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "1fc52bc3e0bfe3d1",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767225600000,
+                      "rating": "good",
+                      "evidenceId": "e1"
+                    },
+                    {
+                      "at": 1767312000000,
+                      "rating": "good",
+                      "evidenceId": "e2"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
       }
     },
     {
@@ -10573,6 +11956,7 @@
           ]
         }
       },
+      "history": ["l1"],
       "config": {
         "itemUsageRetentionMs": 172800000
       },
@@ -11171,7 +12555,34 @@
             "held": []
           }
         ],
-        "reconcile": []
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "1ed05ef71cb40948",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767225600000,
+                      "rating": "good",
+                      "evidenceId": "e1"
+                    },
+                    {
+                      "at": 1767312000000,
+                      "rating": "good",
+                      "evidenceId": "e2"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
       }
     },
     {
@@ -11261,6 +12672,7 @@
           ]
         }
       },
+      "history": ["l1"],
       "steps": [
         {
           "evidence": {
@@ -12157,7 +13569,45 @@
             ]
           }
         ],
-        "reconcile": []
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "5067a166c2be0874",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "stage": "recall",
+                  "reviews": [
+                    {
+                      "at": 1767225600000,
+                      "rating": "good",
+                      "evidenceId": "h1"
+                    },
+                    {
+                      "at": 1767398400000,
+                      "rating": "good",
+                      "evidenceId": "e2"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "c",
+                  "stage": "recognise",
+                  "reviews": [
+                    {
+                      "at": 1767225600000,
+                      "rating": "good",
+                      "evidenceId": "e1"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
       }
     },
     {
@@ -12284,6 +13734,7 @@
           "edges": []
         }
       },
+      "history": ["l1"],
       "steps": [
         {
           "act": {
@@ -12774,6 +14225,28 @@
             "orphanedSkills": ["a"],
             "newSkills": ["z"],
             "missingStages": []
+          }
+        ],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "5067a166c2be0874",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "stage": "produce",
+                  "reviews": [
+                    {
+                      "at": 1767312000000,
+                      "rating": "good",
+                      "evidenceId": "e1"
+                    }
+                  ]
+                }
+              ]
+            }
           }
         ]
       }

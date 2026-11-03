@@ -1182,9 +1182,8 @@ export type GraphComposition =
 
 /**
  * A configuration bound by `createPractice`: pure functions over the state and
- * the log, with no mutable state of its own. **(revised in M6)** `plan` is
- * implemented; `exportReviewHistory` is not implemented yet and is assigned to
- * M8 (design 13).
+ * the log, with no mutable state of its own. **(revised in M8)** Every method
+ * is implemented.
  */
 export interface Practice {
   readonly config: ResolvedPracticeConfig;
@@ -1209,6 +1208,16 @@ export interface Practice {
   ): ReplayResult;
   /** How the state's skills compare with a graph (R2.3); changes nothing. */
   reconcile(state: PracticeState, graph: SkillGraph): ReconcileReport;
+  /**
+   * The log replayed and its reviews grouped by skill and stage, for a host
+   * that fits FSRS weights (R4.8; revised in M8). The replay's issues come
+   * back when the log does not replay.
+   */
+  exportReviewHistory(
+    entries: readonly ReviewLogEntry[],
+    graph: SkillGraph,
+    learnerId: string,
+  ): ReviewHistoryResult;
 }
 
 export interface RecordInput {
@@ -1245,6 +1254,31 @@ export type ReplayResult =
 
 export type MigrationResult =
   | { readonly ok: true; readonly state: PracticeState; readonly migrated: boolean }
+  | { readonly ok: false; readonly issues: readonly Issue[] };
+
+/**
+ * A learner's reviews per skill and stage (R4.8): skills in graph order,
+ * stages in ladder order, reviews in replay order `(at, seq)`. A skill or
+ * stage with no review is left out. `configHash` names the configuration
+ * whose evidence mapping gave the ratings.
+ */
+export interface ReviewHistoryExport {
+  readonly learnerId: string;
+  readonly configHash: string;
+  readonly skills: readonly {
+    readonly skillId: string;
+    readonly stage: StageId;
+    readonly reviews: readonly {
+      readonly at: number;
+      readonly rating: Rating;
+      readonly evidenceId: string;
+    }[];
+  }[];
+}
+
+/** `exportReviewHistory`'s result (revised in M8): the history, or the replay's issues. */
+export type ReviewHistoryResult =
+  | { readonly ok: true; readonly history: ReviewHistoryExport }
   | { readonly ok: false; readonly issues: readonly Issue[] };
 
 export interface ReconcileReport {

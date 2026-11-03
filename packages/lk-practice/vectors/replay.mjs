@@ -49,6 +49,46 @@ export const ENTRY = {
   'stage/index.ts': ['createStagePolicy', 'implication'],
 };
 
+/**
+ * The functions of `ENTRY` each kind of vector calls (revised in M8), so a
+ * run over the published entry, which exports some of them, knows which
+ * vectors it can replay.
+ */
+export const NEEDS = {
+  map: ['resolveConfig', 'mapEvidence'],
+  'outcome-issues': ['skillOutcomeIssues'],
+  'context-weight': ['resolveConfig', 'contextWeight'],
+  elo: ['eloMasteryModel'],
+  'elo-options': ['eloMasteryModel'],
+  'elo-read': ['eloMasteryModel'],
+  ability: ['eloMasteryModel', 'abilityAt', 'updateAbility'],
+  implication: ['implication'],
+  decide: ['createStagePolicy'],
+  retention: ['resolveConfig', 'desiredRetentionFor'],
+  mastery: ['eloMasteryModel', 'createFsrsModel', 'resolveConfig', 'masteryFailures', 'isMastered'],
+  status: ['skillStatus'],
+  log: ['createPractice'],
+  plan: ['createPractice'],
+  replay: ['createPractice'],
+  grade: ['checkGradeResult', 'evidenceFromGrade'],
+  generate: [
+    'createPractice',
+    'resolveConfig',
+    'generationRequest',
+    'checkCandidates',
+    'admitCandidate',
+  ],
+  decompose: [
+    'resolveConfig',
+    'decompositionRequest',
+    'checkDecomposition',
+    'admitExtension',
+    'composeGraph',
+    'createPractice',
+  ],
+  migrate: ['migrateState'],
+};
+
 const TOLERANCE = 1e-9;
 
 /** Where `actual` differs from `expected`; empty when they match. */
@@ -177,8 +217,9 @@ function learn(practice, alternate, v) {
  * log, the final state, its replay, a replay from each `checkpoints` cut (the
  * replay of the first entries, then the rest), the replay under `recompute`,
  * `status` at each `now`, `status` against each named graph at each
- * `statusOn` instant, and `reconcile` against each graph named in
- * `reconcile`.
+ * `statusOn` instant, `reconcile` against each graph named in `reconcile`,
+ * and `exportReviewHistory` of the log for each learner id in `history`
+ * (revised in M8).
  */
 function runLog(impl, v) {
   const practice = attempt(() => impl.createPractice(v.config ?? {}));
@@ -214,6 +255,16 @@ function runLog(impl, v) {
           ),
         }),
     reconcile: (v.reconcile ?? []).map((name) => practice.reconcile(state, v.graphs[name])),
+    ...(v.history === undefined
+      ? {}
+      : {
+          history: v.history.map((learnerId) => {
+            const result = practice.exportReviewHistory(entries, main, learnerId);
+            return result.ok
+              ? { ok: true, history: result.history }
+              : { ok: false, issues: issuesOf(result.issues) };
+          }),
+        }),
   };
 }
 

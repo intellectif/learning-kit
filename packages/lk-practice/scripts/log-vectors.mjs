@@ -3,8 +3,8 @@
 // that loses mastery, held evidence confirmed, discarded and confirmed by
 // look-ahead, late evidence and replay, checkpoints, duplicates, every record
 // and act rejection, each host action, a leech, the evidence contexts, a
-// recompute under another configuration, and stored states into
-// migrateState. The expected values are recorded from src/ through
+// recompute under another configuration, stored states into migrateState,
+// and each log's review history (revised in M8). The expected values are recorded from src/ through
 // vectors/replay.mjs, so the file pins the current behaviour; the unit tests
 // check the same rules by hand. Run with `pnpm vectors:log`, then review the
 // diff: a changed output is a behaviour change and needs a version (D26).
@@ -141,6 +141,7 @@ const log = (name, fields) => ({
   name,
   learnerId: 'l1',
   graphs: GRAPHS,
+  history: ['l1'],
   ...fields,
 });
 
@@ -149,6 +150,7 @@ const logVectors = [
     steps: mastered.steps,
     checkpoints: [1, Math.floor(mastered.steps.length / 2), mastered.steps.length],
     now: [mastered.at, mastered.at + 10_000 * DAY],
+    history: ['l1', ''],
   }),
   log('mastery lost to decay at the next entry on the skill, not on another', {
     steps: [
@@ -292,6 +294,21 @@ const logVectors = [
     ],
     now: [T0 + 7 * DAY, T0 + 8 * DAY],
   }),
+  log(
+    'the review history lists skills in graph order and stages in ladder order, whatever order they were first reviewed in',
+    {
+      steps: [
+        ev('h1', T0, pass, { skill: 'c', stage: 'recognise' }),
+        // `a` meets `produce` before `recall`; its stages still come in ladder order.
+        act('p1', T0 + DAY, { kind: 'place', skillId: 'a', stage: 'produce', credited: false }),
+        ev('h2', T0 + 2 * DAY, pass, { stage: 'produce' }),
+        act('p2', T0 + 3 * DAY, { kind: 'place', skillId: 'a', stage: 'recall', credited: false }),
+        ev('h3', T0 + 4 * DAY, pass),
+        ev('h4', T0 + 5 * DAY, pass, { skill: 'b' }),
+        ev('h5', T0 + 6 * DAY, fail, { skill: 'c', stage: 'recognise' }),
+      ],
+    },
+  ),
   log('item usage is pruned at the retention and recent ids keep the window', {
     config: { itemUsageRetentionMs: 2 * DAY, recentIdWindow: 2 },
     checkpoints: [1],

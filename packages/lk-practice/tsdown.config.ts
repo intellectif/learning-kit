@@ -6,9 +6,11 @@ import { defineConfig } from 'tsdown';
  *
  * The root entry neither bundles nor imports lk-core: this package has no
  * dependency on it, and `scripts/verify-dist.mjs` fails a build that names it.
+ * `./testing` (revised in M8) is a second entry; code the two share is split
+ * into a chunk both load.
  */
 export default defineConfig({
-  entry: { index: 'src/index.ts' },
+  entry: { index: 'src/index.ts', testing: 'src/testing/index.ts' },
   format: ['esm', 'cjs'],
   platform: 'neutral',
   target: 'es2022',

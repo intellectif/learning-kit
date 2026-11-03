@@ -6,7 +6,7 @@
 
 import { configHash } from '../config.js';
 import { mapEvidence } from '../evidence/index.js';
-import { graphStageDemand, ladderOf } from '../graph/index.js';
+import { graphStageDemand, type ItemGraph, itemGraph, ladderOf } from '../graph/index.js';
 import type { MasteryContext } from '../mastery/index.js';
 import { eloMasteryModel } from '../mastery/index.js';
 import { fsrsMemoryModel } from '../memory/index.js';
@@ -60,6 +60,8 @@ export interface GraphIndex {
   readonly hardDependents: ReadonlyMap<string, readonly string[]>;
   /** The mastery context of a skill with a ladder. */
   mastery(skillId: string): MasteryContext;
+  /** The facts item checks read, built on first use (R12.4; revised in M8). */
+  items(): ItemGraph;
 }
 
 /** Indexes a graph that `validateGraph` accepted. */
@@ -80,6 +82,7 @@ export function indexGraph(graph: SkillGraph, engine: Engine): GraphIndex {
   const { demand } = graphStageDemand(graph, engine.config);
   const ladders = new Map<string, readonly StageId[] | null>();
   const contexts = new Map<string, MasteryContext>();
+  let items: ItemGraph | undefined;
   const ladder = (skillId: string): readonly StageId[] | null => {
     let found = ladders.get(skillId);
     if (found === undefined) {
@@ -111,6 +114,10 @@ export function indexGraph(graph: SkillGraph, engine: Engine): GraphIndex {
         contexts.set(skillId, context);
       }
       return context;
+    },
+    items() {
+      items ??= itemGraph(graph, engine.config, { skills: nodes, demand });
+      return items;
     },
   };
 }

@@ -444,6 +444,42 @@ function itemShapeIssues(item: unknown, path: Path): Issue[] {
   return issues;
 }
 
+/** The facts of a graph the item checks read (revised in M8). */
+export interface ItemGraph {
+  readonly skills: ReadonlyMap<string, SkillNode>;
+  /** The skills each skill encompasses directly. */
+  readonly components: ReadonlyMap<string, readonly string[]>;
+  readonly demand: ReadonlyMap<StageId, number>;
+  ladder(skillId: string): readonly StageId[];
+}
+
+/**
+ * The item checks' facts of `graph` under `config`, built once for a caller
+ * that checks many items against one graph (R12.4; revised in M8). `skills`
+ * and `demand` may be passed when the caller has them already.
+ */
+export function itemGraph(
+  graph: SkillGraph,
+  config: ResolvedPracticeConfig,
+  known: Partial<Pick<ItemGraph, 'skills' | 'demand'>> = {},
+): ItemGraph {
+  const skills = known.skills ?? new Map(graph.skills.map((skill) => [skill.id, skill]));
+  const components = new Map<string, string[]>();
+  for (const edge of graph.edges) {
+    if (edge.kind !== 'encompasses') continue;
+    const list = components.get(edge.from);
+    if (list === undefined) components.set(edge.from, [edge.to]);
+    else list.push(edge.to);
+  }
+  const demand = known.demand ?? graphStageDemand(graph, config).demand;
+  return {
+    skills,
+    components,
+    demand,
+    ladder: (skillId) => ladderOf(skills.get(skillId) as SkillNode, config) ?? [],
+  };
+}
+
 /**
  * Validates practice items against a graph that `validateGraph` accepted
  * (R2.2, R3.8). `config` supplies the ladders and stage demand; it defaults to
@@ -454,24 +490,23 @@ export function validateItems(
   graph: SkillGraph,
   config?: ResolvedPracticeConfig,
 ): ItemsValidation {
+  return checkItems(items, () => itemGraph(graph, config ?? defaultConfig()));
+}
+
+/** `validateItems` against facts `itemGraph` built already (revised in M8). */
+export function validateItemsOn(items: unknown, facts: ItemGraph): ItemsValidation {
+  return checkItems(items, () => facts);
+}
+
+/** The shape first, then the graph rules, with the facts built only for shapely items. */
+function checkItems(items: unknown, factsOf: () => ItemGraph): ItemsValidation {
   if (!Array.isArray(items)) {
     return { ok: false, issues: [issue('SHAPE_INVALID', [], 'Items are an array.')] };
   }
   const shape = items.flatMap((item, i) => itemShapeIssues(item, [i]));
   if (shape.length > 0) return { ok: false, issues: shape };
 
-  const resolved = config ?? defaultConfig();
-  const skills = new Map(graph.skills.map((skill) => [skill.id, skill]));
-  const components = new Map<string, string[]>();
-  for (const edge of graph.edges) {
-    if (edge.kind !== 'encompasses') continue;
-    const list = components.get(edge.from);
-    if (list === undefined) components.set(edge.from, [edge.to]);
-    else list.push(edge.to);
-  }
-  const { demand } = graphStageDemand(graph, resolved);
-  const ladder = (skillId: string): readonly StageId[] =>
-    ladderOf(skills.get(skillId) as SkillNode, resolved) ?? [];
+  const { skills, components, demand, ladder } = factsOf();
 
   const issues: Issue[] = [];
   const seen = new Set<string>();

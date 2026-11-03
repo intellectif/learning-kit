@@ -184,6 +184,7 @@ Commands, with `<branch>` and `<title>` from the milestone:
   - [ ] Benchmark against R12.4 (including `plan` at 2,000 skills and 10,000 items); record numbers in the pull request and in R12.4; if `plan` misses, apply the design 8.6 fallback.
 - **Gates:** all vectors pass with the purity trap installed.
 - **Acceptance:** criterion 14.
+- **As built (revised in M8):** `src/testing/` (`simulateLearner`, the `./testing` entry), `src/log/history.ts` (`exportReviewHistory`, returning the history or the replay's issues), `bench/plan.bench.mjs` (`pnpm bench`) and `bench/simulate.mjs` (`pnpm simulate`). The `replay.mjs` question is decided for the public functions only: `verify-dist` replays over both builds the 148 vectors whose functions the root entry exports, and all 185 replay on `src/` under the trap (design 5.10). The benchmark found `plan` at 1.6 s and `record` and `replay` growing with the state; the fixes are in design 8.6 and the numbers in R12.4, where `replay` still misses its target (design 13).
 - **Changeset:** none.
 
 ## M9 - Release `0.1.0`
