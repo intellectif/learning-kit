@@ -7,10 +7,13 @@
  * plan, and, when the target needs per-skill outcomes, binds every target
  * skill in its `criteria`. An item that fails any check is not matched; the
  * plan still succeeds. Among matches: the smallest gap, the fewest uses, the
- * oldest use, then the seeded key.
+ * oldest use, then the seeded key. (revised in M8) The pool is indexed once
+ * per call by stage and listed skill (design 8.6, the first fallback), and a
+ * target reads only the items at its stage that list its primary skill, in
+ * pool order; an item that does not list it could not match.
  */
 
-import { validateItems } from '../graph/index.js';
+import { validateItemsOn } from '../graph/index.js';
 import type { Engine, GraphIndex } from '../log/context.js';
 import { compareKeys } from '../log/draft.js';
 import type { PracticeItem, PracticeState, StageId } from '../types.js';
@@ -50,15 +53,17 @@ export function createMatcher(
   const isValid = (item: PracticeItem): boolean => {
     let found = valid.get(item);
     if (found === undefined) {
-      found = validateItems([item], index.graph, config).ok;
+      found = validateItemsOn([item], index.items()).ok;
       valid.set(item, found);
     }
     return found;
   };
   const usage = (id: string) => (Object.hasOwn(state.items, id) ? state.items[id] : undefined);
+  const byStageAndSkill = indexPool(input.pool);
 
+  // Only items from the target's bucket of the pool index reach this: each is
+  // an object at the target's stage that lists the target's primary skill.
   const candidate = (item: PracticeItem, query: MatchQuery): boolean => {
-    if (typeof item !== 'object' || item === null || item.stage !== query.stage) return false;
     if (taken.has(item.id) || input.excludeItems.has(item.id) || !isValid(item)) return false;
     if (item.status !== 'proven') return false;
     if (item.proof !== undefined && !config.acceptProofs.includes(item.proof.kind)) return false;
@@ -81,7 +86,7 @@ export function createMatcher(
     match(query) {
       let best: PracticeItem | undefined;
       let bestKey: readonly [number, number, number, string] | undefined;
-      for (const item of input.pool) {
+      for (const item of byStageAndSkill.get(poolKey(query.stage, query.skillIds[0])) ?? []) {
         if (!candidate(item, query)) continue;
         const used = usage(item.id);
         const key = [
@@ -101,6 +106,33 @@ export function createMatcher(
       taken.add(itemId);
     },
   };
+}
+
+/**
+ * The pool's items by stage and listed skill, each list in pool order. An
+ * entry that is not an item with a skills list, or a skill entry without a
+ * string id, is left out: it fails the item check, so it could not match.
+ */
+function indexPool(pool: readonly PracticeItem[]): Map<string, PracticeItem[]> {
+  const index = new Map<string, PracticeItem[]>();
+  for (const item of pool) {
+    if (typeof item !== 'object' || item === null || !Array.isArray(item.skills)) continue;
+    const listed = new Set<string>();
+    for (const entry of item.skills as readonly unknown[]) {
+      const skillId = (entry as { skillId?: unknown } | null)?.skillId;
+      if (typeof skillId !== 'string' || listed.has(skillId)) continue;
+      listed.add(skillId);
+      const key = poolKey(item.stage, skillId);
+      const list = index.get(key);
+      if (list === undefined) index.set(key, [item]);
+      else list.push(item);
+    }
+  }
+  return index;
+}
+
+function poolKey(stage: unknown, skillId: unknown): string {
+  return JSON.stringify([stage, skillId]);
 }
 
 function gapOf(item: PracticeItem, query: MatchQuery): number {

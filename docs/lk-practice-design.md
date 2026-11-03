@@ -113,6 +113,7 @@ packages/lk-practice/
   scripts/log-vectors.mjs     writes vectors/log.json (revised in M5)
   scripts/load-src.mjs        bundles src/ for the vector generators, shared (revised in M5)
   bench/plan.bench.mjs    performance tracking, outside CI gates
+  bench/simulate.mjs      policy comparisons on simulated learners, reported (M8)
   src/
     index.ts              root entry: re-exports only
     errors.ts             PracticeConfigError (revised in M4)
@@ -151,6 +152,7 @@ packages/lk-practice/
       apply.ts            applyEntry(draft, entry, context, link): the one state transition
       record.ts           record and act: validation, ordering checks, held handling
       replay.ts           replay, replayFrom, look-ahead confirmation
+      history.ts          exportReviewHistory: the replay's reviews by skill and stage (M8)
       index.ts            internal re-exports
     planner/
       candidates.ts       per-tier candidate collection
@@ -176,15 +178,17 @@ packages/lk-practice/
       types.ts            structural copies: ItemOutcomeLike, GradeRecordLike, CriterionScoreLike
       index.ts            evidenceFromOutcome, skillOutcomesFromCriteria
     testing/
-      index.ts            simulateLearner, vector helpers
+      index.ts            the ./testing entry (revised in M8: no vector helpers, see 5.10)
+      simulate.ts         simulateLearner (M8)
   src/**/__tests__/        tests beside each module, as lk-core and lk-azure do:
     *.test.ts             unit tests
     *.property.test.ts    fast-check property tests
   src/__tests__/purity.test.ts             runtime trap over dist (also run by verify-dist)
+  src/__tests__/trap.ts                    the trap, shared with the vector replay (M8)
   src/adapters/lk-core/__tests__/contract.test.ts  (M10) real lk-core types and evaluate outputs
 ```
 
-`index.ts` re-exports only; `api-report` freezes the result. Internal helpers (canonical JSON, FNV-1a) are not exported from the root; `./testing` exposes what a port or a conformance test needs.
+`index.ts` re-exports only; `api-report` freezes the result. Internal helpers (canonical JSON, FNV-1a) are not exported from the root; `./testing` exposes what a port or a conformance test needs. (revised in M8) That is the simulated learner; a conformance test runs `vectors/replay.mjs` with its own implementation (5.10).
 
 ## 5. Public types
 
@@ -965,7 +969,7 @@ export interface Practice {
   replay(entries: readonly ReviewLogEntry[], graph: SkillGraph, learnerId: string): ReplayResult;
   replayFrom(checkpoint: PracticeState, entries: readonly ReviewLogEntry[], graph: SkillGraph): ReplayResult;
   reconcile(state: PracticeState, graph: SkillGraph): ReconcileReport;
-  exportReviewHistory(entries: readonly ReviewLogEntry[], graph: SkillGraph, learnerId: string): ReviewHistoryExport; // M8 (13)
+  exportReviewHistory(entries: readonly ReviewLogEntry[], graph: SkillGraph, learnerId: string): ReviewHistoryResult; // M8 (13; revised in M8)
 }
 
 export interface RecordInput {
@@ -1052,12 +1056,17 @@ export interface ReviewHistoryExport {
   }[];
 }
 
+// (revised in M8) The history, or the replay's issues when the log does not replay.
+export type ReviewHistoryResult =
+  | { readonly ok: true; readonly history: ReviewHistoryExport }
+  | { readonly ok: false; readonly issues: readonly Issue[] };
+
 export type JsonSchemaObject = Readonly<Record<string, unknown>>;
 ```
 
 **As built in M5 (revised in M5).**
 
-- `createPractice` and `migrateState` are exported; `plan` arrives in M6, the schema constants in M7, and `exportReviewHistory` is not built yet (13). (revised in M6) `plan` is built (8.6); `exportReviewHistory` is assigned to M8 (13).
+- `createPractice` and `migrateState` are exported; `plan` arrives in M6, the schema constants in M7, and `exportReviewHistory` is not built yet (13). (revised in M6) `plan` is built (8.6); `exportReviewHistory` is assigned to M8 (13). (revised in M8) `exportReviewHistory` is built: it replays the log and groups the `review.recorded` events by skill and stage, skills in graph order, stages in ladder order, reviews in replay order `(at, seq)`, leaving out a skill or stage with no review; `configHash` names the configuration whose evidence mapping gave the ratings. It returns `ReviewHistoryResult` rather than the bare export, so a log that does not replay reports the replay's issues instead of throwing.
 - `Practice.config` exposes the resolved, frozen configuration (`ResolvedPracticeConfig`) and `configHash` its hash; `PracticeConfig`, the input type, is exported from the root.
 - `initState` throws a `TypeError` for an empty `learnerId` or a graph without a string `version`; `replay` returns those two cases as `SHAPE_INVALID` issues instead.
 - `status` throws a `RangeError` when `now` is not a safe integer, and `PracticeConfigError` with `STATE_CONFIG_MISMATCH` or `GRAPH_VERSION_MISMATCH` issues when the state does not belong to this configuration and graph version; `reconcile` reports and never throws on a version difference.
@@ -1102,6 +1111,11 @@ export interface SimulatedLearner {
   attempt(target: PracticeTarget, at: number): { readonly evidence: Evidence; readonly item: PracticeItem };
 }
 ```
+
+**As built in M8 (revised in M8).**
+
+- `./testing` exports `simulateLearner` and its types (`SimulatedLearnerOptions`, `SimulatedSkill`, `SimulatedLearner`, `SimulatedAttempt`). For each skill of a target the learner succeeds with probability `recall * 1 / (1 + exp(-(trueAbility + noise * z - difficulty)))`: `z` is a standard normal draw, `recall` is `exp(-days since its last attempt at the skill / forgettingDays)` (1 before the first), and `difficulty` is the attached item's, else the target's. Draws come from `fnv1a64` of the seed, the time and the skill, finalised with murmur3's 64-bit mixer before sampling (FNV-1a's high bits barely move on a change to the last characters), so two policies that plan the same attempt give the learner the same chance; keying on the target id would not, because target ids change with the configuration hash. The learner remembers its last attempt at each skill (instance state, never module state). The evidence is an `auto` grade with a point per skill, per-skill outcomes for a target of several skills, and the target's context and id; the item weighs its skills equally, primary first, and is `proven`, so `record` accepts it.
+- No vector helpers. `vectors/replay.mjs` stays the runner: plain ESM a port runs with its own implementation. Exposing the internal functions the stage and evidence vectors call (`abilityAt`, `updateAbility`, `createStagePolicy`, `implication`, `skillStatus`, `isMastered`, `masteryFailures`, `desiredRetentionFor`, `contextWeight`, `skillOutcomeIssues`, `createFsrsModel`, `resolveConfig`) would freeze their internal signatures under semver. `replay.mjs` exports `NEEDS`, the functions each kind of vector calls; a test proves each vector replays with only those. `scripts/verify-dist.mjs` replays over both builds, under the purity trap, every vector whose functions the root entry exports (148 of 185; `resolveConfig` is read through `createPractice(...).config`), and fails if the set of kinds it cannot run changes. The other eight kinds (37 vectors) replay on `src/` under the same trap, and `record`, `replay` and `plan` run those functions over the build through the log and plan vectors.
 
 The `ItemOutcomeLike` shapes (discriminated by `status`, as `lk-core`'s `ItemOutcome` is) are copied from `packages/lk-core/api/surface.md` as read on 2026-11-01, keeping only the fields the adapter reads, and are confirmed by the M10 contract test, which assigns real `lk-core` values to these types; any mismatch fails that test, not a host.
 
@@ -1357,7 +1371,7 @@ Status at `t`, first match wins: `suspended`; `credited` (credited and not start
 6. **Order.** Keep tier order, then: place members of one `interleaveGroup` past their first stage next to each other, alternating by skill; move a new target away from a new target of the same group; keep new declarative skills' first targets in a block.
 7. **Ids.** `id = fnv1a64(canonicalJson(['target@1', learnerId, log.hash, kind, skillIds, stage]))`, so a plan made from the same log has the same ids and a new record gives new ones.
 
-**Cost and fallback.** The M8 benchmark measures `plan` at 2,000 skills and 10,000 pool items (R12.4). If it misses, the fallback, in order: index the pool by (stage, primary skill) once per call instead of scanning it per target; then an opt-in `PlanRequest.scope: 'focus'` (a minor) that limits candidates to the focus set, its prerequisites and due skills. No cache is kept between calls (R1.1). The measured numbers are recorded in R12.4.
+**Cost and fallback.** The M8 benchmark measures `plan` at 2,000 skills and 10,000 pool items (R12.4). If it misses, the fallback, in order: index the pool by (stage, primary skill) once per call instead of scanning it per target; then an opt-in `PlanRequest.scope: 'focus'` (a minor) that limits candidates to the focus set, its prerequisites and due skills. No cache is kept between calls (R1.1). The measured numbers are recorded in R12.4. (revised in M8) The first build took 1.6 s: every pool item was checked against the graph with the graph's facts rebuilt for each. Now the item checks' graph facts are built once per call (`GraphIndex.items`), the pool is indexed by stage and listed skill (the first fallback; a target reads only the items at its stage that list its primary skill, in pool order), a skill that encompasses nothing skips the coalescing scan, and once the plan holds `maxTargets` targets the remaining candidates are not built (`deferred` is counted from the tiers either way). `plan` now takes about 12 ms; the second fallback is not needed.
 
 Ties at any step use `tieKey(seed, skillId) = fnv1a64(canonicalJson(['planner@1', seed, skillId]))`, compared as strings.
 
@@ -1476,12 +1490,12 @@ Every `check*`, `validate*`, `record` and `act` failure is an `Issue` with a sta
 | Contracts | Candidate and decomposition checks; per-skill generation facts; the starter-fails, solution-passes proof. (revised in M7) Also a request's recent lapses and weakest skills, grader output to evidence, and the guards on each request's inputs; generated from src/ by `scripts/contracts-vectors.mjs`, pinning the current behaviour | `vectors/contracts.json` | M7 |
 | Fuzz | Random JSON never throws from `migrateState` or `check*` | `src/schema/__tests__/robustness.property.test.ts`, `src/contracts/__tests__/` | M5, M7 |
 | Vectors (revised in M5) | `log.json`: log to state, events, replay, checkpoints, recompute under another configuration, status and reconcile, and `migrateState` rows; generated from src/ by `scripts/log-vectors.mjs`, pinning the current behaviour. Issues only `replay` can raise (`LOG_SEQ_INVALID`, `ID_DUPLICATE` in a log) are unit tests | `vectors/log.json`, `src/__tests__/policy-vectors.test.mjs` | M5 |
-| Simulation | 90 simulated days; policy comparisons reported, not asserted | `src/testing/__tests__/simulate.test.ts` | M8 |
-| Purity | Static scan of `dist/` and the runtime trap | `scripts/verify-dist.mjs`, `src/__tests__/purity.test.ts` | M1 (skeleton), M8 (all vectors) |
+| Simulation | 90 simulated days; policy comparisons reported, not asserted. (revised in M8) The comparisons are `bench/simulate.mjs` over the build; the test asserts the learner's determinism, its outcome rates and forgetting, and a 90-day run that records every attempt and replays to the same state | `src/testing/__tests__/simulate.test.ts`, `bench/simulate.mjs` | M8 |
+| Purity | Static scan of `dist/` and the runtime trap. (revised in M8) `verify-dist` replays over both builds the 148 vectors whose functions the root entry exports, and loads `./testing` under the trap; all 185 replay on `src/` under it (5.10) | `scripts/verify-dist.mjs`, `src/__tests__/purity.test.ts`, `src/__tests__/policy-vectors.test.mjs` | M1 (skeleton), M8 (all vectors) |
 | Types | `expectTypeOf` on public types, `exactOptionalPropertyTypes` cases | `src/__tests__/types.test.ts` | M2 onwards |
 | Mutation | `pnpm mutate` on `evidence/`, `stage/`, `mastery/` (all of it, revised in M4: Elo and the per-stage ability as well as the predicate), `planner/`; (revised in M5) `log/`, `status/` and `schema/` with `--modules log,status,schema`, against the vectors including `log.json`; (revised in M6) `planner/` with `--modules planner`, against the vectors including `plan.json` | `scripts/mutate.mjs --package lk-practice` (generalised) | M4 onwards |
 | Contract | Structural types accept real `lk-core` types; real `evaluate` outputs map as R7.7 says | `src/adapters/lk-core/__tests__/contract.test.ts` | M10 |
-| Benchmark | R12.4 targets, tracked, not gated; the 8.6 fallback if `plan` misses | `bench/plan.bench.mjs` | M8 |
+| Benchmark | R12.4 targets, tracked, not gated; the 8.6 fallback if `plan` misses. (revised in M8) `--quick` for 10,000 entries, `--per-day` for the tasks a day (50 by default); the numbers are in R12.4 | `bench/plan.bench.mjs` | M8 |
 
 Coverage: the repository's 80% gate overall and 100% lines and branches for the gated modules, set in `vitest.config.ts`. (revised in M5) The gated modules are `evidence/`, `stage/`, `mastery/`, `log/`, `schema/`, `status/` and `practice.ts`; the planner joins in M6. (revised in M6) `planner/` is gated. Property tests use fast-check with `numRuns` of at least 100 and the property in the test title.
 
@@ -1541,18 +1555,20 @@ On Node 24, a **practice module** in the LMS backend: on enrolment it records `a
 
 | Item | Kind | Note |
 |---|---|---|
-| Full replay on every graph version change | Risk, accepted | Every admitted extension changes the version, so the host replays the learner's log. Exact and simple; at the R12.4 target it costs at most seconds for very long logs. A cheaper rebind for extensions that only add skills is a later optimisation if measurements need it. |
+| Full replay on every graph version change | Risk, accepted | Every admitted extension changes the version, so the host replays the learner's log. Exact and simple; at the R12.4 target it costs at most seconds for very long logs. A cheaper rebind for extensions that only add skills is a later optimisation if measurements need it. (revised in M8) Measured: 5.2 to 5.7 s for 100,000 entries at 50 tasks a day (R12.4). |
 | FSRS memory field list | Decided in M3 | Eight fields (8.4); frozen by `memory.json`. |
 | Per-stage retention in the scheduler | Decided in M3 | Retention is bound at creation in 6.0.0, so one scheduler per distinct value (8.4). |
 | Steps and maximum interval in `ReviewContext` | Decided in M5 | (revised in M5) Removed from the port; `ReviewContext` is `{ desiredRetention }` and the steps and maximum interval are model options (8.4). |
-| `exportReviewHistory` (R4.8) | Assigned to M8 (revised in M6) | Not built in M5 or M6. (revised in M6) Assigned to M8, beside the simulator whose long histories it exports; R4.8 is unchanged. |
+| `exportReviewHistory` (R4.8) | Built in M8 (revised in M8) | Not built in M5 or M6. (revised in M6) Assigned to M8, beside the simulator whose long histories it exports; R4.8 is unchanged. (revised in M8) Built; it returns `ReviewHistoryResult` (5.9). |
 | `stageSeconds` defaults | Placeholder | Replaced by measured times from real hosts. |
 | Focus closure over hard prerequisites only (revised in M6) | Design judgement, open | R6.2 says "prerequisites"; M6 follows hard ones only (8.6), because a soft prerequisite does not lock its skill. Following soft ones too is a behaviour change to `plan` before `0.1.0`. |
-| Remediation overlapping the overdue tier (revised in M6) | Open | With the defaults a prerequisite below its floor is usually overdue too, so remediation targets are rare; the simulator (M8) shows how often they occur. |
+| Remediation overlapping the overdue tier (revised in M6) | Open | With the defaults a prerequisite below its floor is usually overdue too, so remediation targets are rare; the simulator (M8) shows how often they occur. (revised in M8) None occurred in `bench/simulate.mjs` (10 learners, 90 days, every policy compared). |
 | `skillStatus` for an unlocked, unstarted one-stage skill (revised in M6) | Open finding | `status` reports it as `reviewing`; the planner does not depend on it (8.6). Not changed in M6. |
-| `ability.stageOffset` (1 logit per demand step) | Placeholder | No empirical basis yet; the simulator compares 0, 0.5 and 1 (D27). |
+| `ability.stageOffset` (1 logit per demand step) | Placeholder | No empirical basis yet; the simulator compares 0, 0.5 and 1 (D27). (revised in M8) On the simulated learner, whose ability does not depend on the stage, an offset of 0 gave the lowest observed success (0.80 against 0.82 at 0.5 and 0.83 at 1) and the most attempts; the default stays 1 until real data. |
 | Default stage demand pairing across ladders | Design judgement | `example` = `recognise`, `complete` = `recall`, `write` = `produce`, `transfer` = `apply`; hosts override with `stageDemand` (D28). |
-| `plan` cost at 2,000 skills and 10,000 items | Open until M8 | Benchmark; the fallback in 8.6. |
+| `plan` cost at 2,000 skills and 10,000 items | Decided in M8 (revised in M8) | About 12 ms with the first 8.6 fallback (R12.4). |
+| Observed success against `targetSuccess` (revised in M8) | Open finding | On the simulated learner the observed success stays about 0.83 whether `targetSuccess` is 0.85 or 0.80 (`bench/simulate.mjs`); why the difficulty targeting does not follow the setting there is to be understood before tuning it. |
+| `record` and `replay` cost with item usage (revised in M8) | Risk, measured | Both grow with the item usage records a state keeps (tasks a day times the 30-day `itemUsageRetentionMs`), and replay's pruning scans them all per entry: at 274 tasks a day (about 8,200 records) `record` took 5.3 ms and 100,000 entries replayed in 14.2 s. A heap ordered by last use, and a cheaper canonical hash for the log, are the next steps if a host needs faster replay (R12.4). |
 | Node 22 engine warning on install | Unverified | Checked at M1 (R13.5). |
 | Exact-hash duplicate detection only | Deferred | Near-duplicate generated tasks are the host's to detect (normalised hash). |
 | Graph credit (Phase 3), `costAdr`, hierarchical Elo, an `fsrs-6` model option, `1.0.0` | Deferred | See the milestones document, "Later". |

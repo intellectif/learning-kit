@@ -8,4 +8,11 @@ export {
   resolveStageDemand,
   type StageDemandResolution,
 } from './stages.js';
-export { graphStageDemand, validateGraph, validateItems } from './validate.js';
+export {
+  graphStageDemand,
+  type ItemGraph,
+  itemGraph,
+  validateGraph,
+  validateItems,
+  validateItemsOn,
+} from './validate.js';

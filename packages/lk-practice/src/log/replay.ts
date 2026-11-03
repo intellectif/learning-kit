@@ -97,7 +97,7 @@ function run(
   if (structure.length > 0) return failed(structure);
 
   const index = indexGraph(graph, engine);
-  const rules = ruleIssues(start, bySeq, index, engine);
+  const rules = ruleIssues(start, bySeq, index);
   if (rules.length > 0) return failed(rules);
 
   const sorted = [...bySeq].sort((a, b) => a.entry.at - b.entry.at || a.entry.seq - b.entry.seq);
@@ -183,12 +183,7 @@ function structureIssues(
 }
 
 /** The rule checks of `record` and `act`, per entry, in seq order. */
-function ruleIssues(
-  start: PracticeState,
-  bySeq: readonly Indexed[],
-  graph: GraphIndex,
-  engine: Engine,
-): Issue[] {
+function ruleIssues(start: PracticeState, bySeq: readonly Indexed[], graph: GraphIndex): Issue[] {
   const targets = new Map<string, HeldTarget>();
   for (const held of start.held) targets.set(held.evidenceId, held);
   const issues: Issue[] = [];
@@ -203,7 +198,7 @@ function ruleIssues(
     const { evidence } = entry;
     if (evidence.confirms === undefined) {
       const task = entry.task as NonNullable<typeof entry.task>;
-      const found = taskIssues(task, graph, engine, [...path, 'task']);
+      const found = taskIssues(task, graph, [...path, 'task']);
       issues.push(
         ...(found.length > 0 ? found : outcomeIssues(evidence, task, graph, [...path, 'evidence'])),
       );

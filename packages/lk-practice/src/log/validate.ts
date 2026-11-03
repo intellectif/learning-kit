@@ -5,7 +5,7 @@
  */
 
 import { heldReason, skillOutcomeIssues } from '../evidence/index.js';
-import { validateItems } from '../graph/index.js';
+import { validateItemsOn } from '../graph/index.js';
 import type {
   Evidence,
   HostAction,
@@ -68,7 +68,7 @@ export function itemIssues(
       ),
     ];
   }
-  const validation = validateItems([item], graph.graph, engine.config);
+  const validation = validateItemsOn([item], graph.items());
   if (!validation.ok) {
     return validation.issues.map((found) => ({ ...found, path: ['item', ...found.path.slice(1)] }));
   }
@@ -88,12 +88,7 @@ export function itemIssues(
 }
 
 /** Checks a task snapshot from the log against the graph, as `validateItems` checks an item. */
-export function taskIssues(
-  task: TaskSnapshot,
-  graph: GraphIndex,
-  engine: Engine,
-  path: Path,
-): Issue[] {
+export function taskIssues(task: TaskSnapshot, graph: GraphIndex, path: Path): Issue[] {
   const item: PracticeItem = {
     id: task.itemId,
     skills: task.skills,
@@ -105,7 +100,7 @@ export function taskIssues(
     origin: task.origin,
     status: 'proven',
   };
-  const validation = validateItems([item], graph.graph, engine.config);
+  const validation = validateItemsOn([item], graph.items());
   if (validation.ok) return [];
   // The snapshot shape already requires a non-empty itemId, the only id
   // check on one item, so every issue is under a field the snapshot shares.

@@ -102,6 +102,8 @@ export function planSession(
       stack.push(...(components.get(id) ?? []));
     }
     reach.delete(skillId);
+    // Most skills encompass nothing; their targets skip the scan (R12.4; revised in M8).
+    if (reach.size === 0) return [];
     return reviews
       .filter((candidate) => {
         const id = candidate.skillId;
@@ -201,6 +203,10 @@ export function planSession(
   };
 
   const tryCandidate = (candidate: Candidate): boolean => {
+    // A full plan fits no more targets, and building one has no effect, so
+    // the rest are not built (R12.4; revised in M8). `deferred` counts them
+    // from the tiers either way.
+    if (targets >= input.maxTargets) return false;
     const main = build(candidate, candidate.kind, candidate.stage, candidate.detail);
     if (candidate.pretestStage !== undefined) {
       const pretest = build(candidate, 'pretest', candidate.pretestStage, {

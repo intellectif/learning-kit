@@ -8,11 +8,19 @@ import { resolveConfig } from './config.js';
 import { EMPTY_LOG_HASH } from './determinism/keys.js';
 import { PracticeConfigError } from './errors.js';
 import { createEngine } from './log/context.js';
+import { reviewHistory } from './log/history.js';
 import { recordEvidence, recordHostAction } from './log/record.js';
 import { replayLog, replayLogFrom } from './log/replay.js';
 import { planSession } from './planner/index.js';
 import { learnerStatus, reconcileState } from './status/summary.js';
-import type { Practice, PracticeConfig, PracticeState, SkillGraph } from './types.js';
+import type {
+  Practice,
+  PracticeConfig,
+  PracticeState,
+  ReplayResult,
+  ReviewLogEntry,
+  SkillGraph,
+} from './types.js';
 
 function isId(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
@@ -45,6 +53,28 @@ export function createPractice(config: PracticeConfig = {}): Practice {
     });
   };
 
+  const replay = (
+    entries: readonly ReviewLogEntry[],
+    graph: SkillGraph,
+    learnerId: string,
+  ): ReplayResult => {
+    if (!isId(learnerId) || typeof graph?.version !== 'string') {
+      return Object.freeze({
+        ok: false,
+        issues: Object.freeze([
+          Object.freeze({
+            code: 'SHAPE_INVALID',
+            path: Object.freeze([isId(learnerId) ? 'graph' : 'learnerId']),
+            message: isId(learnerId)
+              ? 'graph.version is a string.'
+              : 'learnerId is a non-empty string.',
+          }),
+        ]),
+      });
+    }
+    return replayLog(engine, initState(learnerId, graph), entries, graph);
+  };
+
   return Object.freeze({
     config: engine.config,
     configHash: engine.hash,
@@ -53,24 +83,10 @@ export function createPractice(config: PracticeConfig = {}): Practice {
     act: (state, graph, input) => recordHostAction(engine, state, graph, input),
     status: (state, graph, now) => learnerStatus(engine, state, graph, now),
     plan: (state, graph, request) => planSession(engine, state, graph, request),
-    replay: (entries, graph, learnerId) => {
-      if (!isId(learnerId) || typeof graph?.version !== 'string') {
-        return Object.freeze({
-          ok: false,
-          issues: Object.freeze([
-            Object.freeze({
-              code: 'SHAPE_INVALID',
-              path: Object.freeze([isId(learnerId) ? 'graph' : 'learnerId']),
-              message: isId(learnerId)
-                ? 'graph.version is a string.'
-                : 'learnerId is a non-empty string.',
-            }),
-          ]),
-        });
-      }
-      return replayLog(engine, initState(learnerId, graph), entries, graph);
-    },
+    replay,
     replayFrom: (checkpoint, entries, graph) => replayLogFrom(engine, checkpoint, entries, graph),
     reconcile: (state, graph) => reconcileState(engine, state, graph),
+    exportReviewHistory: (entries, graph, learnerId) =>
+      reviewHistory(engine, replay(entries, graph, learnerId), graph, learnerId),
   } satisfies Practice);
 }

@@ -81,6 +81,9 @@ export function skillOutcomeIssues(
   task: TaskSnapshot,
   graph: SkillGraph,
 ): Issue[] {
+  // Most evidence has no per-skill outcomes; it skips the graph scan (R12.4; revised in M8).
+  const outcomes = evidence.skillOutcomes ?? [];
+  if (outcomes.length === 0) return [];
   const components = new Map<string, string[]>();
   for (const edge of graph.edges) {
     if (edge.kind !== 'encompasses') continue;
@@ -100,7 +103,7 @@ export function skillOutcomeIssues(
     }
   }
   const issues: Issue[] = [];
-  (evidence.skillOutcomes ?? []).forEach((outcome, i) => {
+  outcomes.forEach((outcome, i) => {
     if (allowed.has(outcome.skillId)) return;
     issues.push({
       code: 'SKILL_NOT_IN_TASK',

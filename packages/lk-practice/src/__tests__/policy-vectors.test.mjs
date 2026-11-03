@@ -2,12 +2,12 @@
  * Replays vectors/evidence.json, vectors/stage.json, vectors/log.json,
  * vectors/plan.json (revised in M6) and vectors/contracts.json (revised in M7)
  * against src/ through vectors/replay.mjs,
- * the way scripts/mutate.mjs replays them against each mutant. Plain ESM, as
- * the replay is.
+ * the way scripts/mutate.mjs replays them against each mutant, with the
+ * runtime purity trap installed (revised in M8). Plain ESM, as the replay is.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { differences, ENTRY, replay } from '../../vectors/replay.mjs';
+import { differences, ENTRY, NEEDS, replay } from '../../vectors/replay.mjs';
 import * as config from '../config.js';
 import * as contracts from '../contracts/index.js';
 import * as evidence from '../evidence/index.js';
@@ -17,6 +17,7 @@ import * as memory from '../memory/fsrs.js';
 import * as practice from '../practice.js';
 import * as migrate from '../schema/migrate.js';
 import * as stage from '../stage/index.js';
+import { installTrap, removeTrap } from './trap.js';
 
 const MODULES = {
   'config.ts': config,
@@ -45,12 +46,35 @@ describe('policy, log, plan and contract vectors', () => {
     ['plan.json', 10],
     ['contracts.json', 15],
   ]) {
-    it(`${file} replays with no difference`, () => {
+    it(`${file} replays with no difference, under the purity trap`, () => {
       const loaded = corpus(file);
       expect(loaded.vectors.length).toBeGreaterThanOrEqual(least);
-      expect(replay(impl, loaded)).toEqual([]);
+      installTrap();
+      try {
+        expect(replay(impl, loaded)).toEqual([]);
+      } finally {
+        removeTrap();
+      }
     });
   }
+
+  // verify-dist replays over the build the vectors whose kinds need only
+  // what the build exports; this proves each kind needs no more than NEEDS
+  // says (revised in M8).
+  it('replays each vector with only the functions its kind needs', () => {
+    const entry = new Set(Object.values(ENTRY).flat());
+    for (const names of Object.values(NEEDS)) {
+      for (const name of names) expect(entry.has(name)).toBe(true);
+    }
+    for (const file of ['evidence.json', 'stage.json', 'log.json', 'plan.json', 'contracts.json']) {
+      const loaded = corpus(file);
+      for (const vector of loaded.vectors) {
+        expect(Object.keys(NEEDS)).toContain(vector.kind);
+        const only = Object.fromEntries(NEEDS[vector.kind].map((name) => [name, impl[name]]));
+        expect(replay(only, { ...loaded, vectors: [vector] })).toEqual([]);
+      }
+    }
+  });
 
   it('reports a changed value, and rejects another corpus version', () => {
     const loaded = corpus('stage.json');

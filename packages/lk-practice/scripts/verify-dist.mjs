@@ -2,19 +2,22 @@
  * Checks the BUILD OUTPUT, as a host installs it.
  *
  * The tests read `src/`. This reads `dist/`: the ESM and the CommonJS build
- * must each export exactly the names below, and the same ones. The build must
- * be pure (R1.1): its text names no clock, random source, timer, network call
- * or Node built-in, and it loads and runs with the clock, the random source
- * and argument-less `new Date()` replaced by functions that throw. It must
- * not name lk-core at all: this package has no dependency on it. Its only
- * dependency, ts-fsrs, is loaded from the entries below and nowhere else, and
- * no declaration file names it, so no library type is part of the API (R4.3).
+ * of each entry (the root and `./testing`; revised in M8) must each export
+ * exactly the names below, and the same ones. The build must be pure (R1.1):
+ * its text names no clock, random source, timer, network call or Node
+ * built-in, and it loads and runs with the clock, the random source and
+ * argument-less `new Date()` replaced by functions that throw, including
+ * every vector the root entry can run (revised in M8). It must not name
+ * lk-core at all: this package has no dependency on it. Its only dependency,
+ * ts-fsrs, is loaded from the entries below and nowhere else, and no
+ * declaration file names it, so no library type is part of the API (R4.3).
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { builtinModules, createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
+import { NEEDS, replay } from '../vectors/replay.mjs';
 
 const require = createRequire(import.meta.url);
 const PKG_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -49,6 +52,30 @@ const REQUIRED_EXPORTS = [
   'reviewLogEntrySchema',
   'validateGraph',
   'validateItems',
+];
+
+/** Everything `./testing` exports at run time (revised in M8). */
+const TESTING_EXPORTS = ['simulateLearner'];
+
+/** The vector files vectors/replay.mjs reads. */
+const CORPORA = ['evidence.json', 'stage.json', 'log.json', 'plan.json', 'contracts.json'];
+
+/**
+ * The kinds of vector that call functions the root entry does not export
+ * (ability, stage policy, retention, mastery and status internals). They
+ * replay on src/ under the same trap (`src/__tests__/policy-vectors.test.mjs`),
+ * and `record`, `replay` and `plan` run those functions here through the log
+ * and plan vectors (revised in M8).
+ */
+const SRC_ONLY = [
+  'ability',
+  'context-weight',
+  'decide',
+  'implication',
+  'mastery',
+  'outcome-issues',
+  'retention',
+  'status',
 ];
 
 /** The ts-fsrs entries the build may load (design §3). */
@@ -229,6 +256,73 @@ function smoke(format, module) {
   return problems;
 }
 
+/** A simulated learner's attempt at a planned target, recorded by the root build of the same format. */
+function smokeTesting(format, root, testing) {
+  const options = {
+    seed: 's1',
+    skills: {
+      a: { trueAbility: 0, forgettingDays: 5 },
+      b: { trueAbility: 0, forgettingDays: 5 },
+    },
+  };
+  const practice = root.createPractice({});
+  const state = practice.initState('l1', SMOKE_GRAPH);
+  const now = SMOKE_EVIDENCE.at;
+  const [target] = practice.plan(state, SMOKE_GRAPH, { now, seed: 's1', budget: {} }).targets;
+  const attempt = testing.simulateLearner(options).attempt(target, now);
+  const again = testing.simulateLearner(options).attempt(target, now);
+  const recorded = practice.record(state, { graph: SMOKE_GRAPH, ...attempt });
+  return recorded.kind === 'applied' && isDeepStrictEqual(attempt, again)
+    ? []
+    : [`${format} simulateLearner's attempt is not repeatable, or records as ${recorded.kind}.`];
+}
+
+/** The root entry's functions as vectors/replay.mjs names them; `resolveConfig` reads `createPractice`. */
+function implOf(module) {
+  return {
+    ...module,
+    resolveConfig(input) {
+      try {
+        return { ok: true, value: module.createPractice(input).config };
+      } catch (error) {
+        if (error instanceof module.PracticeConfigError) return { ok: false, issues: error.issues };
+        throw error;
+      }
+    },
+  };
+}
+
+/** Replays every vector the root entry can run; returns what went wrong and how many ran. */
+function replayVectors(format, module) {
+  const impl = implOf(module);
+  const problems = [];
+  const skipped = new Set();
+  let count = 0;
+  for (const file of CORPORA) {
+    const corpus = JSON.parse(readFileSync(join(PKG_ROOT, 'vectors', file), 'utf8'));
+    const runnable = corpus.vectors.filter((vector) => {
+      const runs = (NEEDS[vector.kind] ?? []).every((name) => typeof impl[name] === 'function');
+      if (!runs) skipped.add(vector.kind);
+      return runs;
+    });
+    count += runnable.length;
+    for (const line of replay(impl, { ...corpus, vectors: runnable })) {
+      problems.push(`${format} ${file}: ${line}`);
+    }
+  }
+  const unexpected = [...skipped].filter((kind) => !SRC_ONLY.includes(kind));
+  if (unexpected.length > 0) {
+    problems.push(`${format} cannot replay ${unexpected.join(', ')} vectors from the build.`);
+  }
+  const stale = SRC_ONLY.filter((kind) => !skipped.has(kind));
+  if (stale.length > 0) {
+    problems.push(
+      `${format} replays ${stale.join(', ')} from the build; take them out of SRC_ONLY.`,
+    );
+  }
+  return { problems, count };
+}
+
 /** What pure code never names. Comments are removed before the scan. */
 const IMPURE = [
   [/\bDate\.now\b/, 'Date.now'],
@@ -249,7 +343,16 @@ const BUILTINS = new Set(builtinModules.flatMap((name) => [name, `node:${name}`]
 const files = readdirSync(DIST, { recursive: true })
   .map(String)
   .filter((file) => /\.(?:c?js|d\.c?ts)$/.test(file));
-for (const expected of ['index.js', 'index.cjs', 'index.d.ts', 'index.d.cts']) {
+for (const expected of [
+  'index.js',
+  'index.cjs',
+  'index.d.ts',
+  'index.d.cts',
+  'testing.js',
+  'testing.cjs',
+  'testing.d.ts',
+  'testing.d.cts',
+]) {
   if (!files.includes(expected)) {
     failures.push(`dist/${expected} is missing. Run \`pnpm build\` first.`);
   }
@@ -313,13 +416,27 @@ class TrappedDate extends RealDate {
 
 let esm;
 let cjs;
+let esmTesting;
+let cjsTesting;
+const replayed = {};
 globalThis.Date = TrappedDate;
 Math.random = trap('Math.random()');
 globalThis.crypto.randomUUID = trap('crypto.randomUUID()');
 try {
   esm = await import(pathToFileURL(join(DIST, 'index.js')).href);
   cjs = require(join(DIST, 'index.cjs'));
+  esmTesting = await import(pathToFileURL(join(DIST, 'testing.js')).href);
+  cjsTesting = require(join(DIST, 'testing.cjs'));
   failures.push(...smoke('ESM', esm), ...smoke('CJS', cjs));
+  failures.push(...smokeTesting('ESM', esm, esmTesting), ...smokeTesting('CJS', cjs, cjsTesting));
+  for (const [format, module] of [
+    ['ESM', esm],
+    ['CJS', cjs],
+  ]) {
+    const { problems, count } = replayVectors(format, module);
+    failures.push(...problems);
+    replayed[format] = count;
+  }
 } catch (error) {
   failures.push(`the build does not load under the purity trap: ${error.message}`);
 } finally {
@@ -331,22 +448,26 @@ for (const source of new Set(sprung)) {
   failures.push(`loading the build reached ${source}.`);
 }
 
-if (esm !== undefined && cjs !== undefined) {
-  const expected = [...REQUIRED_EXPORTS].sort().join(', ');
+for (const [entry, names, esmModule, cjsModule] of [
+  ['index', REQUIRED_EXPORTS, esm, cjs],
+  ['testing', TESTING_EXPORTS, esmTesting, cjsTesting],
+]) {
+  if (esmModule === undefined || cjsModule === undefined) continue;
+  const expected = [...names].sort().join(', ');
   const exported = {};
   for (const [format, module] of [
-    ['ESM', esm],
-    ['CJS', cjs],
+    ['ESM', esmModule],
+    ['CJS', cjsModule],
   ]) {
     exported[format] = Object.keys(module).sort().join(', ');
     if (exported[format] !== expected) {
       failures.push(
-        `${format} exports ${exported[format] || 'nothing'}; expected ${expected || 'nothing'}.`,
+        `${format} ${entry} exports ${exported[format] || 'nothing'}; expected ${expected || 'nothing'}.`,
       );
     }
   }
   if (exported.ESM !== exported.CJS) {
-    failures.push('the ESM and CommonJS builds export different names.');
+    failures.push(`the ESM and CommonJS builds of ${entry} export different names.`);
   }
 }
 
@@ -358,5 +479,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  `verify-dist OK: ESM and CommonJS export the same ${REQUIRED_EXPORTS.length} names, ${files.length} built files are pure, the build loads and runs under the purity trap, it loads only ts-fsrs, and nothing names lk-core or exposes a ts-fsrs type.`,
+  `verify-dist OK: ESM and CommonJS export the same ${REQUIRED_EXPORTS.length} root and ${TESTING_EXPORTS.length} testing names, ${files.length} built files are pure, both builds load and run under the purity trap and replay ${replayed.ESM} vectors there (the ${SRC_ONLY.length} kinds that call unexported functions replay on src/), the build loads only ts-fsrs, and nothing names lk-core or exposes a ts-fsrs type.`,
 );

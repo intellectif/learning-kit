@@ -34,6 +34,16 @@
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
       }
+    },
+    "./testing": {
+      "import": {
+        "types": "./dist/testing.d.ts",
+        "default": "./dist/testing.js"
+      },
+      "require": {
+        "types": "./dist/testing.d.cts",
+        "default": "./dist/testing.cjs"
+      }
     }
   },
   "main": "./dist/index.cjs",
@@ -46,6 +56,8 @@
   ],
   "scripts": {
     "build": "tsdown",
+    "bench": "node bench/plan.bench.mjs",
+    "simulate": "node bench/simulate.mjs",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "lint": "biome check .",
