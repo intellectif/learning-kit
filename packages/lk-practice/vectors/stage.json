@@ -849,12 +849,88 @@
       "t": 1767638395164,
       "config": {
         "mastery": {
-          "minExpectedSuccess": 0.5
+          "minExpectedSuccess": 0.5,
+          "uncertaintyMargin": 0
         }
       },
       "expected": {
         "failures": [],
         "mastered": true
+      }
+    },
+    {
+      "kind": "mastery",
+      "name": "the same ability fails once the reference is raised by the uncertainty margin (revised in M11)",
+      "ladder": ["recognise", "recall", "produce", "apply"],
+      "demand": {
+        "recognise": -1,
+        "recall": 0,
+        "produce": 1,
+        "apply": 2
+      },
+      "stageOffset": 1,
+      "skill": {
+        "id": "a",
+        "knowledge": "declarative"
+      },
+      "state": {
+        "stage": "apply",
+        "startedAt": 1764633600000,
+        "unlockedAt": 1764633600000,
+        "credited": false,
+        "suspended": null,
+        "memories": {
+          "apply": {
+            "model": "fsrs-7@1",
+            "memory": {
+              "stabilityFast": 3.13768,
+              "stability": 3.9221,
+              "difficulty": 3.53072398,
+              "state": 2,
+              "learningStep": 0,
+              "scheduleStatus": "review",
+              "dueAt": 1767638395164,
+              "lastReviewAt": 1767225600000
+            },
+            "due": 1767638395164,
+            "modelDue": 1767638395164,
+            "lastReviewAt": 1767225600000,
+            "reviews": 1,
+            "lapses": 0,
+            "streak": {
+              "successes": 1,
+              "firstSuccessAt": 1767225600000,
+              "lastSuccessAt": 1767225600000,
+              "lapses": 0
+            },
+            "superseded": false
+          }
+        },
+        "ability": {
+          "apply": {
+            "theta": 0,
+            "n": 20
+          }
+        },
+        "mastered": false,
+        "evidenceCount": 20,
+        "lastLapseAt": null,
+        "top": {
+          "successes": 2,
+          "firstSuccessAt": 1767052800000,
+          "lastSuccessAt": 1767225600000,
+          "lastWasLapse": false
+        }
+      },
+      "t": 1767638395164,
+      "config": {
+        "mastery": {
+          "minExpectedSuccess": 0.5
+        }
+      },
+      "expected": {
+        "failures": ["ability"],
+        "mastered": false
       }
     },
     {

@@ -95,6 +95,60 @@ describe('simulateLearner', () => {
     expect(later / count).toBeCloseTo(Math.exp(-1), 1);
   });
 
+  it('consolidates (revised in M11): a spaced success lengthens the forgetting time, a massed one barely does', () => {
+    const count = 3000;
+    const probeAfterSecond = (consolidation: number, gapMs: number) => {
+      const skills = Object.fromEntries(
+        Array.from({ length: count }, (_, i) => [
+          `s${i}`,
+          { trueAbility: 50, forgettingDays: 10, consolidation },
+        ]),
+      );
+      const learner = simulateLearner({ seed: 'consolidate', skills, noise: 0 });
+      let passes = 0;
+      for (let i = 0; i < count; i += 1) {
+        learner.attempt(target(`first${i}`, [`s${i}`]), T0);
+        learner.attempt(target(`second${i}`, [`s${i}`]), T0 + gapMs);
+        const probe = learner.attempt(target(`probe${i}`, [`s${i}`]), T0 + gapMs + 10 * DAY);
+        passes += passed(probe) ? 1 : 0;
+      }
+      return passes / count;
+    };
+    // Massed: recall is about 1 at the second attempt, so the time stays 10 days.
+    expect(probeAfterSecond(3, 60_000)).toBeCloseTo(Math.exp(-1), 1);
+    // Spaced 10 days: a success there (e^-1 of the time) multiplies the time by
+    // 1 + 3 (1 - e^-1); a failure leaves it at 10 days.
+    const grown = 10 * (1 + 3 * (1 - Math.exp(-1)));
+    const spaced = Math.exp(-1) * Math.exp(-10 / grown) + (1 - Math.exp(-1)) * Math.exp(-1);
+    expect(probeAfterSecond(3, 10 * DAY)).toBeCloseTo(spaced, 1);
+    expect(probeAfterSecond(0, 10 * DAY)).toBeCloseTo(Math.exp(-1), 1);
+  });
+
+  it('a failure halves what earlier successes added to the forgetting time', () => {
+    const count = 3000;
+    const skills = Object.fromEntries(
+      Array.from({ length: count }, (_, i) => [
+        `s${i}`,
+        { trueAbility: 50, forgettingDays: 10, consolidation: 3 },
+      ]),
+    );
+    const learner = simulateLearner({ seed: 'halve', skills, noise: 0 });
+    const easy = (id: string) => target(id, [id.split(':')[1] as string]);
+    const hard = (id: string) => target(id, [id.split(':')[1] as string], 100);
+    let passes = 0;
+    for (let i = 0; i < count; i += 1) {
+      learner.attempt(easy(`a:s${i}`), T0);
+      const second = learner.attempt(easy(`b:s${i}`), T0 + 10 * DAY);
+      if (!passed(second)) continue;
+      // Grown to 10 (1 + 3 (1 - e^-1)); this certain failure halves the growth.
+      learner.attempt(hard(`c:s${i}`), T0 + 10 * DAY + 60_000);
+      passes += passed(learner.attempt(easy(`d:s${i}`), T0 + 20 * DAY + 60_000)) ? 1 : 0;
+    }
+    const grown = 10 * (1 + 3 * (1 - Math.exp(-1)));
+    const halved = 10 + (grown - 10) / 2;
+    expect(passes / (count * Math.exp(-1))).toBeCloseTo(Math.exp(-10 / halved), 1);
+  });
+
   it('reports each skill of a composite target, and the item weighs them equally', () => {
     const learner = simulateLearner({
       seed: 's',
@@ -161,6 +215,14 @@ describe('simulateLearner', () => {
     expect(() => learner.attempt(target('t', ['b']), T0)).toThrow(TypeError);
     expect(() => learner.attempt(target('t', ['a']), T0 + 0.5)).toThrow(RangeError);
     expect(simulateLearner({ seed: 's', skills: undefined as never })).toBeDefined();
+    for (const consolidation of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() =>
+        simulateLearner({
+          seed: 's',
+          skills: { a: { trueAbility: 0, forgettingDays: 5, consolidation } },
+        }),
+      ).toThrow(RangeError);
+    }
   });
 });
 

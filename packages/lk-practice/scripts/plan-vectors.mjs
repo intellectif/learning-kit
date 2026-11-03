@@ -394,6 +394,18 @@ const vectors = [
     { config: { mastery: { retentionMargin: 0 } } },
   ),
   plan(
+    "after a failed mastery check the next review is at the learner's level (M11)",
+    MAIN,
+    [
+      ev('k1', 'a', 'recall', T0),
+      ev('k2', 'a', 'recall', T0 + DAY),
+      ev('k3', 'a', 'produce', T0 + 2 * DAY),
+      ev('k4', 'a', 'produce', T0 + 5 * DAY),
+      ev('k5', 'a', 'produce', T0 + 8 * DAY, fail),
+    ],
+    [ask(T0 + 11 * DAY)],
+  ),
+  plan(
     'focus plans the hard-prerequisite closure in topological order, then the rest',
     FAN,
     [],

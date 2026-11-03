@@ -67,8 +67,9 @@ function mastered(overrides: Partial<SkillState> = {}): SkillState {
     credited: false,
     suspended: null,
     memories: { apply: stageMemory(0.85) },
-    // sigmoid(1.4) = 0.802 >= 0.8.
-    ability: { apply: { theta: 1.4, n: 5 } },
+    // The margin is 0.5 * K(5) = 0.5 / 1.25 = 0.4 (revised in M11), and
+    // sigmoid(1.8 - 0.4) = 0.802 >= 0.8.
+    ability: { apply: { theta: 1.8, n: 5 } },
     mastered: false,
     evidenceCount: 10,
     lastLapseAt: null,
@@ -102,7 +103,7 @@ describe('masteryFailures', () => {
   });
 
   it('reports (c) a low expected success, against the reference difficulty', () => {
-    const low = mastered({ ability: { apply: { theta: 1.38, n: 5 } } });
+    const low = mastered({ ability: { apply: { theta: 1.78, n: 5 } } });
     expect(masteryFailures(low, SKILL, 1, contextFor())).toEqual(['ability']);
     const hard = { ...SKILL, referenceDifficulty: 0.5 };
     expect(masteryFailures(mastered(), hard, 1, contextFor())).toEqual(['ability']);
@@ -110,9 +111,32 @@ describe('masteryFailures', () => {
     expect(masteryFailures(low, easy, 1, contextFor())).toEqual([]);
   });
 
+  it('holds the standard against the reference raised by the margin times the uncertainty (revised in M11)', () => {
+    // sigmoid(1.4) = 0.802 with no margin; K(5) = 0.8 makes the default margin 0.4.
+    const edge = mastered({ ability: { apply: { theta: 1.4, n: 5 } } });
+    expect(masteryFailures(edge, SKILL, 1, contextFor())).toEqual(['ability']);
+    const none = contextFor(configWith({ mastery: { uncertaintyMargin: 0 } }));
+    expect(masteryFailures(edge, SKILL, 1, none)).toEqual([]);
+    // More evidence shrinks the step: K(95) = 1 / 5.75, a margin of 0.087.
+    const settled = mastered({ ability: { apply: { theta: 1.48, n: 95 } } });
+    expect(masteryFailures(settled, SKILL, 1, contextFor())).toEqual([]);
+    const twice = contextFor(configWith({ mastery: { uncertaintyMargin: 1 } }));
+    expect(masteryFailures(settled, SKILL, 1, twice)).toEqual(['ability']);
+    // A model that states no uncertainty has no margin.
+    const elo = createEloModel({});
+    const silent: MasteryModel = {
+      ...(elo as MasteryModel),
+      estimate(state) {
+        const { uncertainty: _omit, ...rest } = elo.estimate(state as never);
+        return rest;
+      },
+    };
+    expect(masteryFailures(edge, SKILL, 1, { ...contextFor(), model: silent })).toEqual([]);
+  });
+
   it('derives an absent top ability from a lower stage', () => {
-    // produce 2.5 -> apply 1.5: sigmoid(1.5) = 0.818.
-    const derived = mastered({ ability: { produce: { theta: 2.5, n: 9 } } });
+    // produce 2.9 -> apply 1.9 with n 0, so a margin of 0.5: sigmoid(1.4) = 0.802.
+    const derived = mastered({ ability: { produce: { theta: 2.9, n: 9 } } });
     expect(masteryFailures(derived, SKILL, 1, contextFor())).toEqual([]);
     const none = mastered({ ability: {} });
     expect(masteryFailures(none, SKILL, 1, contextFor())).toEqual(['ability']);

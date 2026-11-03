@@ -27,6 +27,17 @@ import type {
 export const TS_FSRS_VERSION = '6.0.0';
 /** The planner algorithm version; enters the hash. */
 export const PLANNER_VERSION = 'planner@1';
+/**
+ * The version of the rules that apply an entry to the state (record, act,
+ * replay, the mastery predicate); enters the hash, so a state built under
+ * other rules is refused and rebuilt by replay. (revised in M11) Version 2:
+ * one memory review per sitting, a settled ability for mastery, a quick
+ * re-check after a failed one, and repeated leech flags.
+ */
+export const RULES_VERSION = 'rules@2';
+
+/** `mastery.uncertaintyMargin` by default (revised in M11). */
+const DEFAULT_UNCERTAINTY_MARGIN = 0.5;
 
 const PROOF_KINDS: readonly CandidateProof['kind'][] = ['executable', 'model-checked', 'reviewed'];
 const RATINGS: readonly Rating[] = ['again', 'hard', 'good', 'easy'];
@@ -224,6 +235,7 @@ const TOP_LEVEL_KEYS = [
   'planner',
   'contexts',
   'leechThreshold',
+  'reviewGapMs',
   'memoryWeightFloor',
   'itemCooldownMs',
   'itemUsageRetentionMs',
@@ -307,7 +319,7 @@ export function resolveConfig(config?: PracticeConfig): CheckResult<ResolvedPrac
     r.object(
       input.mastery,
       ['mastery'],
-      ['topSuccesses', 'topGapMs', 'minExpectedSuccess', 'retentionMargin'],
+      ['topSuccesses', 'topGapMs', 'minExpectedSuccess', 'retentionMargin', 'uncertaintyMargin'],
     ) ?? {};
   const planner =
     r.object(
@@ -374,6 +386,12 @@ export function resolveConfig(config?: PracticeConfig): CheckResult<ResolvedPrac
         UNIT,
       ),
       retentionMargin: r.number(mastery.retentionMargin, ['mastery', 'retentionMargin'], 0.1, UNIT),
+      uncertaintyMargin: r.number(
+        mastery.uncertaintyMargin,
+        ['mastery', 'uncertaintyMargin'],
+        DEFAULT_UNCERTAINTY_MARGIN,
+        NON_NEGATIVE,
+      ),
     },
     planner: {
       targetSuccess: r.number(planner.targetSuccess, ['planner', 'targetSuccess'], 0.85, {
@@ -450,6 +468,7 @@ export function resolveConfig(config?: PracticeConfig): CheckResult<ResolvedPrac
       pretestWeight: r.number(contexts.pretestWeight, ['contexts', 'pretestWeight'], 0, UNIT),
     },
     leechThreshold: r.number(input.leechThreshold, ['leechThreshold'], 8, POSITIVE_INT),
+    reviewGapMs: r.number(input.reviewGapMs, ['reviewGapMs'], 3_600_000, NON_NEGATIVE_INT),
     memoryWeightFloor: r.number(input.memoryWeightFloor, ['memoryWeightFloor'], 0.3, UNIT),
     itemCooldownMs: r.number(
       input.itemCooldownMs,
@@ -488,9 +507,15 @@ export function defaultConfig(): ResolvedPracticeConfig {
   return result.value;
 }
 
-/** `fnv1a64(canonicalJson({ v: 1, config, tsFsrs, planner }))` (design §9). */
+/** `fnv1a64(canonicalJson({ v: 1, config, tsFsrs, planner, rules }))` (design §9; revised in M11). */
 export function configHash(config: ResolvedPracticeConfig): string {
-  return hashCanonical({ v: 1, config, tsFsrs: TS_FSRS_VERSION, planner: PLANNER_VERSION });
+  return hashCanonical({
+    v: 1,
+    config,
+    tsFsrs: TS_FSRS_VERSION,
+    planner: PLANNER_VERSION,
+    rules: RULES_VERSION,
+  });
 }
 
 /**

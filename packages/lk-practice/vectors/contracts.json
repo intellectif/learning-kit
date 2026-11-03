@@ -1803,11 +1803,11 @@
             "schemaVersion": 1,
             "learnerId": "l1",
             "graphVersion": "py1+264238f1cb475c70",
-            "configHash": "5067a166c2be0874",
+            "configHash": "4ff2939d3de4b5f6",
             "log": {
               "length": 1,
               "lastAt": 1767571200000,
-              "hash": "518461b7991faf53"
+              "hash": "2375a873c3c0396a"
             },
             "skills": {
               "py.imports": {
@@ -1856,7 +1856,8 @@
                   "successes": 0,
                   "firstSuccessAt": null,
                   "lastSuccessAt": null,
-                  "lastWasLapse": false
+                  "lastWasLapse": false,
+                  "failedChecks": 0
                 }
               }
             },
@@ -9409,7 +9410,7 @@
         "request": {
           "version": 1,
           "target": {
-            "id": "d959ba03c6437f80",
+            "id": "3aecb788dcc349f1",
             "kind": "review",
             "stage": "complete",
             "targetDifficulty": -1.2346010553881062,
@@ -9629,11 +9630,11 @@
         ],
         "pooled": [
           {
-            "id": "88ff02a39793ebaa",
+            "id": "c25e8fafe3cfc8b3",
             "item": null
           },
           {
-            "id": "d959ba03c6437f80",
+            "id": "3aecb788dcc349f1",
             "item": {
               "itemId": "c1",
               "difficulty": -1.2346010553881062,
@@ -9641,7 +9642,7 @@
             }
           },
           {
-            "id": "027daed6b6cda4f1",
+            "id": "6ba2b2f9a4de5d4e",
             "item": null
           }
         ]
@@ -9964,7 +9965,7 @@
         "request": {
           "version": 1,
           "target": {
-            "id": "d959ba03c6437f80",
+            "id": "3aecb788dcc349f1",
             "kind": "review",
             "stage": "complete",
             "targetDifficulty": -1.2346010553881062,
@@ -10169,11 +10170,11 @@
         ],
         "pooled": [
           {
-            "id": "88ff02a39793ebaa",
+            "id": "c25e8fafe3cfc8b3",
             "item": null
           },
           {
-            "id": "d959ba03c6437f80",
+            "id": "3aecb788dcc349f1",
             "item": {
               "itemId": "c1",
               "difficulty": -1.2346010553881062,
@@ -10181,7 +10182,7 @@
             }
           },
           {
-            "id": "027daed6b6cda4f1",
+            "id": "6ba2b2f9a4de5d4e",
             "item": null
           }
         ]
@@ -10488,7 +10489,7 @@
         "request": {
           "version": 1,
           "target": {
-            "id": "8749fa2f077cd93c",
+            "id": "941acc91fabbaaa9",
             "kind": "review",
             "stage": "complete",
             "targetDifficulty": -1.2346010553881062,
@@ -10676,11 +10677,11 @@
         ],
         "pooled": [
           {
-            "id": "488d3186f3cf11be",
+            "id": "33ff0d760d99f22b",
             "item": null
           },
           {
-            "id": "8749fa2f077cd93c",
+            "id": "941acc91fabbaaa9",
             "item": {
               "itemId": "c1",
               "difficulty": -1.2346010553881062,
@@ -10688,7 +10689,7 @@
             }
           },
           {
-            "id": "b472d5d7f5da8495",
+            "id": "c7430f5009c958f6",
             "item": null
           }
         ]
@@ -11459,7 +11460,7 @@
         "request": {
           "version": 1,
           "target": {
-            "id": "d959ba03c6437f80",
+            "id": "3aecb788dcc349f1",
             "kind": "review",
             "stage": "complete",
             "targetDifficulty": -1.2346010553881062,
@@ -11921,15 +11922,15 @@
         ],
         "pooled": [
           {
-            "id": "88ff02a39793ebaa",
+            "id": "c25e8fafe3cfc8b3",
             "item": null
           },
           {
-            "id": "d959ba03c6437f80",
+            "id": "3aecb788dcc349f1",
             "item": null
           },
           {
-            "id": "027daed6b6cda4f1",
+            "id": "6ba2b2f9a4de5d4e",
             "item": null
           }
         ]
@@ -12248,7 +12249,7 @@
         "request": {
           "version": 1,
           "target": {
-            "id": "88ff02a39793ebaa",
+            "id": "c25e8fafe3cfc8b3",
             "kind": "review",
             "stage": "recall",
             "targetDifficulty": -2.234601055388106,
@@ -12416,7 +12417,7 @@
         ],
         "pooled": [
           {
-            "id": "88ff02a39793ebaa",
+            "id": "c25e8fafe3cfc8b3",
             "item": {
               "itemId": "f3",
               "difficulty": -2.234601055388106,
@@ -12424,11 +12425,11 @@
             }
           },
           {
-            "id": "d959ba03c6437f80",
+            "id": "3aecb788dcc349f1",
             "item": null
           },
           {
-            "id": "027daed6b6cda4f1",
+            "id": "6ba2b2f9a4de5d4e",
             "item": null
           }
         ]
@@ -12681,7 +12682,7 @@
         "request": {
           "version": 1,
           "target": {
-            "id": "e23a5a83ba96e33d",
+            "id": "b792e521031a819c",
             "kind": "review",
             "stage": "complete",
             "targetDifficulty": -1.2346010553881062,
@@ -12763,11 +12764,11 @@
         "unproven": [],
         "pooled": [
           {
-            "id": "e23a5a83ba96e33d",
+            "id": "b792e521031a819c",
             "item": null
           },
           {
-            "id": "027daed6b6cda4f1",
+            "id": "6ba2b2f9a4de5d4e",
             "item": null
           }
         ]
@@ -13098,7 +13099,7 @@
         "request": {
           "version": 1,
           "target": {
-            "id": "b01dc75a78689d4f",
+            "id": "4c1ff9c2fd8f00cb",
             "kind": "review",
             "stage": "complete",
             "targetDifficulty": -1.827419466056539,
@@ -13166,15 +13167,15 @@
         "unproven": [],
         "pooled": [
           {
-            "id": "ebfd35410e9faaf9",
+            "id": "4cde1f68720b881d",
             "item": null
           },
           {
-            "id": "b01dc75a78689d4f",
+            "id": "4c1ff9c2fd8f00cb",
             "item": null
           },
           {
-            "id": "17e041afa50b54c4",
+            "id": "44ba90a32abe2118",
             "item": null
           }
         ]
@@ -13427,7 +13428,7 @@
         "request": {
           "version": 1,
           "target": {
-            "id": "88ff02a39793ebaa",
+            "id": "c25e8fafe3cfc8b3",
             "kind": "review",
             "stage": "recall",
             "targetDifficulty": -2.234601055388106,
@@ -13478,15 +13479,15 @@
         "unproven": [],
         "pooled": [
           {
-            "id": "88ff02a39793ebaa",
+            "id": "c25e8fafe3cfc8b3",
             "item": null
           },
           {
-            "id": "d959ba03c6437f80",
+            "id": "3aecb788dcc349f1",
             "item": null
           },
           {
-            "id": "027daed6b6cda4f1",
+            "id": "6ba2b2f9a4de5d4e",
             "item": null
           }
         ]
@@ -13741,7 +13742,7 @@
         "request": {
           "version": 1,
           "target": {
-            "id": "d959ba03c6437f80",
+            "id": "3aecb788dcc349f1",
             "kind": "review",
             "stage": "complete",
             "targetDifficulty": -1.2346010553881062,
@@ -13810,15 +13811,15 @@
         "unproven": [],
         "pooled": [
           {
-            "id": "88ff02a39793ebaa",
+            "id": "c25e8fafe3cfc8b3",
             "item": null
           },
           {
-            "id": "d959ba03c6437f80",
+            "id": "3aecb788dcc349f1",
             "item": null
           },
           {
-            "id": "027daed6b6cda4f1",
+            "id": "6ba2b2f9a4de5d4e",
             "item": null
           }
         ]

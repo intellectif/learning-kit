@@ -46,15 +46,26 @@ Per skill it keeps four things:
 
 A skill is **mastered** at the top stage of its ladder after two successes at least 72 hours apart,
 while the latest retrieval is no lapse, its expected success at the skill's reference difficulty is
-at least 0.80, and its recall stays within 0.10 of the desired retention. Mastery can be lost to
-forgetting; the state reports it.
+at least 0.80, and its recall stays within 0.10 of the desired retention. The 0.80 holds with a
+margin: against the reference raised by half the ability's uncertainty, which shrinks as evidence
+grows, so a lucky run on a few answers does not master a skill. Mastery can be lost to forgetting;
+the state reports it.
 
-While a skill at its top stage is short of that 0.80, its reviews are **mastery checks**: they aim at
-the skill's reference difficulty rather than at the target success, because passing tasks pitched
-for 85% success says little about the standard. A passed check brings the next one within 72 hours.
-A failed check counts as a `hard` review, not a lapse, so it neither demotes the skill nor counts
-toward a leech. A failure is still a lapse when the task was at the learner's level, when recall had
-fallen below the mastery floor, or when the last retrieval at that stage was a lapse too.
+While a skill at its top stage is short of the standard, its reviews are **mastery checks**: they
+aim at the skill's reference difficulty rather than at the target success, because passing tasks
+pitched for 85% success says little about the standard.
+
+- **A passed check** brings the next one within 72 hours.
+- **A failed check** counts as a `hard` review, not a lapse, so it neither demotes the skill nor
+  counts toward a leech. The next review is at the learner's level, and the next check waits 72
+  hours, doubled for each failed check in a row: one unlucky answer costs days, and a standard out
+  of reach does not take over the practice.
+- **A failure is still a lapse** when the task was at the learner's level, when recall had fallen
+  below the mastery floor, or when the last retrieval at that stage was a lapse too.
+
+**One sitting is one review.** A success within an hour of a skill's last review at that stage,
+before it is due, moves its ability but not its memory or stage: twenty right answers in a row are
+one review. A failure always counts, and so does a relearning step that has come due.
 
 ## The skill graph
 
@@ -192,7 +203,7 @@ time. A host action `{ kind: 'discard-held' }` drops it.
 |---|---|
 | `place` | Puts a skill at a stage, from a placement test. With `credited: true` it also counts as a prerequisite at once, and stays out of planning until evidence for it arrives |
 | `prior` | Sets a starting ability from a placement test: `theta` and how many answers it is worth |
-| `suspend`, `unsuspend` | Takes a skill out of planning, and puts it back. A leech (8 lapses by default) suspends itself |
+| `suspend`, `unsuspend` | Takes a skill out of planning, and puts it back. A leech suspends itself: 8 lapses by default, and again every 4, while it fails at least twice as often as planned (30% at the default target) |
 | `reset-skill` | Starts a skill over |
 | `discard-held` | Drops a held answer |
 
@@ -352,12 +363,13 @@ resolved configuration, and `practice.configHash` its hash:
 | `planner.coalesce` | `true` | Whether due components join a composite's target |
 | `planner.pretestNewSkills` | `false` | A pretest before a new skill's first target |
 | `ability.stageOffset` | 1 | How much lower a new stage's ability starts, per step of demand |
-| `mastery` | 2 successes, 72 h apart, 0.80, a margin of 0.10 | The mastery rule above |
+| `mastery` | 2 successes, 72 h apart, 0.80, a retention margin of 0.10, an uncertainty margin of 0.5 | The mastery rule above; `uncertaintyMargin: 0` drops the margin |
+| `reviewGapMs` | 1 hour | One sitting is one review; 0 reviews every success |
 | `stagePolicyOptions` | promote after 2, a day apart; demote after 2 | The stage policy |
 | `contexts` | exams move no schedule; diagnostic 1; pretest 0 | How each context counts |
 | `ladders`, `stageDemand` | as above | Your own stage names |
 | `itemCooldownMs`, `itemUsageRetentionMs` | 7 days, 30 days | Item reuse |
-| `leechThreshold`, `recentIdWindow` | 8 lapses, 256 ids | When a skill suspends itself; how far back `record` reports a duplicate |
+| `leechThreshold`, `recentIdWindow` | 8 lapses, 256 ids | When a skill suspends itself (and every half of it after); how far back `record` reports a duplicate |
 | `acceptProofs` | `executable`, `reviewed` | Which proofs admit an item |
 
 `memoryModel`, `masteryModel`, `stagePolicy` and `evidenceMapper` take your own implementations of
@@ -378,17 +390,19 @@ import { simulateLearner } from '@intellectif/lk-practice/testing';
 
 const learner = simulateLearner({
   seed: 'learner-1',
-  skills: { greetings: { trueAbility: 1, forgettingDays: 20 } },
+  skills: { greetings: { trueAbility: 1, forgettingDays: 20, consolidation: 3 } },
 });
 const { evidence, item } = learner.attempt(plan.targets[0], now);
 const next = practice.record(state, { graph, evidence, item });
 ```
 
 The simulated learner succeeds with a logistic chance of its true ability against the task's
-difficulty, times its recall since its last attempt at the skill. Every draw comes from the seed, the
-time and the skill. Two settings compared on the same learner therefore meet the same chances. Use it
-to compare settings and in your own tests. It is a test tool, not a claim about real learners: its
-recall does not grow with practice, so it cannot show what spacing is worth.
+difficulty, times its recall since its last attempt at the skill. With `consolidation`, a success
+lengthens its forgetting time by more the more it had forgotten, so spaced practice is worth more than
+massed practice; without it, the forgetting time never changes. Its true ability never changes.
+Every draw comes from the seed, the time and the skill. Two settings compared on the same learner
+therefore meet the same chances. Use it to compare settings and in your own tests. It is a test
+tool, not a claim about real learners.
 
 ## Performance
 

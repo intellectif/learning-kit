@@ -21,6 +21,7 @@ export {
   type MasteryCondition,
   type MasteryContext,
   masteryFailures,
+  meetsStandard,
   type StatusInput,
   skillStatus,
 } from './predicate.js';

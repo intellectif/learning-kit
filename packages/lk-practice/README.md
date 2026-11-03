@@ -123,7 +123,8 @@ types structurally and imports nothing from it, so lk-core stays optional.
 ## Testing
 
 `@intellectif/lk-practice/testing` exports `simulateLearner`: a deterministic simulated learner
-(a true ability and a forgetting rate per skill, seeded noise) that drives `plan` and `record` over
+(a true ability and a forgetting rate per skill, a memory that can consolidate with spaced
+practice, seeded noise) that drives `plan` and `record` over
 simulated weeks, for comparing settings and for your own tests. It is a test tool, not a claim
 about real learners.
 

@@ -217,6 +217,12 @@ export function defaultSkillState(stage: StageId): SkillState {
     mastered: false,
     evidenceCount: 0,
     lastLapseAt: null,
-    top: { successes: 0, firstSuccessAt: null, lastSuccessAt: null, lastWasLapse: false },
+    top: {
+      successes: 0,
+      firstSuccessAt: null,
+      lastSuccessAt: null,
+      lastWasLapse: false,
+      failedChecks: 0,
+    },
   };
 }

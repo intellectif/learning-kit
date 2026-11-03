@@ -70,8 +70,9 @@ patch never changes behaviour.
   new minor, and its changeset says what changed under **Action required**. From 1.0, it is a major.
   A new option that is off by default is a minor too, and changes nothing until you turn it on.
 - **The log keeps its meaning; the state is rebuilt.** Each model and policy has an id and a version,
-  hashed into the configuration hash every state and log entry carries. Rules that change refuse a
-  state built under the old ones (`STATE_CONFIG_MISMATCH`), and `replay` rebuilds it from the log.
+  and so do the planner and the rules that apply an entry to the state, all hashed into the
+  configuration hash every state and log entry carries. Rules that change refuse a state built under
+  the old ones (`STATE_CONFIG_MISMATCH`), and `replay` rebuilds it from the log.
 - **Stored data carries `schemaVersion: 1`.** A later version that changes the state or the log entry
   ships a migration in `migrateState`, and never drops a log entry.
 - **The vectors are the record.** `packages/lk-practice/vectors/` holds the evidence, stage, log,
