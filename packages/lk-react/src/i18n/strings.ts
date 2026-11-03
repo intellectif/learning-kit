@@ -255,6 +255,27 @@ export interface LkStrings {
    */
   readAloudRecorderError: (reason: SpeechRecorderError) => string;
 
+  // ── Spoken answer ──────────────────────────────────────────────────────
+  // A spoken answer records with the read-aloud strings above — Record, Stop,
+  // the progress, the takes left, the upload and its retry, the recorder's
+  // errors and what is said when no speech was heard. These are its own.
+  /** How long an answer may be, under the prompt; `minSeconds` when the item sets one. */
+  speakingTimeLimit: (minSeconds: number | undefined, maxSeconds: number) => string;
+  /** Pending, while the assessor judges the answer. */
+  speakingAssessing: string;
+  /** The binding stores answers but judges none, so there is no feedback to show. */
+  speakingAssessmentUnavailable: string;
+  /**
+   * The answer could not be checked, for a reason no take fixes: the
+   * assessment could not be run at all, or the grader refused the take for one
+   * of the SDK's codes that are about the server's setup.
+   */
+  speakingAssessmentFailed: string;
+  /** Heading of the transcript of what the learner said, under a grade. */
+  speakingTranscript: string;
+  /** Accessible name of the corrections a grader made to what was said. */
+  speakingCorrections: string;
+
   // ── Pronunciation feedback ─────────────────────────────────────────────
   /** Accessible name of the whole feedback region. */
   pronunciationFeedbackLabel: string;
@@ -611,6 +632,16 @@ export const DEFAULT_STRINGS: LkStrings = {
         return 'The recording could not be made.';
     }
   },
+
+  speakingTimeLimit: (minSeconds, maxSeconds) =>
+    minSeconds === undefined || minSeconds <= 0
+      ? `Answer in up to ${maxSeconds} ${maxSeconds === 1 ? 'second' : 'seconds'}.`
+      : `Answer for ${minSeconds} to ${maxSeconds} seconds.`,
+  speakingAssessing: 'Checking your answer…',
+  speakingAssessmentUnavailable: 'Feedback is not available for this answer.',
+  speakingAssessmentFailed: 'Your answer could not be checked.',
+  speakingTranscript: 'What you said',
+  speakingCorrections: 'Corrections',
 
   pronunciationFeedbackLabel: 'Pronunciation feedback',
   pronunciationDimension: (dimension) => {

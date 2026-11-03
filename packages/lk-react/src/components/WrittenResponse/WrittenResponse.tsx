@@ -2,12 +2,9 @@
 
 import {
   ActivitySchemaError,
-  type CriterionScore,
   countWords,
   type DeliveryPolicy,
   evaluate,
-  type GradeRecord,
-  type InlineCorrection,
   type InteractionEvent,
   type ItemOutcome,
   type LearnerResponse,
@@ -27,6 +24,7 @@ import { ANONYMOUS_ACTOR, isDevelopment, objectIdFor } from '../_internal.js';
 import { ActivityMedia } from '../shared/ActivityMedia.js';
 import { outcomeShowsMarks, useDeliveryPolicy } from '../shared/delivery.js';
 import { FeedbackRegion } from '../shared/FeedbackRegion.js';
+import { CorrectionsList, CriteriaList, GradeBody } from '../shared/grade-parts.js';
 import type {
   HtmlSanitizer,
   MediaBudgetBinding,
@@ -156,117 +154,6 @@ function textOf(response: LearnerResponse | undefined): string {
 }
 
 /**
- * One criterion's score as a percentage of its OWN maximum.
- *
- * `CriterionScore.maxScore` defaults to 1 — the SDK's scaled convention — but
- * a grader may work out of 100, or out of 9 for a CEFR band, and
- * `gradeFromRubric` deliberately stores those judgements verbatim so a grade
- * stays auditable in the units the grader actually used. It normalises when it
- * computes the total; anything DISPLAYING a criterion has to normalise too, or
- * a perfectly ordinary 82/100 renders as "8200%". This is the same guard the
- * overall score already applies against `outcome.maxScore`.
- */
-function criterionPercent(criterion: CriterionScore): string {
-  const max = criterion.maxScore !== undefined && criterion.maxScore > 0 ? criterion.maxScore : 1;
-  return `${Math.round(((criterion.score as number) / max) * 100)}%`;
-}
-
-/**
- * Pairs each correction with a list key that is unique by construction. The
- * same mistake made twice carries the same `original`/`corrected` pair, so
- * the grader's `range` is what tells the occurrences apart. `range` is
- * optional and nothing validates it, so a correction without one — or one
- * whose range the grader already used — is keyed by its position instead.
- * Only position keys start with `#`, so the two kinds never collide.
- */
-function keyedCorrections(
-  corrections: readonly InlineCorrection[],
-): { key: string; correction: InlineCorrection }[] {
-  const used = new Set<string>();
-  return corrections.map((correction, index) => {
-    const anchored = correction.range
-      ? `${correction.range.start}-${correction.range.end}:${correction.corrected}`
-      : undefined;
-    const key = anchored !== undefined && !used.has(anchored) ? anchored : `#${index}`;
-    used.add(key);
-    return { key, correction };
-  });
-}
-
-/**
- * Renders the server-computed outcome in `review` mode. The grade shown here
- * always came back from the asynchronous grader — nothing on this path scores,
- * infers, or defaults a grade. A `written-response` outcome carries no
- * per-item `details` (there are no options or blanks to mark), so the render
- * is the scaled score, the pass state, and the grader's feedback.
- */
-function CriteriaList({ criteria, s }: { criteria: readonly CriterionScore[]; s: LkStrings }) {
-  return (
-    <ul className="lk-wr-criteria">
-      {criteria.map((criterion) => (
-        <li
-          className="lk-wr-criterion"
-          key={criterion.name}
-          data-na={String(criterion.notApplicable === true)}
-        >
-          <span className="lk-wr-criterion-name">{criterion.name}</span>
-          {criterion.notApplicable === true ? (
-            <span className="lk-wr-criterion-score">{s.notApplicable}</span>
-          ) : (
-            <span className="lk-wr-criterion-score">
-              {criterion.band ??
-                (typeof criterion.score === 'number' ? criterionPercent(criterion) : '')}
-            </span>
-          )}
-          {criterion.comment ? (
-            <span className="lk-wr-criterion-comment">{criterion.comment}</span>
-          ) : null}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function CorrectionsList({
-  corrections,
-  label,
-}: {
-  corrections: readonly InlineCorrection[];
-  label?: string;
-}) {
-  return (
-    <ul className="lk-wr-corrections" {...(label !== undefined ? { 'aria-label': label } : {})}>
-      {keyedCorrections(corrections).map(({ key, correction }) => (
-        <li className="lk-wr-correction" key={key}>
-          <del className="lk-wr-correction-original">{correction.original}</del>{' '}
-          <ins className="lk-wr-correction-corrected">{correction.corrected}</ins>
-          {correction.explanation ? (
-            <span className="lk-wr-correction-explanation">{correction.explanation}</span>
-          ) : null}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function GradeBody({ grade, s }: { grade: GradeRecord; s: LkStrings }) {
-  return (
-    <>
-      {grade.feedback ? <p className="lk-wr-grade-feedback">{grade.feedback}</p> : null}
-      {grade.criteria && grade.criteria.length > 0 ? (
-        <CriteriaList criteria={grade.criteria} s={s} />
-      ) : null}
-      {grade.corrections && grade.corrections.length > 0 ? (
-        <CorrectionsList corrections={grade.corrections} />
-      ) : null}
-      {grade.requiresHumanReview === true ? (
-        <p className="lk-wr-review-flag">{s.awaitingHumanReview}</p>
-      ) : null}
-    </>
-  );
-}
-
-/**
  * "Get feedback on my draft", and the feedback: what a model said, the
  * corrections it proposed — each quoting the learner's own words, or the SDK
  * would have refused it — its comment on each criterion, and the rubric's
@@ -328,9 +215,15 @@ function DraftFeedback({
             {help.current ? null : <p className="lk-ai-note">{s.aiWritingFeedbackOutdated}</p>}
             <p className="lk-ai-text">{latest.text}</p>
             {latest.corrections.length > 0 ? (
-              <CorrectionsList corrections={latest.corrections} label={s.aiCorrections} />
+              <CorrectionsList
+                corrections={latest.corrections}
+                label={s.aiCorrections}
+                prefix="lk-wr"
+              />
             ) : null}
-            {latest.criteria.length > 0 ? <CriteriaList criteria={latest.criteria} s={s} /> : null}
+            {latest.criteria.length > 0 ? (
+              <CriteriaList criteria={latest.criteria} s={s} prefix="lk-wr" />
+            ) : null}
             {latest.indicativeScore !== null ? (
               <p className="lk-wr-indicative">
                 {s.aiIndicativeScore(Math.round(latest.indicativeScore * 100))}
@@ -386,7 +279,7 @@ function OutcomeSummary({ outcome, s }: { outcome: ItemOutcome; s: LkStrings }) 
       >
         <p className="lk-wr-grade">{s.scoreAnnouncement(percent, outcome.passed)}</p>
         {outcome.status === 'graded' ? (
-          <GradeBody grade={outcome.grade} s={s} />
+          <GradeBody grade={outcome.grade} s={s} prefix="lk-wr" />
         ) : outcome.feedback ? (
           <p className="lk-wr-grade-feedback">{outcome.feedback}</p>
         ) : null}

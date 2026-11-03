@@ -6,6 +6,7 @@ import type {
   GapSelectData,
   MultipleChoiceData,
   ReadAloudData,
+  SpeakingResponseData,
   WrittenResponseData,
 } from '@intellectif/lk-core';
 import { cleanup, render, screen } from '@testing-library/react';
@@ -19,6 +20,7 @@ import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
+import { SpeakingResponse } from '../SpeakingResponse/index.js';
 import type { RenderMode } from '../types.js';
 import { WrittenResponse } from '../WrittenResponse/index.js';
 
@@ -118,6 +120,17 @@ const reading: ReadAloudData = {
   scoring: { dimensions: [{ name: 'accuracy', weight: 1 }] },
 };
 
+const answer: SpeakingResponseData = {
+  schemaVersion: '1.0',
+  type: 'speaking-response',
+  id: 'sr1',
+  title: 'Answer the question',
+  prompt: 'What did you do last weekend?',
+  locale: 'en-US',
+  recording: { maxSeconds: 60, maxTakes: 3 },
+  rubric: { criteria: [{ name: 'Content', weight: 1 }] },
+};
+
 /** What the moments under test vary: the mode, and a delivery policy or none. */
 type Shared = { renderMode: RenderMode; delivery?: DeliveryPolicy };
 
@@ -141,12 +154,20 @@ const COMPONENTS = {
       {...props}
     />
   ),
-  // A spoken answer has no built-in component yet: a host draws it through
-  // `renderers`. Its entry joins this table with the component.
-} satisfies Record<
-  Exclude<BuiltInActivityType, 'speaking-response'>,
-  (props: Shared) => ReactElement
->;
+  'speaking-response': (props) => (
+    <SpeakingResponse
+      data={answer}
+      recordingBinding={{
+        upload: async (take) => ({
+          key: 'take-1',
+          mimeType: take.mimeType,
+          durationMs: take.durationMs,
+        }),
+      }}
+      {...props}
+    />
+  ),
+} satisfies Record<BuiltInActivityType, (props: Shared) => ReactElement>;
 
 const POLICIES: Record<string, DeliveryPolicy | undefined> = {
   'no policy': undefined,

@@ -393,7 +393,7 @@ describe('<ActivityPreview>', () => {
     expect(screen.getByRole('note')).toHaveTextContent(DEFAULT_STRINGS.unsupportedActivity);
   });
 
-  it('notes a spoken answer, which has no built-in component yet, and draws it through renderers', () => {
+  it('draws a spoken answer with its recorder, and through renderers when a host supplies one', () => {
     const answer = {
       ...createDraft('speaking-response', { newId: counter() }),
       title: 'City or country',
@@ -403,7 +403,9 @@ describe('<ActivityPreview>', () => {
       rubric: { criteria: [{ name: 'Content', weight: 1 }] },
     };
     const { unmount } = render(<ActivityPreview draft={answer} />);
-    expect(screen.getByRole('note')).toHaveTextContent(DEFAULT_STRINGS.unsupportedActivity);
+    expect(screen.getByRole('form', { name: 'City or country' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Record' })).toBeInTheDocument();
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
     unmount();
 
     function Spoken({ data }: ActivityProps) {

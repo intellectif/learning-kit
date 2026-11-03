@@ -22,6 +22,7 @@ import { GapSelect } from '../GapSelect/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
 import type { RecordingBinding } from '../ReadAloud/ReadAloud.js';
+import { SpeakingResponse } from '../SpeakingResponse/index.js';
 import type { HtmlSanitizer, MediaBudgetBinding, RenderMode } from '../types.js';
 import { WrittenResponse } from '../WrittenResponse/index.js';
 
@@ -301,13 +302,8 @@ export function ActivityPreview({
     case 'read-aloud':
       return <ReadAloud key={key} data={data} recordingBinding={PREVIEW_RECORDING} {...shared} />;
     case 'speaking-response':
-      // No built-in component yet: until there is one, a host previews a
-      // spoken answer through `renderers`, and without one it is shown as any
-      // type without a renderer is.
       return (
-        <div className="lk-preview-unsupported" role="note">
-          {s.unsupportedActivity}
-        </div>
+        <SpeakingResponse key={key} data={data} recordingBinding={PREVIEW_RECORDING} {...shared} />
       );
     default:
       everyBuiltInTypeHandled(data);

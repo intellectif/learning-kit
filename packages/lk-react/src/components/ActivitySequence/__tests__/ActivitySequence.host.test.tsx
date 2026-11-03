@@ -6,7 +6,6 @@ import type {
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_STRINGS } from '../../../i18n/strings.js';
 import type { ActivityProps } from '../../types.js';
 import { ActivitySequence, type SequenceItemOutcome, type SequenceQuestion } from '../index.js';
 
@@ -312,9 +311,17 @@ describe('ActivitySequence: a question the host draws', () => {
 });
 
 describe('ActivitySequence: a spoken answer', () => {
-  it('is noted as unsupported until a host draws it, and a host can', () => {
-    const { unmount } = render(<ActivitySequence activities={[spoken]} />);
-    expect(screen.getByRole('note')).toHaveTextContent(DEFAULT_STRINGS.unsupportedActivity);
+  it('is drawn with its recorder and the paper binding, and a host can draw its own', () => {
+    const { unmount } = render(
+      <ActivitySequence
+        activities={[spoken]}
+        recordingBinding={{
+          upload: async (take) => ({ key: 'k', mimeType: take.mimeType }),
+        }}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Record' })).toBeInTheDocument();
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
     unmount();
 
     render(<ActivitySequence activities={[spoken]} renderers={{ 'speaking-response': Host }} />);

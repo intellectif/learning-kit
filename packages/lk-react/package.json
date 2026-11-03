@@ -113,6 +113,16 @@
         "default": "./dist/components/ReadAloud.cjs"
       }
     },
+    "./components/SpeakingResponse": {
+      "import": {
+        "types": "./dist/components/SpeakingResponse.d.ts",
+        "default": "./dist/components/SpeakingResponse.js"
+      },
+      "require": {
+        "types": "./dist/components/SpeakingResponse.d.cts",
+        "default": "./dist/components/SpeakingResponse.cjs"
+      }
+    },
     "./components/InteractiveVideo": {
       "import": {
         "types": "./dist/components/InteractiveVideo.d.ts",

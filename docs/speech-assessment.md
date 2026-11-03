@@ -544,7 +544,7 @@ A `speaking-response` item asks the learner to answer a prompt out loud — opti
 - **a judge** — a model behind the [calibration gate](./grading.md), or a person — scores the criteria that name no `measure`: what was said, how it was organised, the range and accuracy of the language. It reads a transcript.
 - **the engine** scores each criterion that names one: `pronunciation` from the assessment's accuracy, `fluency` from its fluency, `prosody` from its prosody, each out of 100. Pass `judgeMeasures: true` and the judge scores those too.
 
-lk-core 1.9 holds the grading half: the type, the evidence, `aiSpeakingGradingRequest` and `gradeSpeakingResponse`. lk-react has no `<SpeakingResponse>` yet: draw the item through `renderers`, record with `useSpeechRecorder`, and store the response as `{ type: 'speaking-response', recording: { key, mimeType } }`, or `recording: null` for a learner who submitted without speaking.
+lk-core 1.9 holds the grading half: the type, the evidence, `aiSpeakingGradingRequest` and `gradeSpeakingResponse`. lk-react 23.5 holds the browser half, `<SpeakingResponse>` (see [In the browser](#in-the-browser-speakingresponse)). The response is `{ type: 'speaking-response', recording: { key, mimeType } }`, or `recording: null` for a learner who submitted without speaking.
 
 ### The flow
 
@@ -588,6 +588,27 @@ It throws for the caller's bugs, in `gradeReadAloud`'s order: a plausibility or 
 A judgement is matched whenever one is given, case and spacing ignored as `checkAiGrading` matches names, so marks meant for another item are refused rather than scored.
 
 **When every check passes**, each criterion is scored once, by the judge or from the engine, and `gradeFromRubric` computes the weighted total over the item's weights; `GradeRecord.criteria` lists them in the rubric's order, the engine's out of 100. With a judge, the grade is the judge's record, as `gradeFromJudgement` makes one: its feedback (the authored feedback when it gave none), corrections, rationale, `requiresHumanReview`, usage, and `grader: { kind: 'ai', model, promptHash }`. Without one, the feedback is the authored feedback and `grader` is the engine's assessor.
+
+### In the browser: `SpeakingResponse`
+
+```tsx
+import { SpeakingResponse } from '@intellectif/lk-react/components/SpeakingResponse';
+
+<SpeakingResponse
+  data={item}
+  recordingBinding={{ upload, assess }} // assess: practice only
+  onSubmit={persist}
+  onComplete={record}
+/>
+```
+
+It records as `<ReadAloud>` does, on the same machinery: a 16 kHz mono WAV take, `recordingBinding.upload` required outside `review`, a retry of whichever step failed, the microphone released when a question set hides the pane, and a recording to answer kept silent while the learner speaks. Above the recorder: the title, the instructions, the prompt (`promptHtml` through `sanitizeHtml`), the picture or recording, and how long an answer may be.
+
+`assess` returns `SpeakingAssessResult`: a read-aloud's results — `graded` with the `assessment` and the server's `gradeSpeakingResponse` grade, `unscorable` with its code, `failed` — and **`pending`**, for an answer a person will grade (the grade `routeGrade` sent to a person). A pending answer is said to be in and waiting for its grade, and `onComplete` is not called. A grade that comes back is read as `<ReadAloud>` reads one: a malformed score is shown as could-not-be-graded and never reaches `onComplete`.
+
+Under a grade the learner reads the score and the grader's feedback, each criterion — the judge's and the engine's — with its level or percentage and the judge's comment, the corrections, and the transcript of what they said. In `review`, pass the stored `outcome`, and the kept `assessment` for its transcript. In `exam`, nothing is assessed on the client, and the learner may submit without recording. In a question set, the paper's one `recordingBinding` serves read-aloud and spoken-answer slots alike; a read-aloud reads `pending` as a judgement with no grade.
+
+A host that draws its own recorder — no Submit step, its own report — needs none of this: `useSpeechRecorder` captures the take, and the server half above grades it.
 
 ---
 
