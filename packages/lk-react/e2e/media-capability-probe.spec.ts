@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { isWindowsWebKit, NO_MEDIA_IN_WINDOWS_WEBKIT } from './engines.js';
 
 /**
  * Capability probe for the media playback policy.
@@ -10,9 +11,11 @@ import { expect, test } from '@playwright/test';
  * documented promise outlives the behaviour it rests on.
  *
  * Every assertion here is about the BROWSER, not about SDK code — that is the
- * point. Playwright runs chromium in this repo, so results are recorded as
- * chromium's; `controlsList` in particular is not implemented everywhere, and
- * the docs say so rather than generalising from this file.
+ * point. Playwright runs chromium, firefox and webkit in this repo, so results
+ * are recorded as those three engines'; `controlsList` in particular is not
+ * implemented everywhere, and the docs say so rather than generalising from
+ * this file. The probes that play a clip skip Playwright's Windows WebKit,
+ * which cannot play one (`engines.ts`).
  *
  * **Each enforcement probe carries a CONTROL, on the same page and in the same
  * instant.** The first version of this file used a 44-byte WAV whose `data`
@@ -97,7 +100,9 @@ const PAGE = `
 test.describe('what the browser actually enforces', () => {
   test('pausing inside the play handler stops playback before audio is audible', async ({
     page,
+    browserName,
   }) => {
+    test.skip(isWindowsWebKit(browserName), NO_MEDIA_IN_WINDOWS_WEBKIT);
     await page.setContent(PAGE);
 
     // The mechanism behind the SDK's one genuinely enforced control,
@@ -147,7 +152,8 @@ test.describe('what the browser actually enforces', () => {
     expect(seen.probe.currentTime).toBeLessThan(seen.control.currentTime);
   });
 
-  test('a seek can be reverted from the seeking event', async ({ page }) => {
+  test('a seek can be reverted from the seeking event', async ({ page, browserName }) => {
+    test.skip(isWindowsWebKit(browserName), NO_MEDIA_IN_WINDOWS_WEBKIT);
     await page.setContent(PAGE);
 
     const seen = await page.evaluate(async () => {
@@ -231,7 +237,8 @@ test.describe('what the browser only hints at', () => {
     expect(result.srcStillReadable).toBe(true);
   });
 
-  test('a hidden pane does not stop playback on its own', async ({ page }) => {
+  test('a hidden pane does not stop playback on its own', async ({ page, browserName }) => {
+    test.skip(isWindowsWebKit(browserName), NO_MEDIA_IN_WINDOWS_WEBKIT);
     await page.setContent(PAGE);
 
     // The pager keeps every question mounted and toggles `hidden`, which is

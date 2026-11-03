@@ -26,6 +26,21 @@ async function expectFullWidth(inner: Locator): Promise<void> {
   expect(width).toBeCloseTo(blockWidth ?? 0, 0);
 }
 
+/**
+ * Asks from the keyboard, for a test that checks where focus goes next.
+ *
+ * Focus moves to the answer when it was on the button that asked, so the
+ * button that disappears cannot drop it on the page. A key press puts it
+ * there in every engine; a click does not. Safari, and Playwright's WebKit on
+ * Windows, follow macOS and do not focus a button they click, so after a
+ * click focus never left where it was, there is nothing to rescue, and the
+ * panel rightly stays unfocused.
+ */
+async function pressToAsk(page: Page, button: Locator): Promise<void> {
+  await button.focus();
+  await page.keyboard.press('Enter');
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('radio', { name: 'Tokyo' })).toBeVisible();
@@ -48,7 +63,7 @@ test('practice: a hint, a refused hint that gave the answer away, then an explan
   await section.getByRole('radio', { name: 'She are tired' }).check();
   await section.getByRole('button', { name: 'Submit' }).click();
   await expect(section.getByRole('button', { name: 'Get a hint' })).toHaveCount(0);
-  await section.getByRole('button', { name: 'Explain my answer' }).click();
+  await pressToAsk(page, section.getByRole('button', { name: 'Explain my answer' }));
   const panel = section.getByRole('region', { name: 'Explanation' });
   await expect(panel).toContainText('not "are"');
   await expect(panel).toBeFocused();
@@ -76,7 +91,7 @@ test('practice: feedback on a draft, out of date after a revision, then a reply 
   const draft = section.getByRole('textbox');
   const ask = section.getByRole('button', { name: 'Get feedback on my draft' });
   await draft.fill('Last weekend I go to the market and buyed bread.');
-  await ask.click();
+  await pressToAsk(page, ask);
 
   const panel = section.getByRole('region', { name: 'Feedback on your draft' });
   await expect(panel).toContainText('A good start. Watch your past tenses.');
@@ -111,7 +126,7 @@ test('practice: coaching on a graded reading, on the words the engine marked, on
 }) => {
   const section = page.getByLabel('Coaching on a reading', { exact: true });
   const ask = section.getByRole('button', { name: 'Coach me on this reading' });
-  await ask.click();
+  await pressToAsk(page, ask);
 
   const panel = section.getByRole('region', { name: 'Coaching on your reading' });
   await expect(panel).toContainText('A clear reading. 2 words to practise.');

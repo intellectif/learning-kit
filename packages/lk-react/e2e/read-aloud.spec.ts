@@ -1,5 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { type BrowserContext, expect, test } from '@playwright/test';
 import { LRS_ENDPOINT } from './constants.js';
+import { isWindowsWebKit, NO_MEDIA_IN_WINDOWS_WEBKIT } from './engines.js';
 
 /**
  * The read-aloud path end to end, in a real engine and from the keyboard alone.
@@ -81,7 +82,51 @@ async function tabToSubmit(page: import('@playwright/test').Page): Promise<strin
   return visited;
 }
 
-test.beforeEach(async ({ page }) => {
+/**
+ * Whether this browser, on this machine, runs an audio graph at all.
+ *
+ * Firefox opens its fake microphone anywhere, but its `AudioContext` runs only
+ * where there is an audio output to clock it: in a Linux container with no
+ * sound device it stays `suspended`, through a user gesture and `resume()`
+ * alike, and no sample ever reaches the capture node. The take then counts
+ * "0 of 20 seconds" until the poll below gives up. Asked on a page of its
+ * own, so the answer is about the browser and the machine, never this package.
+ */
+async function runsAnAudioGraph(context: BrowserContext): Promise<boolean> {
+  const probe = await context.newPage();
+  try {
+    await probe.setContent('<button type="button">Start</button>');
+    await probe.evaluate(() => {
+      document.querySelector('button')?.addEventListener('click', () => {
+        (window as unknown as { audio: AudioContext }).audio = new AudioContext();
+      });
+    });
+    await probe.getByRole('button', { name: 'Start' }).click();
+    return await probe.evaluate(async () => {
+      const audio = (window as unknown as { audio: AudioContext }).audio;
+      void audio.resume();
+      const deadline = performance.now() + 2000;
+      while (audio.state !== 'running' && performance.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      const running = audio.state === 'running';
+      await audio.close();
+      return running;
+    });
+  } finally {
+    await probe.close();
+  }
+}
+
+test.beforeEach(async ({ page, browserName }) => {
+  test.skip(isWindowsWebKit(browserName), NO_MEDIA_IN_WINDOWS_WEBKIT);
+  const running = await runsAnAudioGraph(page.context());
+  // Chromium's fake devices run on any machine, so it never takes the skip:
+  // the one engine every run has cannot lose this spec to the environment.
+  if (browserName === 'chromium') {
+    expect(running, 'chromium runs an audio graph').toBe(true);
+  }
+  test.skip(!running, 'this machine has no audio output for the browser to run Web Audio on');
   // Four of these seconds are a recording playing in real time, which no
   // machine makes faster, and CI runners are several times slower than a
   // developer's box at everything else — so the default budget would be spent

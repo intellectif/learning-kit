@@ -159,6 +159,10 @@ test.describe('marks stay distinguishable under forced colours', () => {
   `;
 
   test('each state keeps its own decoration and glyph', async ({ page }) => {
+    // Off the example page first, which this test does not use: Playwright's
+    // Windows WebKit never fires `load` for content written over that page,
+    // and `setContent` waits for it until the test times out.
+    await page.goto('about:blank');
     await page.setContent(`<!doctype html><meta charset="utf-8"><style>${CSS}</style>${MARKED}`);
     const seen = await page.evaluate(() => {
       const read = (id: string) => {

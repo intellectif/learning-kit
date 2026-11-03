@@ -24,3 +24,7 @@ declare module 'node:path' {
 declare module 'node:url' {
   export function fileURLToPath(url: string | URL): string;
 }
+
+declare module 'node:os' {
+  export function platform(): string;
+}
