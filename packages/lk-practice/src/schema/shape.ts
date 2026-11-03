@@ -382,6 +382,7 @@ const skillState = object({
     firstSuccessAt: instantOrNull,
     lastSuccessAt: instantOrNull,
     lastWasLapse: bool,
+    failedChecks: opt(count),
   }),
 });
 

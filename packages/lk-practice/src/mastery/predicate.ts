@@ -54,14 +54,35 @@ export function expectedSuccessAtReference(
 }
 
 /**
+ * R3.5 (c): the top stage's ability meets the standard, its expected success
+ * at least `minExpectedSuccess` against `referenceDifficulty` raised by
+ * `uncertaintyMargin` times the ability's uncertainty (Elo's step, which
+ * shrinks as evidence grows). **(revised in M11)** The margin keeps a lucky
+ * run on little evidence from mastering a skill; an ability that states no
+ * uncertainty has none.
+ */
+export function meetsStandard(
+  stored: StoredAbility,
+  skill: SkillNode,
+  context: MasteryContext,
+): boolean {
+  const { config, ladder, model } = context;
+  const ability = abilityAt(stored, skill, ladder[ladder.length - 1] as StageId, context);
+  const margin = config.mastery.uncertaintyMargin * (model.estimate(ability).uncertainty ?? 0);
+  return (
+    model.expectedSuccess(ability, (skill.referenceDifficulty ?? 0) + margin) >=
+    config.mastery.minExpectedSuccess
+  );
+}
+
+/**
  * The conditions of R3.5 that fail at `t`, in the order (a) to (d); empty when
  * the skill is mastered. Every condition is checked, so a lost mastery reports
  * all the reasons at once.
  *
  * (a) `stage` is the top of the ladder; (b) at least `topSuccesses` counted
  * top-stage successes and the last top-stage retrieval was not a lapse;
- * (c) the expected success at the top stage against `referenceDifficulty`
- * (default 0) is at least `minExpectedSuccess`, with the top ability derived
+ * (c) the top stage's ability meets the standard (`meetsStandard`), derived
  * when absent; (d) the top-stage memory's retrievability at `t` is at least
  * the desired retention minus `retentionMargin` (no top-stage memory fails).
  */
@@ -78,11 +99,7 @@ export function masteryFailures(
   if (state.top.successes < config.mastery.topSuccesses || state.top.lastWasLapse) {
     failed.push('successes');
   }
-  if (
-    expectedSuccessAtReference(state.ability, skill, context) < config.mastery.minExpectedSuccess
-  ) {
-    failed.push('ability');
-  }
+  if (!meetsStandard(state.ability, skill, context)) failed.push('ability');
   const memory = Object.hasOwn(state.memories, top) ? state.memories[top] : undefined;
   const floor = desiredRetentionFor(skill, top, config) - config.mastery.retentionMargin;
   if (

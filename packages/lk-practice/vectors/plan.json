@@ -425,7 +425,7 @@
           {
             "targets": [
               {
-                "id": "6fde9c663deffd54",
+                "id": "03f7e6b0e156f3c3",
                 "kind": "review",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -465,7 +465,7 @@
           {
             "targets": [
               {
-                "id": "6fde9c663deffd54",
+                "id": "03f7e6b0e156f3c3",
                 "kind": "review",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -489,7 +489,7 @@
                 }
               },
               {
-                "id": "9b72ab31cc4d61bd",
+                "id": "c4b0138c363d276e",
                 "kind": "review",
                 "skillIds": ["b"],
                 "stage": "recall",
@@ -513,7 +513,7 @@
                 }
               },
               {
-                "id": "6a96f401a734de72",
+                "id": "5f1229b697b03e97",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -553,7 +553,7 @@
           {
             "targets": [
               {
-                "id": "6fde9c663deffd54",
+                "id": "03f7e6b0e156f3c3",
                 "kind": "review",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -714,7 +714,7 @@
           {
             "targets": [
               {
-                "id": "85521381785e5159",
+                "id": "a99035d7c054ae1b",
                 "kind": "review",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -738,7 +738,7 @@
                 }
               },
               {
-                "id": "66bf33aa5a47efab",
+                "id": "57f0a5748e6214fd",
                 "kind": "new",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -777,7 +777,7 @@
           {
             "targets": [
               {
-                "id": "85521381785e5159",
+                "id": "a99035d7c054ae1b",
                 "kind": "review",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -1025,7 +1025,7 @@
           {
             "targets": [
               {
-                "id": "a585981a06bcd78d",
+                "id": "d26b03b686fe3c27",
                 "kind": "stage-up",
                 "skillIds": ["a"],
                 "stage": "produce",
@@ -1047,7 +1047,7 @@
                 }
               },
               {
-                "id": "c0b8d02a1bb9b276",
+                "id": "b850d387196c40c4",
                 "kind": "new",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -1086,7 +1086,7 @@
           {
             "targets": [
               {
-                "id": "a585981a06bcd78d",
+                "id": "d26b03b686fe3c27",
                 "kind": "stage-up",
                 "skillIds": ["a"],
                 "stage": "produce",
@@ -1229,7 +1229,7 @@
           {
             "targets": [
               {
-                "id": "788d6cc1b293eca1",
+                "id": "df075d1eeac184a1",
                 "kind": "stage-up",
                 "skillIds": ["a"],
                 "stage": "produce",
@@ -1392,7 +1392,7 @@
           {
             "targets": [
               {
-                "id": "2b9bace581c8a42a",
+                "id": "7f38774b0e8290a9",
                 "kind": "review",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -1710,11 +1710,11 @@
           {
             "targets": [
               {
-                "id": "47ed75de109d9102",
+                "id": "69d95309a0eb2d37",
                 "kind": "review",
                 "skillIds": ["q"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -1727,14 +1727,14 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9667450457790286,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
               },
               {
-                "id": "f5b6a58ba98a25f8",
+                "id": "51e7b5f6a075def3",
                 "kind": "remediation",
                 "skillIds": ["p"],
                 "stage": "recall",
@@ -1774,11 +1774,11 @@
           {
             "targets": [
               {
-                "id": "47ed75de109d9102",
+                "id": "69d95309a0eb2d37",
                 "kind": "review",
                 "skillIds": ["q"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -1791,8 +1791,8 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9667450457790286,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -1814,11 +1814,11 @@
           {
             "targets": [
               {
-                "id": "47ed75de109d9102",
+                "id": "69d95309a0eb2d37",
                 "kind": "review",
                 "skillIds": ["q"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -1831,8 +1831,8 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9667450457790286,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -2100,7 +2100,7 @@
           {
             "targets": [
               {
-                "id": "0dcebf431720d695",
+                "id": "c28cd15ae956221e",
                 "kind": "review",
                 "skillIds": ["q"],
                 "stage": "recall",
@@ -2124,7 +2124,7 @@
                 }
               },
               {
-                "id": "3de85ce10efbd435",
+                "id": "19ef9e23952ae4e4",
                 "kind": "remediation",
                 "skillIds": ["p"],
                 "stage": "recall",
@@ -2155,6 +2155,328 @@
             "budgetUsed": {
               "targets": 2,
               "seconds": 60
+            },
+            "algorithm": {
+              "id": "planner",
+              "version": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "plan",
+      "name": "after a failed mastery check the next review is at the learner's level (M11)",
+      "learnerId": "l1",
+      "graphs": {
+        "main": {
+          "version": "g1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "b",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "c",
+              "knowledge": "declarative"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "hard"
+            }
+          ]
+        }
+      },
+      "steps": [
+        {
+          "evidence": {
+            "id": "k1",
+            "itemId": "k1-item",
+            "at": 1767225600000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "k1-item",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "recall",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "evidence": {
+            "id": "k2",
+            "itemId": "k2-item",
+            "at": 1767312000000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "k2-item",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "recall",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "evidence": {
+            "id": "k3",
+            "itemId": "k3-item",
+            "at": 1767398400000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "k3-item",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "produce",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "evidence": {
+            "id": "k4",
+            "itemId": "k4-item",
+            "at": 1767657600000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "k4-item",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "produce",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "evidence": {
+            "id": "k5",
+            "itemId": "k5-item",
+            "at": 1767916800000,
+            "source": {
+              "kind": "auto",
+              "score": 0,
+              "maxScore": 1,
+              "passed": false
+            }
+          },
+          "item": {
+            "id": "k5-item",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "produce",
+            "origin": "generated",
+            "status": "proven"
+          }
+        }
+      ],
+      "requests": [
+        {
+          "request": {
+            "now": 1768176000000,
+            "seed": "s",
+            "budget": {}
+          }
+        }
+      ],
+      "expected": {
+        "steps": [
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "skill.started",
+                "at": 1767225600000,
+                "skillId": "a",
+                "stage": "recall"
+              },
+              {
+                "type": "review.recorded",
+                "at": 1767225600000,
+                "evidenceId": "k1",
+                "skillId": "a",
+                "stage": "recall",
+                "rating": "good",
+                "due": 1767312000000
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767312000000,
+                "evidenceId": "k2",
+                "skillId": "a",
+                "stage": "recall",
+                "rating": "good",
+                "due": 1768867601440
+              },
+              {
+                "type": "stage.promoted",
+                "at": 1767312000000,
+                "skillId": "a",
+                "from": "recall",
+                "to": "produce"
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767398400000,
+                "evidenceId": "k3",
+                "skillId": "a",
+                "stage": "produce",
+                "rating": "good",
+                "due": 1767484800000
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767657600000,
+                "evidenceId": "k4",
+                "skillId": "a",
+                "stage": "produce",
+                "rating": "good",
+                "due": 1767916800000
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767916800000,
+                "evidenceId": "k5",
+                "skillId": "a",
+                "stage": "produce",
+                "rating": "hard",
+                "due": 1768176000000
+              }
+            ]
+          }
+        ],
+        "plans": [
+          {
+            "targets": [
+              {
+                "id": "1cd7193a31b128a8",
+                "kind": "review",
+                "skillIds": ["a"],
+                "stage": "produce",
+                "targetDifficulty": -1.5795147757485577,
+                "difficultyTolerance": 0.5,
+                "expectedSeconds": 60,
+                "constraints": {
+                  "needsSkillOutcomes": false,
+                  "avoidItemIds": ["k4-item", "k5-item"],
+                  "avoidContentHashes": [],
+                  "context": "practice"
+                },
+                "reason": {
+                  "code": "overdue",
+                  "due": 1768176000000,
+                  "retrievability": 0.9576129192318009,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
+                  "coalesced": [],
+                  "newSkillsDeferred": false
+                }
+              },
+              {
+                "id": "a839e8e0a905e68d",
+                "kind": "new",
+                "skillIds": ["c"],
+                "stage": "recognise",
+                "targetDifficulty": -1.7346010553881062,
+                "difficultyTolerance": 0.5,
+                "expectedSeconds": 20,
+                "constraints": {
+                  "needsSkillOutcomes": false,
+                  "avoidItemIds": ["k4-item", "k5-item"],
+                  "avoidContentHashes": [],
+                  "context": "practice"
+                },
+                "reason": {
+                  "code": "new",
+                  "focus": false,
+                  "softPrerequisitesMastered": true,
+                  "expectedSuccess": 0.85,
+                  "coalesced": [],
+                  "newSkillsDeferred": false
+                }
+              }
+            ],
+            "deferred": {
+              "reviewsDue": 0,
+              "newReady": 0
+            },
+            "budgetUsed": {
+              "targets": 2,
+              "seconds": 80
             },
             "algorithm": {
               "id": "planner",
@@ -3342,7 +3664,7 @@
           {
             "targets": [
               {
-                "id": "18a92309f6bd894f",
+                "id": "c775a3865fd8685b",
                 "kind": "review",
                 "skillIds": ["k", "x", "v", "w"],
                 "stage": "complete",
@@ -3382,7 +3704,7 @@
           {
             "targets": [
               {
-                "id": "87c72febd9c693c8",
+                "id": "ec674c6b95a00604",
                 "kind": "review",
                 "skillIds": ["k", "x"],
                 "stage": "complete",
@@ -3406,7 +3728,7 @@
                 }
               },
               {
-                "id": "c2ac707db2020351",
+                "id": "646fef896f41fe45",
                 "kind": "review",
                 "skillIds": ["v"],
                 "stage": "recall",
@@ -3430,7 +3752,7 @@
                 }
               },
               {
-                "id": "ce7588bc2860e092",
+                "id": "bd6ed2cb0ba8dd86",
                 "kind": "review",
                 "skillIds": ["w"],
                 "stage": "recall",
@@ -3470,7 +3792,7 @@
           {
             "targets": [
               {
-                "id": "18a92309f6bd894f",
+                "id": "c775a3865fd8685b",
                 "kind": "review",
                 "skillIds": ["k", "x", "v", "w"],
                 "stage": "complete",
@@ -3510,7 +3832,7 @@
           {
             "targets": [
               {
-                "id": "87c72febd9c693c8",
+                "id": "ec674c6b95a00604",
                 "kind": "review",
                 "skillIds": ["k", "x"],
                 "stage": "complete",
@@ -3539,7 +3861,7 @@
                 }
               },
               {
-                "id": "c2ac707db2020351",
+                "id": "646fef896f41fe45",
                 "kind": "review",
                 "skillIds": ["v"],
                 "stage": "recall",
@@ -3563,7 +3885,7 @@
                 }
               },
               {
-                "id": "ce7588bc2860e092",
+                "id": "bd6ed2cb0ba8dd86",
                 "kind": "review",
                 "skillIds": ["w"],
                 "stage": "recall",
@@ -3603,7 +3925,7 @@
           {
             "targets": [
               {
-                "id": "87c72febd9c693c8",
+                "id": "ec674c6b95a00604",
                 "kind": "review",
                 "skillIds": ["k", "x"],
                 "stage": "complete",
@@ -3627,7 +3949,7 @@
                 }
               },
               {
-                "id": "c2ac707db2020351",
+                "id": "646fef896f41fe45",
                 "kind": "review",
                 "skillIds": ["v"],
                 "stage": "recall",
@@ -3651,7 +3973,7 @@
                 }
               },
               {
-                "id": "ce7588bc2860e092",
+                "id": "bd6ed2cb0ba8dd86",
                 "kind": "review",
                 "skillIds": ["w"],
                 "stage": "recall",
@@ -3691,7 +4013,7 @@
           {
             "targets": [
               {
-                "id": "87c72febd9c693c8",
+                "id": "ec674c6b95a00604",
                 "kind": "review",
                 "skillIds": ["k", "x"],
                 "stage": "complete",
@@ -3715,7 +4037,7 @@
                 }
               },
               {
-                "id": "c2ac707db2020351",
+                "id": "646fef896f41fe45",
                 "kind": "review",
                 "skillIds": ["v"],
                 "stage": "recall",
@@ -3739,7 +4061,7 @@
                 }
               },
               {
-                "id": "ce7588bc2860e092",
+                "id": "bd6ed2cb0ba8dd86",
                 "kind": "review",
                 "skillIds": ["w"],
                 "stage": "recall",
@@ -4067,7 +4389,7 @@
           {
             "targets": [
               {
-                "id": "7862a8dec5d44c00",
+                "id": "7d3ebbdea63dcf5c",
                 "kind": "review",
                 "skillIds": ["k"],
                 "stage": "complete",
@@ -4091,7 +4413,7 @@
                 }
               },
               {
-                "id": "96d3cdd995ae3377",
+                "id": "52539b6a57a705db",
                 "kind": "review",
                 "skillIds": ["x"],
                 "stage": "recall",
@@ -4115,7 +4437,7 @@
                 }
               },
               {
-                "id": "2e32ca178ceda355",
+                "id": "0ac6b1a6e99064f1",
                 "kind": "review",
                 "skillIds": ["v"],
                 "stage": "recall",
@@ -4139,7 +4461,7 @@
                 }
               },
               {
-                "id": "20a72db416a4be96",
+                "id": "4f08177d225c4eb2",
                 "kind": "review",
                 "skillIds": ["w"],
                 "stage": "recall",
@@ -4441,7 +4763,7 @@
           {
             "targets": [
               {
-                "id": "1dbad94b03cc8a42",
+                "id": "99b69b2baac831c7",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -4465,7 +4787,7 @@
                 }
               },
               {
-                "id": "0705ce709063573c",
+                "id": "a796abc7db1b1829",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -4504,7 +4826,7 @@
           {
             "targets": [
               {
-                "id": "1dbad94b03cc8a42",
+                "id": "99b69b2baac831c7",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -4533,7 +4855,7 @@
                 }
               },
               {
-                "id": "0705ce709063573c",
+                "id": "a796abc7db1b1829",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -4572,7 +4894,7 @@
           {
             "targets": [
               {
-                "id": "1dbad94b03cc8a42",
+                "id": "99b69b2baac831c7",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -4601,7 +4923,7 @@
                 }
               },
               {
-                "id": "0705ce709063573c",
+                "id": "a796abc7db1b1829",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -4640,7 +4962,7 @@
           {
             "targets": [
               {
-                "id": "1dbad94b03cc8a42",
+                "id": "99b69b2baac831c7",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -4669,7 +4991,7 @@
                 }
               },
               {
-                "id": "0705ce709063573c",
+                "id": "a796abc7db1b1829",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -4820,7 +5142,7 @@
           {
             "targets": [
               {
-                "id": "ab080b6326ea14be",
+                "id": "4c7c5f8a0fc120e7",
                 "kind": "stage-up",
                 "skillIds": ["a"],
                 "stage": "drill",
@@ -4842,7 +5164,7 @@
                 }
               },
               {
-                "id": "ccc0228748f884d3",
+                "id": "b00e7ebc158f8e06",
                 "kind": "new",
                 "skillIds": ["b"],
                 "stage": "recall",
@@ -4881,7 +5203,7 @@
           {
             "targets": [
               {
-                "id": "ab080b6326ea14be",
+                "id": "4c7c5f8a0fc120e7",
                 "kind": "stage-up",
                 "skillIds": ["a"],
                 "stage": "drill",
@@ -4919,7 +5241,7 @@
           {
             "targets": [
               {
-                "id": "ab080b6326ea14be",
+                "id": "4c7c5f8a0fc120e7",
                 "kind": "stage-up",
                 "skillIds": ["a"],
                 "stage": "drill",
@@ -4941,7 +5263,7 @@
                 }
               },
               {
-                "id": "ccc0228748f884d3",
+                "id": "b00e7ebc158f8e06",
                 "kind": "new",
                 "skillIds": ["b"],
                 "stage": "recall",
@@ -5073,7 +5395,7 @@
           {
             "targets": [
               {
-                "id": "39d0ebac3fda7d1c",
+                "id": "60d33b63ba0964c7",
                 "kind": "new",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -5096,7 +5418,7 @@
                 }
               },
               {
-                "id": "a7a1fa6b0c898ebe",
+                "id": "f3f08e415be28633",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -5135,7 +5457,7 @@
           {
             "targets": [
               {
-                "id": "39d0ebac3fda7d1c",
+                "id": "60d33b63ba0964c7",
                 "kind": "new",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -5158,7 +5480,7 @@
                 }
               },
               {
-                "id": "a7a1fa6b0c898ebe",
+                "id": "f3f08e415be28633",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -6458,7 +6780,7 @@
           {
             "targets": [
               {
-                "id": "8af36e5e81b0c4bf",
+                "id": "8902e5c865b0264d",
                 "kind": "review",
                 "skillIds": ["g3"],
                 "stage": "recall",
@@ -6482,7 +6804,7 @@
                 }
               },
               {
-                "id": "258c723a4f0b8659",
+                "id": "745607e8f84c760b",
                 "kind": "stage-up",
                 "skillIds": ["g2"],
                 "stage": "produce",
@@ -6504,7 +6826,7 @@
                 }
               },
               {
-                "id": "5ef3ee344429267a",
+                "id": "487a90c7d5fd3240",
                 "kind": "stage-up",
                 "skillIds": ["g1"],
                 "stage": "produce",
@@ -6526,7 +6848,7 @@
                 }
               },
               {
-                "id": "95ff2a99e433c7bb",
+                "id": "0092f6aaa4632525",
                 "kind": "stage-up",
                 "skillIds": ["h1"],
                 "stage": "produce",
@@ -6548,7 +6870,7 @@
                 }
               },
               {
-                "id": "39e2e82b9a97a4ab",
+                "id": "d71e417458b46ad5",
                 "kind": "stage-up",
                 "skillIds": ["p2"],
                 "stage": "write",
@@ -6570,7 +6892,7 @@
                 }
               },
               {
-                "id": "9f9ca9ac15ceb8a8",
+                "id": "45cdcbfa379da696",
                 "kind": "stage-up",
                 "skillIds": ["p1"],
                 "stage": "write",
@@ -6592,7 +6914,7 @@
                 }
               },
               {
-                "id": "6fd91949a06646ba",
+                "id": "41fc316ddd86eeb0",
                 "kind": "stage-up",
                 "skillIds": ["p3"],
                 "stage": "complete",
@@ -6630,7 +6952,7 @@
           {
             "targets": [
               {
-                "id": "8af36e5e81b0c4bf",
+                "id": "8902e5c865b0264d",
                 "kind": "review",
                 "skillIds": ["g3"],
                 "stage": "recall",
@@ -6654,7 +6976,7 @@
                 }
               },
               {
-                "id": "6fd91949a06646ba",
+                "id": "41fc316ddd86eeb0",
                 "kind": "stage-up",
                 "skillIds": ["p3"],
                 "stage": "complete",
@@ -6676,7 +6998,7 @@
                 }
               },
               {
-                "id": "39e2e82b9a97a4ab",
+                "id": "d71e417458b46ad5",
                 "kind": "stage-up",
                 "skillIds": ["p2"],
                 "stage": "write",
@@ -6698,7 +7020,7 @@
                 }
               },
               {
-                "id": "9f9ca9ac15ceb8a8",
+                "id": "45cdcbfa379da696",
                 "kind": "stage-up",
                 "skillIds": ["p1"],
                 "stage": "write",
@@ -6720,7 +7042,7 @@
                 }
               },
               {
-                "id": "95ff2a99e433c7bb",
+                "id": "0092f6aaa4632525",
                 "kind": "stage-up",
                 "skillIds": ["h1"],
                 "stage": "produce",
@@ -6742,7 +7064,7 @@
                 }
               },
               {
-                "id": "258c723a4f0b8659",
+                "id": "745607e8f84c760b",
                 "kind": "stage-up",
                 "skillIds": ["g2"],
                 "stage": "produce",
@@ -6764,7 +7086,7 @@
                 }
               },
               {
-                "id": "5ef3ee344429267a",
+                "id": "487a90c7d5fd3240",
                 "kind": "stage-up",
                 "skillIds": ["g1"],
                 "stage": "produce",
@@ -6802,7 +7124,7 @@
           {
             "targets": [
               {
-                "id": "8af36e5e81b0c4bf",
+                "id": "8902e5c865b0264d",
                 "kind": "review",
                 "skillIds": ["g3"],
                 "stage": "recall",
@@ -6826,7 +7148,7 @@
                 }
               },
               {
-                "id": "95ff2a99e433c7bb",
+                "id": "0092f6aaa4632525",
                 "kind": "stage-up",
                 "skillIds": ["h1"],
                 "stage": "produce",
@@ -6848,7 +7170,7 @@
                 }
               },
               {
-                "id": "9f9ca9ac15ceb8a8",
+                "id": "45cdcbfa379da696",
                 "kind": "stage-up",
                 "skillIds": ["p1"],
                 "stage": "write",
@@ -6870,7 +7192,7 @@
                 }
               },
               {
-                "id": "39e2e82b9a97a4ab",
+                "id": "d71e417458b46ad5",
                 "kind": "stage-up",
                 "skillIds": ["p2"],
                 "stage": "write",
@@ -6892,7 +7214,7 @@
                 }
               },
               {
-                "id": "6fd91949a06646ba",
+                "id": "41fc316ddd86eeb0",
                 "kind": "stage-up",
                 "skillIds": ["p3"],
                 "stage": "complete",
@@ -6914,7 +7236,7 @@
                 }
               },
               {
-                "id": "5ef3ee344429267a",
+                "id": "487a90c7d5fd3240",
                 "kind": "stage-up",
                 "skillIds": ["g1"],
                 "stage": "produce",
@@ -6936,7 +7258,7 @@
                 }
               },
               {
-                "id": "258c723a4f0b8659",
+                "id": "745607e8f84c760b",
                 "kind": "stage-up",
                 "skillIds": ["g2"],
                 "stage": "produce",
@@ -6974,7 +7296,7 @@
           {
             "targets": [
               {
-                "id": "8af36e5e81b0c4bf",
+                "id": "8902e5c865b0264d",
                 "kind": "review",
                 "skillIds": ["g3"],
                 "stage": "recall",
@@ -6998,7 +7320,7 @@
                 }
               },
               {
-                "id": "5ef3ee344429267a",
+                "id": "487a90c7d5fd3240",
                 "kind": "stage-up",
                 "skillIds": ["g1"],
                 "stage": "produce",
@@ -7020,7 +7342,7 @@
                 }
               },
               {
-                "id": "258c723a4f0b8659",
+                "id": "745607e8f84c760b",
                 "kind": "stage-up",
                 "skillIds": ["g2"],
                 "stage": "produce",
@@ -7042,7 +7364,7 @@
                 }
               },
               {
-                "id": "95ff2a99e433c7bb",
+                "id": "0092f6aaa4632525",
                 "kind": "stage-up",
                 "skillIds": ["h1"],
                 "stage": "produce",
@@ -7064,7 +7386,7 @@
                 }
               },
               {
-                "id": "9f9ca9ac15ceb8a8",
+                "id": "45cdcbfa379da696",
                 "kind": "stage-up",
                 "skillIds": ["p1"],
                 "stage": "write",
@@ -7086,7 +7408,7 @@
                 }
               },
               {
-                "id": "39e2e82b9a97a4ab",
+                "id": "d71e417458b46ad5",
                 "kind": "stage-up",
                 "skillIds": ["p2"],
                 "stage": "write",
@@ -7108,7 +7430,7 @@
                 }
               },
               {
-                "id": "6fd91949a06646ba",
+                "id": "41fc316ddd86eeb0",
                 "kind": "stage-up",
                 "skillIds": ["p3"],
                 "stage": "complete",
@@ -7327,7 +7649,7 @@
           {
             "targets": [
               {
-                "id": "9fb77a2d94236da2",
+                "id": "80144e0909e01b39",
                 "kind": "review",
                 "skillIds": ["d"],
                 "stage": "produce",
@@ -7351,7 +7673,7 @@
                 }
               },
               {
-                "id": "40306c1ee10e5f4a",
+                "id": "7792941c336d545d",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -7374,7 +7696,7 @@
                 }
               },
               {
-                "id": "a81cf8eb814411bb",
+                "id": "4a138f776bb1cf78",
                 "kind": "new",
                 "skillIds": ["f"],
                 "stage": "recall",
@@ -7397,7 +7719,7 @@
                 }
               },
               {
-                "id": "5a7a520a574d88e6",
+                "id": "8d57303674317c41",
                 "kind": "new",
                 "skillIds": ["e"],
                 "stage": "recall",
@@ -7567,7 +7889,7 @@
           {
             "targets": [
               {
-                "id": "c3ba55e25a2093da",
+                "id": "df1883ed84fab8cb",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -7590,7 +7912,7 @@
                 }
               },
               {
-                "id": "fd35ceda0e0165cb",
+                "id": "a59d0af5d119e6da",
                 "kind": "new",
                 "skillIds": ["f"],
                 "stage": "recall",
@@ -7613,7 +7935,7 @@
                 }
               },
               {
-                "id": "7aefb4a63c1aecf6",
+                "id": "5847f4731b24d18f",
                 "kind": "new",
                 "skillIds": ["e"],
                 "stage": "recall",
@@ -7789,7 +8111,7 @@
           {
             "targets": [
               {
-                "id": "a0dd3648cbb7527a",
+                "id": "f812d134e5fc0d66",
                 "kind": "stage-up",
                 "skillIds": ["d"],
                 "stage": "produce",
@@ -7811,7 +8133,7 @@
                 }
               },
               {
-                "id": "89c731c073d6a4fe",
+                "id": "2d7594e3efe0ab3a",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -7834,7 +8156,7 @@
                 }
               },
               {
-                "id": "52bb6e2f5fdb0b22",
+                "id": "cceca89c8ba8c256",
                 "kind": "new",
                 "skillIds": ["e"],
                 "stage": "recall",
@@ -7857,7 +8179,7 @@
                 }
               },
               {
-                "id": "96c434b6f09ded57",
+                "id": "0b0e6a8f12ad99ab",
                 "kind": "new",
                 "skillIds": ["f"],
                 "stage": "recall",
@@ -8004,7 +8326,7 @@
           {
             "targets": [
               {
-                "id": "35de3c4cb9760cc3",
+                "id": "38e03d372a7d5485",
                 "kind": "new",
                 "skillIds": ["b"],
                 "stage": "recall",
@@ -8027,7 +8349,7 @@
                 }
               },
               {
-                "id": "3d92728edcff0b8c",
+                "id": "c932984d810558fa",
                 "kind": "new",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -8050,7 +8372,7 @@
                 }
               },
               {
-                "id": "f69669280e5c406e",
+                "id": "b9dbc71a27e2fddc",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -8089,7 +8411,7 @@
           {
             "targets": [
               {
-                "id": "f69669280e5c406e",
+                "id": "b9dbc71a27e2fddc",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -8112,7 +8434,7 @@
                 }
               },
               {
-                "id": "35de3c4cb9760cc3",
+                "id": "38e03d372a7d5485",
                 "kind": "new",
                 "skillIds": ["b"],
                 "stage": "recall",
@@ -8135,7 +8457,7 @@
                 }
               },
               {
-                "id": "3d92728edcff0b8c",
+                "id": "c932984d810558fa",
                 "kind": "new",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -8253,7 +8575,7 @@
           {
             "targets": [
               {
-                "id": "90fa485e705a4373",
+                "id": "d141e86db0f712aa",
                 "kind": "new",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -8276,7 +8598,7 @@
                 }
               },
               {
-                "id": "9ffa423646407a77",
+                "id": "504d1d9f189feecc",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -8517,7 +8839,7 @@
           {
             "targets": [
               {
-                "id": "7ee16374caff307a",
+                "id": "053dbeb02668e4b8",
                 "kind": "review",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -8541,7 +8863,7 @@
                 }
               },
               {
-                "id": "31c6b3c140a65f55",
+                "id": "1cd30f7c9e2a2c33",
                 "kind": "review",
                 "skillIds": ["d"],
                 "stage": "recall",
@@ -8581,7 +8903,7 @@
           {
             "targets": [
               {
-                "id": "7ee16374caff307a",
+                "id": "053dbeb02668e4b8",
                 "kind": "review",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -8605,7 +8927,7 @@
                 }
               },
               {
-                "id": "31c6b3c140a65f55",
+                "id": "1cd30f7c9e2a2c33",
                 "kind": "review",
                 "skillIds": ["d"],
                 "stage": "recall",
@@ -8629,7 +8951,7 @@
                 }
               },
               {
-                "id": "66cd580128f41656",
+                "id": "f07893227aea57ac",
                 "kind": "new",
                 "skillIds": ["e"],
                 "stage": "recall",
@@ -8652,7 +8974,7 @@
                 }
               },
               {
-                "id": "a4ef19f3aff8edab",
+                "id": "672905eea4957ed5",
                 "kind": "new",
                 "skillIds": ["f"],
                 "stage": "recall",
@@ -8900,7 +9222,7 @@
           {
             "targets": [
               {
-                "id": "6fde9c663deffd54",
+                "id": "03f7e6b0e156f3c3",
                 "kind": "review",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -8955,7 +9277,7 @@
           {
             "targets": [
               {
-                "id": "6fde9c663deffd54",
+                "id": "03f7e6b0e156f3c3",
                 "kind": "review",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -8979,7 +9301,7 @@
                 }
               },
               {
-                "id": "9b72ab31cc4d61bd",
+                "id": "c4b0138c363d276e",
                 "kind": "review",
                 "skillIds": ["b"],
                 "stage": "recall",
@@ -9003,7 +9325,7 @@
                 }
               },
               {
-                "id": "6a96f401a734de72",
+                "id": "5f1229b697b03e97",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -9043,7 +9365,7 @@
           {
             "targets": [
               {
-                "id": "6fde9c663deffd54",
+                "id": "03f7e6b0e156f3c3",
                 "kind": "review",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -9252,7 +9574,7 @@
           {
             "targets": [
               {
-                "id": "cd0d32948be3bb7d",
+                "id": "3111b10cdff9e91d",
                 "kind": "review",
                 "skillIds": ["y"],
                 "stage": "recall",
@@ -9276,7 +9598,7 @@
                 }
               },
               {
-                "id": "cec385b566d69b7e",
+                "id": "e68e4012defda79e",
                 "kind": "review",
                 "skillIds": ["x"],
                 "stage": "recall",
@@ -9486,7 +9808,7 @@
           {
             "targets": [
               {
-                "id": "6d3359c97c7aab00",
+                "id": "a11d9cc4d6577328",
                 "kind": "review",
                 "skillIds": ["y"],
                 "stage": "recall",
@@ -9510,7 +9832,7 @@
                 }
               },
               {
-                "id": "6dc377f8cef1f0ff",
+                "id": "5e4f5bf3c2ac3f67",
                 "kind": "review",
                 "skillIds": ["x"],
                 "stage": "recall",
@@ -10133,11 +10455,11 @@
           {
             "targets": [
               {
-                "id": "59031c8a89dd7867",
+                "id": "f40abb8de62ccdd6",
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -10161,18 +10483,18 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9732757990844819,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
               },
               {
-                "id": "0c9b4888c4c5a372",
+                "id": "322c7d806d31a52b",
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -10196,14 +10518,14 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9828327104366802,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
               },
               {
-                "id": "e1c1c566cf3f169a",
+                "id": "8218ae558c8d286f",
                 "kind": "remediation",
                 "skillIds": ["r"],
                 "stage": "recall",
@@ -10238,7 +10560,7 @@
                 }
               },
               {
-                "id": "90f619fb891e8cb9",
+                "id": "6bde776ec8d537f0",
                 "kind": "remediation",
                 "skillIds": ["s"],
                 "stage": "recall",
@@ -10273,7 +10595,7 @@
                 }
               },
               {
-                "id": "2a1f75e3013e9750",
+                "id": "21085c427794d959",
                 "kind": "remediation",
                 "skillIds": ["p"],
                 "stage": "recall",
@@ -10324,11 +10646,11 @@
           {
             "targets": [
               {
-                "id": "59031c8a89dd7867",
+                "id": "f40abb8de62ccdd6",
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -10352,18 +10674,18 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9732757990844819,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
               },
               {
-                "id": "0c9b4888c4c5a372",
+                "id": "322c7d806d31a52b",
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -10387,14 +10709,14 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9828327104366802,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
               },
               {
-                "id": "e1c1c566cf3f169a",
+                "id": "8218ae558c8d286f",
                 "kind": "remediation",
                 "skillIds": ["r"],
                 "stage": "recall",
@@ -10445,11 +10767,11 @@
           {
             "targets": [
               {
-                "id": "59031c8a89dd7867",
+                "id": "f40abb8de62ccdd6",
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -10473,18 +10795,18 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9705687536347992,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
               },
               {
-                "id": "0c9b4888c4c5a372",
+                "id": "322c7d806d31a52b",
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -10508,14 +10830,14 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9771194462267113,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
               },
               {
-                "id": "e1c1c566cf3f169a",
+                "id": "8218ae558c8d286f",
                 "kind": "remediation",
                 "skillIds": ["r"],
                 "stage": "recall",
@@ -10550,7 +10872,7 @@
                 }
               },
               {
-                "id": "90f619fb891e8cb9",
+                "id": "6bde776ec8d537f0",
                 "kind": "remediation",
                 "skillIds": ["s"],
                 "stage": "recall",
@@ -10585,7 +10907,7 @@
                 }
               },
               {
-                "id": "2a1f75e3013e9750",
+                "id": "21085c427794d959",
                 "kind": "remediation",
                 "skillIds": ["p"],
                 "stage": "recall",
@@ -10636,11 +10958,11 @@
           {
             "targets": [
               {
-                "id": "59031c8a89dd7867",
+                "id": "f40abb8de62ccdd6",
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -10664,18 +10986,18 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9705687530753623,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
               },
               {
-                "id": "0c9b4888c4c5a372",
+                "id": "322c7d806d31a52b",
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -10699,14 +11021,14 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9771194452293452,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
               },
               {
-                "id": "e1c1c566cf3f169a",
+                "id": "8218ae558c8d286f",
                 "kind": "remediation",
                 "skillIds": ["r"],
                 "stage": "recall",
@@ -10741,7 +11063,7 @@
                 }
               },
               {
-                "id": "2a1f75e3013e9750",
+                "id": "21085c427794d959",
                 "kind": "remediation",
                 "skillIds": ["p"],
                 "stage": "recall",
@@ -11372,11 +11694,11 @@
           {
             "targets": [
               {
-                "id": "9fe003db43c04f94",
+                "id": "c337122e61552f7c",
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11400,18 +11722,18 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9732757990844819,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
               },
               {
-                "id": "8b65ac30a1a2f6fd",
+                "id": "3e3d01ede46be525",
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11435,8 +11757,8 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9828327104366802,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -11458,11 +11780,11 @@
           {
             "targets": [
               {
-                "id": "9fe003db43c04f94",
+                "id": "c337122e61552f7c",
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11486,18 +11808,18 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9732757990844819,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
               },
               {
-                "id": "8b65ac30a1a2f6fd",
+                "id": "3e3d01ede46be525",
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11521,8 +11843,8 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9828327104366802,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -11544,11 +11866,11 @@
           {
             "targets": [
               {
-                "id": "9fe003db43c04f94",
+                "id": "c337122e61552f7c",
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11572,18 +11894,18 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9705687536347992,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
               },
               {
-                "id": "8b65ac30a1a2f6fd",
+                "id": "3e3d01ede46be525",
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11607,8 +11929,8 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9771194462267113,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -11630,11 +11952,11 @@
           {
             "targets": [
               {
-                "id": "9fe003db43c04f94",
+                "id": "c337122e61552f7c",
                 "kind": "review",
                 "skillIds": ["q1"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11658,18 +11980,18 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9705687530753623,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
               },
               {
-                "id": "8b65ac30a1a2f6fd",
+                "id": "3e3d01ede46be525",
                 "kind": "review",
                 "skillIds": ["q2"],
                 "stage": "recall",
-                "targetDifficulty": 0,
+                "targetDifficulty": -1.827419466056539,
                 "difficultyTolerance": 0.5,
                 "expectedSeconds": 30,
                 "constraints": {
@@ -11693,8 +12015,8 @@
                   "code": "overdue",
                   "due": 1767312000000,
                   "retrievability": 0.9771194452293452,
-                  "masteryCheck": true,
-                  "expectedSuccess": 0.4768120424614897,
+                  "masteryCheck": false,
+                  "expectedSuccess": 0.85,
                   "coalesced": [],
                   "newSkillsDeferred": false
                 }
@@ -12146,7 +12468,7 @@
           {
             "targets": [
               {
-                "id": "e84635a3f90266d0",
+                "id": "965dd0bf88fca89d",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -12175,7 +12497,7 @@
                 }
               },
               {
-                "id": "b533f67e1249fe0a",
+                "id": "fa0ee69118bc4707",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -12214,7 +12536,7 @@
           {
             "targets": [
               {
-                "id": "e84635a3f90266d0",
+                "id": "965dd0bf88fca89d",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -12243,7 +12565,7 @@
                 }
               },
               {
-                "id": "b533f67e1249fe0a",
+                "id": "fa0ee69118bc4707",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -12282,7 +12604,7 @@
           {
             "targets": [
               {
-                "id": "e84635a3f90266d0",
+                "id": "965dd0bf88fca89d",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -12311,7 +12633,7 @@
                 }
               },
               {
-                "id": "b533f67e1249fe0a",
+                "id": "fa0ee69118bc4707",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -13016,7 +13338,7 @@
           {
             "targets": [
               {
-                "id": "1cf7125b3bdc6e8d",
+                "id": "2f012db1a506e4db",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -13045,7 +13367,7 @@
                 }
               },
               {
-                "id": "3ef38777f64f8c57",
+                "id": "debce32dcc41c375",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -13084,7 +13406,7 @@
           {
             "targets": [
               {
-                "id": "1cf7125b3bdc6e8d",
+                "id": "2f012db1a506e4db",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -13113,7 +13435,7 @@
                 }
               },
               {
-                "id": "3ef38777f64f8c57",
+                "id": "debce32dcc41c375",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -13152,7 +13474,7 @@
           {
             "targets": [
               {
-                "id": "1cf7125b3bdc6e8d",
+                "id": "2f012db1a506e4db",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -13181,7 +13503,7 @@
                 }
               },
               {
-                "id": "3ef38777f64f8c57",
+                "id": "debce32dcc41c375",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -13220,7 +13542,7 @@
           {
             "targets": [
               {
-                "id": "1cf7125b3bdc6e8d",
+                "id": "2f012db1a506e4db",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -13249,7 +13571,7 @@
                 }
               },
               {
-                "id": "3ef38777f64f8c57",
+                "id": "debce32dcc41c375",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -13288,7 +13610,7 @@
           {
             "targets": [
               {
-                "id": "1cf7125b3bdc6e8d",
+                "id": "2f012db1a506e4db",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -13317,7 +13639,7 @@
                 }
               },
               {
-                "id": "3ef38777f64f8c57",
+                "id": "debce32dcc41c375",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -13356,7 +13678,7 @@
           {
             "targets": [
               {
-                "id": "1cf7125b3bdc6e8d",
+                "id": "2f012db1a506e4db",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -13385,7 +13707,7 @@
                 }
               },
               {
-                "id": "3ef38777f64f8c57",
+                "id": "debce32dcc41c375",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -13424,7 +13746,7 @@
           {
             "targets": [
               {
-                "id": "1cf7125b3bdc6e8d",
+                "id": "2f012db1a506e4db",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -13453,7 +13775,7 @@
                 }
               },
               {
-                "id": "3ef38777f64f8c57",
+                "id": "debce32dcc41c375",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -13492,7 +13814,7 @@
           {
             "targets": [
               {
-                "id": "1cf7125b3bdc6e8d",
+                "id": "2f012db1a506e4db",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -13521,7 +13843,7 @@
                 }
               },
               {
-                "id": "3ef38777f64f8c57",
+                "id": "debce32dcc41c375",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -13560,7 +13882,7 @@
           {
             "targets": [
               {
-                "id": "1cf7125b3bdc6e8d",
+                "id": "2f012db1a506e4db",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -13589,7 +13911,7 @@
                 }
               },
               {
-                "id": "3ef38777f64f8c57",
+                "id": "debce32dcc41c375",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -13628,7 +13950,7 @@
           {
             "targets": [
               {
-                "id": "1cf7125b3bdc6e8d",
+                "id": "2f012db1a506e4db",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -13657,7 +13979,7 @@
                 }
               },
               {
-                "id": "3ef38777f64f8c57",
+                "id": "debce32dcc41c375",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -13696,7 +14018,7 @@
           {
             "targets": [
               {
-                "id": "1cf7125b3bdc6e8d",
+                "id": "2f012db1a506e4db",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -13725,7 +14047,7 @@
                 }
               },
               {
-                "id": "3ef38777f64f8c57",
+                "id": "debce32dcc41c375",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -13764,7 +14086,7 @@
           {
             "targets": [
               {
-                "id": "1cf7125b3bdc6e8d",
+                "id": "2f012db1a506e4db",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -13793,7 +14115,7 @@
                 }
               },
               {
-                "id": "3ef38777f64f8c57",
+                "id": "debce32dcc41c375",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -13832,7 +14154,7 @@
           {
             "targets": [
               {
-                "id": "1cf7125b3bdc6e8d",
+                "id": "2f012db1a506e4db",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",
@@ -13861,7 +14183,7 @@
                 }
               },
               {
-                "id": "3ef38777f64f8c57",
+                "id": "debce32dcc41c375",
                 "kind": "new",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -14106,7 +14428,7 @@
           {
             "targets": [
               {
-                "id": "6fde9c663deffd54",
+                "id": "03f7e6b0e156f3c3",
                 "kind": "review",
                 "skillIds": ["a"],
                 "stage": "recall",
@@ -14135,7 +14457,7 @@
                 }
               },
               {
-                "id": "9b72ab31cc4d61bd",
+                "id": "c4b0138c363d276e",
                 "kind": "review",
                 "skillIds": ["b"],
                 "stage": "recall",
@@ -14159,7 +14481,7 @@
                 }
               },
               {
-                "id": "6a96f401a734de72",
+                "id": "5f1229b697b03e97",
                 "kind": "review",
                 "skillIds": ["c"],
                 "stage": "recognise",

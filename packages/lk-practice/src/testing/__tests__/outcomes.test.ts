@@ -26,6 +26,8 @@ interface Outcome {
   readonly masteredOn: number | null;
   readonly unlockedOn: number | null;
   readonly suspended: boolean;
+  /** Attempts on `a`, its practice load. */
+  readonly attempts: number;
 }
 
 /** A learner of `trueAbility` (forgetting slowly) practising up to 8 targets a day. */
@@ -36,6 +38,7 @@ function simulate(seed: string, trueAbility: number, days: number): Outcome {
   let state = practice.initState('l1', GRAPH);
   let masteredOn: number | null = null;
   let unlockedOn: number | null = null;
+  let attempts = 0;
   for (let day = 0; day < days; day += 1) {
     const now = T0 + day * DAY;
     const plan = practice.plan(state, GRAPH, { now, seed: `d${day}`, budget: { maxTargets: 8 } });
@@ -46,38 +49,39 @@ function simulate(seed: string, trueAbility: number, days: number): Outcome {
       });
       if (result.kind !== 'applied') throw new Error(result.kind);
       state = result.state;
+      if (target.skillIds[0] === 'a') attempts += 1;
       for (const event of result.events) {
         if (event.type === 'skill.mastered' && event.skillId === 'a') masteredOn ??= day;
         if (event.type === 'skill.unlocked' && event.skillId === 'c') unlockedOn ??= day;
       }
     }
   }
-  return { masteredOn, unlockedOn, suspended: state.skills.a?.suspended != null };
+  return { masteredOn, unlockedOn, suspended: state.skills.a?.suspended != null, attempts };
 }
 
 const seeds = Array.from({ length: SEEDS }, (_, i) => `learner${i}`);
 
 describe('outcomes of the default configuration', () => {
-  it('a learner well above the standard masters a skill and unlocks its dependent: most within 40 days, all within 180', () => {
+  it('a learner well above the standard masters a skill and unlocks its dependent: most within 45 days, all within 90', () => {
     const days = seeds.map((seed) => {
-      const outcome = simulate(seed, 3, 180);
+      const outcome = simulate(seed, 3, 90);
       expect(outcome.unlockedOn).toBe(outcome.masteredOn);
       expect(outcome.suspended).toBe(false);
       expect(outcome.masteredOn).not.toBeNull();
       return outcome.masteredOn as number;
     });
-    // A failed check is reviewed as `hard`, so the next one waits for the
-    // model's interval: one unlucky failure after many passes costs months.
-    expect(days.filter((day) => day <= 40).length).toBeGreaterThanOrEqual(8);
+    // The standard holds with a margin on little evidence, and one failed
+    // check costs days, not the model's interval (revised in M11).
+    expect(days.filter((day) => day <= 45).length).toBeGreaterThanOrEqual(8);
   });
 
-  it('a learner well below the standard is never mastered in a year, and never suspended as a leech', () => {
+  it('a learner well below the standard is never mastered in a year, never suspended as a leech, and practises it at most 60 times', () => {
     for (const seed of seeds) {
-      expect(simulate(seed, 0, 365)).toEqual({
-        masteredOn: null,
-        unlockedOn: null,
-        suspended: false,
-      });
+      const outcome = simulate(seed, 0, 365);
+      expect(outcome).toMatchObject({ masteredOn: null, unlockedOn: null, suspended: false });
+      // Failed checks back off, so a standard out of reach does not take
+      // over the practice (revised in M11).
+      expect(outcome.attempts).toBeLessThanOrEqual(60);
     }
   });
 });

@@ -8,7 +8,12 @@
 
 import type { Engine, GraphIndex } from '../log/context.js';
 import { compareKeys } from '../log/draft.js';
-import { desiredRetentionFor, expectedSuccessAtReference, isMastered } from '../mastery/index.js';
+import {
+  desiredRetentionFor,
+  expectedSuccessAtReference,
+  isMastered,
+  meetsStandard,
+} from '../mastery/index.js';
 import type {
   PlanReasonDetail,
   PracticeState,
@@ -84,22 +89,29 @@ export function buildTiers(
   };
   /**
    * A review is a mastery check (8.6; revised in M9) when the skill is at its
-   * top stage and its last retrieval there was not a lapse, its expected
-   * success at the reference is short of R3.5 (c) and of `targetSuccess` (so
-   * the reference is above the usual target), and its retrievability `r` is
-   * at least the mastery floor (R3.5 (d)).
+   * top stage and its last review there was not a failure, its ability does
+   * not meet the standard (R3.5 (c); with the margin, revised in M11), its
+   * expected success at the reference is below `targetSuccess` (so the
+   * reference is above the usual target), and its retrievability `r` is at
+   * least the mastery floor (R3.5 (d)). **(revised in M11)** "Not a failure"
+   * covers a failed check as well as a lapse (both set `lastLapseAt` to the
+   * review's time), so after one the next review is at the learner's level:
+   * a learner below the standard alternates, and does not spend most of the
+   * practice on tasks pitched below even odds.
    */
   const masteryCheck = (
     skill: SkillState,
     node: SkillNode,
     ladder: readonly StageId[],
+    memory: StageMemory,
     r: number,
   ): boolean =>
     skill.stage === ladder[ladder.length - 1] &&
-    !skill.top.lastWasLapse &&
+    skill.lastLapseAt !== memory.lastReviewAt &&
     r >= desiredRetentionFor(node, skill.stage, config) - config.mastery.retentionMargin &&
+    !meetsStandard(skill.ability, node, index.mastery(node.id)) &&
     expectedSuccessAtReference(skill.ability, node, index.mastery(node.id)) <
-      Math.min(config.mastery.minExpectedSuccess, config.planner.targetSuccess);
+      config.planner.targetSuccess;
   /** The current-stage memory of a started, active skill, once retrieved. */
   const currentMemory = (skill: SkillState): StageMemory | undefined => {
     const memory = own(skill.memories, skill.stage);
@@ -154,7 +166,7 @@ export function buildTiers(
           code,
           due: dueAt,
           retrievability: r,
-          masteryCheck: masteryCheck(skill, node, ladder, r),
+          masteryCheck: masteryCheck(skill, node, ladder, memory, r),
         },
       },
       key: code === 'overdue' ? r : dueAt,

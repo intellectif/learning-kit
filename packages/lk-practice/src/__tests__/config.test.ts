@@ -107,7 +107,9 @@ describe('resolveConfig', () => {
       topGapMs: 259_200_000,
       minExpectedSuccess: 0.8,
       retentionMargin: 0.1,
+      uncertaintyMargin: 0.5,
     });
+    expect(config.reviewGapMs).toBe(3_600_000);
     expect(config.planner.targetSuccess).toBe(0.85);
     expect(config.planner.limits).toEqual({
       maxNewSkills: 2,
@@ -318,8 +320,8 @@ describe('configHash', () => {
       ),
     }).toMatchInlineSnapshot(`
       {
-        "custom": "e868c3132e07217d",
-        "default": "5067a166c2be0874",
+        "custom": "7f3ec1609e1e0963",
+        "default": "4ff2939d3de4b5f6",
       }
     `);
   });

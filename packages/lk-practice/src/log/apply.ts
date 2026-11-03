@@ -11,9 +11,9 @@ import { equivalentStage } from '../graph/index.js';
 import {
   abilityAt,
   desiredRetentionFor,
-  expectedSuccessAtReference,
   isMastered,
   masteryFailures,
+  meetsStandard,
   priorAbility,
   updateAbility,
 } from '../mastery/index.js';
@@ -223,11 +223,11 @@ function applyEffect(
 
   // Read before this evidence updates the ability (8.2; revised in M9).
   const topStage = ladder[ladder.length - 1] as StageId;
-  const failedCheck =
-    effect.rating === 'again' &&
+  const checkTask =
     skill.stage === topStage &&
     evidenceStage === topStage &&
     isMasteryCheck(skill, node, topStage, task.difficulty, at, context);
+  const failedCheck = effect.rating === 'again' && checkTask;
 
   // Ability (D27): the skill's equivalent of the task's stage.
   if (effect.reason !== 'exposure') {
@@ -256,9 +256,14 @@ function applyEffect(
   // Memory and the stage policy (8.2), on the current stage's memory. A
   // failed mastery check is reviewed as `hard`: no lapse, demotion or leech.
   const rating: Rating | null = failedCheck ? 'hard' : effect.rating;
-  if (effect.memory === 'review' && rating !== null && skill.suspended === null) {
-    const current = skill.stage;
-    const previous = memoryAt(skill, current);
+  const current = skill.stage;
+  const previous = memoryAt(skill, current);
+  if (
+    effect.memory === 'review' &&
+    rating !== null &&
+    skill.suspended === null &&
+    !sameSitting(previous, rating, at, config.reviewGapMs)
+  ) {
     const decision = engine.policy.decide({
       ladder,
       current,
@@ -296,13 +301,27 @@ function applyEffect(
           due = Math.min(due, (top.lastSuccessAt as number) + config.mastery.topGapMs);
         }
         // A success while the ability is still short of R3.5 (c) brings the
-        // next mastery check within `topGapMs` (8.6; revised in M9).
+        // next mastery check within `topGapMs` (8.6; revised in M9): a passed
+        // check always, a success at the learner's own level only after at
+        // most one failed check in a row (revised in M11), so a standard
+        // still out of reach is checked at the memory's own pace.
         if (
           decision.effect === 'success' &&
-          expectedSuccessAtReference(skill.ability, node, graph.mastery(skillId)) <
-            config.mastery.minExpectedSuccess
+          (checkTask || (top.failedChecks ?? 0) <= 1) &&
+          !meetsStandard(skill.ability, node, graph.mastery(skillId))
         ) {
           due = Math.min(due, at + config.mastery.topGapMs);
+        }
+        // Failed checks back off (revised in M11): the next review comes
+        // within `topGapMs`, doubled for each failed check before it, so one
+        // unlucky answer costs days and a standard out of reach costs few
+        // checks. A passed check starts the count again.
+        if (failedCheck) {
+          const failed = (top.failedChecks ?? 0) + 1;
+          top.failedChecks = failed;
+          due = Math.min(due, at + config.mastery.topGapMs * 2 ** Math.min(failed - 1, 20));
+        } else if (checkTask && decision.effect === 'success') {
+          top.failedChecks = 0;
         }
         skill = { ...skill, top };
       }
@@ -344,7 +363,19 @@ function applyEffect(
         draft.emit({ type: 'stage.demoted', at, skillId, from: current, to });
       }
 
-      if (reviewed.lapses === config.leechThreshold && skill.suspended === null) {
+      // A leech (revised in M11): on a lapse only, so a success never
+      // suspends; at the threshold and every half threshold after it; and
+      // only while the stage fails at least twice as often as the planner
+      // aims for (`1 - targetSuccess`), since practice at the target fails by
+      // design and a count alone grows with practice.
+      const every = Math.max(1, Math.floor(config.leechThreshold / 2));
+      const planned = 1 - config.planner.targetSuccess;
+      if (
+        lapse &&
+        reviewed.lapses >= config.leechThreshold &&
+        (reviewed.lapses - config.leechThreshold) % every === 0 &&
+        reviewed.lapses >= 2 * planned * reviewed.reviews
+      ) {
         skill = { ...skill, suspended: 'leech' };
         draft.emit({ type: 'skill.leech', at, skillId, stage: current, lapses: reviewed.lapses });
         draft.emit({ type: 'skill.suspended', at, skillId, reason: 'leech' });
@@ -377,12 +408,7 @@ function isMasteryCheck(
   const memory = memoryAt(skill, stage);
   if (memory === undefined || skill.top.lastWasLapse) return false;
   const abilityContext = context.graph.mastery(node.id);
-  if (
-    expectedSuccessAtReference(skill.ability, node, abilityContext) >=
-    config.mastery.minExpectedSuccess
-  ) {
-    return false;
-  }
+  if (meetsStandard(skill.ability, node, abilityContext)) return false;
   const p = config.planner.targetSuccess;
   const training =
     mastery.estimate(abilityAt(skill.ability, node, stage, abilityContext)).value -
@@ -390,6 +416,23 @@ function isMasteryCheck(
   if (difficulty <= training + config.planner.difficultyTolerance) return false;
   const floor = desiredRetentionFor(node, stage, config) - config.mastery.retentionMargin;
   return memoryModel.retrievability(memoryModel.deserialize(memory.memory), at) >= floor;
+}
+
+/**
+ * One sitting is one review (revised in M11): a success, `hard` included,
+ * within `gapMs` of a stage memory's last review and before it is due leaves
+ * the memory and the stage policy alone; the ability has already taken it.
+ * A lapse always counts, and a due memory (a relearning step) always reviews.
+ */
+function sameSitting(
+  previous: StageMemory | undefined,
+  rating: Rating,
+  at: number,
+  gapMs: number,
+): boolean {
+  if (rating === 'again' || previous === undefined) return false;
+  const { due, lastReviewAt } = previous;
+  return due !== null && lastReviewAt !== null && at < due && at - lastReviewAt < gapMs;
 }
 
 function memoryAt(skill: SkillState, stage: StageId): StageMemory | undefined {

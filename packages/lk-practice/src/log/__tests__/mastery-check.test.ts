@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { PracticeEvent, PracticeItem, SkillGraph } from '../../types.js';
+import type {
+  PracticeEvent,
+  PracticeItem,
+  PracticeState,
+  SkillGraph,
+  SkillState,
+} from '../../types.js';
 import {
   applied,
   DAY,
@@ -166,6 +172,59 @@ describe('mastery checks: record, at the edges', () => {
       }),
     );
     expect(result.events.map((event) => event.type)).not.toContain('review.recorded');
+  });
+});
+
+describe('mastery checks: back off (revised in M11)', () => {
+  const failAt = (state: PracticeState, id: string, at: number) =>
+    applied(
+      p.record(state, {
+        graph: GRAPH,
+        item: task(id),
+        evidence: evidence(id, id, at, fail),
+      }),
+    );
+
+  it('a failed check waits topGapMs, doubled for each failed check before it', () => {
+    const one = failAt(run(p, TOP).state, 'c1', AT_TOP + DAY);
+    expect(one.state.skills.a?.top.failedChecks).toBe(1);
+    expect(one.state.skills.a?.memories.produce?.due).toBe(AT_TOP + DAY + GAP);
+    // The planner would not plan a check straight after a failed one, but a
+    // host may serve one, past the one-hour sitting: it counts and backs off.
+    const at = AT_TOP + DAY + 2 * 3_600_000;
+    const two = failAt(one.state, 'c2', at);
+    expect(two.state.skills.a?.top.failedChecks).toBe(2);
+    expect(two.state.skills.a?.memories.produce?.due).toBeLessThanOrEqual(at + 2 * GAP);
+    expect(two.state.skills.a?.memories.produce?.due).toBeGreaterThan(at + GAP);
+  });
+
+  it('a passed check starts the count again', () => {
+    const one = failAt(run(p, TOP).state, 'c1', AT_TOP + DAY);
+    const passedCheck = applied(
+      p.record(one.state, {
+        graph: GRAPH,
+        item: task('c2'),
+        evidence: evidence('c2', 'c2', AT_TOP + DAY + GAP, pass),
+      }),
+    );
+    expect(passedCheck.state.skills.a?.top.failedChecks).toBe(0);
+  });
+
+  it('reads a state written before 0.3.0, with no count, as 0', () => {
+    const { state } = run(p, TOP);
+    const stored = JSON.parse(JSON.stringify(state)) as PracticeState;
+    const a = stored.skills.a as SkillState;
+    const { failedChecks: _omit, ...top } = a.top;
+    const old = { ...stored, skills: { ...stored.skills, a: { ...a, top } } };
+    expect(failAt(old, 'c1', AT_TOP + DAY).state.skills.a?.top.failedChecks).toBe(1);
+    const passedOld = applied(
+      p.record(old, {
+        graph: GRAPH,
+        item: task('t9', 'produce', -5),
+        evidence: evidence('t9', 't9', AT_TOP + GAP, pass),
+      }),
+    );
+    expect(passedOld.state.skills.a?.memories.produce?.due).toBe(AT_TOP + 2 * GAP);
   });
 });
 

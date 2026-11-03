@@ -15,8 +15,17 @@ const TWO_TO_53 = 2 ** 53;
 export interface SimulatedSkill {
   /** Logits: the learner succeeds half the time at a task of this difficulty, before forgetting. */
   readonly trueAbility: number;
-  /** Days for recall to fall to 1/e after an attempt; finite and above 0. */
+  /** Days for recall to fall to 1/e after an attempt, at first; finite and above 0. */
   readonly forgettingDays: number;
+  /**
+   * How much a success lengthens the forgetting time, scaled by how much had
+   * been forgotten (the spacing effect; revised in M11): a success at recall
+   * `R` multiplies it by `1 + consolidation * (1 - R)`, so a success moments
+   * after the last attempt adds almost nothing and a spaced one adds most. A
+   * failure halves what earlier successes added. Default 0: the forgetting
+   * time stays `forgettingDays`, as before M11.
+   */
+  readonly consolidation?: number;
 }
 
 export interface SimulatedLearnerOptions {
@@ -44,13 +53,14 @@ export interface SimulatedLearner {
  * A simulated learner. For each skill of a target it succeeds with
  * probability `recall * 1 / (1 + exp(-(trueAbility + noise * z - difficulty)))`,
  * where `z` is a standard normal draw and `recall` is
- * `exp(-days since its last attempt at the skill / forgettingDays)`, or 1
- * before the first. Every draw comes from `fnv1a64` of the seed, the time
+ * `exp(-days since its last attempt at the skill / forgetting days)`, or 1
+ * before the first; the forgetting days start at `forgettingDays` and grow
+ * with spaced successes by `consolidation` (revised in M11). Every draw comes from `fnv1a64` of the seed, the time
  * and the skill, so the same calls give the same outcomes, and one learner
  * meets the same chance under two policies that plan the same attempt (a
  * fair comparison; the target's id differs with the configuration). The
- * learner remembers when it last attempted each skill: one learner follows
- * one simulated timeline. The evidence is an `auto` grade with a point per
+ * learner remembers when it last attempted each skill and its forgetting
+ * days: one learner follows one simulated timeline. The evidence is an `auto` grade with a point per
  * skill, per-skill outcomes when the target has more than one skill, the
  * target's context and id; the item weighs its skills equally, primary first.
  * Throws a `TypeError` for options of the wrong type and a `RangeError` for
@@ -65,7 +75,7 @@ export function simulateLearner(options: SimulatedLearnerOptions): SimulatedLear
   if (!Number.isFinite(noise) || noise < 0) {
     throw new RangeError('lk-practice: noise is a finite number of at least 0.');
   }
-  const skills = new Map<string, SimulatedSkill>();
+  const skills = new Map<string, Required<SimulatedSkill>>();
   for (const [id, skill] of Object.entries(options.skills ?? {})) {
     if (!Number.isFinite(skill?.trueAbility)) {
       throw new RangeError(`lk-practice: skill "${id}" needs a finite trueAbility.`);
@@ -73,10 +83,21 @@ export function simulateLearner(options: SimulatedLearnerOptions): SimulatedLear
     if (!(Number.isFinite(skill.forgettingDays) && skill.forgettingDays > 0)) {
       throw new RangeError(`lk-practice: skill "${id}" needs a finite forgettingDays above 0.`);
     }
-    skills.set(id, { trueAbility: skill.trueAbility, forgettingDays: skill.forgettingDays });
+    const consolidation = skill.consolidation ?? 0;
+    if (!(Number.isFinite(consolidation) && consolidation >= 0)) {
+      throw new RangeError(
+        `lk-practice: skill "${id}" needs a finite consolidation of at least 0.`,
+      );
+    }
+    skills.set(id, {
+      trueAbility: skill.trueAbility,
+      forgettingDays: skill.forgettingDays,
+      consolidation,
+    });
   }
   const { seed } = options;
-  const lastAttempt = new Map<string, number>();
+  /** Per skill: the last attempt and the forgetting days since. */
+  const memory = new Map<string, { last: number; days: number }>();
 
   const draw = (at: number, skillId: string, part: string): number =>
     uniform(hashCanonical(['simulated-learner@1', seed, at, skillId, part]));
@@ -92,23 +113,23 @@ export function simulateLearner(options: SimulatedLearnerOptions): SimulatedLear
         if (skill === undefined) {
           throw new TypeError(`lk-practice: the simulated learner has no skill "${skillId}".`);
         }
-        const last = lastAttempt.get(skillId);
+        const held = memory.get(skillId);
+        const days = held?.days ?? skill.forgettingDays;
         const recall =
-          last === undefined ? 1 : Math.exp(-Math.max(0, at - last) / (skill.forgettingDays * DAY));
+          held === undefined ? 1 : Math.exp(-Math.max(0, at - held.last) / (days * DAY));
         const z =
           Math.sqrt(-2 * Math.log(1 - draw(at, skillId, 'z1'))) *
           Math.cos(2 * Math.PI * draw(at, skillId, 'z2'));
         const logit = skill.trueAbility + noise * z - difficulty;
         const chance = recall / (1 + Math.exp(-logit));
-        return {
-          skillId,
-          score: draw(at, skillId, 'outcome') < chance ? 1 : 0,
-          maxScore: 1,
-        };
+        const score = draw(at, skillId, 'outcome') < chance ? 1 : 0;
+        const next =
+          score === 1
+            ? days * (1 + skill.consolidation * (1 - recall))
+            : skill.forgettingDays + (days - skill.forgettingDays) / 2;
+        memory.set(skillId, { last: Math.max(at, held?.last ?? at), days: next });
+        return { skillId, score, maxScore: 1 };
       });
-      for (const skillId of target.skillIds) {
-        lastAttempt.set(skillId, Math.max(at, lastAttempt.get(skillId) ?? at));
-      }
       const id = `sim:${hashCanonical(['simulated-learner@1', seed, target.id, at])}`;
       const score = outcomes.reduce((sum, outcome) => sum + outcome.score, 0);
       const weight = 1 / target.skillIds.length;

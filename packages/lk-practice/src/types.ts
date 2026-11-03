@@ -739,6 +739,12 @@ export interface SkillState {
     readonly firstSuccessAt: number | null;
     readonly lastSuccessAt: number | null;
     readonly lastWasLapse: boolean;
+    /**
+     * Failed mastery checks since the last passed one (revised in M11): each
+     * doubles the wait for the next check. Absent in states written before
+     * 0.3.0, and read as 0.
+     */
+    readonly failedChecks?: number;
   };
 }
 
@@ -1043,6 +1049,12 @@ export interface PracticeConfig {
     readonly minExpectedSuccess?: number;
     /** 0.10. */
     readonly retentionMargin?: number;
+    /**
+     * 0.5 (revised in M11). The standard must hold against the reference raised
+     * by this many times the ability's uncertainty (Elo's step), so a lucky
+     * run on little evidence does not master a skill. 0 turns it off.
+     */
+    readonly uncertaintyMargin?: number;
   };
   readonly planner?: {
     /** 0.85, in [0.6, 0.95]. */
@@ -1070,8 +1082,14 @@ export interface PracticeConfig {
     /** 0. */
     readonly pretestWeight?: number;
   };
-  /** 8. */
+  /** 8; flagged again every half threshold after it (revised in M11). */
   readonly leechThreshold?: number;
+  /**
+   * 3_600_000 (1 h; revised in M11). A success within this of a stage
+   * memory's last review, before it is due, does not review it again: one
+   * sitting is one review. Failures always do. 0 turns it off.
+   */
+  readonly reviewGapMs?: number;
   /** 0.3. */
   readonly memoryWeightFloor?: number;
   /** 604_800_000 (7 days). */
@@ -1143,6 +1161,7 @@ export interface ResolvedPracticeConfig {
     readonly topGapMs: number;
     readonly minExpectedSuccess: number;
     readonly retentionMargin: number;
+    readonly uncertaintyMargin: number;
   };
   readonly planner: {
     readonly targetSuccess: number;
@@ -1165,6 +1184,7 @@ export interface ResolvedPracticeConfig {
     readonly pretestWeight: number;
   };
   readonly leechThreshold: number;
+  readonly reviewGapMs: number;
   readonly memoryWeightFloor: number;
   readonly itemCooldownMs: number;
   readonly itemUsageRetentionMs: number;

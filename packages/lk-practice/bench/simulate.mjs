@@ -126,3 +126,68 @@ console.log('  remed.: remediation targets;');
 console.log(
   '  started and mastered: skills at day 90; recall: the simulated recall of each practised skill at day 90.',
 );
+
+// Spacing (revised in M11): a learner whose memory consolidates
+// (`consolidation`), practising one skill. The planner's attempts over 30
+// days against the same attempts, at the same difficulties, massed in one
+// sitting on day 0. Recall at day 60 is the share passing a trivial task
+// then, over 200 learners with the same draws in both arms.
+const ONE = { version: 'one', skills: [{ id: 'a', knowledge: 'declarative' }], edges: [] };
+const SPACING_LEARNERS = 200;
+const trivial = (at) => ({
+  id: `probe-${at}`,
+  kind: 'review',
+  skillIds: ['a'],
+  stage: 'recognise',
+  targetDifficulty: -20,
+  difficultyTolerance: 0.5,
+  expectedSeconds: 30,
+  constraints: {
+    needsSkillOutcomes: false,
+    avoidItemIds: [],
+    avoidContentHashes: [],
+    context: 'practice',
+  },
+  reason: {
+    code: 'due',
+    due: at,
+    retrievability: 1,
+    masteryCheck: false,
+    expectedSuccess: 1,
+    coalesced: [],
+    newSkillsDeferred: false,
+  },
+});
+const recallAt = (learner, at) => (learner.attempt(trivial(at), at).evidence.source.passed ? 1 : 0);
+
+let spacedRecall = 0;
+let massedRecall = 0;
+let spacedAttempts = 0;
+for (let n = 0; n < SPACING_LEARNERS; n += 1) {
+  const skill = { trueAbility: 1, forgettingDays: 2, consolidation: 3 };
+  const options = { seed: `spacing${n}`, skills: { a: skill } };
+  const practice = createPractice();
+  const spaced = simulateLearner(options);
+  let state = practice.initState(`s${n}`, ONE);
+  const planned = [];
+  for (let day = 0; day < 30; day += 1) {
+    const now = T0 + day * DAY;
+    const plan = practice.plan(state, ONE, { now, seed: `d${day}`, budget: { maxTargets: 8 } });
+    for (const [i, target] of plan.targets.entries()) {
+      const result = practice.record(state, {
+        graph: ONE,
+        ...spaced.attempt(target, now + i * 60_000),
+      });
+      if (result.kind === 'applied') state = result.state;
+      planned.push(target);
+    }
+  }
+  const massed = simulateLearner(options);
+  for (const [i, target] of planned.entries()) massed.attempt(target, T0 + i * 60_000);
+  spacedAttempts += planned.length;
+  spacedRecall += recallAt(spaced, T0 + 60 * DAY);
+  massedRecall += recallAt(massed, T0 + 60 * DAY);
+}
+console.log(
+  `spacing: ${(spacedAttempts / SPACING_LEARNERS).toFixed(1)} attempts per learner; recall at day 60, planned over 30 days ${(spacedRecall / SPACING_LEARNERS).toFixed(3)}, massed on day 0 ${(massedRecall / SPACING_LEARNERS).toFixed(3)} (consolidation 3, forgetting 2 days at first, true ability 1)`,
+);

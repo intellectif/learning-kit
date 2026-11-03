@@ -254,19 +254,48 @@ need data from real learners before this package can claim them.
 
 - **Branch:** `feat/lk-practice-engine-debts`. No real data needed.
 - **Tasks:**
-  - [ ] A simulated learner whose memory consolidates with spaced practice (an FSRS-like true
+  - [x] A simulated learner whose memory consolidates with spaced practice (an FSRS-like true
     memory), so the simulator can show what spacing is worth. Today recall depends only on time
     since the last attempt.
-  - [ ] Count one memory review per skill per day; today twenty answers in one sitting are
+  - [x] Count one memory review per skill per day; today twenty answers in one sitting are
     twenty reviews.
-  - [ ] Flag a leech again every half threshold after it is unsuspended, as card schedulers do.
-  - [ ] Mastery needs a settled ability (an uncertainty bound), to cut the 7-in-20 false
+  - [x] Flag a leech again every half threshold after it is unsuspended, as card schedulers do.
+  - [x] Mastery needs a settled ability (an uncertainty bound), to cut the 7-in-20 false
     masteries at an expected success of 0.73 (design 13).
-  - [ ] Shorten the wait after one failed mastery check by a learner otherwise passing them.
-  - [ ] Explain why observed success does not follow `targetSuccess` (design 13), and fix it.
+  - [x] Shorten the wait after one failed mastery check by a learner otherwise passing them.
+  - [x] Explain why observed success does not follow `targetSuccess` (design 13), and fix it.
 - **Exit:** on the new simulator, spaced practice beats massed practice for the same number of
   attempts; false masteries below 1 in 20 at an expected success of 0.73; a learner at 0.95
   mastered by day 45 in 19 of 20 seeds.
+- **As built (revised in M11):**
+  - The configuration hash now carries `RULES_VERSION` (`rules@2`): until 0.2.0 a change to the
+    rules that apply entries would have left stored states stale (design 13). 0.3.0 asks hosts to
+    replay.
+  - One sitting, one review: `reviewGapMs` (1 hour). Per sitting rather than per day: the package
+    knows no time zones, and a relearning step that comes due within the day still counts.
+  - Leeches: on a lapse only (which also fixes a success re-suspending an unsuspended leech), every
+    half threshold, and only at twice the planned failure rate; without the rate, healthy learners'
+    skills were suspended (R4.7).
+  - Mastery: `mastery.uncertaintyMargin` (0.5); checks alternate with reviews at the learner's
+    level; failed checks back off by doubling (`top.failedChecks`, an optional state field, read as
+    0 in older states). The first "quick re-check after a failure" looped learners below the
+    standard and was replaced by the back-off (design 13).
+  - `targetSuccess`: explained by target kind (design 13). Checks had become two thirds of the
+    practice of learners below the standard; alternation keeps them under half.
+  - `SimulatedSkill.consolidation`; `bench/simulate.mjs` adds a spacing comparison.
+  - Tests: `sitting-and-leech.test.ts`, the back-off and old-state cases in
+    `mastery-check.test.ts`, margin cases in the predicate tests, consolidation in the simulator
+    tests, workload and speed bounds in `outcomes.test.ts`; new log, plan and stage vectors. All 22
+    hand mutants of the new rules fail a test.
+- **Exit, measured:**
+  - Spaced beats massed: recall at day 60 of 0.26 against 0 for the same 17 attempts.
+  - A learner at 0.95: 20 of 20 mastered, median day 45, 90th percentile day 62: 11 of 20 by day
+    45, not 19. The margin costs strong learners about 10 days; margin 0 meets it (19 of 20 by day
+    45) at more false masteries (2 of 20 at 0.62, 9 at 0.73). Which to default to is a product
+    choice, recorded in design 13.
+  - False masteries at 0.73: 7 of 20, not below 1 in 20. The target was wrong: a year of checks
+    cannot tell 0.73 from 0.80 (design 13). The achievable goal is met instead: 0 of 20 at 0.50 and
+    1 of 20 at 0.62, while 17 of 20 learners at 0.82 are mastered (11 before).
 
 ### M12 - First host, real logs
 

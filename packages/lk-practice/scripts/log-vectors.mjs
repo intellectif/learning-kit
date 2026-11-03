@@ -281,6 +281,40 @@ const logVectors = [
       now: [T0 + 7 * DAY],
     },
   ),
+  log(
+    'one sitting is one review: a success before due within the gap leaves the memory, a failure always reviews, a due memory reviews (M11)',
+    {
+      steps: [
+        ev('w1', T0),
+        ev('w2', T0 + 10 * 60_000),
+        ev('w3', T0 + 20 * 60_000, fail),
+        ev('w4', T0 + 25 * 60_000),
+        ev('w5', T0 + 31 * 60_000),
+        ev('w6', T0 + 3 * 3_600_000),
+      ],
+      now: [T0 + DAY],
+    },
+  ),
+  log(
+    'a leech on a lapse only, again every half threshold, and only at twice the planned failure rate (M11)',
+    {
+      config: { leechThreshold: 2, stagePolicyOptions: { promoteAfter: 99 } },
+      steps: [
+        ev('a1', T0),
+        ev('a2', T0 + DAY, fail),
+        ev('a3', T0 + 2 * DAY, fail),
+        act('a4', T0 + 3 * DAY, { kind: 'unsuspend', skillId: 'a' }),
+        ev('a5', T0 + 4 * DAY),
+        ev('a6', T0 + 5 * DAY, fail),
+        ...[0, 1, 2, 3, 4, 5].map((n) =>
+          ev(`c${n}`, T0 + (n + 6) * DAY, pass, { skill: 'c', stage: 'recognise' }),
+        ),
+        ev('c6', T0 + 12 * DAY, fail, { skill: 'c', stage: 'recognise' }),
+        ev('c7', T0 + 13 * DAY, fail, { skill: 'c', stage: 'recognise' }),
+      ],
+      now: [T0 + 14 * DAY],
+    },
+  ),
   log('evidence contexts, exposure and self ratings', {
     config: { contexts: { pretestWeight: 0, diagnosticWeight: 0.5, examsMoveSchedule: true } },
     steps: [
@@ -304,7 +338,9 @@ const logVectors = [
   log('an invalid configuration throws', { config: { leechThreshold: -1 }, steps: [] }),
   log('graph order of mastery and unlock events; soft and encompasses edges lock nothing', {
     graphs: { main: FAN },
-    config: { mastery: { topSuccesses: 1, minExpectedSuccess: 0.5, topGapMs: 0 } },
+    config: {
+      mastery: { topSuccesses: 1, minExpectedSuccess: 0.5, topGapMs: 0, uncertaintyMargin: 0 },
+    },
     steps: [
       act('p1', T0, { kind: 'place', skillId: 'p', stage: 'recall', credited: true }),
       pair('e1', T0 + DAY, pass),

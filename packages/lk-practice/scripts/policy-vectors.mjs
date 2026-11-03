@@ -501,6 +501,17 @@ const stageVectors = [
       },
       reviewed.due,
     ),
+    config: { mastery: { minExpectedSuccess: 0.5, uncertaintyMargin: 0 } },
+  },
+  {
+    ...mastery(
+      'the same ability fails once the reference is raised by the uncertainty margin (revised in M11)',
+      {
+        ...STATE,
+        ability: { apply: { theta: 0, n: 20 } },
+      },
+      reviewed.due,
+    ),
     config: { mastery: { minExpectedSuccess: 0.5 } },
   },
   {
