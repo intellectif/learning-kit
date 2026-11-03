@@ -33,6 +33,13 @@ import type {
   TaskSnapshot,
 } from '../types.js';
 import type { Engine, GraphIndex } from './context.js';
+import {
+  applyProbe,
+  closeHypothesis,
+  diagnosisUnderWay,
+  openHypothesis,
+  trackDiscovery,
+} from './discovery.js';
 import { compareKeys, type Draft, defaultSkillState } from './draft.js';
 
 export interface ApplyContext {
@@ -186,10 +193,68 @@ function applyMapped(
     draft.emit({ type: 'evidence.held', at, evidenceId: evidence.id, reason });
     return;
   }
+  // A probe answer changes only its hypothesis (R14.6), and a re-probe that
+  // makes a prerequisite ready gives the blocked skill a fresh start (R14.9;
+  // revised in M12).
+  if (evidence.probe !== undefined) {
+    const blocked = applyProbe(draft, evidence, context.engine.config.discovery);
+    if (blocked !== null) freshStart(draft, blocked, at, context);
+    return;
+  }
   const touched = new Set<string>();
   for (const effect of mapped.perSkill)
     applyEffect(draft, evidence, task, effect, touched, context);
   settle(draft, touched, at, context);
+  trackDiscovery(draft, evidence, mapped);
+}
+
+/**
+ * A fresh start for a skill whose missing prerequisite is now ready (R14.9;
+ * revised in M12): each stage's stored ability below the mastery model's own
+ * start there (`init`, derived up the ladder) takes that start, evidence count
+ * included, so the failures the missing prerequisite explains stop weighing
+ * on the standard; an ability at or above the start is kept, so a fresh start
+ * never lowers one. Those failures explain the stage memories' lapses too:
+ * their lapse and review counts and their streaks start again, so the leech
+ * rule, demotion and the diagnosis trigger judge answers given with the
+ * prerequisite in place, and a leech suspension is lifted (a host's stays).
+ * The memories themselves, and so the schedule, are kept.
+ */
+function freshStart(draft: Draft, skillId: string, at: number, context: ApplyContext): void {
+  const { graph } = context;
+  const { mastery } = context.engine;
+  const node = graph.nodes.get(skillId);
+  const skill = draft.skill(skillId);
+  if (node === undefined || skill === undefined) return;
+  const abilityContext = graph.mastery(skillId);
+  const ability: Record<StageId, unknown> = {};
+  let lowered = false;
+  for (const stage of abilityContext.ladder) {
+    if (!Object.hasOwn(skill.ability, stage)) continue;
+    const stored = skill.ability[stage];
+    const start = abilityAt({}, node, stage, abilityContext);
+    const below =
+      mastery.estimate(mastery.deserialize(stored)).value < mastery.estimate(start).value;
+    ability[stage] = below ? mastery.serialize(start) : stored;
+    lowered ||= below;
+  }
+  const counted = Object.values(skill.memories).some((memory) => memory.reviews > 0);
+  const leech = skill.suspended === 'leech';
+  if (!lowered && !counted && !leech) return;
+  const memories = Object.fromEntries(
+    Object.entries(skill.memories).map(([stage, memory]) => [
+      stage,
+      Object.freeze({ ...memory, reviews: 0, lapses: 0, streak: EMPTY_STREAK }),
+    ]),
+  );
+  draft.setSkill(skillId, {
+    ...skill,
+    ability: lowered ? Object.freeze(ability) : skill.ability,
+    memories: Object.freeze(memories),
+    ...(leech ? { suspended: null } : {}),
+  });
+  if (leech) draft.emit({ type: 'skill.unsuspended', at, skillId });
+  settle(draft, new Set([skillId]), at, context);
 }
 
 function applyEffect(
@@ -380,6 +445,23 @@ function applyEffect(
         draft.emit({ type: 'skill.leech', at, skillId, stage: current, lapses: reviewed.lapses });
         draft.emit({ type: 'skill.suspended', at, skillId, reason: 'leech' });
       }
+      // Lapses in a row at a stage suggest a diagnosis, the last word on the
+      // answer (R14.2; revised in M12).
+      const inRow = (previous?.streak.lapses ?? 0) + 1;
+      if (
+        decision.effect === 'lapse' &&
+        inRow === config.discovery.diagnoseAfter &&
+        !diagnosisUnderWay(draft, skillId, config.discovery)
+      ) {
+        draft.emit({
+          type: 'skill.diagnosis-suggested',
+          at,
+          evidenceId: evidence.id,
+          skillId,
+          stage: current,
+          lapses: inRow,
+        });
+      }
     }
   }
   if (effect.rating === 'again' && evidence.learnerConfidence === 'sure') {
@@ -463,6 +545,14 @@ function applyHost(draft: Draft, at: number, action: HostAction, context: ApplyC
       draft.held.splice(index, 1);
       draft.emit({ type: 'evidence.discarded', at, heldId: action.evidenceId });
     }
+    return;
+  }
+  if (action.kind === 'open-hypothesis') {
+    openHypothesis(draft, at, action.hypothesis);
+    return;
+  }
+  if (action.kind === 'close-hypothesis') {
+    closeHypothesis(draft, at, action.hypothesisId);
     return;
   }
   const { graph } = context;

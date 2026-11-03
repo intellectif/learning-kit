@@ -15,6 +15,7 @@ import {
   meetsStandard,
 } from '../mastery/index.js';
 import type {
+  HypothesisState,
   PlanReasonDetail,
   PracticeState,
   PracticeTarget,
@@ -37,6 +38,18 @@ export interface Candidate {
 }
 
 export interface Tiers {
+  /**
+   * Hypotheses to probe (R14.6, R14.9; revised in M12): open ones by the time
+   * they were opened, then confirmed ones due a re-probe by their verdict's.
+   */
+  readonly probes: readonly HypothesisState[];
+  /** Confirmed prerequisites to practise before their re-probe (R14.9; revised in M12). */
+  readonly discovered: readonly Candidate[];
+  /**
+   * Blocked skills that wait for a confirmed prerequisite to be ready, planned
+   * in no tier but still counted as deferred (R14.9; revised in M12).
+   */
+  readonly waiting: ReadonlySet<string>;
   readonly overdue: readonly Candidate[];
   readonly remediation: readonly Candidate[];
   readonly due: readonly Candidate[];
@@ -218,7 +231,11 @@ export function buildTiers(
   }
 
   const backlogBlocked = overdue.length + due.length > input.maxReviewBacklog;
+  const { probes, discovered, waiting } = discoveryTiers(state, index, active);
   return {
+    probes,
+    discovered,
+    waiting,
     overdue: sorted(overdue),
     remediation: sorted([...remediation.values()]),
     due: sorted(due),
@@ -227,6 +244,55 @@ export function buildTiers(
     backlogBlocked,
     newReady: ready.length,
   };
+}
+
+/**
+ * The discovery tiers (R14.6, R14.9; revised in M12). Every hypothesis not
+ * closed: open ones are probed, by the time they were opened, then id. A
+ * confirmed one whose prerequisite is not ready, whose soft edge is in the
+ * graph (admitted) and whose prerequisite is active is, by the time of its
+ * verdict, then id: re-probed once practised since its last probe, practised
+ * otherwise, at the prerequisite's current stage (its first before it has
+ * started); its blocked skill waits meanwhile, since the probes already
+ * explain its failures.
+ */
+function discoveryTiers(
+  state: PracticeState,
+  index: GraphIndex,
+  active: (id: string) => boolean,
+): { probes: HypothesisState[]; discovered: Candidate[]; waiting: ReadonlySet<string> } {
+  const all = Object.values(state.hypotheses ?? {}).filter((h) => h.closedAt === null);
+  const byTime = (at: (h: HypothesisState) => number) => (a: HypothesisState, b: HypothesisState) =>
+    at(a) - at(b) || compareKeys(a.id, b.id);
+  const confirmed = all
+    .filter(
+      (h) =>
+        h.verdict === 'confirmed' &&
+        h.readyAt === null &&
+        active(h.skillId) &&
+        index.graph.edges.some(
+          (edge) =>
+            edge.kind === 'prerequisite' && edge.from === h.skillId && edge.to === h.forSkillId,
+        ),
+    )
+    .sort(byTime((h) => h.decidedAt as number));
+  const probes = [
+    ...all.filter((h) => h.verdict === 'open').sort(byTime((h) => h.openedAt)),
+    ...confirmed.filter((h) => h.practisedAt !== null),
+  ];
+  const discovered = confirmed
+    .filter((h) => h.practisedAt === null)
+    .map((h): Candidate => {
+      const skill = Object.hasOwn(state.skills, h.skillId) ? state.skills[h.skillId] : undefined;
+      const ladder = index.ladder(h.skillId) as readonly StageId[];
+      return {
+        kind: 'remediation',
+        skillId: h.skillId,
+        stage: skill?.stage ?? (ladder[0] as StageId),
+        detail: { code: 'discovered', hypothesisId: h.id, forSkillId: h.forSkillId },
+      };
+    });
+  return { probes, discovered, waiting: new Set(confirmed.map((h) => h.forSkillId)) };
 }
 
 /**

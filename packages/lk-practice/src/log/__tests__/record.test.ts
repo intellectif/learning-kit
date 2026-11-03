@@ -38,6 +38,7 @@ describe('createPractice', () => {
       items: {},
       held: [],
       recentIds: [],
+      hypotheses: {},
     });
   });
 
@@ -244,10 +245,13 @@ describe('record', () => {
       { evidence: evidence('e3', 'i3', T0 + 2 * DAY, fail), item: item('i3') },
     ]);
     const second = applied(results[1] as never);
+    // A leech may have a missing prerequisite: its second lapse in a row
+    // suggests a diagnosis too, after the suspension (R14.2).
     expect(second.events.map((event) => event.type)).toEqual([
       'review.recorded',
       'skill.leech',
       'skill.suspended',
+      'skill.diagnosis-suggested',
     ]);
     expect(state.skills.a?.suspended).toBe('leech');
     expect(state.skills.a?.memories.recall?.reviews).toBe(2);

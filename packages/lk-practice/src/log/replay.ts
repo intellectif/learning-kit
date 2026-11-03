@@ -5,7 +5,7 @@
  * `applyEntry`. The log hash folds the entries in `seq` order.
  */
 
-import { validateGraph } from '../graph/index.js';
+import { probeGraph, validateGraph } from '../graph/index.js';
 import { entryShape, shapeIssues } from '../schema/shape.js';
 import type {
   Evidence,
@@ -24,8 +24,11 @@ import {
   confirmationIssues,
   type HeldTarget,
   hostActionIssues,
+  type KnownHypothesis,
   mismatchIssues,
   outcomeIssues,
+  probeIssues,
+  probeTaskIssues,
   taskIssues,
 } from './validate.js';
 
@@ -97,7 +100,7 @@ function run(
   if (structure.length > 0) return failed(structure);
 
   const index = indexGraph(graph, engine);
-  const rules = ruleIssues(start, bySeq, index);
+  const rules = ruleIssues(start, bySeq, index, engine);
   if (rules.length > 0) return failed(rules);
 
   const sorted = [...bySeq].sort((a, b) => a.entry.at - b.entry.at || a.entry.seq - b.entry.seq);
@@ -183,19 +186,60 @@ function structureIssues(
 }
 
 /** The rule checks of `record` and `act`, per entry, in seq order. */
-function ruleIssues(start: PracticeState, bySeq: readonly Indexed[], graph: GraphIndex): Issue[] {
+function ruleIssues(
+  start: PracticeState,
+  bySeq: readonly Indexed[],
+  graph: GraphIndex,
+  engine: Engine,
+): Issue[] {
   const targets = new Map<string, HeldTarget>();
   for (const held of start.held) targets.set(held.evidenceId, held);
+  // Hypotheses known before each entry (R14.5; revised in M12). Replay knows
+  // which were opened, not which were decided: the apply step ignores a late
+  // probe, in order.
+  const opened = new Map<string, KnownHypothesis>();
+  for (const [id, hypothesis] of Object.entries(start.hypotheses ?? {})) {
+    opened.set(id, { hypothesis, probing: true, closed: false });
+  }
+  const probeIndexes = new Map<string, GraphIndex>();
   const issues: Issue[] = [];
   for (const { entry, index } of bySeq) {
     const path = ['entries', index];
     if (entry.kind === 'host') {
-      issues.push(
-        ...hostActionIssues(entry.action, graph, (id) => targets.has(id), [...path, 'action']),
+      const found = hostActionIssues(
+        entry.action,
+        graph,
+        (id) => targets.has(id),
+        [...path, 'action'],
+        (id) => opened.get(id),
+        engine.config,
+        false,
       );
+      issues.push(...found);
+      if (entry.action.kind === 'open-hypothesis' && found.length === 0) {
+        const { hypothesis } = entry.action;
+        opened.set(hypothesis.id, { hypothesis, probing: true, closed: false });
+      }
       continue;
     }
     const { evidence } = entry;
+    if (evidence.probe !== undefined) {
+      const task = entry.task as NonNullable<typeof entry.task>;
+      const known = opened.get(evidence.probe);
+      let found = probeIssues(evidence, known, [...path, 'evidence']);
+      if (found.length === 0 && known !== undefined) {
+        let probeIndex = probeIndexes.get(evidence.probe);
+        if (probeIndex === undefined) {
+          probeIndex = indexGraph(probeGraph(graph.graph, known.hypothesis), engine);
+          probeIndexes.set(evidence.probe, probeIndex);
+        }
+        found = taskIssues(task, probeIndex, [...path, 'task']);
+        if (found.length === 0) found = probeTaskIssues(task, known, [...path, 'task']);
+      }
+      issues.push(...found);
+      targets.set(evidence.id, { itemId: evidence.itemId, at: evidence.at, task });
+      continue;
+    }
     if (evidence.confirms === undefined) {
       const task = entry.task as NonNullable<typeof entry.task>;
       const found = taskIssues(task, graph, [...path, 'task']);

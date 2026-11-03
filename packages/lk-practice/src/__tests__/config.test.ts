@@ -199,6 +199,61 @@ describe('resolveConfig', () => {
     expect(config.ladders.declarative).toEqual(['recall', 'apply']);
   });
 
+  it('reads the discovery options, with their defaults and order rules (R14; revised in M12)', () => {
+    expect(resolved({}).discovery).toEqual({
+      diagnoseAfter: 2,
+      minProbes: 2,
+      maxProbes: 4,
+      confirmBelow: 0.5,
+      refuteFrom: 0.75,
+      readyAfter: 2,
+      revokeAfter: 2,
+    });
+    const edges = {
+      diagnoseAfter: 1,
+      minProbes: 1,
+      maxProbes: 1,
+      confirmBelow: 0,
+      refuteFrom: 0,
+      readyAfter: 1,
+      revokeAfter: 1,
+    };
+    expect(resolved({ discovery: edges }).discovery).toEqual(edges);
+    expect(codesOf({ discovery: { minProbes: 5 } })).toEqual([
+      'CONFIG_INVALID discovery.maxProbes',
+    ]);
+    expect(codesOf({ discovery: { confirmBelow: 0.8 } })).toEqual([
+      'CONFIG_INVALID discovery.refuteFrom',
+    ]);
+    expect(
+      codesOf({
+        discovery: {
+          diagnoseAfter: 0,
+          minProbes: 1.5,
+          confirmBelow: 2,
+          readyAfter: 0,
+          revokeAfter: -1,
+          x: 1,
+        },
+      }),
+    ).toEqual([
+      'CONFIG_INVALID discovery.x',
+      'CONFIG_INVALID discovery.diagnoseAfter',
+      'CONFIG_INVALID discovery.minProbes',
+      'CONFIG_INVALID discovery.confirmBelow',
+      'CONFIG_INVALID discovery.readyAfter',
+      'CONFIG_INVALID discovery.revokeAfter',
+    ]);
+    expect(codesOf({ discovery: 1 })).toEqual(['CONFIG_INVALID discovery']);
+  });
+
+  it('names an open lower bound in the message of a range that excludes it', () => {
+    const result = resolveConfig({ planner: { stageSeconds: { recall: 0 } } });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues[0]?.message).toContain('(0,');
+  });
+
   it('rejects a custom policy given with the built-in options (CONFIG_CONFLICT)', () => {
     expect(codesOf({ stagePolicy: policy(), stagePolicyOptions: { promoteAfter: 3 } })).toEqual([
       'CONFIG_CONFLICT stagePolicyOptions',
@@ -320,8 +375,8 @@ describe('configHash', () => {
       ),
     }).toMatchInlineSnapshot(`
       {
-        "custom": "7f3ec1609e1e0963",
-        "default": "4ff2939d3de4b5f6",
+        "custom": "de9b545c14e8d5ac",
+        "default": "3330425909960089",
       }
     `);
   });

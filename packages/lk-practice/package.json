@@ -67,6 +67,7 @@
     "build": "tsdown",
     "bench": "node bench/plan.bench.mjs",
     "simulate": "node bench/simulate.mjs",
+    "discovery": "node bench/discovery.mjs",
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "lint": "biome check .",

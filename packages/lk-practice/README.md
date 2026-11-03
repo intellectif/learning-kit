@@ -108,8 +108,14 @@ The package never calls a model. It defines what your model receives and checks 
   evidence, per skill where criteria bind skills.
 - **Goals:** `decompositionRequest` and `checkDecomposition` let a model propose new skills for a
   learner's goal, and `admitExtension` admits them once you or the learner approve.
+- **Missing prerequisites:** when a skill fails twice in a row, `prerequisiteRequest` and
+  `checkPrerequisiteHypothesis` let a model name a prerequisite the graph lacks. The package tests
+  the hypothesis with short probes on that prerequisite alone, and only a confirmed one becomes a
+  soft edge (`discoveryExtension`), practised before the blocked skill. `prerequisiteReport` advises
+  hardening or revoking it; you decide.
 
-The JSON Schemas (`gradeResultJsonSchema`, `candidatesJsonSchema`, `decompositionJsonSchema`) are
+The JSON Schemas (`gradeResultJsonSchema`, `candidatesJsonSchema`, `decompositionJsonSchema`,
+`hypothesesJsonSchema`) are
 for structured model output. The Standard Schema validators (`gradeResultSchema` and the others)
 work with any library that reads the spec.
 

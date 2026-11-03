@@ -26,6 +26,19 @@ export interface SimulatedSkill {
    * time stays `forgettingDays`, as before M11.
    */
   readonly consolidation?: number;
+  /**
+   * Logits the true ability gains with each attempt, from the feedback
+   * (revised in M12); a diagnostic one (a probe) teaches nothing. Default 0:
+   * it never changes.
+   */
+  readonly learning?: number;
+  /**
+   * Hidden prerequisites (R14.11; revised in M12): other skills of this
+   * learner, typically absent from the graph, whose chance at a typical task
+   * of their own (difficulty 0, without noise), recall included, multiplies
+   * the chance on this one. A forgotten or never-learned prerequisite caps it.
+   */
+  readonly requires?: readonly string[];
 }
 
 export interface SimulatedLearnerOptions {
@@ -60,9 +73,13 @@ export interface SimulatedLearner {
  * meets the same chance under two policies that plan the same attempt (a
  * fair comparison; the target's id differs with the configuration). The
  * learner remembers when it last attempted each skill and its forgetting
- * days: one learner follows one simulated timeline. The evidence is an `auto` grade with a point per
- * skill, per-skill outcomes when the target has more than one skill, the
- * target's context and id; the item weighs its skills equally, primary first.
+ * days: one learner follows one simulated timeline. (revised in M12) With
+ * `requires`, the chance is also multiplied by each hidden prerequisite's
+ * chance at a typical task; with `learning`, each attempt but a diagnostic
+ * one raises the true ability. The evidence is an `auto` grade with a point per skill, per-skill
+ * outcomes when the target has more than one skill, the target's context and
+ * id, and for a probe target its hypothesis (`probe`) and no outcomes; the
+ * item weighs its skills equally, primary first.
  * Throws a `TypeError` for options of the wrong type and a `RangeError` for
  * values out of range, and on `attempt` for a skill it does not have or a
  * time that is not a safe integer.
@@ -75,7 +92,10 @@ export function simulateLearner(options: SimulatedLearnerOptions): SimulatedLear
   if (!Number.isFinite(noise) || noise < 0) {
     throw new RangeError('lk-practice: noise is a finite number of at least 0.');
   }
-  const skills = new Map<string, Required<SimulatedSkill>>();
+  const skills = new Map<
+    string,
+    Required<Omit<SimulatedSkill, 'requires'>> & { requires: string[] }
+  >();
   for (const [id, skill] of Object.entries(options.skills ?? {})) {
     if (!Number.isFinite(skill?.trueAbility)) {
       throw new RangeError(`lk-practice: skill "${id}" needs a finite trueAbility.`);
@@ -89,15 +109,39 @@ export function simulateLearner(options: SimulatedLearnerOptions): SimulatedLear
         `lk-practice: skill "${id}" needs a finite consolidation of at least 0.`,
       );
     }
+    const learning = skill.learning ?? 0;
+    if (!Number.isFinite(learning)) {
+      throw new RangeError(`lk-practice: skill "${id}" needs a finite learning rate.`);
+    }
     skills.set(id, {
       trueAbility: skill.trueAbility,
       forgettingDays: skill.forgettingDays,
       consolidation,
+      learning,
+      requires: [...(skill.requires ?? [])],
     });
+  }
+  for (const [id, skill] of skills) {
+    for (const required of skill.requires) {
+      if (required === id || !skills.has(required)) {
+        throw new RangeError(
+          `lk-practice: skill "${id}" requires "${required}", another of its skills.`,
+        );
+      }
+    }
   }
   const { seed } = options;
   /** Per skill: the last attempt and the forgetting days since. */
   const memory = new Map<string, { last: number; days: number }>();
+  /** Per skill: the true ability, once it has learned (revised in M12). */
+  const ability = new Map<string, number>();
+  const abilityOf = (skillId: string): number =>
+    ability.get(skillId) ?? (skills.get(skillId) as { trueAbility: number }).trueAbility;
+  const recallOf = (skillId: string, at: number): number => {
+    const held = memory.get(skillId);
+    if (held === undefined) return 1;
+    return Math.exp(-Math.max(0, at - held.last) / (held.days * DAY));
+  };
 
   const draw = (at: number, skillId: string, part: string): number =>
     uniform(hashCanonical(['simulated-learner@1', seed, at, skillId, part]));
@@ -115,14 +159,21 @@ export function simulateLearner(options: SimulatedLearnerOptions): SimulatedLear
         }
         const held = memory.get(skillId);
         const days = held?.days ?? skill.forgettingDays;
-        const recall =
-          held === undefined ? 1 : Math.exp(-Math.max(0, at - held.last) / (days * DAY));
+        const recall = recallOf(skillId, at);
         const z =
           Math.sqrt(-2 * Math.log(1 - draw(at, skillId, 'z1'))) *
           Math.cos(2 * Math.PI * draw(at, skillId, 'z2'));
-        const logit = skill.trueAbility + noise * z - difficulty;
-        const chance = recall / (1 + Math.exp(-logit));
+        const logit = abilityOf(skillId) + noise * z - difficulty;
+        const cap = skill.requires.reduce(
+          (product, required) =>
+            product * recallOf(required, at) * (1 / (1 + Math.exp(-abilityOf(required)))),
+          1,
+        );
+        const chance = (cap * recall) / (1 + Math.exp(-logit));
         const score = draw(at, skillId, 'outcome') < chance ? 1 : 0;
+        if (skill.learning !== 0 && target.constraints.context !== 'diagnostic') {
+          ability.set(skillId, abilityOf(skillId) + skill.learning);
+        }
         const next =
           score === 1
             ? days * (1 + skill.consolidation * (1 - recall))
@@ -153,6 +204,7 @@ export function simulateLearner(options: SimulatedLearnerOptions): SimulatedLear
         }),
         context: target.constraints.context,
         targetId: target.id,
+        ...(target.reason.code === 'probe' ? { probe: target.reason.hypothesisId } : {}),
         ...(outcomes.length > 1
           ? { skillOutcomes: Object.freeze(outcomes.map((outcome) => Object.freeze(outcome))) }
           : {}),

@@ -8,7 +8,10 @@
 // proof whose starter fails and whose solution passes; that an unproven item
 // is never recorded; the grader output checks; the guards on each
 // request's inputs; and (revised in M10) the `./lk-core` adapter over real
-// lk-core outcomes, which this script makes with lk-core, a devDependency.
+// lk-core outcomes, which this script makes with lk-core, a devDependency;
+// and (revised in M12) prerequisite discovery: the exit scenario, a refuted
+// hypothesis, doubt confirming, an open one proposed again, and every
+// rejection of a proposal.
 // The expected values are
 // recorded from src/ through vectors/replay.mjs, so the file pins the current
 // behaviour; the unit tests check the same rules by hand. Run with
@@ -707,11 +710,334 @@ const outcomes = [
   },
 ];
 
-const vectors = [...decompositions, ...generations, ...grades, ...outcomes];
+// ─── Prerequisite discovery (R14, D29; revised in M12) ───
+//
+// A learner placed past `llm.chat.call` passes `llm.chat.params` once, then
+// fails it twice: a diagnosis is suggested. The rounds answer the planned
+// targets by their first skill (`answers`), so each vector reads as a script.
+
+const COURSE = {
+  version: 'course@1',
+  skills: [
+    node('llm.chat.call', 'Call a chat model and print the answer'),
+    node('llm.chat.params', 'Call with parameters and log the token costs'),
+    node('llm.chat.stream', 'Stream the answer token by token'),
+    node('py.print-format', 'Format a string for printing'),
+  ],
+  edges: [
+    { kind: 'prerequisite', from: 'llm.chat.call', to: 'llm.chat.params', strength: 'hard' },
+    { kind: 'prerequisite', from: 'llm.chat.params', to: 'llm.chat.stream', strength: 'soft' },
+  ],
+};
+const BLOCKED = 'llm.chat.params';
+const graded = (passed) => ({ kind: 'auto', score: passed ? 1 : 0, maxScore: 1, passed });
+const paramsItem = (id) => ({
+  id,
+  skills: [{ skillId: BLOCKED, weight: 1 }],
+  stage: 'example',
+  difficulty: -2,
+  origin: 'generated',
+  status: 'proven',
+});
+const STUCK = [
+  {
+    act: {
+      id: 'place-call',
+      at: T0,
+      action: { kind: 'place', skillId: 'llm.chat.call', stage: 'transfer', credited: true },
+    },
+  },
+  ...[true, false, false].map((passed, i) => ({
+    evidence: {
+      id: `p${i + 1}`,
+      itemId: `params-${i + 1}`,
+      at: T0 + (i + 1) * DAY,
+      source: graded(passed),
+    },
+    item: paramsItem(`params-${i + 1}`),
+  })),
+];
+const DIAGNOSIS = {
+  evidence: STUCK[3].evidence,
+  item: STUCK[3].item,
+  failedCriteria: ['logs the token usage'],
+  excerpt: "TypeError: 'ChatCompletion' object is not subscriptable",
+};
+const soft = (from) => ({ kind: 'prerequisite', from, to: BLOCKED, strength: 'soft' });
+const DICT = {
+  skillId: 'py.dict-access',
+  skill: node('py.dict-access', 'Read values from a dict or a list'),
+  edge: soft('py.dict-access'),
+  rationale: 'The failure reads a field of the response as a dict key.',
+};
+const PRINT = { skillId: 'py.print-format', edge: soft('py.print-format') };
+const round = (day, answers, maxTargets = 4) => ({
+  request: { now: T0 + day * DAY, seed: `round-${day}`, budget: { maxTargets } },
+  answers,
+});
+/** An answer a host records outside a plan, on `skillId` at `stage`, with `extra` evidence fields. */
+const recorded = (id, at, skillId, stage, source, extra = {}) => ({
+  evidence: { id, itemId: `${id}-item`, at, source, ...extra },
+  item: {
+    id: `${id}-item`,
+    skills: [{ skillId, weight: 1 }],
+    stage,
+    difficulty: 0,
+    origin: 'generated',
+    status: 'proven',
+  },
+});
+const idOf = (proposed) =>
+  impl.hypothesisId({ forSkillId: BLOCKED, skillId: proposed.skillId, skill: proposed.skill });
+const DICT_ID = idOf(DICT);
+const PRINT_ID = idOf(PRINT);
+const self = (rating) => ({ kind: 'self', rating });
+const day = (n, offset = 0) => T0 + n * DAY + offset;
+const closing = (id, n, hypothesisId) => ({
+  act: { id, at: day(n), action: { kind: 'close-hypothesis', hypothesisId } },
+});
+const discovery = (name, fields) => ({
+  name,
+  kind: 'diagnose',
+  learnerId: 'learner',
+  graphs: { main: COURSE },
+  steps: STUCK,
+  diagnosis: DIAGNOSIS,
+  options: { idPrefix: 'py', seed: 'diagnose-1' },
+  ...fields,
+});
+
+const diagnoses = [
+  discovery(
+    'found: a missing prerequisite probed, confirmed, admitted and practised; the blocked skill waits, then passes and hardening is advised',
+    {
+      proposal: { hypotheses: [DICT] },
+      open: { index: 0, at: T0 + 3 * DAY + 60_000 },
+      rounds: [
+        round(4, { 'py.dict-access': false }),
+        round(5, { 'py.dict-access': false }),
+        round(6, { 'py.dict-access': true }),
+        round(7, { 'py.dict-access': true }),
+        round(8, { 'py.dict-access': true }),
+        round(9, { [BLOCKED]: true, 'py.dict-access': true }),
+      ],
+      again: { hypotheses: [DICT] },
+    },
+  ),
+  discovery('refuted: an existing skill the learner has passes its probes and is remembered', {
+    proposal: { hypotheses: [PRINT] },
+    open: { index: 0, at: T0 + 3 * DAY + 60_000 },
+    rounds: [
+      round(4, { 'py.print-format': true }),
+      round(5, { 'py.print-format': true }),
+      round(6, { [BLOCKED]: false }),
+    ],
+    again: { hypotheses: [PRINT] },
+  }),
+  discovery(
+    'doubt confirms at maxProbes; ready after one re-probe; one failure after it advises revoking, the next lapse in a row suggests a new diagnosis; closing drops it',
+    {
+      config: { discovery: { readyAfter: 1, revokeAfter: 1 } },
+      proposal: { hypotheses: [DICT] },
+      open: { index: 0, at: T0 + 3 * DAY + 60_000 },
+      rounds: [
+        round(4, { 'py.dict-access': true }),
+        round(5, { 'py.dict-access': false }),
+        round(6, { 'py.dict-access': true }),
+        round(7, { 'py.dict-access': false }),
+        round(8, { 'py.dict-access': true }),
+        round(9, { 'py.dict-access': true }),
+        round(10, { [BLOCKED]: false }),
+        round(11, { [BLOCKED]: false }),
+      ],
+      close: T0 + 12 * DAY,
+    },
+  ),
+  discovery(
+    'rules: pretest, diagnostic and other answers are not practice; a failed re-probe restarts the count; a ready hypothesis takes no probe; the trigger waits while on trial',
+    {
+      proposal: { hypotheses: [DICT] },
+      open: { index: 0, at: day(3, 60_000) },
+      rounds: [
+        round(4, { 'py.dict-access': false }),
+        round(5, { 'py.dict-access': false }),
+        {
+          ...round(6, { 'py.dict-access': true }),
+          steps: [
+            recorded('pre', day(6, -3), 'py.dict-access', 'example', graded(true), {
+              context: 'pretest',
+            }),
+            recorded('diag', day(6, -2), 'py.dict-access', 'example', graded(true), {
+              context: 'diagnostic',
+            }),
+            recorded('other', day(6, -1), 'llm.chat.call', 'transfer', graded(true)),
+          ],
+        },
+        round(7, { 'py.dict-access': true }),
+        round(8, { 'py.dict-access': false }),
+        round(9, { 'py.dict-access': true }),
+        round(10, { 'py.dict-access': true }),
+        round(11, { 'py.dict-access': true }),
+        {
+          ...round(12, {}),
+          steps: [
+            recorded('late-probe', day(12, -4), 'py.dict-access', 'transfer', graded(true), {
+              context: 'diagnostic',
+              probe: DICT_ID,
+            }),
+            recorded('b1', day(12, -3), BLOCKED, 'example', graded(false)),
+            recorded('b2', day(12, -2), BLOCKED, 'example', graded(false)),
+          ],
+        },
+        // A day later, so the pass is its own sitting and ends the lapses in a row.
+        {
+          ...round(13, {}),
+          steps: [recorded('b3', day(13, -1), BLOCKED, 'example', graded(true))],
+        },
+        {
+          ...round(14, {}),
+          steps: [
+            recorded('b4', day(14, -2), BLOCKED, 'example', graded(false)),
+            recorded('b5', day(14, -1), BLOCKED, 'example', graded(false)),
+          ],
+        },
+      ],
+    },
+  ),
+  discovery(
+    'refuted at the boundary: three of four probes passed, two of them self-rated; a refuted hypothesis takes no probe',
+    {
+      proposal: { hypotheses: [PRINT] },
+      open: { index: 0, at: day(3, 60_000) },
+      rounds: [
+        {
+          ...round(4, {}),
+          steps: [
+            recorded('s1', day(4, -1), 'py.print-format', 'transfer', self('good'), {
+              context: 'diagnostic',
+              probe: PRINT_ID,
+            }),
+          ],
+        },
+        {
+          ...round(5, {}),
+          steps: [
+            recorded('s2', day(5, -1), 'py.print-format', 'transfer', self('again'), {
+              context: 'diagnostic',
+              probe: PRINT_ID,
+            }),
+          ],
+        },
+        round(6, { 'py.print-format': true }),
+        round(7, { 'py.print-format': true }),
+        {
+          ...round(8, {}),
+          steps: [
+            recorded('s3', day(8, -1), 'py.print-format', 'transfer', graded(true), {
+              context: 'diagnostic',
+              probe: PRINT_ID,
+            }),
+          ],
+        },
+      ],
+    },
+  ),
+  discovery(
+    'closed: a confirmed hypothesis closed before it is ready is neither tracked nor planned, and suppresses no diagnosis',
+    {
+      proposal: { hypotheses: [DICT] },
+      open: { index: 0, at: day(3, 60_000) },
+      rounds: [
+        round(4, { 'py.dict-access': false }),
+        round(5, { 'py.dict-access': false }),
+        {
+          ...round(6, {}),
+          steps: [
+            closing('close', 6, DICT_ID),
+            recorded('n1', day(6, 1), 'py.dict-access', 'example', graded(true)),
+          ],
+        },
+        { ...round(7, {}), steps: [recorded('b1', day(7, -1), BLOCKED, 'example', graded(true))] },
+        {
+          ...round(8, {}),
+          steps: [
+            recorded('b2', day(8, -2), BLOCKED, 'example', graded(false)),
+            recorded('b3', day(8, -1), BLOCKED, 'example', graded(false)),
+          ],
+        },
+      ],
+    },
+  ),
+  discovery(
+    'open: an open hypothesis suppresses a diagnosis of its skill, not of another, and is rejected when proposed again',
+    {
+      proposal: { hypotheses: [DICT] },
+      open: { index: 0, at: T0 + 3 * DAY + 60_000 },
+      rounds: [
+        { ...round(4, {}), steps: [recorded('b1', day(4, -1), BLOCKED, 'example', graded(true))] },
+        {
+          ...round(5, {}),
+          steps: [
+            recorded('b2', day(5, -4), BLOCKED, 'example', graded(false)),
+            recorded('b3', day(5, -3), BLOCKED, 'example', graded(false)),
+            recorded('s1', day(5, -2), 'llm.chat.stream', 'example', graded(false)),
+            recorded('s2', day(5, -1), 'llm.chat.stream', 'example', graded(false)),
+          ],
+        },
+      ],
+      again: { hypotheses: [DICT, PRINT] },
+    },
+  ),
+  discovery('checks: every rejection of a proposal, past maxCandidates included', {
+    options: { idPrefix: 'py', seed: 'diagnose-2', maxCandidates: 12, knowledge: ['procedural'] },
+    proposal: {
+      hypotheses: [
+        DICT,
+        PRINT,
+        { skillId: BLOCKED, edge: soft(BLOCKED) },
+        { skillId: 'py.nothing', edge: soft('py.nothing') },
+        { skillId: 'py.lists', skill: node('py.list', 'Index a list'), edge: soft('py.lists') },
+        {
+          skillId: 'llm.chat.call',
+          skill: node('llm.chat.call', 'Call again'),
+          edge: soft('llm.chat.call'),
+        },
+        { skillId: 'js.json', skill: node('js.json', 'Parse JSON'), edge: soft('js.json') },
+        {
+          skillId: 'py.dict-terms',
+          skill: { id: 'py.dict-terms', knowledge: 'declarative', label: 'Dictionary terms' },
+          edge: soft('py.dict-terms'),
+        },
+        {
+          skillId: 'py.printing',
+          skill: node('py.printing', 'format a string, for PRINTING!'),
+          edge: soft('py.printing'),
+        },
+        { skillId: 'py.print-format', edge: { ...soft('py.print-format'), strength: 'hard' } },
+        { skillId: 'llm.chat.stream', edge: soft('llm.chat.stream') },
+        DICT,
+        {
+          skillId: 'py.loops',
+          skill: node('py.loops', 'Loop over a list'),
+          edge: soft('py.loops'),
+        },
+      ],
+    },
+  }),
+  discovery('shape: output that is not { hypotheses: [...] } is one rejection at index -1', {
+    proposal: { hypotheses: [{ skillId: 'py.dict-access' }], extra: true },
+  }),
+  discovery('throws: a blocked skill the graph does not have', {
+    diagnosis: { ...DIAGNOSIS, skillId: 'llm.chat.unknown' },
+    proposal: { hypotheses: [] },
+  }),
+];
+
+const vectors = [...decompositions, ...generations, ...grades, ...outcomes, ...diagnoses];
 
 const body = {
   $comment:
-    'Contract vectors for @intellectif/lk-practice (criteria 11, 12 and 16), generated by scripts/contracts-vectors.mjs and run by vectors/replay.mjs. `decompose` runs decompositionRequest, checkDecomposition, admitExtension and composeGraph, then (with `steps`) a record against the composed graph and a full replay. `generate` runs `steps` through createPractice(config), plans `request`, then runs generationRequest for the target of `targetSkill` (with the fields of `target` over it, under `requestConfig` when given), checkCandidates, admitCandidate for each proof with a record of each admitted item, and a record of each accepted candidate stored without a proof. `grade` runs checkGradeResult over `rows` and evidenceFromGrade over `evidence`. `outcome` (M10) runs evidenceFromOutcome over `evidence`, whose outcomes lk-core made where it makes them, and skillOutcomesFromCriteria over `criteria`. A call that throws is recorded as its error name. Floats compare at a relative 1e-9; integers, strings, null and every time exactly.',
+    'Contract vectors for @intellectif/lk-practice (criteria 11, 12 and 16), generated by scripts/contracts-vectors.mjs and run by vectors/replay.mjs. `decompose` runs decompositionRequest, checkDecomposition, admitExtension and composeGraph, then (with `steps`) a record against the composed graph and a full replay. `generate` runs `steps` through createPractice(config), plans `request`, then runs generationRequest for the target of `targetSkill` (with the fields of `target` over it, under `requestConfig` when given), checkCandidates, admitCandidate for each proof with a record of each admitted item, and a record of each accepted candidate stored without a proof. `grade` runs checkGradeResult over `rows` and evidenceFromGrade over `evidence`. `outcome` (M10) runs evidenceFromOutcome over `evidence`, whose outcomes lk-core made where it makes them, and skillOutcomesFromCriteria over `criteria`. `diagnose` (M12) runs `steps`, prerequisiteRequest for `diagnosis` and checkPrerequisiteHypothesis of `proposal`; with `open`, it opens that accepted hypothesis and plays `rounds`, each a plan answered by the first skill of its targets, admitting each confirmation with discoveryExtension and composeGraph and replaying the log, with prerequisiteVerdict and prerequisiteReport after each round; then `close`, `again` (a second proposal) and a final replay. A call that throws is recorded as its error name. Floats compare at a relative 1e-9; integers, strings, null and every time exactly.',
   version: CORPUS_VERSION,
   vectors: record(impl, vectors),
 };
@@ -721,5 +1047,5 @@ writeFileSync(
   'utf8',
 );
 console.log(
-  `contract vectors: ${decompositions.length} decompose, ${generations.length} generate, ${grades.length} grade, ${outcomes.length} outcome`,
+  `contract vectors: ${decompositions.length} decompose, ${generations.length} generate, ${grades.length} grade, ${outcomes.length} outcome, ${diagnoses.length} diagnose`,
 );

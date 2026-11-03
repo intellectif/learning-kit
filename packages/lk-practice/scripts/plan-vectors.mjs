@@ -3,7 +3,7 @@
 // rule, a stage-up after a promotion, remediation, the focus closure, pretests,
 // coalescing, pool matching (proof, cooldown, exclusion, preference), the
 // seconds budget, difficulty targeting from a prior, mastery checks (revised
-// in M9), and the request and state checks; then the boundaries and orders that tell close rules apart:
+// in M9), probes and hypotheses (revised in M12), and the request and state checks; then the boundaries and orders that tell close rules apart:
 // interleave groups, soft prerequisites, the backlog, due and lapse-window
 // edges, tier keys, the remediation floor, empty and one-stage ladders, and
 // the tolerance, cooldown and tie rules of matching. Each vector builds a learner from `steps` as the log vectors
@@ -325,7 +325,59 @@ const shared = item('shared', 'a', 'recall', {
 const quick = { mastery: { topSuccesses: 1, topGapMs: 0, minExpectedSuccess: 0 } };
 const softAsk = [ask(T0 + DAY, { limits: { maxNewSkills: 9 } })];
 
+/** A hypothesis for `forSkillId` with its content id (R14.4; revised in M12). */
+const hypothesis = (forSkillId, skillId, skill) => ({
+  id: impl.hypothesisId({ forSkillId, skillId, skill }),
+  forSkillId,
+  skillId,
+  ...(skill === undefined ? {} : { skill }),
+});
+const NEW = hypothesis('c', 'n', {
+  id: 'n',
+  knowledge: 'declarative',
+  stages: ['recall', 'produce'],
+});
+const KNOWN = hypothesis('c', 'a');
+const open = (id, at, opened) => act(id, at, { kind: 'open-hypothesis', hypothesis: opened });
+const probe = (id, at, source, skillId = 'n', probeId = NEW.id) => ({
+  evidence: { id, itemId: `${id}-item`, at, source, context: 'diagnostic', probe: probeId },
+  item: item(`${id}-item`, skillId, 'produce'),
+});
+/** `c` fails twice, a diagnosis is suggested, and a new candidate and an existing one are opened. */
+const diagnosed = [
+  ev('d1', 'c', 'recognise', T0, fail),
+  ev('d2', 'c', 'recognise', T0 + DAY, fail),
+  open('o1', T0 + DAY + 1, NEW),
+  open('o2', T0 + DAY + 2, KNOWN),
+];
+
 const vectors = [
+  plan(
+    'probes first, by opening time, at the top stage and reference difficulty; a pool item only for a candidate in the graph',
+    MAIN,
+    diagnosed,
+    [
+      ask(T0 + 2 * DAY),
+      ask(T0 + 2 * DAY, { budget: { maxTargets: 1 } }),
+      ask(T0 + 2 * DAY, {
+        pool: [
+          item('pool-a', 'a', 'produce', { difficulty: 0 }),
+          item('pool-n', 'n', 'produce', { difficulty: 0 }),
+        ],
+      }),
+    ],
+  ),
+  plan(
+    'a confirmed hypothesis plans nothing until admitted, and its skill does not wait; a closed one is not probed',
+    MAIN,
+    [
+      ...diagnosed,
+      probe('q1', T0 + 2 * DAY, fail),
+      probe('q2', T0 + 2 * DAY + 1, fail),
+      act('x1', T0 + 2 * DAY + 2, { kind: 'close-hypothesis', hypothesisId: KNOWN.id }),
+    ],
+    [ask(T0 + 3 * DAY)],
+  ),
   plan(
     'an empty state plans the ready skills as new, capped, with the rest deferred',
     MAIN,

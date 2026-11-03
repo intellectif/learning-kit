@@ -257,6 +257,38 @@ const source = variant('kind', {
   pending: { reason: oneOf(['deferred', 'routed-to-person']) },
 });
 
+const skillNodeShape = object({
+  id,
+  knowledge: oneOf(['declarative', 'procedural', 'mixed']),
+  stages: opt(arrayOf(id)),
+  interleaveGroup: opt(text),
+  tags: opt(arrayOf(text)),
+  label: opt(text),
+  description: opt(text),
+  criteriaHint: opt(text),
+  forms: opt(recordOf(arrayOf(text))),
+  masteryPrior: opt(finite),
+  referenceDifficulty: opt(finite),
+  desiredRetention: opt(finite),
+});
+
+const edgeShape = variant('kind', {
+  prerequisite: { from: id, to: id, strength: oneOf(['hard', 'soft']) },
+  encompasses: { from: id, to: id, weight: finite },
+});
+
+/**
+ * A prerequisite hypothesis as `checkPrerequisiteHypothesis` returns it and
+ * `open-hypothesis` records it (R14.4, R14.5; revised in M12).
+ */
+export const hypothesisShape: Check = object({
+  id,
+  forSkillId: id,
+  skillId: id,
+  skill: opt(skillNodeShape),
+  rationale: opt(text),
+});
+
 const skillOutcome = object({
   skillId: id,
   score: finite,
@@ -278,6 +310,7 @@ export const evidenceShape: Check = object({
   learnerConfidence: opt(oneOf(CONFIDENCES)),
   confirms: opt(id),
   supplements: opt(id),
+  probe: opt(id),
 });
 
 // ---------------------------------------------------------------------------
@@ -304,6 +337,8 @@ export const hostActionShape: Check = variant('kind', {
   unsuspend: { skillId: id },
   'discard-held': { evidenceId: id },
   'reset-skill': { skillId: id },
+  'open-hypothesis': { hypothesis: hypothesisShape },
+  'close-hypothesis': { hypothesisId: id },
 });
 
 export const hostInputShape: Check = object({ id, at: instant, action: hostActionShape });
@@ -407,6 +442,23 @@ const held = all(
   ),
 );
 
+const hypothesisState = object({
+  id,
+  forSkillId: id,
+  skillId: id,
+  skill: opt(skillNodeShape),
+  openedAt: instant,
+  probes: object({ passed: count, failed: count }),
+  verdict: oneOf(['open', 'confirmed', 'refuted']),
+  decidedAt: instantOrNull,
+  practisedAt: instantOrNull,
+  reprobeStreak: count,
+  readyAt: instantOrNull,
+  blockedPassedAt: instantOrNull,
+  blockedFailures: count,
+  closedAt: instantOrNull,
+});
+
 export const stateShape: Check = all(
   object({
     schemaVersion: literal(1),
@@ -418,6 +470,7 @@ export const stateShape: Check = all(
     items: recordOf(object({ uses: count, lastUsedAt: instant })),
     held: arrayOf(held),
     recentIds: arrayOf(id),
+    hypotheses: opt(recordOf(hypothesisState)),
   }),
   (value: unknown, path: Path, out: Issue[]) => {
     const log = (value as { log: { length: number; lastAt: number | null } }).log;
@@ -501,26 +554,6 @@ export const approvalShape: Check = object({
   approverId: opt(id),
 });
 
-const skillNodeShape = object({
-  id,
-  knowledge: oneOf(['declarative', 'procedural', 'mixed']),
-  stages: opt(arrayOf(id)),
-  interleaveGroup: opt(text),
-  tags: opt(arrayOf(text)),
-  label: opt(text),
-  description: opt(text),
-  criteriaHint: opt(text),
-  forms: opt(recordOf(arrayOf(text))),
-  masteryPrior: opt(finite),
-  referenceDifficulty: opt(finite),
-  desiredRetention: opt(finite),
-});
-
-const edgeShape = variant('kind', {
-  prerequisite: { from: id, to: id, strength: oneOf(['hard', 'soft']) },
-  encompasses: { from: id, to: id, weight: finite },
-});
-
 /** A decomposer's proposal: the new skills and edges (R9.5). */
 export const proposalShape: Check = object({
   skills: arrayOf(skillNodeShape, true),
@@ -529,6 +562,7 @@ export const proposalShape: Check = object({
 
 /** A `GraphExtension` as `checkDecomposition` returns it (§5.5). */
 export const extensionShape: Check = object({
+  kind: opt(literal('goal')),
   id,
   goalId: id,
   idPrefix: id,
@@ -536,6 +570,16 @@ export const extensionShape: Check = object({
   edges: arrayOf(edgeShape),
   status: oneOf(['proposed', 'admitted']),
   approval: opt(approvalShape),
+});
+
+/**
+ * A diagnoser's output (R14.4; revised in M12): hypotheses, each one edge
+ * into the blocked skill from an existing skill or from a new one.
+ */
+export const hypothesesShape: Check = object({
+  hypotheses: arrayOf(
+    object({ skillId: id, edge: edgeShape, skill: opt(skillNodeShape), rationale: opt(text) }),
+  ),
 });
 
 /** The issues of `value` against `shape`, under `path`. */

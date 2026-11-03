@@ -6,7 +6,7 @@
  * grade's score range, a candidate's skills and stage against its request, a
  * proposal's graph rules) are the checks' alone, so a document a schema
  * accepts must still pass `checkGradeResult`, `checkCandidates`,
- * `checkDecomposition` or `migrateState`.
+ * `checkDecomposition`, `checkPrerequisiteHypothesis` or `migrateState`.
  */
 
 import { deepFreeze } from '../determinism/freeze.js';
@@ -15,6 +15,7 @@ import {
   candidateShape,
   entryShape,
   gradeResultShape,
+  hypothesesShape,
   MAX_CANDIDATES,
   proposalShape,
   stateShape,
@@ -59,4 +60,11 @@ export const decompositionJsonSchema = document(
   'DecompositionProposal',
   'Proposed skills and edges for one learning goal. Validate with checkDecomposition.',
   proposalShape.schema,
+);
+
+/** A diagnoser's output (R14.4; revised in M12): candidate prerequisites of one blocked skill. */
+export const hypothesesJsonSchema = document(
+  'PrerequisiteHypotheses',
+  'Candidate prerequisites for one blocked skill. Validate with checkPrerequisiteHypothesis.',
+  hypothesesShape.schema,
 );

@@ -9,7 +9,7 @@ import { canonicalize } from '../determinism/canonical.js';
 import { fnv1a64 } from '../determinism/fnv.js';
 import { deepFreeze } from '../determinism/freeze.js';
 import { PracticeConfigError } from '../errors.js';
-import { equivalentStage } from '../graph/index.js';
+import { equivalentStage, probeGraph } from '../graph/index.js';
 import { createEngine, indexGraph } from '../log/context.js';
 import { compareKeys } from '../log/draft.js';
 import { mismatchIssues } from '../log/validate.js';
@@ -69,7 +69,13 @@ export function generationRequest(
     throw new TypeError(`lk-practice: count is an integer from 1 to ${MAX_CANDIDATES}.`);
   }
   if (typeof seed !== 'string') throw new TypeError('lk-practice: seed is a string.');
-  const index = indexGraph(graph, engine);
+  // A probe's candidate may be new to the graph: its facts come from the
+  // hypothesis, in the probe graph (R14.6; revised in M12).
+  const probed =
+    target.reason.code === 'probe' && state.hypotheses !== undefined
+      ? state.hypotheses[target.reason.hypothesisId]
+      : undefined;
+  const index = indexGraph(probed === undefined ? graph : probeGraph(graph, probed), engine);
   const cfg = engine.config;
 
   const thetas: { skillId: string; theta: number }[] = [];

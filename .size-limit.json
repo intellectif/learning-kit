@@ -118,7 +118,7 @@
     "name": "lk-practice: everything",
     "path": "packages/lk-practice/dist/index.js",
     "import": "*",
-    "limit": "43 kB"
+    "limit": "45 kB"
   },
   {
     "name": "lk-practice: createPractice",

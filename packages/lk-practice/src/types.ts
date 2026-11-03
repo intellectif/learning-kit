@@ -129,6 +129,11 @@ export interface Evidence {
   readonly confirms?: string;
   /** Id of evidence for the same attempt: updates ability only (R7.2). */
   readonly supplements?: string;
+  /**
+   * The id of an open prerequisite hypothesis this answer probes (R14.6;
+   * revised in M12). A probe answer changes only the hypothesis's tally.
+   */
+  readonly probe?: string;
 }
 
 export interface SkillOutcome {
@@ -381,7 +386,8 @@ export interface SessionPlan {
 export interface PracticeTarget {
   /** Deterministic (D23). */
   readonly id: string;
-  readonly kind: 'review' | 'new' | 'stage-up' | 'remediation' | 'pretest';
+  /** `probe` (revised in M12): a diagnostic answer on a hypothesis's candidate (R14.6). */
+  readonly kind: 'review' | 'new' | 'stage-up' | 'remediation' | 'pretest' | 'probe';
   /** The primary skill first, then coalesced components. */
   readonly skillIds: readonly string[];
   readonly stage: StageId;
@@ -412,7 +418,8 @@ export interface TaskConstraints {
   /** Recently used instances. */
   readonly avoidItemIds: readonly string[];
   readonly avoidContentHashes: readonly string[];
-  readonly context: 'practice' | 'pretest';
+  /** `diagnostic` for a probe (revised in M12). */
+  readonly context: 'practice' | 'pretest' | 'diagnostic';
 }
 
 export type PlanReason = PlanReasonDetail & {
@@ -455,7 +462,11 @@ export type PlanReasonDetail =
       readonly focus: boolean;
       readonly softPrerequisitesMastered: boolean;
     }
-  | { readonly code: 'pretest'; readonly forSkillId: string };
+  | { readonly code: 'pretest'; readonly forSkillId: string }
+  /** A probe of an open prerequisite hypothesis (R14.6; revised in M12). */
+  | { readonly code: 'probe'; readonly hypothesisId: string; readonly forSkillId: string }
+  /** A confirmed prerequisite, practised before the skill it blocks (R14.9; revised in M12). */
+  | { readonly code: 'discovered'; readonly hypothesisId: string; readonly forSkillId: string };
 
 // ---------------------------------------------------------------------------
 // §5.4 Grader contract (R8) (M7)
@@ -552,7 +563,7 @@ export interface GenerationRequest {
     readonly difficultyTolerance: number;
     readonly expectedSuccess: number;
     readonly expectedSeconds: number;
-    readonly context: 'practice' | 'pretest';
+    readonly context: 'practice' | 'pretest' | 'diagnostic';
   };
   readonly skills: readonly {
     readonly id: string;
@@ -667,6 +678,8 @@ export interface DecompositionSkillFact {
 
 /** New skills and edges, typically an AI's decomposition of a learner's goal (R2.6). */
 export interface GraphExtension {
+  /** Absent or `goal`; a discovery extension is a `DiscoveryExtension` (revised in M12). */
+  readonly kind?: 'goal';
   /** The hash of its canonical skills and edges. */
   readonly id: string;
   readonly goalId: string;
@@ -695,6 +708,146 @@ export type ExtensionAdmission =
 export type GoalDecomposer = (request: DecompositionRequest) => Promise<unknown>;
 
 // ---------------------------------------------------------------------------
+// §5.11 Prerequisite discovery (R14, D29; revised in M12)
+// ---------------------------------------------------------------------------
+
+/** A checked hypothesis: `skillId` may be a prerequisite of `forSkillId` the graph lacks. */
+export interface PrerequisiteHypothesis {
+  /** The content id of `forSkillId`, `skillId` and `skill`. */
+  readonly id: string;
+  /** The blocked skill. */
+  readonly forSkillId: string;
+  /** The candidate prerequisite. */
+  readonly skillId: string;
+  /** Present when the candidate is new to the graph. */
+  readonly skill?: SkillNode;
+  /** The model's reason, host text; never interpreted. */
+  readonly rationale?: string;
+}
+
+/** One hypothesis in the state (R14.5, R14.7, R14.9). */
+export interface HypothesisState extends Omit<PrerequisiteHypothesis, 'rationale'> {
+  readonly openedAt: number;
+  readonly probes: { readonly passed: number; readonly failed: number };
+  readonly verdict: 'open' | 'confirmed' | 'refuted';
+  /** When the verdict was reached. */
+  readonly decidedAt: number | null;
+  /**
+   * A passed practice answer on the prerequisite since the confirmation or its
+   * last failed re-probe: re-probes are due (R14.9).
+   */
+  readonly practisedAt: number | null;
+  /** Passed re-probes in a row since the confirmation or the last failed one (R14.9). */
+  readonly reprobeStreak: number;
+  /** When `readyAfter` passed re-probes in a row made the prerequisite ready (R14.9). */
+  readonly readyAt: number | null;
+  /** The blocked skill's first passed answer after `readyAt`. */
+  readonly blockedPassedAt: number | null;
+  /** The blocked skill's failed answers after `readyAt`, before it passed. */
+  readonly blockedFailures: number;
+  /** Set by `close-hypothesis`. */
+  readonly closedAt: number | null;
+}
+
+/** What the host supplies about the failure (R14.3). */
+export interface PrerequisiteRequestInput {
+  readonly graph: SkillGraph;
+  readonly state: PracticeState;
+  /** The failed answer, as recorded. */
+  readonly evidence: Evidence;
+  /** The item it answered; its first skill is the blocked one unless `skillId` says otherwise. */
+  readonly item: PracticeItem;
+  /** Default: the item's first skill. */
+  readonly skillId?: string;
+  /** Grader criteria that failed, including ones the item binds to no skill. */
+  readonly failedCriteria?: readonly string[];
+  /** A short excerpt of the response or the error, host text. */
+  readonly excerpt?: string;
+}
+
+export interface PrerequisiteRequestOptions {
+  /** New skills go under it. */
+  readonly idPrefix: string;
+  /** Default 3. */
+  readonly maxCandidates?: number;
+  /** Default all three. */
+  readonly knowledge?: readonly SkillNode['knowledge'][];
+  readonly seed: string;
+}
+
+/** A skill as a diagnoser sees it. */
+export interface DiscoverySkillFact extends DecompositionSkillFact {
+  readonly description?: string;
+}
+
+/** Facts only; no prompt (R14.3). */
+export interface PrerequisiteRequest {
+  readonly version: 1;
+  readonly blocked: DiscoverySkillFact & { readonly stage: StageId };
+  readonly failure: {
+    readonly evidenceId: string;
+    readonly passed: boolean;
+    readonly score?: number;
+    readonly maxScore?: number;
+    readonly skillOutcomes: readonly SkillOutcome[];
+    readonly failedCriteria: readonly string[];
+    readonly excerpt?: string;
+  };
+  readonly task: TaskSnapshot;
+  /** The blocked skill's prerequisites, with their strength. */
+  readonly prerequisites: readonly (DiscoverySkillFact & {
+    readonly strength: 'hard' | 'soft';
+  })[];
+  /** Other skills within two edges of the blocked skill, in graph order. */
+  readonly nearby: readonly DiscoverySkillFact[];
+  /** Hypotheses for this learner and skill already open, or refuted. */
+  readonly open: readonly string[];
+  readonly refuted: readonly string[];
+  readonly idPrefix: string;
+  readonly knowledge: readonly SkillNode['knowledge'][];
+  readonly ladders: Readonly<Record<'declarative' | 'procedural', readonly StageId[]>>;
+  readonly maxCandidates: number;
+  readonly seed: string;
+}
+
+export interface HypothesisCheck {
+  readonly accepted: readonly PrerequisiteHypothesis[];
+  readonly rejected: readonly { readonly index: number; readonly issues: readonly Issue[] }[];
+}
+
+/** A confirmed hypothesis as a graph extension (R2.6, R14.8). */
+export interface DiscoveryExtension {
+  readonly kind: 'prerequisite-discovery';
+  /** The hash of its canonical skills and edges, as for a goal extension. */
+  readonly id: string;
+  readonly hypothesisId: string;
+  readonly forSkillId: string;
+  /** The candidate, when it is new; otherwise empty. */
+  readonly skills: readonly SkillNode[];
+  /** One soft prerequisite edge into `forSkillId`. */
+  readonly edges: readonly SkillEdge[];
+  readonly status: 'admitted';
+  /** When the probes confirmed it. */
+  readonly confirmedAt: number;
+}
+
+export type DiscoveryAdmission =
+  | { readonly ok: true; readonly extension: DiscoveryExtension }
+  | { readonly ok: false; readonly issues: readonly Issue[] };
+
+/** One confirmed hypothesis and what to do with it (R14.10). */
+export interface PrerequisiteAdvice {
+  readonly hypothesisId: string;
+  readonly skillId: string;
+  readonly forSkillId: string;
+  readonly advice: 'admit' | 'practise' | 'harden' | 'revoke' | 'keep';
+  readonly confirmedAt: number;
+  readonly readyAt: number | null;
+  readonly blockedPassedAt: number | null;
+  readonly blockedFailures: number;
+}
+
+// ---------------------------------------------------------------------------
 // §5.6 State and log (R11, D21)
 // ---------------------------------------------------------------------------
 
@@ -717,6 +870,11 @@ export interface PracticeState {
   readonly held: readonly HeldEvidence[];
   /** Newest last, at most `recentIdWindow`. */
   readonly recentIds: readonly string[];
+  /**
+   * Every prerequisite hypothesis opened for this learner, by id (R14.5;
+   * revised in M12). Absent in states written before 0.4.0, and read as none.
+   */
+  readonly hypotheses?: Readonly<Record<string, HypothesisState>>;
 }
 
 export interface SkillState {
@@ -848,7 +1006,11 @@ export type HostAction =
   | { readonly kind: 'suspend'; readonly skillId: string }
   | { readonly kind: 'unsuspend'; readonly skillId: string }
   | { readonly kind: 'discard-held'; readonly evidenceId: string }
-  | { readonly kind: 'reset-skill'; readonly skillId: string };
+  | { readonly kind: 'reset-skill'; readonly skillId: string }
+  /** Opens an accepted prerequisite hypothesis for probing (R14.5; revised in M12). */
+  | { readonly kind: 'open-hypothesis'; readonly hypothesis: PrerequisiteHypothesis }
+  /** Withdraws an open hypothesis, or retires a decided one (R14.5; revised in M12). */
+  | { readonly kind: 'close-hypothesis'; readonly hypothesisId: string };
 
 export interface HostActionInput {
   /** Idempotency key, unique in the host's log store like an evidence id. */
@@ -863,6 +1025,41 @@ export interface HostActionInput {
 
 /** Adding an event variant is a minor; hosts keep a default branch. */
 export type PracticeEvent =
+  /** R14.2 (revised in M12): ask a model for the prerequisite that may block this skill. */
+  | {
+      readonly type: 'skill.diagnosis-suggested';
+      readonly at: number;
+      readonly evidenceId: string;
+      readonly skillId: string;
+      readonly stage: StageId;
+      readonly lapses: number;
+    }
+  | {
+      readonly type: 'hypothesis.opened';
+      readonly at: number;
+      readonly hypothesisId: string;
+      readonly skillId: string;
+      readonly forSkillId: string;
+    }
+  | {
+      readonly type: 'hypothesis.probed';
+      readonly at: number;
+      readonly hypothesisId: string;
+      readonly evidenceId: string;
+      readonly passed: boolean;
+    }
+  | {
+      readonly type: 'hypothesis.decided';
+      readonly at: number;
+      readonly hypothesisId: string;
+      readonly verdict: 'confirmed' | 'refuted';
+    }
+  /**
+   * A passed re-probe: the prerequisite reached its floor, and the blocked
+   * skill's ability had a fresh start (R14.9; revised in M12).
+   */
+  | { readonly type: 'hypothesis.ready'; readonly at: number; readonly hypothesisId: string }
+  | { readonly type: 'hypothesis.closed'; readonly at: number; readonly hypothesisId: string }
   | {
       readonly type: 'review.recorded';
       readonly at: number;
@@ -1100,6 +1297,26 @@ export interface PracticeConfig {
   readonly recentIdWindow?: number;
   /** `['executable', 'reviewed']`. */
   readonly acceptProofs?: readonly CandidateProof['kind'][];
+  /** Prerequisite discovery (R14; revised in M12). */
+  readonly discovery?: DiscoveryOptions;
+}
+
+/** Prerequisite discovery thresholds (R14.2, R14.7, R14.10; revised in M12). */
+export interface DiscoveryOptions {
+  /** 2: lapses in a row at a stage that suggest a diagnosis. */
+  readonly diagnoseAfter?: number;
+  /** 2: probe answers before a verdict. */
+  readonly minProbes?: number;
+  /** 4: probe answers after which a hypothesis not refuted is confirmed. */
+  readonly maxProbes?: number;
+  /** 0.5: a share of probes passed below this confirms. */
+  readonly confirmBelow?: number;
+  /** 0.75: a share of probes passed at or above this refutes. */
+  readonly refuteFrom?: number;
+  /** 2: passed re-probes in a row that make a confirmed prerequisite ready. */
+  readonly readyAfter?: number;
+  /** 2: blocked-skill failures after the prerequisite is ready, with no pass, that advise revoking. */
+  readonly revokeAfter?: number;
 }
 
 export interface StagePolicyOptions {
@@ -1190,6 +1407,7 @@ export interface ResolvedPracticeConfig {
   readonly itemUsageRetentionMs: number;
   readonly recentIdWindow: number;
   readonly acceptProofs: readonly CandidateProof['kind'][];
+  readonly discovery: Required<DiscoveryOptions>;
 }
 
 // ---------------------------------------------------------------------------
