@@ -82,6 +82,7 @@ const COMPONENT_FOR_TYPE = {
   'gap-select': 'GapSelect',
   dictation: 'Dictation',
   'read-aloud': 'ReadAloud',
+  'speaking-response': 'SpeakingResponse',
 };
 
 /**
@@ -90,10 +91,8 @@ const COMPONENT_FOR_TYPE = {
  * check below unless it is listed here on purpose; the entry goes when the
  * component lands in `COMPONENT_FOR_TYPE`.
  */
-const AWAITING_COMPONENT = {
-  // lk-core 1.9 grades it on the server; `<SpeakingResponse>` is the next release.
-  'speaking-response': 'a host renderer, through `renderers`',
-};
+/** @type {Record<string, string>} Empty while every built-in type has its component. */
+const AWAITING_COMPONENT = {};
 
 const REQUIRED_EXPORTS = {
   ...Object.fromEntries(

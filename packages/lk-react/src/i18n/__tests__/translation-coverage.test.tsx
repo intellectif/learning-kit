@@ -13,6 +13,7 @@ import type {
   MultipleChoiceData,
   ReadAloudData,
   RecordingRef,
+  SpeakingResponseData,
   SpeechAssessment,
   Stimulus,
   WrittenResponseData,
@@ -36,6 +37,8 @@ import { MultipleChoice } from '../../components/MultipleChoice/index.js';
 import { PronunciationFeedback } from '../../components/PronunciationFeedback/index.js';
 import { ReadAloud } from '../../components/ReadAloud/index.js';
 import type { ReadAloudAssessResult } from '../../components/ReadAloud/ReadAloud.js';
+import { SpeakingResponse } from '../../components/SpeakingResponse/index.js';
+import type { SpeakingAssessResult } from '../../components/SpeakingResponse/SpeakingResponse.js';
 import { StimulusPanel } from '../../components/StimulusPanel/index.js';
 import { ActivityMedia } from '../../components/shared/ActivityMedia.js';
 import { AudioTransport } from '../../components/shared/AudioTransport.js';
@@ -758,6 +761,90 @@ describe('translation coverage', () => {
     speech = stubSpeechCapture({ refuseMicrophone: 'NotAllowedError' });
     sweep(<ReadAloud data={ra} recordingBinding={{ upload: storeTake }} />);
     await user.click(screen.getByRole('button', { name: sentinel('readAloudRecord') }));
+    await settleSpeech();
+    keep(document.body);
+    cleanup();
+
+    // ── Spoken answer: its own sentences; the recorder's are the reading's ──
+    // A microphone again: the scene before this one left a refusing one.
+    speech?.restore();
+    speech = stubSpeechCapture();
+    const sr = {
+      schemaVersion: '1.0',
+      type: 'speaking-response',
+      id: 'sr1',
+      title: 'La ciudad o el campo',
+      prompt: '¿Prefieres vivir en la ciudad o en el campo?',
+      locale: 'es-MX',
+      recording: { maxSeconds: 60, maxTakes: 2 },
+      rubric: { criteria: [{ name: 'Contenido', weight: 1 }] },
+    } satisfies SpeakingResponseData;
+    const spokenEvidence = {
+      assessmentVersion: '1.0',
+      status: 'assessed',
+      task: 'unscripted',
+      locale: 'es-MX',
+      recordingKey: stored.key,
+      assessor: { kind: 'auto' },
+      scale: 100,
+      scores: { accuracy: 90 },
+      transcript: { text: 'prefiero la ciudad', source: { kind: 'auto' } },
+      miscue: 'none',
+      words: [{ text: 'ciudad', accuracy: 90, error: 'none' }],
+    } satisfies SpeechAssessment;
+    const spokenGrade: GradeRecord = {
+      score: 0.8,
+      maxScore: 1,
+      passed: true,
+      feedback: 'Bien dicho.',
+      criteria: [{ name: 'Contenido', score: 0.8, weight: 1 }],
+      corrections: [{ original: 'prefiero', corrected: 'prefiero vivir' }],
+    };
+
+    // The limit, a held assessment, and the grade with what was said.
+    const hearing = defer<SpeakingAssessResult>();
+    sweep(
+      <SpeakingResponse
+        data={sr}
+        recordingBinding={{ upload: storeTake, assess: () => hearing.promise }}
+      />,
+    );
+    keep(document.body);
+    await recordTake();
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    await settleSpeech();
+    keep(document.body);
+    hearing.settle({ status: 'graded', assessment: spokenEvidence, grade: spokenGrade });
+    await settleSpeech();
+    keep(document.body);
+    cleanup();
+
+    // A limit with a shortest answer, and a binding that judges nothing.
+    sweep(
+      <SpeakingResponse
+        data={{ ...sr, recording: { minSeconds: 1, maxSeconds: 60 } }}
+        recordingBinding={{ upload: storeTake }}
+      />,
+    );
+    keep(document.body);
+    await recordTake();
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
+    await settleSpeech();
+    keep(document.body);
+    cleanup();
+
+    // A refusal no take fixes, said in the answer's own words.
+    sweep(
+      <SpeakingResponse
+        data={sr}
+        recordingBinding={{
+          upload: storeTake,
+          assess: async () => ({ status: 'unscorable', code: 'judgement_mismatch' }),
+        }}
+      />,
+    );
+    await recordTake();
+    await user.click(screen.getByRole('button', { name: sentinel('submit') }));
     await settleSpeech();
     keep(document.body);
     cleanup();

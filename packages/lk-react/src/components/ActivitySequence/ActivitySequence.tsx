@@ -36,6 +36,8 @@ import { GapSelect } from '../GapSelect/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
 import type { RecordingBinding } from '../ReadAloud/ReadAloud.js';
+import { SpeakingResponse } from '../SpeakingResponse/index.js';
+import type { SpeakingAssessResult } from '../SpeakingResponse/SpeakingResponse.js';
 import { StimulusPanel } from '../StimulusPanel/index.js';
 import { stopCaptureGroup } from '../shared/capture-registry.js';
 import {
@@ -1597,7 +1599,7 @@ export function ActivitySequence({
     slotId: string;
     index: number;
     activity: { id: string };
-  }): RecordingBinding | undefined => {
+  }): RecordingBinding<SpeakingAssessResult> | undefined => {
     if (recordingBinding === undefined) {
       return undefined;
     }
@@ -1745,6 +1747,29 @@ export function ActivitySequence({
           {...childProps}
           // No capture group here: the slot's pane hands it down through
           // `SequenceSlotContext`, so it is no prop of the public component.
+          // The paper's one binding serves every recorded slot, so its `assess`
+          // may return a spoken answer's `pending` too: a reading reads that as
+          // a judgement with no grade, which is what it has always shown.
+          {...(slotRecordingBinding !== undefined
+            ? { recordingBinding: slotRecordingBinding as RecordingBinding }
+            : {})}
+          {...(slotAssessment !== undefined ? { assessment: slotAssessment } : {})}
+          {...(workletUrl !== undefined ? { workletUrl } : {})}
+        />
+      );
+    }
+    if (activity.type === 'speaking-response') {
+      const slotRecordingBinding = recordingBindingFor(slot);
+      const slotAssessment =
+        assessments !== undefined && Object.hasOwn(assessments, slotId)
+          ? assessments[slotId]
+          : undefined;
+      return (
+        <SpeakingResponse
+          data={activity}
+          // The whole bag, as a read-aloud's: a returned grade is a score in
+          // `practice`, and `exam` never calls `onComplete`.
+          {...childProps}
           {...(slotRecordingBinding !== undefined
             ? { recordingBinding: slotRecordingBinding }
             : {})}
@@ -1773,16 +1798,6 @@ export function ActivitySequence({
             )
           }
         />
-      );
-    }
-    if (activity.type === 'speaking-response') {
-      // No built-in component yet: until there is one, a host draws a spoken
-      // answer through `renderers`, and without one it is shown as any type
-      // without a renderer is.
-      return (
-        <div className="lk-seq-unsupported" role="note">
-          {s.unsupportedActivity}
-        </div>
       );
     }
     everyBuiltInTypeHandled(activity);

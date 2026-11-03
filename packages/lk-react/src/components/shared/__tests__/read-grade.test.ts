@@ -457,3 +457,99 @@ describe('readDimensions', () => {
     }
   });
 });
+
+describe('what a judged grade carries beyond its score', () => {
+  it("keeps a criterion's level and comment, and drops either when it is not text", () => {
+    const read = readGrade(
+      with_({
+        criteria: [
+          { name: 'Content', score: 1, band: 'Met', comment: 'A clear reason.' },
+          { name: 'Language', score: 0.5, band: 3, comment: { text: 'no' } },
+        ],
+      }),
+    );
+    expect(read?.criteria).toEqual([
+      { name: 'Content', score: 1, band: 'Met', comment: 'A clear reason.' },
+      { name: 'Language', score: 0.5 },
+    ]);
+  });
+
+  it('keeps each readable correction, with its explanation when it is text, and drops the rest', () => {
+    const read = readGrade(
+      with_({
+        corrections: [
+          { original: 'more better', corrected: 'better', explanation: 'One comparative.' },
+          { original: 'is', corrected: 'are', explanation: 42 },
+          { original: 'x' },
+          null,
+        ],
+      }),
+    );
+    expect(read?.corrections).toEqual([
+      { original: 'more better', corrected: 'better', explanation: 'One comparative.' },
+      { original: 'is', corrected: 'are' },
+    ]);
+    expect(readGrade(with_({ corrections: [null] }))).not.toHaveProperty('corrections');
+    expect(readGrade(with_({ corrections: 'none' }))).not.toHaveProperty('corrections');
+  });
+
+  it("keeps a grader's request for a person only when it is `true`", () => {
+    expect(readGrade(with_({ requiresHumanReview: true }))?.requiresHumanReview).toBe(true);
+    expect(readGrade(with_({ requiresHumanReview: 'yes' }))).not.toHaveProperty(
+      'requiresHumanReview',
+    );
+    expect(readGrade(with_({ requiresHumanReview: false }))).not.toHaveProperty(
+      'requiresHumanReview',
+    );
+  });
+});
+
+describe('readAssessResult for a spoken answer', () => {
+  const evidence = {
+    status: 'assessed',
+    recognizedText: 'what the engine heard',
+    transcript: { text: 'what was said' },
+  };
+  const transcript = (assessment: unknown) =>
+    (assessment as { transcript?: { text?: string } } | null)?.transcript?.text;
+
+  it('reads `pending` only when asked to, and as an unreadable judgement otherwise', () => {
+    expect(readAssessResult({ status: 'pending' }, { pending: true })).toEqual({
+      status: 'pending',
+    });
+    expect(readAssessResult({ status: 'pending' })).toMatchObject({
+      status: 'graded',
+      grade: null,
+    });
+  });
+
+  it('records the response the component names: the transcript, or by default what the engine heard', () => {
+    expect(
+      readAssessResult(
+        { status: 'graded', grade, assessment: evidence },
+        { responseText: transcript },
+      ),
+    ).toMatchObject({ responseText: 'what was said', recognizedText: 'what the engine heard' });
+    expect(readAssessResult({ status: 'graded', grade, assessment: evidence })).toMatchObject({
+      responseText: 'what the engine heard',
+    });
+  });
+
+  it('records no response when the reader of it throws or answers with something else', () => {
+    const throwing = () => {
+      throw new Error('a getter');
+    };
+    expect(
+      readAssessResult(
+        { status: 'graded', grade, assessment: evidence },
+        { responseText: throwing },
+      ),
+    ).toMatchObject({ responseText: undefined });
+    expect(
+      readAssessResult(
+        { status: 'graded', grade, assessment: evidence },
+        { responseText: () => 7 as unknown as string },
+      ),
+    ).toMatchObject({ responseText: undefined });
+  });
+});

@@ -357,8 +357,6 @@ not a right grade. Whether a model grades as your teachers do is what a calibrat
 - **Calling a model, storing reports and setting thresholds.** These stay yours.
 - **A marking queue for teachers.** `pendingGrade` and `routing` are the data one needs.
 - **Subgroup analysis.** Run `calibrationReport` on each group's pairs, and compare the reports.
-- **A component for spoken answers.** lk-core 1.9 grades them (below); lk-react's
-  `<SpeakingResponse>` comes next.
 
 ## Spoken answers (1.9)
 

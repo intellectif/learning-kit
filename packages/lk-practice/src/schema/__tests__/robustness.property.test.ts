@@ -48,7 +48,9 @@ describe('migrateState properties', () => {
         for (const key of path.slice(0, -1)) parent = parent[key];
         parent[path[path.length - 1] as string | number] = replacement;
         const result = migrateState(stored);
-        if (result.ok) expect(result.state).toEqual(stored);
+        // (revised in M7) As stored JSON: the read writes -0 as 0 (canonical
+        // JSON), and toEqual tells -0 from 0, so a -0 replacement failed here.
+        if (result.ok) expect(result.state).toEqual(JSON.parse(JSON.stringify(stored)));
       }),
       RUNS,
     );

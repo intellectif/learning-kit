@@ -1119,8 +1119,9 @@ it. It comes after the groundwork it needs, in this order.
    `written-response`, a rubric, recording limits, and a deferred grade.
    - **Server half done in lk-core 1.9** (2026-11-02): the type, drafts (`sr_*`),
      `gradeSpeakingResponse`, `aiSpeakingGradingRequest` (a request of its own, `speaking-grading`,
-     so the written facts keep their shape), grade and validation vectors. lk-react 23.4.1 shows the
-     type as unsupported until `<SpeakingResponse>`; a host draws it through `renderers`.
+     so the written facts keep their shape), grade and validation vectors.
+   - **`<SpeakingResponse>` in lk-react 23.5**, on the take machinery it now shares with
+     `<ReadAloud>`; a `pending` answer waits for a person's grade.
    - **`gradeSpeakingResponse`, pure.** Content and language criteria come from the judge, on the
      transcript; pronunciation and fluency criteria come from the engine's measures by default.
      `gradeFromRubric` computes the total.

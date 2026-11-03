@@ -47,6 +47,7 @@ import { GapSelect } from '../GapSelect/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
 import type { RecordingBinding } from '../ReadAloud/ReadAloud.js';
+import type { SpeakingAssessResult } from '../SpeakingResponse/SpeakingResponse.js';
 import { stopCaptureGroup } from '../shared/capture-registry.js';
 import {
   type SequenceSlotChannel,
@@ -1297,7 +1298,7 @@ function Player(props: InteractiveVideoProps) {
 
   // ── Rendering the questions ──────────────────────────────────────────
   const slotBindings = useMemo(() => {
-    const bindings = new Map<string, RecordingBinding>();
+    const bindings = new Map<string, RecordingBinding<SpeakingAssessResult>>();
     if (recordingBinding === undefined) {
       return bindings;
     }
@@ -1585,7 +1586,9 @@ function Player(props: InteractiveVideoProps) {
           <ReadAloud
             data={activity}
             {...common}
-            {...(binding !== undefined ? { recordingBinding: binding } : {})}
+            // A reading reads a spoken answer's `pending` as a judgement with no
+            // grade: the paper's binding is typed for both recorded types.
+            {...(binding !== undefined ? { recordingBinding: binding as RecordingBinding } : {})}
             {...(assessment !== undefined ? { assessment } : {})}
             {...(workletUrl !== undefined ? { workletUrl } : {})}
           />

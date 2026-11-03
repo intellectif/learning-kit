@@ -3,6 +3,7 @@
 import type {
   CriterionScore,
   GradeRecord,
+  InlineCorrection,
   ReadAloudDimension,
   ScoringDetail,
   ScoringOutcome,
@@ -78,9 +79,28 @@ export type AssessReading =
       /** The evidence when it is an object at all; whether it VALIDATES is the panel's question. */
       assessment: SpeechAssessment | null;
       recognizedText: string | undefined;
+      /** What the statement records as the learner's response; see {@link AssessReadOptions}. */
+      responseText: string | undefined;
     }
   | { status: 'unscorable'; code: string | undefined }
-  | { status: 'failed'; retryable: boolean };
+  | { status: 'failed'; retryable: boolean }
+  /** Judged, and waiting for a person's grade. Read only with `pending: true`. */
+  | { status: 'pending' };
+
+/** What a component reads of an assessor's answer beyond what every one reads. */
+export interface AssessReadOptions {
+  /**
+   * Read `{ status: 'pending' }` as a take a person will grade. Off, it is a
+   * status this reader does not know, and reads as a judgement with no grade:
+   * what a read-aloud has always shown for it.
+   */
+  pending?: boolean;
+  /**
+   * The text a statement records as the response, from the evidence. Default:
+   * what the engine recognised.
+   */
+  responseText?: (assessment: SpeechAssessment | null) => string | undefined;
+}
 
 /** One dimension row: a whole percentage, or `undefined` for a dimension nobody measured. */
 export interface DimensionReading {
@@ -174,11 +194,32 @@ function readCriterion(value: unknown): CriterionScore | null {
   if (score === null) {
     return null;
   }
+  // What a judge said of the criterion is display: a field that is not what
+  // it claims to be is dropped, and never costs the row.
+  const { band, comment } = value;
   return {
     name: value.name,
     ...(score !== undefined ? { score } : {}),
     ...(!isAbsent(maxScore) ? { maxScore } : {}),
     ...(notApplicable === true ? { notApplicable } : {}),
+    ...(typeof band === 'string' ? { band } : {}),
+    ...(typeof comment === 'string' ? { comment } : {}),
+  };
+}
+
+/** A correction a judge anchored in the answer: its two texts, and an explanation when it is text. */
+function readCorrection(value: unknown): InlineCorrection | null {
+  if (
+    !isRecord(value) ||
+    typeof value.original !== 'string' ||
+    typeof value.corrected !== 'string'
+  ) {
+    return null;
+  }
+  return {
+    original: value.original,
+    corrected: value.corrected,
+    ...(typeof value.explanation === 'string' ? { explanation: value.explanation } : {}),
   };
 }
 
@@ -263,6 +304,13 @@ export function readGrade(value: unknown): ReadGrade | null {
         })
       : undefined;
     const details = readDetails(value.details);
+    // Corrections are rows like criteria: each read alone, the unreadable dropped.
+    const corrections = Array.isArray(value.corrections)
+      ? value.corrections.flatMap((entry) => {
+          const correction = readCorrection(entry);
+          return correction === null ? [] : [correction];
+        })
+      : undefined;
     const grade: GradeRecord = {
       score,
       maxScore,
@@ -270,6 +318,8 @@ export function readGrade(value: unknown): ReadGrade | null {
       feedback: typeof value.feedback === 'string' ? value.feedback : null,
       ...(criteria !== undefined ? { criteria } : {}),
       ...(details !== undefined ? { details } : {}),
+      ...(corrections !== undefined && corrections.length > 0 ? { corrections } : {}),
+      ...(value.requiresHumanReview === true ? { requiresHumanReview: true } : {}),
     };
     return grade as ReadGrade;
   }, null);
@@ -342,12 +392,13 @@ export function readOutcome(value: unknown): OutcomeReading | undefined {
  * is read as a judgement: its grade when one can be read, its evidence when it
  * is an object. A judgement with neither is shown as could-not-be-graded.
  */
-export function readAssessResult(value: unknown): AssessReading {
+export function readAssessResult(value: unknown, options: AssessReadOptions = {}): AssessReading {
   const nothing: AssessReading = {
     status: 'graded',
     grade: null,
     assessment: null,
     recognizedText: undefined,
+    responseText: undefined,
   };
   return guarded((): AssessReading => {
     if (!isRecord(value)) {
@@ -362,6 +413,9 @@ export function readAssessResult(value: unknown): AssessReading {
         code: typeof value.code === 'string' ? value.code : undefined,
       };
     }
+    if (value.status === 'pending' && options.pending === true) {
+      return { status: 'pending' };
+    }
     if (value.status !== 'graded') {
       return nothing;
     }
@@ -371,7 +425,20 @@ export function readAssessResult(value: unknown): AssessReading {
         typeof assessment?.recognizedText === 'string' ? assessment.recognizedText : undefined,
       undefined,
     );
-    return { status: 'graded', grade: readGrade(value.grade), assessment, recognizedText };
+    const responseText =
+      options.responseText === undefined
+        ? recognizedText
+        : guarded(() => {
+            const text = options.responseText?.(assessment);
+            return typeof text === 'string' ? text : undefined;
+          }, undefined);
+    return {
+      status: 'graded',
+      grade: readGrade(value.grade),
+      assessment,
+      recognizedText,
+      responseText,
+    };
   }, nothing);
 }
 

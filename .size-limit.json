@@ -87,6 +87,13 @@
     "limit": "50 kB"
   },
   {
+    "name": "SpeakingResponse",
+    "path": "packages/lk-react/dist/components/SpeakingResponse.js",
+    "import": "{ SpeakingResponse }",
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
+    "limit": "50 kB"
+  },
+  {
     "name": "InteractiveVideo",
     "path": "packages/lk-react/dist/components/InteractiveVideo.js",
     "import": "{ InteractiveVideo }",

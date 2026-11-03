@@ -18,7 +18,7 @@ import type {
 import type { LearnerAi } from '../ai/LkAiProvider.js';
 import type { RecordedTake } from '../hooks/useSpeechRecorder.js';
 import type { LkStringsOverride } from '../i18n/strings.js';
-import type { ReadAloudAssessResult } from './ReadAloud/ReadAloud.js';
+import type { SpeakingAssessResult } from './SpeakingResponse/SpeakingResponse.js';
 
 /**
  * How an activity is being presented. This is the single switch that decides
@@ -444,8 +444,12 @@ export interface SequenceRecordingBinding {
    * nothing, which the component refuses to render. Settle it.
    */
   upload(take: RecordedTake, slot: SequenceRecordingSlot): Promise<RecordingRef>;
-  /** Judges the stored take. `practice` only; an exam never assesses on the client. */
-  assess?(ref: RecordingRef, slot: SequenceRecordingSlot): Promise<ReadAloudAssessResult>;
+  /**
+   * Judges the stored take. `practice` only; an exam never assesses on the client.
+   * `pending` (an answer a person will grade) is read by a spoken answer; a
+   * read-aloud reads it as a judgement with no grade, as it always has.
+   */
+  assess?(ref: RecordingRef, slot: SequenceRecordingSlot): Promise<SpeakingAssessResult>;
   /** A playable link to a stored take. `review` only. */
   playbackUrl?(ref: RecordingRef, slot: SequenceRecordingSlot): Promise<string>;
 }

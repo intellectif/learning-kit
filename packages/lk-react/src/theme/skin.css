@@ -1390,6 +1390,7 @@
  */
 @layer lk-skin {
   .lk-ra,
+  .lk-sr,
   .lk-pf {
     display: flex;
     flex-direction: column;
@@ -1405,6 +1406,7 @@
   }
 
   .lk-ra *,
+  .lk-sr *,
   .lk-pf * {
     box-sizing: border-box;
   }
@@ -1424,13 +1426,15 @@
     min-inline-size: 0;
   }
 
-  .lk-ra-title {
+  .lk-ra-title,
+  .lk-sr-title {
     margin: 0;
     font-size: var(--lk-font-size-lg);
     font-weight: var(--lk-font-weight-bold);
   }
 
-  .lk-ra-instructions {
+  .lk-ra-instructions,
+  .lk-sr-instructions {
     margin: 0;
     font-size: var(--lk-font-size-sm);
     color: var(--lk-color-text-muted);
@@ -1468,7 +1472,9 @@
 
   /* ── The recorder ──────────────────────────────────────────────────── */
   .lk-ra-recorder,
-  .lk-ra-actions {
+  .lk-sr-recorder,
+  .lk-ra-actions,
+  .lk-sr-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -1476,9 +1482,13 @@
   }
 
   .lk-ra-record,
+  .lk-sr-record,
   .lk-ra-stop,
+  .lk-sr-stop,
   .lk-ra-submit-blank,
+  .lk-sr-submit-blank,
   .lk-ra-retry,
+  .lk-sr-retry,
   .lk-pf-word-toggle,
   .lk-pf-word-play {
     padding: var(--lk-spacing-xs) var(--lk-spacing-md);
@@ -1493,9 +1503,13 @@
   }
 
   .lk-ra-record:hover:not(:disabled):not([aria-disabled="true"]),
+  .lk-sr-record:hover:not(:disabled):not([aria-disabled="true"]),
   .lk-ra-stop:hover:not(:disabled),
+  .lk-sr-stop:hover:not(:disabled),
   .lk-ra-submit-blank:hover:not(:disabled):not([aria-disabled="true"]),
+  .lk-sr-submit-blank:hover:not(:disabled):not([aria-disabled="true"]),
   .lk-ra-retry:hover:not(:disabled),
+  .lk-sr-retry:hover:not(:disabled),
   .lk-pf-word-toggle:hover,
   .lk-pf-word-play:hover {
     border-color: var(--lk-color-primary);
@@ -1504,25 +1518,34 @@
   /* The take budget is spent, or a submit is in flight: aria-disabled rather
      than disabled, so the control a learner comes back to keeps focus. */
   .lk-ra-record:disabled,
+  .lk-sr-record:disabled,
   .lk-ra-record[aria-disabled="true"],
+  .lk-sr-record[aria-disabled="true"],
   .lk-ra-stop:disabled,
+  .lk-sr-stop:disabled,
   .lk-ra-submit:disabled,
+  .lk-sr-submit:disabled,
   .lk-ra-submit[aria-disabled="true"],
+  .lk-sr-submit[aria-disabled="true"],
   .lk-ra-submit-blank:disabled,
-  .lk-ra-submit-blank[aria-disabled="true"] {
+  .lk-sr-submit-blank:disabled,
+  .lk-ra-submit-blank[aria-disabled="true"],
+  .lk-sr-submit-blank[aria-disabled="true"] {
     opacity: 0.55;
     cursor: default;
   }
 
   /* Recording is the one state a learner must read at a glance, and the stop
      control is the only way out of it. */
-  .lk-ra-stop {
+  .lk-ra-stop,
+  .lk-sr-stop {
     border-color: var(--lk-color-error);
     color: var(--lk-color-error);
     font-weight: var(--lk-font-weight-bold);
   }
 
-  .lk-ra-submit {
+  .lk-ra-submit,
+  .lk-sr-submit {
     padding: var(--lk-spacing-sm) var(--lk-spacing-lg);
     font: inherit;
     font-weight: var(--lk-font-weight-bold);
@@ -1534,13 +1557,17 @@
     transition: var(--lk-transition-fast);
   }
 
-  .lk-ra-submit:hover:not(:disabled):not([aria-disabled="true"]) {
+  .lk-ra-submit:hover:not(:disabled):not([aria-disabled="true"]),
+  .lk-sr-submit:hover:not(:disabled):not([aria-disabled="true"]) {
     background: var(--lk-color-primary-hover);
   }
 
   .lk-ra-progress,
+  .lk-sr-progress,
   .lk-ra-takes,
-  .lk-ra-pending {
+  .lk-sr-takes,
+  .lk-ra-pending,
+  .lk-sr-pending {
     flex: 1 0 100%;
     margin: 0;
     font-size: var(--lk-font-size-sm);
@@ -1555,7 +1582,8 @@
    * the end of a take are announced by the component — so a page that
    * overrides it away loses nothing a learner needs.
    */
-  .lk-ra-recorder[data-level]::after {
+  .lk-ra-recorder[data-level]::after,
+  .lk-sr-recorder[data-level]::after {
     content: "";
     flex: 1 0 100%;
     block-size: 4px;
@@ -1565,48 +1593,59 @@
     transition: var(--lk-transition-fast);
   }
 
-  .lk-ra-recorder[data-level="1"]::after {
+  .lk-ra-recorder[data-level="1"]::after,
+  .lk-sr-recorder[data-level="1"]::after {
     inline-size: 10%;
   }
 
-  .lk-ra-recorder[data-level="2"]::after {
+  .lk-ra-recorder[data-level="2"]::after,
+  .lk-sr-recorder[data-level="2"]::after {
     inline-size: 20%;
   }
 
-  .lk-ra-recorder[data-level="3"]::after {
+  .lk-ra-recorder[data-level="3"]::after,
+  .lk-sr-recorder[data-level="3"]::after {
     inline-size: 30%;
   }
 
-  .lk-ra-recorder[data-level="4"]::after {
+  .lk-ra-recorder[data-level="4"]::after,
+  .lk-sr-recorder[data-level="4"]::after {
     inline-size: 40%;
   }
 
-  .lk-ra-recorder[data-level="5"]::after {
+  .lk-ra-recorder[data-level="5"]::after,
+  .lk-sr-recorder[data-level="5"]::after {
     inline-size: 50%;
   }
 
-  .lk-ra-recorder[data-level="6"]::after {
+  .lk-ra-recorder[data-level="6"]::after,
+  .lk-sr-recorder[data-level="6"]::after {
     inline-size: 60%;
   }
 
-  .lk-ra-recorder[data-level="7"]::after {
+  .lk-ra-recorder[data-level="7"]::after,
+  .lk-sr-recorder[data-level="7"]::after {
     inline-size: 70%;
   }
 
-  .lk-ra-recorder[data-level="8"]::after {
+  .lk-ra-recorder[data-level="8"]::after,
+  .lk-sr-recorder[data-level="8"]::after {
     inline-size: 80%;
   }
 
-  .lk-ra-recorder[data-level="9"]::after {
+  .lk-ra-recorder[data-level="9"]::after,
+  .lk-sr-recorder[data-level="9"]::after {
     inline-size: 90%;
   }
 
-  .lk-ra-recorder[data-level="10"]::after {
+  .lk-ra-recorder[data-level="10"]::after,
+  .lk-sr-recorder[data-level="10"]::after {
     inline-size: 100%;
   }
 
   /* The learner's own take, and the one a review plays back. */
-  .lk-ra-take {
+  .lk-ra-take,
+  .lk-sr-take {
     display: block;
     inline-size: 100%;
   }
@@ -1617,6 +1656,7 @@
    * panel's notes are: nothing is wrong with the take itself.
    */
   .lk-ra-take-unavailable,
+  .lk-sr-take-unavailable,
   .lk-pf-audio-unavailable {
     margin: 0;
     padding-inline-start: var(--lk-spacing-sm);
@@ -1626,7 +1666,8 @@
   }
 
   /* ── What came back ────────────────────────────────────────────────── */
-  .lk-ra-alert {
+  .lk-ra-alert,
+  .lk-sr-alert {
     margin: 0;
     padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
     border-inline-start: 3px solid var(--lk-color-error);
@@ -1636,6 +1677,7 @@
   }
 
   .lk-ra-outcome,
+  .lk-sr-outcome,
   .lk-pf-grade {
     display: flex;
     flex-direction: column;
@@ -1643,6 +1685,7 @@
   }
 
   .lk-ra-grade,
+  .lk-sr-grade,
   .lk-pf-score {
     margin: 0;
     font-size: var(--lk-font-size-lg);
@@ -1650,6 +1693,7 @@
   }
 
   .lk-ra-grade-feedback,
+  .lk-sr-grade-feedback,
   .lk-pf-grade-feedback {
     margin: 0;
     color: var(--lk-color-text-muted);
@@ -1658,11 +1702,13 @@
   /* Passed or not is a word in the score sentence first; the colour is the
      second channel and never the only one. */
   .lk-ra-outcome[data-passed="true"] .lk-ra-grade,
+  .lk-sr-outcome[data-passed="true"] .lk-sr-grade,
   .lk-pf-grade[data-passed="true"] .lk-pf-score {
     color: var(--lk-color-success);
   }
 
   .lk-ra-outcome[data-passed="false"] .lk-ra-grade,
+  .lk-sr-outcome[data-passed="false"] .lk-sr-grade,
   .lk-pf-grade[data-passed="false"] .lk-pf-score {
     color: var(--lk-color-error);
   }
@@ -1692,6 +1738,103 @@
     margin: 0;
     font-size: var(--lk-font-size-lg);
     font-weight: var(--lk-font-weight-bold);
+  }
+
+  /* ── A spoken answer's own parts ───────────────────────────────────── */
+  /* The question is the activity: set apart as a reading's text is. */
+  .lk-sr-prompt {
+    margin: 0;
+    padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+    border-inline-start: 3px solid var(--lk-color-primary);
+    border-radius: var(--lk-radius-sm);
+    background: var(--lk-color-surface-raised);
+    font-size: var(--lk-font-size-lg);
+  }
+
+  .lk-sr-media .lk-media {
+    margin: 0;
+  }
+
+  .lk-sr-time-limit {
+    margin: 0;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  /* The grade's breakdown, the corrections and what was said. */
+  .lk-sr-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-sm);
+    padding: var(--lk-spacing-md);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    background: var(--lk-color-surface-raised);
+  }
+
+  .lk-sr-criteria,
+  .lk-sr-corrections {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-xs);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lk-sr-criterion {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lk-spacing-xs);
+    font-size: var(--lk-font-size-sm);
+  }
+
+  .lk-sr-criterion-name {
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-sr-criterion-comment,
+  .lk-sr-correction-explanation {
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-sr-criterion[data-na="true"] {
+    opacity: 0.6;
+  }
+
+  .lk-sr-correction {
+    font-size: var(--lk-font-size-sm);
+  }
+
+  .lk-sr-correction-original {
+    color: var(--lk-color-error);
+  }
+
+  .lk-sr-correction-corrected {
+    color: var(--lk-color-success);
+    text-decoration: none;
+  }
+
+  .lk-sr-review-flag {
+    margin: 0;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-warning);
+  }
+
+  .lk-sr-transcript {
+    margin: 0;
+  }
+
+  .lk-sr-transcript-label {
+    font-size: var(--lk-font-size-sm);
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-sr-transcript-text {
+    margin: var(--lk-spacing-xs) 0 0;
+    padding-inline-start: var(--lk-spacing-sm);
+    border-inline-start: 3px solid var(--lk-color-border);
   }
 
   /* ── The marks ─────────────────────────────────────────────────────── */
