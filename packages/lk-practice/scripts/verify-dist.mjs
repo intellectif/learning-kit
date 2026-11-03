@@ -57,6 +57,9 @@ const REQUIRED_EXPORTS = [
 /** Everything `./testing` exports at run time (revised in M8). */
 const TESTING_EXPORTS = ['simulateLearner'];
 
+/** Everything `./lk-core` exports at run time (M10); it must not load lk-core. */
+const LK_CORE_EXPORTS = ['evidenceFromOutcome', 'skillOutcomesFromCriteria'];
+
 /** The vector files vectors/replay.mjs reads. */
 const CORPORA = ['evidence.json', 'stage.json', 'log.json', 'plan.json', 'contracts.json'];
 
@@ -292,9 +295,9 @@ function implOf(module) {
   };
 }
 
-/** Replays every vector the root entry can run; returns what went wrong and how many ran. */
-function replayVectors(format, module) {
-  const impl = implOf(module);
+/** Replays every vector the root and `./lk-core` entries can run; returns what went wrong and how many ran. */
+function replayVectors(format, module, lkCore) {
+  const impl = { ...implOf(module), ...lkCore };
   const problems = [];
   const skipped = new Set();
   let count = 0;
@@ -348,6 +351,10 @@ for (const expected of [
   'index.cjs',
   'index.d.ts',
   'index.d.cts',
+  'lk-core.js',
+  'lk-core.cjs',
+  'lk-core.d.ts',
+  'lk-core.d.cts',
   'testing.js',
   'testing.cjs',
   'testing.d.ts',
@@ -418,6 +425,8 @@ let esm;
 let cjs;
 let esmTesting;
 let cjsTesting;
+let esmLkCore;
+let cjsLkCore;
 const replayed = {};
 globalThis.Date = TrappedDate;
 Math.random = trap('Math.random()');
@@ -427,13 +436,15 @@ try {
   cjs = require(join(DIST, 'index.cjs'));
   esmTesting = await import(pathToFileURL(join(DIST, 'testing.js')).href);
   cjsTesting = require(join(DIST, 'testing.cjs'));
+  esmLkCore = await import(pathToFileURL(join(DIST, 'lk-core.js')).href);
+  cjsLkCore = require(join(DIST, 'lk-core.cjs'));
   failures.push(...smoke('ESM', esm), ...smoke('CJS', cjs));
   failures.push(...smokeTesting('ESM', esm, esmTesting), ...smokeTesting('CJS', cjs, cjsTesting));
-  for (const [format, module] of [
-    ['ESM', esm],
-    ['CJS', cjs],
+  for (const [format, module, lkCore] of [
+    ['ESM', esm, esmLkCore],
+    ['CJS', cjs, cjsLkCore],
   ]) {
-    const { problems, count } = replayVectors(format, module);
+    const { problems, count } = replayVectors(format, module, lkCore);
     failures.push(...problems);
     replayed[format] = count;
   }
@@ -451,6 +462,7 @@ for (const source of new Set(sprung)) {
 for (const [entry, names, esmModule, cjsModule] of [
   ['index', REQUIRED_EXPORTS, esm, cjs],
   ['testing', TESTING_EXPORTS, esmTesting, cjsTesting],
+  ['lk-core', LK_CORE_EXPORTS, esmLkCore, cjsLkCore],
 ]) {
   if (esmModule === undefined || cjsModule === undefined) continue;
   const expected = [...names].sort().join(', ');
@@ -479,5 +491,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  `verify-dist OK: ESM and CommonJS export the same ${REQUIRED_EXPORTS.length} root and ${TESTING_EXPORTS.length} testing names, ${files.length} built files are pure, both builds load and run under the purity trap and replay ${replayed.ESM} vectors there (the ${SRC_ONLY.length} kinds that call unexported functions replay on src/), the build loads only ts-fsrs, and nothing names lk-core or exposes a ts-fsrs type.`,
+  `verify-dist OK: ESM and CommonJS export the same ${REQUIRED_EXPORTS.length} root, ${TESTING_EXPORTS.length} testing and ${LK_CORE_EXPORTS.length} lk-core names, ${files.length} built files are pure, both builds load and run under the purity trap and replay ${replayed.ESM} vectors there (the ${SRC_ONLY.length} kinds that call unexported functions replay on src/), the build loads only ts-fsrs, and nothing names lk-core or exposes a ts-fsrs type.`,
 );

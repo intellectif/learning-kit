@@ -6,14 +6,23 @@
 // into a base skill and of a cycle; the per-skill facts of a generation
 // request (R9.1), its recent lapses and weakest skills; the candidate checks; the proof gate, with an executable
 // proof whose starter fails and whose solution passes; that an unproven item
-// is never recorded; the grader output checks; and the guards on each
-// request's inputs. The expected values are
+// is never recorded; the grader output checks; the guards on each
+// request's inputs; and (revised in M10) the `./lk-core` adapter over real
+// lk-core outcomes, which this script makes with lk-core, a devDependency.
+// The expected values are
 // recorded from src/ through vectors/replay.mjs, so the file pins the current
 // behaviour; the unit tests check the same rules by hand. Run with
 // `pnpm vectors:contracts`, then review the diff: a changed outcome is a
 // behaviour change and needs a version (D26).
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import {
+  evaluate,
+  evaluateTries,
+  outcomeFromGrade,
+  outcomeFromRoutedGrade,
+  outcomeFromUnscorable,
+} from '@intellectif/lk-core';
 import { CORPUS_VERSION, record } from '../vectors/replay.mjs';
 import { loadSrc, PACKAGE } from './load-src.mjs';
 
@@ -540,11 +549,169 @@ const grades = [
   },
 ];
 
-const vectors = [...decompositions, ...generations, ...grades];
+// ─── lk-core outcomes (R7.7; revised in M10), made by lk-core where it makes them ───
+
+const MC = {
+  schemaVersion: '1.0',
+  type: 'multiple-choice',
+  id: 'mc1',
+  title: 'Past tense',
+  question: 'Which is the past tense of "go"?',
+  mode: 'single',
+  scoringStrategy: 'all-or-nothing',
+  options: [
+    { id: 'o1', text: 'goed', isCorrect: false },
+    { id: 'o2', text: 'went', isCorrect: true },
+  ],
+};
+const ESSAY = {
+  schemaVersion: '1.0',
+  type: 'written-response',
+  id: 'wr1',
+  title: 'Your weekend',
+  prompt: 'Describe your weekend.',
+  minWords: 3,
+  maxWords: 120,
+  rubric: {
+    criteria: [
+      { name: 'Grammar', weight: 1 },
+      { name: 'Task', weight: 1 },
+    ],
+  },
+};
+const mcTask = {
+  id: 'mc1',
+  skills: [{ skillId: 'past-tense', weight: 1 }],
+  stage: 'recognise',
+  origin: 'authored',
+  status: 'proven',
+};
+const essayTask = {
+  id: 'wr1',
+  skills: [
+    { skillId: 'grammar', weight: 0.5 },
+    { skillId: 'task', weight: 0.5 },
+  ],
+  stage: 'produce',
+  criteria: [
+    { name: 'Grammar', skillId: 'grammar' },
+    { name: 'Spelling', skillId: 'grammar' },
+    { name: 'Task', skillId: 'task' },
+  ],
+  origin: 'authored',
+  status: 'proven',
+};
+const essayGrade = {
+  score: 0.75,
+  maxScore: 1,
+  passed: true,
+  feedback: null,
+  criteria: [
+    { name: 'Grammar', score: 1, maxScore: 2 },
+    { name: 'Task', score: 2, maxScore: 2 },
+    { name: 'Style', notApplicable: true },
+  ],
+  confidence: 'high',
+  grader: { kind: 'ai', id: 'judge', model: 'model-x', promptHash: 'p1' },
+};
+const mcMeta = { id: 'o1', itemId: 'mc1', at: T0 };
+const essayMeta = { id: 'o2', itemId: 'wr1', at: T0, attempts: 0, hintsUsed: 0 };
+const toPerson = { to: 'person', reasons: ['unsure'] };
+const mcRight = () => evaluate(MC, { type: 'multiple-choice', selectedOptionIds: ['o2'] });
+const essayGraded = (over) => ({
+  outcome: outcomeFromGrade({ ...essayGrade, ...over }),
+  task: essayTask,
+  meta: essayMeta,
+});
+
+const outcomes = [
+  {
+    kind: 'outcome',
+    name: 'lk-core outcomes: scored, graded by each grader, deferred by reason, routed to a person, never answered, unscorable, and the throws',
+    evidence: [
+      { outcome: mcRight(), task: mcTask, meta: mcMeta },
+      {
+        outcome: evaluate(MC, { type: 'multiple-choice', selectedOptionIds: ['o1'] }),
+        task: mcTask,
+        meta: { ...mcMeta, context: 'exam', durationMs: 4000 },
+      },
+      essayGraded({}),
+      essayGraded({ confidence: undefined }),
+      essayGraded({ confidence: 'low', requiresHumanReview: true }),
+      essayGraded({ grader: undefined }),
+      {
+        ...essayGraded({ grader: { kind: 'human', id: 'teacher-7' }, routing: toPerson }),
+        meta: { ...essayMeta, confirms: 'o0' },
+      },
+      essayGraded({ routing: toPerson }),
+      {
+        outcome: outcomeFromRoutedGrade(essayGrade, toPerson),
+        task: essayTask,
+        meta: essayMeta,
+      },
+      {
+        outcome: outcomeFromRoutedGrade(essayGrade, { to: 'model', reasons: [] }),
+        task: essayTask,
+        meta: essayMeta,
+      },
+      {
+        outcome: evaluate(ESSAY, {
+          type: 'written-response',
+          text: 'I went to the park.',
+          wordCount: 5,
+        }),
+        task: essayTask,
+        meta: essayMeta,
+      },
+      essayGraded({ score: 5 }),
+      { outcome: evaluateTries(MC, []).outcome, task: mcTask, meta: mcMeta },
+      {
+        outcome: outcomeFromUnscorable({ code: 'UNKNOWN_TYPE', reason: 'not registered' }),
+        task: mcTask,
+        meta: mcMeta,
+      },
+      { outcome: { status: 'other' }, task: mcTask, meta: mcMeta },
+      { outcome: mcRight(), task: mcTask, meta: { ...mcMeta, itemId: 'wr1' } },
+      {
+        outcome: { status: 'graded', score: 3, maxScore: 1, passed: true, grade: essayGrade },
+        task: essayTask,
+        meta: essayMeta,
+      },
+    ].map((row) => JSON.parse(JSON.stringify(row))),
+  },
+  {
+    kind: 'outcome',
+    name: 'lk-core criteria to skill outcomes: not applicable, missing numbers, a repeated name, two names on one skill, an unbound name, a task without criteria',
+    criteria: [
+      { criteria: essayGrade.criteria, task: essayTask },
+      {
+        criteria: [
+          { name: 'Grammar', score: 1, maxScore: 1, notApplicable: true },
+          { name: 'Task', score: 1 },
+          { name: 'Spelling', maxScore: 2 },
+          { name: 'Unbound', score: 1, maxScore: 1 },
+        ],
+        task: essayTask,
+      },
+      {
+        criteria: [
+          { name: 'Spelling', score: 1, maxScore: 2 },
+          { name: 'Grammar', score: 0, maxScore: 1 },
+          { name: 'Spelling', score: 1, maxScore: 1 },
+          { name: 'Task', score: 2, maxScore: 2 },
+        ],
+        task: essayTask,
+      },
+      { criteria: essayGrade.criteria, task: mcTask },
+    ].map((row) => JSON.parse(JSON.stringify(row))),
+  },
+];
+
+const vectors = [...decompositions, ...generations, ...grades, ...outcomes];
 
 const body = {
   $comment:
-    'Contract vectors for @intellectif/lk-practice (criteria 11 and 12), generated by scripts/contracts-vectors.mjs and run by vectors/replay.mjs. `decompose` runs decompositionRequest, checkDecomposition, admitExtension and composeGraph, then (with `steps`) a record against the composed graph and a full replay. `generate` runs `steps` through createPractice(config), plans `request`, then runs generationRequest for the target of `targetSkill` (with the fields of `target` over it, under `requestConfig` when given), checkCandidates, admitCandidate for each proof with a record of each admitted item, and a record of each accepted candidate stored without a proof. `grade` runs checkGradeResult over `rows` and evidenceFromGrade over `evidence`. A call that throws is recorded as its error name. Floats compare at a relative 1e-9; integers, strings, null and every time exactly.',
+    'Contract vectors for @intellectif/lk-practice (criteria 11, 12 and 16), generated by scripts/contracts-vectors.mjs and run by vectors/replay.mjs. `decompose` runs decompositionRequest, checkDecomposition, admitExtension and composeGraph, then (with `steps`) a record against the composed graph and a full replay. `generate` runs `steps` through createPractice(config), plans `request`, then runs generationRequest for the target of `targetSkill` (with the fields of `target` over it, under `requestConfig` when given), checkCandidates, admitCandidate for each proof with a record of each admitted item, and a record of each accepted candidate stored without a proof. `grade` runs checkGradeResult over `rows` and evidenceFromGrade over `evidence`. `outcome` (M10) runs evidenceFromOutcome over `evidence`, whose outcomes lk-core made where it makes them, and skillOutcomesFromCriteria over `criteria`. A call that throws is recorded as its error name. Floats compare at a relative 1e-9; integers, strings, null and every time exactly.',
   version: CORPUS_VERSION,
   vectors: record(impl, vectors),
 };
@@ -554,5 +721,5 @@ writeFileSync(
   'utf8',
 );
 console.log(
-  `contract vectors: ${decompositions.length} decompose, ${generations.length} generate, ${grades.length} grade`,
+  `contract vectors: ${decompositions.length} decompose, ${generations.length} generate, ${grades.length} grade, ${outcomes.length} outcome`,
 );

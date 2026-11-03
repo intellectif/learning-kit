@@ -221,12 +221,105 @@ Commands, with `<branch>` and `<title>` from the milestone:
 - **Scope:** `./lk-core` subpath (design 5.10): `evidenceFromOutcome`, `skillOutcomesFromCriteria`; the contract test with `@intellectif/lk-core` as a devDependency.
 - **Files:** `src/adapters/lk-core/*`, `package.json` (exports), `.size-limit.json`, `api/surface.md`, `scripts/verify-dist.mjs` (new export), `.changeset/lk-practice-lk-core-adapter.md`, docs.
 - **Tasks:**
-  - [ ] Map every `ItemOutcome` status and `CriterionScore` case (R7.7); routed-to-person and deferred to `pending`.
-  - [ ] Type test: structural types accept the real `lk-core` types; runtime test over real `evaluate` outputs.
-  - [ ] Appendix B example type-checks against the built package.
+  - [x] Map every `ItemOutcome` status and `CriterionScore` case (R7.7); routed-to-person and deferred to `pending`.
+  - [x] Type test: structural types accept the real `lk-core` types; runtime test over real `evaluate` outputs.
+  - [x] Appendix B example type-checks against the built package.
 - **Gates:** `verify-dist`: still no `@intellectif/lk-core` import in `dist/`; not added to `check-release-plan.mjs`.
 - **Acceptance:** criteria 16, 17, 18.
-- **Changeset:** minor.
+- **As built (revised in M10):** `src/adapters/lk-core/` (the `./lk-core` entry), the contract test against the real lk-core, the `outcome` vectors in `contracts.json` (made by lk-core in `scripts/contracts-vectors.mjs`), the Appendix B placement flow in `log.json` (criterion 17), and `examples/appendix-b.ts`, type-checked against `dist/` (criterion 18). Two choices R7.7 left open are recorded there (revised in M10): a never-answered slot records nothing, and a person's own grade is never held. `adapters/` joins the 100% coverage gate; every adapter rule was mutated by hand and each mutant fails a test.
+- **Changeset:** minor, `0.1.0` to `0.2.0`.
+
+## After M10: from built to proven
+
+M1 to M10 build the engine and connect it to lk-core. Nothing yet shows that a learner using it
+learns more than with card-level spaced repetition (FSRS on flashcards, as Anki schedules them).
+The milestones below make that claim measurable, then test it. Each has an exit that is a number,
+not a feature.
+
+**What "better" means here.** For the same practice time:
+
+1. **It predicts better:** before each attempt, its predicted chance of success is closer to
+   what happens (log loss, calibration) than card-level FSRS on the same log.
+2. **Learners remember more:** a delayed test, 30 days on, scores higher.
+3. **Learners can do more:** tasks never seen before, on the same skills, score higher. Cards
+   train recall of the card; skills should transfer.
+4. **Learners get further:** they reach the skills a course targets sooner, with fewer reviews
+   of what they already know and no tasks they are not ready for.
+
+On flashcards, FSRS has an open benchmark for (1), and spaced repetition has decades of studies
+for (2). Points (3) and (4) are what a skill layer adds, and the reason to have built one; all four
+need data from real learners before this package can claim them.
+
+### M11 - Engine debts the simulator can show
+
+- **Branch:** `feat/lk-practice-engine-debts`. No real data needed.
+- **Tasks:**
+  - [ ] A simulated learner whose memory consolidates with spaced practice (an FSRS-like true
+    memory), so the simulator can show what spacing is worth. Today recall depends only on time
+    since the last attempt.
+  - [ ] Count one memory review per skill per day; today twenty answers in one sitting are
+    twenty reviews.
+  - [ ] Flag a leech again every half threshold after it is unsuspended, as card schedulers do.
+  - [ ] Mastery needs a settled ability (an uncertainty bound), to cut the 7-in-20 false
+    masteries at an expected success of 0.73 (design 13).
+  - [ ] Shorten the wait after one failed mastery check by a learner otherwise passing them.
+  - [ ] Explain why observed success does not follow `targetSuccess` (design 13), and fix it.
+- **Exit:** on the new simulator, spaced practice beats massed practice for the same number of
+  attempts; false masteries below 1 in 20 at an expected success of 0.73; a learner at 0.95
+  mastered by day 45 in 19 of 20 seeds.
+
+### M12 - First host, real logs
+
+- **Where:** the first host, not this repository. This repository ships what the host needs: a
+  storage and integration guide (log table, unique ids, state cache, replay on a graph change).
+- **Tasks:**
+  - [ ] One course's lk-core activities tagged with skills; every attempt recorded through
+    `evidenceFromOutcome`; plans used for at least one practice surface.
+  - [ ] A consented, anonymised export of logs (`exportReviewHistory`) for analysis.
+- **Exit:** at least 50 learners with 4 weeks of logs each.
+
+### M13 - Prediction benchmark
+
+- **Branch:** `feat/lk-practice-benchmark`.
+- **Tasks:**
+  - [ ] `bench/evaluate.mjs`: replay a log; before each evidence entry, record the predicted
+    chance of success (retrievability times the ability's expected success); after the log, log
+    loss, calibration by bin and AUC.
+  - [ ] Baselines on the same log: card-level FSRS (each item its own card), skill memory without
+    ability, ability without memory, and a constant.
+  - [ ] Run it on the M12 logs and on the simulator.
+- **Exit:** a report in `docs/` with the numbers. Lower log loss than card-level FSRS on items that
+  repeat is claim (1); on generated items, seen once, card-level FSRS cannot predict at all.
+
+### M14 - Parameters fitted from data
+
+- **Tasks:**
+  - [ ] Fit FSRS weights per course, and later per learner, from exported reviews, as Anki's
+    optimiser does, and pass them to `fsrsMemoryModel({ weights })`.
+  - [ ] Fit the Elo step, `stageOffset`, `stageSeconds` and the mastery thresholds on the M12
+    logs; they are placeholders today (design 13).
+- **Exit:** fitted parameters lower held-out log loss in the M13 benchmark; the new defaults ship
+  in a minor with **Action required** (a configuration change is a replay).
+
+### M15 - Generated practice that hits its target
+
+- **Tasks:**
+  - [ ] A reference generator flow: plan targets, lk-core activity generation, the proof gate,
+    `admitCandidate`.
+  - [ ] Measure each generated task's observed success against its target's expected success.
+- **Exit:** observed success on generated tasks within 0.1 of the target on average, so a
+  learner practises at the intended difficulty without anyone writing cards.
+
+### M16 - A learning-gain experiment
+
+- **Where:** the first host, with a pre-registered analysis.
+- **Tasks:**
+  - [ ] Randomise learners between this planner and a baseline (card-level FSRS on the same
+    items, or the course's fixed order).
+  - [ ] Measure claims (2), (3) and (4): a delayed test at 30 days on seen and unseen tasks, and
+    time to the course's target skills.
+- **Exit:** a significant gain on at least one claim with no loss on the others. That result,
+  not a feature list, is what "better than Anki" means, and it is what `1.0.0` waits for.
 
 ## Later
 

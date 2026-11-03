@@ -127,6 +127,12 @@
     "limit": "39 kB"
   },
   {
+    "name": "lk-practice/lk-core: evidenceFromOutcome",
+    "path": "packages/lk-practice/dist/lk-core.js",
+    "import": "{ evidenceFromOutcome }",
+    "limit": "5 kB"
+  },
+  {
     "name": "lk-practice/testing: simulateLearner",
     "path": "packages/lk-practice/dist/testing.js",
     "import": "{ simulateLearner }",

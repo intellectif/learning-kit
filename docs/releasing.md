@@ -89,6 +89,12 @@ The steps below name lk-azure. For lk-practice:
 
    pnpm's `There are no new packages that should be published` means one of these failed: the
    package is still private, or that version is already on npm.
+
+   On npm, a brand-new package may first show a placeholder version `0.0.0-stage` ("Temporary
+   Holding Version"). npm creates it when a package's first version is staged
+   (https://docs.npmjs.com/staged-publishing), and the real version becomes `latest` once it is
+   published; lk-practice 0.1.0 replaced it within a minute. It is harmless: check
+   `npm view <package> dist-tags` shows `latest` on the real version.
 2. On your machine, check out that PR's branch and build the new package and lk-core:
 
    ```bash

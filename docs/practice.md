@@ -294,6 +294,36 @@ if (checked.ok) {
 A criterion the item binds to a skill (`criteria: [{ name, skillId }]`) becomes that skill's outcome.
 An `ai` grade without a confidence counts as `medium`.
 
+## Outcomes from lk-core
+
+If your activities are `@intellectif/lk-core` activities, `@intellectif/lk-practice/lk-core` turns
+the outcome `evaluate` returns into evidence. It reads lk-core's shapes without importing lk-core, so
+either package can move without the other.
+
+```ts
+import { evaluate } from '@intellectif/lk-core';
+import { evidenceFromOutcome } from '@intellectif/lk-practice/lk-core';
+
+const outcome = evaluate(activity, response);
+const evidence = evidenceFromOutcome(outcome, item, { id: attemptId, itemId: item.id, at, attempts, hintsUsed });
+if (evidence !== null) practice.record(state, { graph, item, evidence });
+```
+
+| lk-core outcome | Evidence |
+|---|---|
+| `scored` | an `auto` grade with the outcome's score |
+| `graded` | the grade's grader (`auto` when it names none), confidence and review flag; its rubric criteria become skill outcomes through the item's `criteria` |
+| `graded`, a model's grade routed to a person | held, `routed-to-person` |
+| `deferred`, awaiting human review | held, `routed-to-person` |
+| `deferred`, awaiting async grading, or a rejected grade | held, `deferred` |
+| `deferred`, never answered (`no_response_recorded`) | `null`: nothing to record |
+| `unscorable` | `null` |
+
+When the grade arrives, record it with `confirms` set to the held evidence's id. A person's own grade
+is never held, even when the model's grade it replaces was routed. A criterion that is
+`notApplicable` or has no score is skipped; `skillOutcomesFromCriteria` gives the per-skill outcomes
+alone.
+
 ## New skills for a learner's goal
 
 When a learner sets a goal the graph does not cover, a model may propose the skills:

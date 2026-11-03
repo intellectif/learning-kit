@@ -6384,6 +6384,721 @@
     },
     {
       "kind": "log",
+      "name": "the Appendix B placement flow: a prior per objective at its placed stage, credit where policy grants it, then practice",
+      "learnerId": "l1",
+      "graphs": {
+        "main": {
+          "version": "g1",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "b",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "c",
+              "knowledge": "declarative"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "hard"
+            }
+          ]
+        },
+        "next": {
+          "version": "g2",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "b",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "c",
+              "knowledge": "declarative"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "hard"
+            }
+          ]
+        },
+        "grown": {
+          "version": "g3",
+          "skills": [
+            {
+              "id": "a",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "b",
+              "knowledge": "declarative",
+              "stages": ["recall", "produce"]
+            },
+            {
+              "id": "d",
+              "knowledge": "procedural"
+            }
+          ],
+          "edges": [
+            {
+              "kind": "prerequisite",
+              "from": "a",
+              "to": "b",
+              "strength": "hard"
+            }
+          ]
+        }
+      },
+      "history": ["l1"],
+      "steps": [
+        {
+          "act": {
+            "id": "prior:pl1:a",
+            "at": 1767225600000,
+            "action": {
+              "kind": "prior",
+              "skillId": "a",
+              "stage": "produce",
+              "theta": 1.2,
+              "pseudoCount": 10
+            }
+          }
+        },
+        {
+          "act": {
+            "id": "place:pl1:a",
+            "at": 1767225600000,
+            "action": {
+              "kind": "place",
+              "skillId": "a",
+              "stage": "produce",
+              "credited": false
+            }
+          }
+        },
+        {
+          "act": {
+            "id": "prior:pl1:c",
+            "at": 1767225600000,
+            "action": {
+              "kind": "prior",
+              "skillId": "c",
+              "theta": -0.4,
+              "pseudoCount": 10
+            }
+          }
+        },
+        {
+          "act": {
+            "id": "place:pl1:b",
+            "at": 1767225600000,
+            "action": {
+              "kind": "place",
+              "skillId": "b",
+              "stage": "produce",
+              "credited": true
+            }
+          }
+        },
+        {
+          "evidence": {
+            "id": "e1",
+            "itemId": "i-a-produce",
+            "at": 1767312000000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "i-a-produce",
+            "skills": [
+              {
+                "skillId": "a",
+                "weight": 1
+              }
+            ],
+            "stage": "produce",
+            "origin": "generated",
+            "status": "proven"
+          }
+        },
+        {
+          "evidence": {
+            "id": "e2",
+            "itemId": "i-c-recognise",
+            "at": 1767312060000,
+            "source": {
+              "kind": "auto",
+              "score": 1,
+              "maxScore": 1,
+              "passed": true
+            }
+          },
+          "item": {
+            "id": "i-c-recognise",
+            "skills": [
+              {
+                "skillId": "c",
+                "weight": 1
+              }
+            ],
+            "stage": "recognise",
+            "origin": "generated",
+            "status": "proven"
+          }
+        }
+      ],
+      "now": [1767398400000],
+      "expected": {
+        "configHash": "5067a166c2be0874",
+        "steps": [
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "skill.prior-set",
+                "at": 1767225600000,
+                "skillId": "a",
+                "stage": "produce",
+                "theta": 1.2,
+                "pseudoCount": 10
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "skill.placed",
+                "at": 1767225600000,
+                "skillId": "a",
+                "stage": "produce",
+                "credited": false
+              },
+              {
+                "type": "skill.started",
+                "at": 1767225600000,
+                "skillId": "a",
+                "stage": "produce"
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "skill.prior-set",
+                "at": 1767225600000,
+                "skillId": "c",
+                "stage": "recognise",
+                "theta": -0.4,
+                "pseudoCount": 10
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "skill.placed",
+                "at": 1767225600000,
+                "skillId": "b",
+                "stage": "produce",
+                "credited": true
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "review.recorded",
+                "at": 1767312000000,
+                "evidenceId": "e1",
+                "skillId": "a",
+                "stage": "produce",
+                "rating": "good",
+                "due": 1767398400000
+              }
+            ]
+          },
+          {
+            "kind": "applied",
+            "events": [
+              {
+                "type": "skill.started",
+                "at": 1767312060000,
+                "skillId": "c",
+                "stage": "recognise"
+              },
+              {
+                "type": "review.recorded",
+                "at": 1767312060000,
+                "evidenceId": "e2",
+                "skillId": "c",
+                "stage": "recognise",
+                "rating": "good",
+                "due": 1767398460000
+              }
+            ]
+          }
+        ],
+        "entries": [
+          {
+            "schemaVersion": 1,
+            "seq": 0,
+            "at": 1767225600000,
+            "configHash": "5067a166c2be0874",
+            "kind": "host",
+            "id": "prior:pl1:a",
+            "action": {
+              "kind": "prior",
+              "skillId": "a",
+              "stage": "produce",
+              "theta": 1.2,
+              "pseudoCount": 10
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 1,
+            "at": 1767225600000,
+            "configHash": "5067a166c2be0874",
+            "kind": "host",
+            "id": "place:pl1:a",
+            "action": {
+              "kind": "place",
+              "skillId": "a",
+              "stage": "produce",
+              "credited": false
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 2,
+            "at": 1767225600000,
+            "configHash": "5067a166c2be0874",
+            "kind": "host",
+            "id": "prior:pl1:c",
+            "action": {
+              "kind": "prior",
+              "skillId": "c",
+              "theta": -0.4,
+              "pseudoCount": 10
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 3,
+            "at": 1767225600000,
+            "configHash": "5067a166c2be0874",
+            "kind": "host",
+            "id": "place:pl1:b",
+            "action": {
+              "kind": "place",
+              "skillId": "b",
+              "stage": "produce",
+              "credited": true
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 4,
+            "at": 1767312000000,
+            "configHash": "5067a166c2be0874",
+            "kind": "evidence",
+            "evidence": {
+              "id": "e1",
+              "itemId": "i-a-produce",
+              "at": 1767312000000,
+              "source": {
+                "kind": "auto",
+                "score": 1,
+                "maxScore": 1,
+                "passed": true
+              }
+            },
+            "task": {
+              "itemId": "i-a-produce",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "weight": 1
+                }
+              ],
+              "stage": "produce",
+              "difficulty": 0,
+              "origin": "generated"
+            }
+          },
+          {
+            "schemaVersion": 1,
+            "seq": 5,
+            "at": 1767312060000,
+            "configHash": "5067a166c2be0874",
+            "kind": "evidence",
+            "evidence": {
+              "id": "e2",
+              "itemId": "i-c-recognise",
+              "at": 1767312060000,
+              "source": {
+                "kind": "auto",
+                "score": 1,
+                "maxScore": 1,
+                "passed": true
+              }
+            },
+            "task": {
+              "itemId": "i-c-recognise",
+              "skills": [
+                {
+                  "skillId": "c",
+                  "weight": 1
+                }
+              ],
+              "stage": "recognise",
+              "difficulty": 0,
+              "origin": "generated"
+            }
+          }
+        ],
+        "state": {
+          "schemaVersion": 1,
+          "learnerId": "l1",
+          "graphVersion": "g1",
+          "configHash": "5067a166c2be0874",
+          "log": {
+            "length": 6,
+            "lastAt": 1767312060000,
+            "hash": "66318cfc9f7e7d91"
+          },
+          "skills": {
+            "a": {
+              "stage": "produce",
+              "startedAt": 1767225600000,
+              "unlockedAt": null,
+              "credited": false,
+              "suspended": null,
+              "memories": {
+                "produce": {
+                  "model": "fsrs-7@1",
+                  "memory": {
+                    "stabilityFast": 3.13768,
+                    "stability": 3.9221,
+                    "difficulty": 3.53072398,
+                    "state": 2,
+                    "learningStep": 0,
+                    "scheduleStatus": "review",
+                    "dueAt": 1767724795164,
+                    "lastReviewAt": 1767312000000
+                  },
+                  "due": 1767398400000,
+                  "modelDue": 1767724795164,
+                  "lastReviewAt": 1767312000000,
+                  "reviews": 1,
+                  "lapses": 0,
+                  "streak": {
+                    "successes": 1,
+                    "firstSuccessAt": 1767312000000,
+                    "lastSuccessAt": 1767312000000,
+                    "lapses": 0
+                  },
+                  "superseded": false
+                }
+              },
+              "ability": {
+                "produce": {
+                  "theta": 1.354316811000655,
+                  "n": 11
+                }
+              },
+              "mastered": false,
+              "evidenceCount": 1,
+              "lastLapseAt": null,
+              "top": {
+                "successes": 1,
+                "firstSuccessAt": 1767312000000,
+                "lastSuccessAt": 1767312000000,
+                "lastWasLapse": false
+              }
+            },
+            "b": {
+              "stage": "produce",
+              "startedAt": null,
+              "unlockedAt": null,
+              "credited": true,
+              "suspended": null,
+              "memories": {},
+              "ability": {},
+              "mastered": false,
+              "evidenceCount": 0,
+              "lastLapseAt": null,
+              "top": {
+                "successes": 0,
+                "firstSuccessAt": null,
+                "lastSuccessAt": null,
+                "lastWasLapse": false
+              }
+            },
+            "c": {
+              "stage": "recognise",
+              "startedAt": 1767312060000,
+              "unlockedAt": null,
+              "credited": false,
+              "suspended": null,
+              "memories": {
+                "recognise": {
+                  "model": "fsrs-7@1",
+                  "memory": {
+                    "stabilityFast": 3.13768,
+                    "stability": 3.9221,
+                    "difficulty": 3.53072398,
+                    "state": 2,
+                    "learningStep": 0,
+                    "scheduleStatus": "review",
+                    "dueAt": 1767724855164,
+                    "lastReviewAt": 1767312060000
+                  },
+                  "due": 1767398460000,
+                  "modelDue": 1767724855164,
+                  "lastReviewAt": 1767312060000,
+                  "reviews": 1,
+                  "lapses": 0,
+                  "streak": {
+                    "successes": 1,
+                    "firstSuccessAt": 1767312060000,
+                    "lastSuccessAt": 1767312060000,
+                    "lapses": 0
+                  },
+                  "superseded": false
+                }
+              },
+              "ability": {
+                "recognise": {
+                  "theta": -0.0008748932583653724,
+                  "n": 11
+                }
+              },
+              "mastered": false,
+              "evidenceCount": 1,
+              "lastLapseAt": null,
+              "top": {
+                "successes": 0,
+                "firstSuccessAt": null,
+                "lastSuccessAt": null,
+                "lastWasLapse": false
+              }
+            }
+          },
+          "items": {
+            "i-a-produce": {
+              "uses": 1,
+              "lastUsedAt": 1767312000000
+            },
+            "i-c-recognise": {
+              "uses": 1,
+              "lastUsedAt": 1767312060000
+            }
+          },
+          "held": [],
+          "recentIds": ["prior:pl1:a", "place:pl1:a", "prior:pl1:c", "place:pl1:b", "e1", "e2"]
+        },
+        "replay": {
+          "ok": true,
+          "events": [
+            {
+              "type": "skill.prior-set",
+              "at": 1767225600000,
+              "skillId": "a",
+              "stage": "produce",
+              "theta": 1.2,
+              "pseudoCount": 10
+            },
+            {
+              "type": "skill.placed",
+              "at": 1767225600000,
+              "skillId": "a",
+              "stage": "produce",
+              "credited": false
+            },
+            {
+              "type": "skill.started",
+              "at": 1767225600000,
+              "skillId": "a",
+              "stage": "produce"
+            },
+            {
+              "type": "skill.prior-set",
+              "at": 1767225600000,
+              "skillId": "c",
+              "stage": "recognise",
+              "theta": -0.4,
+              "pseudoCount": 10
+            },
+            {
+              "type": "skill.placed",
+              "at": 1767225600000,
+              "skillId": "b",
+              "stage": "produce",
+              "credited": true
+            },
+            {
+              "type": "review.recorded",
+              "at": 1767312000000,
+              "evidenceId": "e1",
+              "skillId": "a",
+              "stage": "produce",
+              "rating": "good",
+              "due": 1767398400000
+            },
+            {
+              "type": "skill.started",
+              "at": 1767312060000,
+              "skillId": "c",
+              "stage": "recognise"
+            },
+            {
+              "type": "review.recorded",
+              "at": 1767312060000,
+              "evidenceId": "e2",
+              "skillId": "c",
+              "stage": "recognise",
+              "rating": "good",
+              "due": 1767398460000
+            }
+          ]
+        },
+        "checkpoints": [],
+        "status": [
+          {
+            "at": 1767398400000,
+            "counts": {
+              "locked": 0,
+              "ready": 0,
+              "learning": 1,
+              "reviewing": 1,
+              "mastered": 0,
+              "credited": 1,
+              "suspended": 0
+            },
+            "dueNow": 1,
+            "skills": [
+              {
+                "skillId": "a",
+                "status": "reviewing",
+                "stage": "produce",
+                "due": 1767398400000,
+                "retrievability": 0.937199838005371,
+                "ability": {
+                  "model": "elo@1",
+                  "value": 1.354316811000655,
+                  "uncertainty": 0.6451612903225806,
+                  "evidenceCount": 11
+                },
+                "expectedSuccessAtReference": 0.7948344779240503,
+                "masteryLapsed": false,
+                "lapses": 0,
+                "unlockedAt": null
+              },
+              {
+                "skillId": "b",
+                "status": "credited",
+                "stage": "produce",
+                "due": null,
+                "retrievability": null,
+                "ability": {
+                  "model": "elo@1",
+                  "value": -1,
+                  "uncertainty": 1,
+                  "evidenceCount": 0
+                },
+                "expectedSuccessAtReference": 0.2689414213699951,
+                "masteryLapsed": false,
+                "lapses": 0,
+                "unlockedAt": null
+              },
+              {
+                "skillId": "c",
+                "status": "learning",
+                "stage": "recognise",
+                "due": 1767398460000,
+                "retrievability": 0.9372098408116434,
+                "ability": {
+                  "model": "elo@1",
+                  "value": -0.0008748932583653724,
+                  "uncertainty": 0.6451612903225806,
+                  "evidenceCount": 11
+                },
+                "expectedSuccessAtReference": 0.04738636406884458,
+                "masteryLapsed": false,
+                "lapses": 0,
+                "unlockedAt": null
+              }
+            ],
+            "held": []
+          }
+        ],
+        "reconcile": [],
+        "history": [
+          {
+            "ok": true,
+            "history": {
+              "learnerId": "l1",
+              "configHash": "5067a166c2be0874",
+              "skills": [
+                {
+                  "skillId": "a",
+                  "stage": "produce",
+                  "reviews": [
+                    {
+                      "at": 1767312000000,
+                      "rating": "good",
+                      "evidenceId": "e1"
+                    }
+                  ]
+                },
+                {
+                  "skillId": "c",
+                  "stage": "recognise",
+                  "reviews": [
+                    {
+                      "at": 1767312060000,
+                      "rating": "good",
+                      "evidenceId": "e2"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "log",
       "name": "a leech suspends the skill at the threshold",
       "learnerId": "l1",
       "graphs": {

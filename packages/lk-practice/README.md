@@ -113,6 +113,13 @@ The JSON Schemas (`gradeResultJsonSchema`, `candidatesJsonSchema`, `decompositio
 for structured model output. The Standard Schema validators (`gradeResultSchema` and the others)
 work with any library that reads the spec.
 
+## lk-core outcomes
+
+`@intellectif/lk-practice/lk-core` exports `evidenceFromOutcome`, which turns the outcome
+`@intellectif/lk-core`'s `evaluate` returns into evidence (held when a grade is still owed, `null`
+when nothing was attempted), and `skillOutcomesFromCriteria` for rubric criteria. It reads lk-core's
+types structurally and imports nothing from it, so lk-core stays optional.
+
 ## Testing
 
 `@intellectif/lk-practice/testing` exports `simulateLearner`: a deterministic simulated learner

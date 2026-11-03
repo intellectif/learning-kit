@@ -6,7 +6,9 @@
  * 8.7; revised in M5), and the plan vectors (`plan.json`) against
  * `createPractice` (design 8.6; revised in M6), and the contract vectors
  * (`contracts.json`) against the grader, generator and decomposition
- * contracts and `composeGraph` (design 8.8, 8.9; revised in M7).
+ * contracts and `composeGraph` (design 8.8, 8.9; revised in M7), and the
+ * `./lk-core` adapter over lk-core outcomes, also in `contracts.json` (R7.7;
+ * revised in M10).
  *
  * Plain ESM with no imports, so the unit tests, `scripts/mutate.mjs` and
  * another implementation can all run it. `impl` is an object holding the
@@ -21,6 +23,7 @@ export const CORPUS_VERSION = 1;
 
 /** The source modules (from `src/`) and the functions `impl` must hold. */
 export const ENTRY = {
+  'adapters/lk-core/index.ts': ['evidenceFromOutcome', 'skillOutcomesFromCriteria'],
   'config.ts': ['resolveConfig'],
   'contracts/index.ts': [
     'admitCandidate',
@@ -87,6 +90,7 @@ export const NEEDS = {
     'createPractice',
   ],
   migrate: ['migrateState'],
+  outcome: ['evidenceFromOutcome', 'skillOutcomesFromCriteria'],
 };
 
 const TOLERANCE = 1e-9;
@@ -504,6 +508,16 @@ const RUN = {
     checks: (v.rows ?? []).map((raw) => checked(impl.checkGradeResult(raw))),
     evidence: (v.evidence ?? []).map(({ result, task, meta }) =>
       attempt(() => impl.evidenceFromGrade(result, task, meta)),
+    ),
+  }),
+  // lk-core outcomes (R7.7; revised in M10): `evidenceFromOutcome` for each
+  // of `evidence`, and `skillOutcomesFromCriteria` for each of `criteria`.
+  outcome: (impl, v) => ({
+    evidence: (v.evidence ?? []).map(({ outcome, task, meta }) =>
+      attempt(() => impl.evidenceFromOutcome(outcome, task, meta)),
+    ),
+    criteria: (v.criteria ?? []).map(({ criteria, task }) =>
+      attempt(() => impl.skillOutcomesFromCriteria(criteria, task)),
     ),
   }),
   generate: runGenerate,

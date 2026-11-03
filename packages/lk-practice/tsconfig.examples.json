@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.base.json",
+  // The examples import the package by name, so they check against the built
+  // dist/ as a host sees it (criterion 18; M10). turbo.json builds first.
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "types": []
+  },
+  "include": ["examples"]
+}
