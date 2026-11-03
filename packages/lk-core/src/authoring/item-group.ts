@@ -309,7 +309,7 @@ function checkTimeline(draft: DraftFields): DraftIssue[] {
       itemIndexById.set(item.id, index);
     }
     const type = item.type;
-    // Registered but not one of the five: the unset and unregistered cases are
+    // Registered but not one of the six: the unset and unregistered cases are
     // already `checkItems`'s to report.
     if (
       typeof type === 'string' &&

@@ -137,7 +137,7 @@ author to approve. See [Drafts from a source](./ai.md#drafts-from-a-source).
 
 ## What can be embedded
 
-Five types, and `INTERACTIVE_VIDEO_ITEM_TYPES` is the list the schema and the player both read:
+Six types, and `INTERACTIVE_VIDEO_ITEM_TYPES` is the list the schema and the player both read:
 
 | Type | Inside a video |
 |---|---|
@@ -146,10 +146,16 @@ Five types, and `INTERACTIVE_VIDEO_ITEM_TYPES` is the list the schema and the pl
 | `gap-select` | Yes |
 | `dictation` | Yes, with its own recording |
 | `read-aloud` | Yes, with a `recordingBinding` |
+| `speaking-response` | Yes, with a `recordingBinding` (lk-core 1.10.0, lk-react 23.6.0) |
 
 Anything else — a written response, another interactive video — is refused by the schema, with
 `ig_timeline_item_type` naming the item. The list is deliberately short: these are the types that
-are answered in a few seconds without leaving the video.
+are answered without leaving the video.
+
+A question's own media is allowed as on any other item, under its own playback policy: a spoken
+answer may carry a picture to describe or a recording to answer. The video is paused while a quiz is
+open, so a recording plays only when the learner presses its play, and falls silent while they
+record.
 
 ## Rendering it
 
@@ -166,7 +172,7 @@ import { InteractiveVideo } from '@intellectif/lk-react/components/InteractiveVi
   submittedSlotIds={attempt.submittedSlotIds}
   outcomes={attempt.outcomes}          // read live: grades that arrive later
   captionsLoader={(track) => api.captions(track.src)}
-  recordingBinding={binding}          // required for a read-aloud the SDK draws
+  recordingBinding={binding}          // required for a read-aloud or spoken answer the SDK draws
   onSubmit={(response, slot) => save(slot.slotId, response)}
   onActivityComplete={(result, slot) => record(slot.slotId, result)}
   onFinished={(summary) => finish(summary)}
@@ -182,14 +188,15 @@ The player is one component, and it owns the whole surface: the progress bar wit
 quiz, a caption preview under the pointer, speed, volume, captions, a settings menu, picture in
 picture, fullscreen, a keyboard map with a shortcut sheet (`?`), a contents and transcript panel,
 and the quiz panel that covers the video when a quiz opens. It ships as its own subpath and weighs
-about 34 kB brotli **including all five question types**.
+about 45 kB brotli **including all six question types**.
 
 The `ai` prop — or an `LkAiProvider` around the player — gives the questions the SDK draws
 explanations and hints, as anywhere else; see [AI help for learners](./ai.md).
 
 **What the host still owns:** the video file and its hosting, the caption endpoint, storage for
-answers, grades and the resume point, and — for a read-aloud — the `recordingBinding` that stores
-and judges a take. The SDK never uploads, transcodes, stores or judges anything.
+answers, grades and the resume point, and — for a read-aloud or a spoken answer — the
+`recordingBinding` that stores and judges a take. The SDK never uploads, transcodes, stores or
+judges anything.
 
 ## Captions and the transcript
 
@@ -324,6 +331,21 @@ response, and — in `practice` — `onActivityComplete` with the grade the comp
 read-aloud reports a take through the `recordingBinding` you passed, and its grade arrives when your
 assessor answers.
 
+A spoken answer does the same, with the binding's slot: `upload` stores the take, and `assess`
+answers with a grade — shown under the pause with each criterion, the corrections and what the
+learner said — or with `{ status: 'pending' }` for a grade a person will give. A pending grade:
+
+- counts as an answer, so a required quiz lets the learner carry on;
+- tells the learner their answer is in and waiting for its grade;
+- shows its quiz pending, on the progress bar and on the end card;
+- calls no `onActivityComplete`: the grade arrives later, through your `outcomes`.
+
+A spoken answer you draw yourself through `renderQuestion` reports through `submit`, `complete` and
+`setPending`, as any other; pass its `deferred` outcome in `outcomes` and its quiz shows pending too.
+In `exam` nothing is assessed and the learner may hand in an answer without a recording; in `review`
+the card shows the stored outcome, `assessments[slotId]` for what was said, and plays the take back
+through `playbackUrl`.
+
 The video's share of an attempt — for a formative gradebook or a progress view — composes like any
 other entry:
 
@@ -332,6 +354,9 @@ import { composeTimelineScore } from '@intellectif/lk-core';
 
 const score = composeTimelineScore('lesson-2.video', attempt.items, policy);
 ```
+
+A spoken answer still waiting for its grade — graded later by your server, or held for a person by
+`routeGrade` — keeps the video's score `provisional`, and never counts as zero.
 
 `entryKey` is the group's `slotKey` (or its position in the sequence). It throws rather than
 composing nothing when no item belongs to that key — a mistyped key must never read as a grade.
@@ -468,8 +493,9 @@ question is pending:
 Call `setPending(false)` however the work ends, a failure included. A question you stop drawing —
 or one that throws — is released for you, so a pending nobody can clear never holds Finish for good.
 
-The SDK's own read-aloud does the same for its takes: a take being stored or judged holds Finish,
-where before 16.1.0 Finish reported that question skipped and its answer arrived after the summary.
+The SDK's own read-aloud and spoken answer do the same for their takes: a take being stored or
+judged holds Finish, where before 16.1.0 Finish reported that question skipped and its answer
+arrived after the summary.
 
 ### Popovers and fullscreen
 
@@ -515,8 +541,8 @@ function MyReadAloud({ question }: { question: InteractiveVideoQuestion }) {
 }
 ```
 
-A video whose read-alouds are all drawn this way needs no `recordingBinding`: the binding is
-required only for a read-aloud the SDK draws itself.
+A video whose recorded questions are all drawn this way needs no `recordingBinding`: the binding
+is required only for a read-aloud or a spoken answer the SDK draws itself.
 
 ## Chapters
 

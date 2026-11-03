@@ -11,7 +11,8 @@
  * The seeds are frozen with the corpus. The first run takes them from the
  * grade-stability corpus: for each activity type the item with the most
  * fields, and the two speech assessments with the most. A later run keeps
- * them, and adds a seed for a type the SDK has gained since.
+ * them, and adds a seed for a type the SDK has gained since, and the
+ * interactive videos (1.10.0) when the corpus has none.
  *
  * Usage: `pnpm build && node scripts/generate-validation-vectors.mjs`.
  */
@@ -68,8 +69,49 @@ function seedsFromScoringCorpus() {
     (a, b) => JSON.stringify(b).length - JSON.stringify(a).length,
   );
   const choices = Object.values(activities).filter((item) => item.type === 'multiple-choice');
+  // An interactive video holding a question of `type` in a required quiz of its
+  // own, after a multiple-choice quiz (1.10.0): a spoken answer, which a video
+  // takes, and a written response, which it refuses.
+  // The item without `redacted`: the richest one the scoring corpus holds may
+  // be a projection, which a content video does not carry.
+  const video = (type) => ({
+    schemaVersion: '1.0',
+    type: 'item-group',
+    id: 'video-1',
+    slotKey: 'video',
+    stimulus: {
+      id: 'video-stimulus',
+      kind: 'video',
+      media: {
+        type: 'video',
+        url: 'https://example.com/lesson.mp4',
+        tracks: [
+          {
+            kind: 'captions',
+            src: 'https://example.com/lesson.vtt',
+            srclang: 'en',
+            label: 'English',
+          },
+        ],
+      },
+    },
+    items: [
+      { ...choices[0], id: 'item-1' },
+      { ...withoutRedacted(activities[type]), id: 'item-2' },
+    ],
+    timeline: {
+      cues: [
+        { id: 'cue-1', at: 10, itemIds: ['item-1'] },
+        { id: 'cue-2', at: 20, itemIds: ['item-2'], required: true },
+      ],
+    },
+  });
   return {
     activities,
+    timelineGroups: {
+      'speaking-response': video('speaking-response'),
+      'written-response': video('written-response'),
+    },
     assessments: { richest: first, second },
     itemGroup: {
       schemaVersion: '1.0',
@@ -124,6 +166,12 @@ function seedsFromScoringCorpus() {
   };
 }
 
+/** `item` without its `redacted` flag. */
+function withoutRedacted(item) {
+  const { redacted: _redacted, ...rest } = item;
+  return rest;
+}
+
 /**
  * The frozen seeds, and a seed for every type they lack. Seeds already frozen
  * never change — their cases' expectations are what the corpus holds — but a
@@ -145,7 +193,7 @@ function seedsFor(frozen) {
   for (const type of TYPES) {
     activities[type] ??= fresh.activities[type];
   }
-  return { ...frozen, activities };
+  return { ...frozen, activities, timelineGroups: frozen.timelineGroups ?? fresh.timelineGroups };
 }
 
 const seeds = seedsFor(previous?.seeds);

@@ -47,6 +47,7 @@ import { GapSelect } from '../GapSelect/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
 import type { RecordingBinding } from '../ReadAloud/ReadAloud.js';
+import { SpeakingResponse } from '../SpeakingResponse/index.js';
 import type { SpeakingAssessResult } from '../SpeakingResponse/SpeakingResponse.js';
 import { stopCaptureGroup } from '../shared/capture-registry.js';
 import {
@@ -248,7 +249,12 @@ export interface InteractiveVideoProps {
    * again at a quiz already done. Read once, at mount.
    */
   submittedSlotIds?: readonly string[];
-  /** Stored outcomes, by slot id: review, and the grades of questions graded later. */
+  /**
+   * Stored outcomes, by slot id: review, and the grades of questions graded
+   * later. Read live. In `practice`, an answered question whose outcome is
+   * `deferred` — a spoken answer a person will grade, say — marks its quiz
+   * pending on the progress bar and the end card (23.6.0).
+   */
   outcomes?: Readonly<Record<string, ItemOutcome>>;
   onSubmit?: (response: LearnerResponse, slot: InteractiveVideoSlot) => void;
   onActivityComplete?: (result: ActivityResult, slot: InteractiveVideoSlot) => void;
@@ -281,14 +287,19 @@ export interface InteractiveVideoProps {
    */
   renderQuestion?: (question: InteractiveVideoQuestion) => ReactNode | undefined;
   /**
-   * Where read-aloud takes are stored and judged. Required for every read-aloud
-   * the SDK draws itself, outside review; a video whose read-alouds are all
-   * drawn by `renderQuestion` needs none.
+   * Where read-aloud and spoken-answer takes are stored and judged: one binding
+   * serves both, as in `<ActivitySequence>`, and `assess` may answer `pending`
+   * for a spoken answer a person will grade. Required for every recorded
+   * question the SDK draws itself, outside review; a video whose recorded
+   * questions are all drawn by `renderQuestion` needs none.
    */
   recordingBinding?: SequenceRecordingBinding;
-  /** Speech assessments by slot id, so `review` shows the marks behind a read-aloud's grade. Read live. */
+  /**
+   * Speech assessments by slot id, so `review` shows the marks behind a
+   * read-aloud's grade, and what the learner said in a spoken answer. Read live.
+   */
   assessments?: Readonly<Record<string, SpeechAssessment>>;
-  /** A self-hosted copy of the read-aloud capture processor, for a strict Content-Security-Policy. */
+  /** A self-hosted copy of the capture processor, for a strict Content-Security-Policy. */
   workletUrl?: string;
   /**
    * Fetches a caption file with the host's credentials and returns its WebVTT
@@ -552,10 +563,14 @@ function Player(props: InteractiveVideoProps) {
   const [scores, setSlotScore] = useKeyMap<string, number>();
 
   // Work on its way — a take being stored or judged — by source and question:
-  // `host:<slotId>` from `setPending`, `take:<slotId>` from an SDK read-aloud's
-  // channel. While any is here, nothing hands the attempt over.
+  // `host:<slotId>` from `setPending`, `take:<slotId>` from the channel of a
+  // recorded question the SDK draws. While any is here, nothing hands the
+  // attempt over.
   const [pending, pendingRef, setPendingKey] = useKeySet<string>(() => new Set());
-  // The latest take each SDK read-aloud reported: a report for an older take
+  // Questions whose latest take was answered `pending`: a spoken answer a person
+  // will grade. Answered, settled, and shown pending on the bar and the end card.
+  const [awaitingGrade, , setAwaitingGrade] = useKeySet<string>(() => new Set());
+  // The latest take each recorded question reported: a report for an older take
   // describes one the learner has replaced.
   const latestTakes = useRef(new Map<string, number>());
 
@@ -1232,7 +1247,7 @@ function Player(props: InteractiveVideoProps) {
       // In review the attempt is over: nothing is required of the learner any
       // more, in the list or on the bar.
       required: cue.required === true && renderMode !== 'review',
-      state: markerState(quizSlots, answered, renderMode, props.outcomes),
+      state: markerState(quizSlots, answered, renderMode, props.outcomes, awaitingGrade),
     };
   });
   const markers: ScrubberMarker[] = quizzes.map((quiz) => ({
@@ -1437,12 +1452,14 @@ function Player(props: InteractiveVideoProps) {
   };
 
   /**
-   * What an SDK read-aloud reports about each take, through its slot's channel.
-   * A take being stored or judged is on its way; every other state is not. A
-   * failure the learner may retry is not on its way either: nothing comes of
-   * it unless they press Try again, which reports the take in flight again.
-   * (A pager holds its set for one while the learner is on that question; the
-   * video's Finish is on the end card, where no question is.)
+   * What a recorded question the SDK draws — a read-aloud, a spoken answer —
+   * reports about each take, through its slot's channel. A take being stored or
+   * judged is on its way; every other state is not. A failure the learner may
+   * retry is not on its way either: nothing comes of it unless they press Try
+   * again, which reports the take in flight again. (A pager holds its set for
+   * one while the learner is on that question; the video's Finish is on the end
+   * card, where no question is.) A take answered `pending` waits for a person's
+   * grade: it is settled, and its quiz shows pending.
    */
   const reportTake = (slotId: string, take: number, state: TakeState): void => {
     if (!alive.current) {
@@ -1454,6 +1471,7 @@ function Player(props: InteractiveVideoProps) {
     }
     latestTakes.current.set(slotId, take);
     setPendingKey(`take:${slotId}`, state === 'in-flight');
+    setAwaitingGrade(slotId, state === 'awaiting-grade');
   };
   // One channel per question for the life of the player: a recorder joins its
   // capture group once, and a new object each render would re-render it.
@@ -1594,10 +1612,27 @@ function Player(props: InteractiveVideoProps) {
           />
         );
       }
+      case 'speaking-response': {
+        // As a read-aloud: the slot's binding, its stored assessment for review,
+        // and the take reported through the slot's channel (23.6.0).
+        const binding = slotBindings.get(slot.slotId);
+        const assessment =
+          props.assessments !== undefined && Object.hasOwn(props.assessments, slot.slotId)
+            ? props.assessments[slot.slotId]
+            : undefined;
+        return (
+          <SpeakingResponse
+            data={activity}
+            {...common}
+            {...(binding !== undefined ? { recordingBinding: binding } : {})}
+            {...(assessment !== undefined ? { assessment } : {})}
+            {...(workletUrl !== undefined ? { workletUrl } : {})}
+          />
+        );
+      }
       case 'written-response':
-      case 'speaking-response':
-        // Never reached: a timeline refuses a written response and a spoken
-        // one (`INTERACTIVE_VIDEO_ITEM_TYPES`), so no quiz holds either.
+        // Never reached: a timeline refuses a written response
+        // (`INTERACTIVE_VIDEO_ITEM_TYPES`), so no quiz holds one.
         return null;
       default:
         everyBuiltInTypeHandled(activity);
@@ -2365,12 +2400,18 @@ function bufferedAhead(video: HTMLVideoElement): number {
   return 0;
 }
 
-/** A quiz's marker state: its shape on the progress bar and its dot in the lists. */
+/**
+ * A quiz's marker state: its shape on the progress bar and its dot in the lists.
+ * Outside review, a quiz whose every question is answered is `pending` while one
+ * of them waits for a person's grade (23.6.0): a take the assessor answered
+ * `pending`, or, in `practice`, a stored outcome that is `deferred`.
+ */
 function markerState(
   quizSlots: readonly SequenceSlot<RenderableActivity>[],
   answered: ReadonlySet<string>,
   renderMode: RenderMode,
   outcomes: Readonly<Record<string, ItemOutcome>> | undefined,
+  awaitingGrade: ReadonlySet<string>,
 ): MarkerState {
   if (renderMode === 'review' && outcomes !== undefined) {
     const results = quizSlots.map((slot) =>
@@ -2390,7 +2431,15 @@ function markerState(
   }
   const count = quizSlots.filter((slot) => answered.has(slot.slotId)).length;
   if (count === quizSlots.length && count > 0) {
-    return 'answered';
+    const waiting = quizSlots.some(
+      (slot) =>
+        awaitingGrade.has(slot.slotId) ||
+        (renderMode === 'practice' &&
+          outcomes !== undefined &&
+          Object.hasOwn(outcomes, slot.slotId) &&
+          outcomes[slot.slotId]?.status === 'deferred'),
+    );
+    return waiting ? 'pending' : 'answered';
   }
   // Begun, not finished. A quiz passed or skipped with nothing answered keeps
   // its empty ring: the bar shows what the learner did, not where they went.

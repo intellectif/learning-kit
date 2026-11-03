@@ -369,6 +369,20 @@ const deferredOutcome = () => ({
   reason: 'requires_async_grading',
   maxScore: 1,
 });
+/** A spoken answer with its take stored, as `evaluate` leaves it until its grade arrives. */
+const spokenAnswerLater = () => ({
+  status: 'deferred',
+  reason: 'requires_async_grading',
+  maxScore: 1,
+  partial: { hasRecording: true },
+});
+/** A spoken answer whose model grade `routeGrade` sent to a person. */
+const spokenAnswerForAPerson = () => ({
+  status: 'deferred',
+  reason: 'awaiting_human_review',
+  maxScore: 1,
+  pendingGrade: { score: 0.55, maxScore: 1, passed: false, feedback: null },
+});
 const unscorableOutcome = () => ({
   status: 'unscorable',
   reason: 'Activity type "drag-and-drop" is not registered',
@@ -2474,6 +2488,52 @@ export const CASES = [
     id: 'composeAssessmentScore/accepted/exact-edge-of-float-noise',
     fn: 'composeAssessmentScore',
     args: [[section('a', 1, [item('a1', 1, gradedOutOf(1e9 + 1, 1e9))])], policy()],
+  },
+  // A spoken answer inside an interactive video (1.10.0): the video's share of a
+  // whole attempt, with the answer graded later by the server, then held for a
+  // person by `routeGrade`, then graded. A slot of another entry is not the
+  // video's, whatever its grade.
+  {
+    id: 'composeTimelineScore/spoken-answer-graded-later-is-provisional',
+    fn: 'composeTimelineScore',
+    args: [
+      'video',
+      [
+        item('video.0', 1, scoredOutcome(1)),
+        item('video.1', 1, scoredOutcome(0.5)),
+        item('video.2', 1, spokenAnswerLater()),
+        item('other.0', 1, scoredOutcome(0)),
+      ],
+      policy(),
+    ],
+    note: 'A spoken answer awaiting its grade holds the video provisional. It is never counted as zero.',
+  },
+  {
+    id: 'composeTimelineScore/spoken-answer-awaiting-a-person-is-provisional',
+    fn: 'composeTimelineScore',
+    args: [
+      'video',
+      [
+        item('video.0', 1, scoredOutcome(1)),
+        item('video.1', 1, scoredOutcome(0.5)),
+        item('video.2', 1, spokenAnswerForAPerson()),
+      ],
+      policy(),
+    ],
+    note: "A model's grade a routing rule held for a person does not count: the video stays provisional.",
+  },
+  {
+    id: 'composeTimelineScore/spoken-answer-graded-is-final',
+    fn: 'composeTimelineScore',
+    args: [
+      'video',
+      [
+        item('video.0', 1, scoredOutcome(1)),
+        item('video.1', 1, scoredOutcome(0.5)),
+        item('video.2', 1, gradedOutcome(0.8)),
+      ],
+      policy(),
+    ],
   },
   {
     id: 'composeAssessmentScore/nothing-graded-yet',

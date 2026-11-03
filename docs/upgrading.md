@@ -37,6 +37,7 @@ from one row: `lk-react@2.1.0` peers on `lk-core@^0.3.1`, not `^0.3.0`.)
 | 0.20.0 | 20.0.0 | Delivery policies: `delivery` on every activity and both pagers switches off feedback, solutions, hints or AI help per paper; `resolveDeliveryPolicy`, `validateDeliveryPolicy`, `combineDeliveryPolicies`; `planAttempt(…, { delivery })` records it in the plan and its hash, and `verifyAttemptPlan` reports `deliveryChanged`. **No grade changes, and an absent policy changes nothing** — the major is the peer bump, plus a required `delivery` on `InteractiveVideoQuestion` |
 | 0.21.0 | 21.0.0 | Scoring policies: `scoring` on every activity and both pagers — "Try again" in `practice` (`retries`), which try `counts`, and what tries and hints cost (`retryPenalty`, `hintPenalty`); `scoreTries`, `evaluateTries` and `evaluate(…, { scoring })`; `resolveItemScoringPolicy` / `validateItemScoringPolicy`; `planAttempt(…, { scoring })` and `scoringChanged`; `hintsRevealed` on multiple-choice, fill-in-the-blanks and gap-select responses. **No grade changes without a policy.** One fix to 0.20's `solutions: false` on a dictation, and one possible type error — see [0.20 → 0.21](#020--021-lk-core--20x--21x-lk-react) |
 | 0.22.0 | 22.0.0 | Feedback on writing: a `writingFeedback` port gives `<WrittenResponse>` "Get feedback on my draft" in `practice`; `useAiWritingFeedback` for a written response you draw; `aiWritingFeedbackRequest` and `checkAiWritingFeedback` in lk-core, which refuses a correction of words the draft does not contain (`misquotes-answer`) and computes the rubric's indicative score itself; four writing cases in `ai-check`. **Additive, and nothing changes without the port** — the major is the peer bump, plus eight strings and the type errors in [0.21 → 0.22](#021--022-lk-core--21x--22x-lk-react) |
+| 1.10.0 | 23.6.0 | Spoken answers inside an interactive video: `speaking-response` joins `INTERACTIVE_VIDEO_ITEM_TYPES`, and `<InteractiveVideo>` draws `<SpeakingResponse>` with the video's `recordingBinding`. **Additive** — see [1.9 → 1.10](#19--110-lk-core--235--236-lk-react) for the one exhaustive-switch edit |
 | 1.7.0 | 23.3.0 | A question's own instructions: an optional `instructions` on multiple choice, fill in the blanks and gap select, as read aloud has. Learner-visible, carried by hints, explanations and drafts, never graded; `<MultipleChoice>`, `<FillInTheBlanks>` and `<GapSelect>` draw it before the media and the question. **Additive** — see [1.6 → 1.7](#16--17-lk-core--232--233-lk-react) |
 | 1.6.0 | — | Exporting and importing content: `listMediaRefs` / `mapMediaRefs`, an author-only `transcript` and `script` on recordings, `transcriptOf`, `withoutAuthorOnly`, `contentJsonSchema`, and `jsonSchemaFor(type, { target })`. lk-core only; see its changelog |
 | 1.5.0 | — | Assisted grading: a model grades a written response for the record. `aiGradingRequest` / `checkAiGrading`, whose grade must judge every criterion (`misses-criteria`) on its own scale (`out-of-scale`); `levels` on a rubric criterion; `gradeFromJudgement`; `calibrationReport`, which measures a grader configuration against people; `routeGrade`, `outcomeFromRoutedGrade` and `inAuditSample`, which in an exam send every grade to a person until a matching calibration is supplied (`awaiting_human_review`). **Additive**, lk-core only |
@@ -80,6 +81,24 @@ you record stay exactly what they were.
 - On **lk-core 1.6.x / 23.2.x**? See [1.6 → 1.7](#16--17-lk-core--232--233-lk-react) — additive: a question's own instructions; check a field you may already store under that name.
 
 ---
+
+## 1.9 → 1.10 (`lk-core`) / 23.5 → 23.6 (`lk-react`)
+
+An interactive video can hold a spoken answer. Nothing you stored changes, and no grade moves.
+
+- **`INTERACTIVE_VIDEO_ITEM_TYPES` gains `'speaking-response'`**, so `isInteractiveVideoItemType`,
+  `validateItemGroup` and `validateItemGroupDraft` accept one in a timeline group. A `switch` or a
+  `Record` that is exhaustive over `InteractiveVideoItemType` needs one more entry; a list built
+  from the constant follows by itself.
+- **`<InteractiveVideo>` draws `<SpeakingResponse>`** for a spoken answer it draws itself, with the
+  `recordingBinding` it already takes — its `assess` may answer `{ status: 'pending' }`, as in
+  `<ActivitySequence>`. A video whose spoken answers you draw through `renderQuestion` needs no
+  binding.
+- **A pending grade shows on the video.** A quiz whose every question is answered shows `pending`
+  on the progress bar and the end card while one of them waits for a person: a take the assessor
+  answered `pending`, or, in `practice`, a `deferred` outcome you pass in `outcomes`.
+
+See [What can be embedded](./interactive-video.md#what-can-be-embedded).
 
 ## 1.6 → 1.7 (`lk-core`) / 23.2 → 23.3 (`lk-react`)
 

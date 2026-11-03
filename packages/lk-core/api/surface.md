@@ -44,7 +44,7 @@ const fillInTheBlanksJsonSchema: fillInTheBlanksJsonSchema: Record<string, unkno
 const fillInTheBlanksType: fillInTheBlanksType: ActivityTypeDescriptor<FillInTheBlanksData, FillInTheBlanksLearnerResponse>
 const gapSelectJsonSchema: gapSelectJsonSchema: Record<string, unknown>
 const gapSelectType: gapSelectType: ActivityTypeDescriptor<GapSelectData, GapSelectLearnerResponse>
-const INTERACTIVE_VIDEO_ITEM_TYPES: INTERACTIVE_VIDEO_ITEM_TYPES: readonly ["multiple-choice", "fill-in-the-blanks", "gap-select", "dictation", "read-aloud"]
+const INTERACTIVE_VIDEO_ITEM_TYPES: INTERACTIVE_VIDEO_ITEM_TYPES: readonly ["multiple-choice", "fill-in-the-blanks", "gap-select", "dictation", "read-aloud", "speaking-response"]
 const ITEM_SCORING_MAX_RETRIES: ITEM_SCORING_MAX_RETRIES = 10
 const itemGroupJsonSchema: itemGroupJsonSchema: Record<string, unknown>
 const multipleChoiceJsonSchema: multipleChoiceJsonSchema: Record<string, unknown>
