@@ -1,6 +1,7 @@
 import type { ItemGroup, MediaProgress } from '@intellectif/lk-core';
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { hydrateRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { checkA11y } from '../../../test-support/a11y.js';
@@ -341,6 +342,46 @@ describe('InteractiveVideo', () => {
     expect(video().currentTime).toBe(100);
   });
 
+  it('resumes when the metadata loaded before the player mounted', async () => {
+    // A cached file can have its metadata before React commits the element, and
+    // React drops the `loadedmetadata` that fires then: the player reads an
+    // element that already has its metadata on mount instead.
+    const readyState = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'readyState');
+    Object.defineProperty(HTMLMediaElement.prototype, 'readyState', {
+      configurable: true,
+      get: () => HTMLMediaElement.HAVE_METADATA,
+    });
+    try {
+      const optional = group({
+        timeline: { cues: [{ id: 'first', at: 30, title: 'Pausa', itemIds: ['q1', 'q2', 'q3'] }] },
+      } as Partial<ItemGroup>);
+      const progress: MediaProgress = { progressVersion: '1.0', at: 100, furthest: 100 };
+      render(<InteractiveVideo group={optional} progress={progress} />);
+
+      // No event was dispatched: the resume point and the length come from the mount.
+      expect(video().currentTime).toBe(100);
+      expect(document.querySelector('.lk-iv')).toHaveTextContent('2:00');
+
+      // An event still queued for the same load does not read it again.
+      await act(async () => {
+        video().currentTime = 50;
+        video().dispatchEvent(new Event('loadedmetadata'));
+      });
+      expect(video().currentTime).toBe(50);
+
+      // A new load (Try again) does.
+      await act(async () => {
+        video().dispatchEvent(new Event('loadstart'));
+        video().dispatchEvent(new Event('loadedmetadata'));
+      });
+      expect(video().currentTime).toBe(100);
+    } finally {
+      if (readyState !== undefined) {
+        Object.defineProperty(HTMLMediaElement.prototype, 'readyState', readyState);
+      }
+    }
+  });
+
   it('reports where the learner is, and reports it as a quiz opens', async () => {
     const onProgress = vi.fn();
     await start(<InteractiveVideo group={group()} onProgress={onProgress} />);
@@ -553,6 +594,40 @@ describe('InteractiveVideo', () => {
     expect(html).toContain('lk-iv');
     expect(html).toContain('1.5×');
     expect(storage).not.toHaveBeenCalled();
+  });
+
+  it('hydrates server HTML without a mismatch, then offers picture in picture where supported', async () => {
+    Object.defineProperty(document, 'pictureInPictureEnabled', { configurable: true, value: true });
+    const container = document.createElement('div');
+    try {
+      const ui = <InteractiveVideo group={group()} preferences={{ panel: true }} />;
+      // The server cannot know, so it renders no picture-in-picture button.
+      const html = renderToString(ui);
+      expect(html).not.toContain('Picture in picture');
+
+      container.innerHTML = html;
+      document.body.appendChild(container);
+      const mismatches: unknown[] = [];
+      let root: ReturnType<typeof hydrateRoot> | undefined;
+      await act(async () => {
+        root = hydrateRoot(container, ui, {
+          onRecoverableError: (error) => mismatches.push(error),
+        });
+      });
+      expect(mismatches).toEqual([]);
+      // After hydration the browser's answer is used.
+      expect(
+        within(container).getByRole('button', { name: 'Picture in picture' }),
+      ).toBeInTheDocument();
+      // The ids the browser kept are the ones the server wrote.
+      const slider = container.querySelector('.lk-iv-volume-slider') as HTMLElement;
+      expect(slider.id).not.toBe('');
+      expect(html).toContain(`id="${slider.id}"`);
+      act(() => root?.unmount());
+    } finally {
+      container.remove();
+      Reflect.deleteProperty(document, 'pictureInPictureEnabled');
+    }
   });
 
   it('is accessible at rest and with a quiz open', async () => {
