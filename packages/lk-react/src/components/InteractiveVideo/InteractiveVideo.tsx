@@ -32,9 +32,12 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import { type LearnerAi, useLearnerAi } from '../../ai/LkAiProvider.js';
 import { useLkStrings } from '../../i18n/LkIntlProvider.js';
@@ -415,8 +418,20 @@ function captionsShown(
   return { srclang: shown.primary?.srclang ?? null, secondary: shown.secondary?.srclang ?? null };
 }
 
-/** One id per mount, for the quiz capture groups. Module-level: never a render-time `useId`. */
+/**
+ * One id per mount, for the quiz capture groups: a recorder registry is shared
+ * by every React root on the page, where two roots' `useId` values can be
+ * equal. Never rendered into the DOM — it counts on the server and again in the
+ * browser, so markup carrying it would never hydrate. DOM ids use `useId`.
+ */
 let playerCount = 0;
+
+/** Picture-in-picture support never changes while the page is open. */
+const subscribeNever = (): (() => void) => () => undefined;
+const pictureInPictureSnapshot = (): boolean =>
+  typeof document !== 'undefined' && document.pictureInPictureEnabled === true;
+/** A server cannot know; it renders no button, and hydration adds one where supported. */
+const pictureInPictureServerSnapshot = (): boolean => false;
 
 function Player(props: InteractiveVideoProps) {
   const {
@@ -513,6 +528,8 @@ function Player(props: InteractiveVideoProps) {
     playerCount += 1;
     return `lk-iv-${playerCount}`;
   });
+  // DOM ids: the same on the server and in the browser.
+  const domId = `lk-iv-${useId()}`;
 
   // ── Preferences ──────────────────────────────────────────────────────
   // Four layers, field by field — see `resolvePreferences`. Storage is read
@@ -1019,6 +1036,43 @@ function Player(props: InteractiveVideoProps) {
     }
   }, [preferences.speed, preferences.volume, preferences.muted]);
 
+  // ── Metadata: the length, and where to resume ────────────────────────
+  // Read once per load. `loadstart` clears the flag, so a retry reads again.
+  const metadataRead = useRef(false);
+  const readMetadata = (video: HTMLVideoElement): void => {
+    if (metadataRead.current) {
+      return;
+    }
+    metadataRead.current = true;
+    const length = Number.isFinite(video.duration) ? video.duration : 0;
+    setDuration(length);
+    video.playbackRate = preferences.speed;
+    video.volume = preferences.volume;
+    video.muted = preferences.muted;
+    const stored = readMediaProgress(props.progress, length);
+    if (stored !== null) {
+      const at = renderMode === 'review' ? stored.at : limitResume(timeline, stored.at, finished);
+      furthest.current = Math.max(stored.furthest, at);
+      setFurthestShown(furthest.current);
+      video.currentTime = at;
+      previousTime.current = at;
+      setCurrent(at);
+    }
+  };
+  // The browser loads a cached file's metadata as soon as the element has its
+  // source, which can be before React commits it (a slow render) or before
+  // hydration attaches the handler (a server-rendered player). React drops an
+  // event for an element it has not mounted, so `loadedmetadata` never reaches
+  // the handler and the learner starts at 0:00 with no length. On mount, an
+  // element that already has its metadata is read here instead.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once, on mount; later loads are the handler's
+  useLayoutEffect(() => {
+    const video = videoRef.current;
+    if (video !== null && video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      readMetadata(video);
+    }
+  }, []);
+
   useEffect(() => {
     const onChange = (): void => setFullscreen(document.fullscreenElement === shellRef.current);
     document.addEventListener('fullscreenchange', onChange);
@@ -1087,8 +1141,11 @@ function Player(props: InteractiveVideoProps) {
     emit('video-fullscreen-changed');
   }, [emit]);
 
-  const pictureInPictureSupported =
-    typeof document !== 'undefined' && document.pictureInPictureEnabled === true;
+  const pictureInPictureSupported = useSyncExternalStore(
+    subscribeNever,
+    pictureInPictureSnapshot,
+    pictureInPictureServerSnapshot,
+  );
   const togglePictureInPicture = useCallback(() => {
     const video = videoRef.current;
     if (video === null) {
@@ -1758,24 +1815,10 @@ function Player(props: InteractiveVideoProps) {
           onRateChange={(event) =>
             emit('video-rate-changed', { rate: event.currentTarget.playbackRate })
           }
-          onLoadedMetadata={(event) => {
-            const video = event.currentTarget;
-            const length = Number.isFinite(video.duration) ? video.duration : 0;
-            setDuration(length);
-            video.playbackRate = preferences.speed;
-            video.volume = preferences.volume;
-            video.muted = preferences.muted;
-            const stored = readMediaProgress(props.progress, length);
-            if (stored !== null) {
-              const at =
-                renderMode === 'review' ? stored.at : limitResume(timeline, stored.at, finished);
-              furthest.current = Math.max(stored.furthest, at);
-              setFurthestShown(furthest.current);
-              video.currentTime = at;
-              previousTime.current = at;
-              setCurrent(at);
-            }
+          onLoadStart={() => {
+            metadataRead.current = false;
           }}
+          onLoadedMetadata={(event) => readMetadata(event.currentTarget)}
           onEnded={() => {
             setPlaying(false);
             setCurrent(duration);
@@ -1927,7 +1970,7 @@ function Player(props: InteractiveVideoProps) {
                   <VolumeIcon level={volumeLevel} />
                 </button>
                 <input
-                  id={`${playerId}-volume`}
+                  id={`${domId}-volume`}
                   className="lk-iv-volume-slider"
                   type="range"
                   min={0}
@@ -2057,7 +2100,7 @@ function Player(props: InteractiveVideoProps) {
           className="lk-iv-quiz"
           role="dialog"
           aria-modal="false"
-          aria-labelledby={`${playerId}-quiz-title`}
+          aria-labelledby={`${domId}-quiz-title`}
           hidden={openQuiz === null}
           onKeyDown={(event) => {
             // A question that handled Escape itself — a host's popover closing,
@@ -2077,7 +2120,7 @@ function Player(props: InteractiveVideoProps) {
           {openCue !== undefined ? (
             <div className="lk-iv-quiz-head">
               <h3
-                id={`${playerId}-quiz-title`}
+                id={`${domId}-quiz-title`}
                 ref={quizHeadingRef}
                 tabIndex={-1}
                 className="lk-iv-quiz-title"
@@ -2198,7 +2241,7 @@ function Player(props: InteractiveVideoProps) {
 
         {ended && openQuiz === null ? (
           <EndScreen
-            idPrefix={playerId}
+            idPrefix={domId}
             renderMode={renderMode}
             quizzes={quizzes}
             answered={answeredCount}
@@ -2244,7 +2287,7 @@ function Player(props: InteractiveVideoProps) {
 
       {preferences.panel ? (
         <ContentsPanel
-          idPrefix={playerId}
+          idPrefix={domId}
           tab={panelTab}
           onTab={setPanelTab}
           chapters={chapters}
