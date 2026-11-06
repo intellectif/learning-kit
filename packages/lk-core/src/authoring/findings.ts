@@ -31,6 +31,10 @@ export const ITEM_FINDING_SEVERITY = {
   mt_options_duplicate: 'warning',
   mt_answer_in_prompt: 'warning',
   mt_no_distractor: 'warning',
+  // mark-the-words
+  mw_title_reveals_answer: 'warning',
+  mw_targets_dense: 'warning',
+  mw_target_elsewhere: 'advice',
   // written-response
   wr_criterion_name_duplicate: 'warning',
   wr_levels_unreadable: 'warning',

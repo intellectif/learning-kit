@@ -10,6 +10,7 @@ import type {
   ItemGroup,
   ItemOutcome,
   LearnerResponse,
+  MarkTheWordsData,
   MatchingData,
   MultipleChoiceData,
   ReadAloudData,
@@ -34,6 +35,7 @@ import {
   InteractiveVideo,
   type InteractiveVideoQuestion,
 } from '../../components/InteractiveVideo/index.js';
+import { MarkTheWords } from '../../components/MarkTheWords/index.js';
 import { Matching } from '../../components/Matching/index.js';
 import { MultipleChoice } from '../../components/MultipleChoice/index.js';
 import { PronunciationFeedback } from '../../components/PronunciationFeedback/index.js';
@@ -543,6 +545,25 @@ describe('translation coverage', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: 'Portugal' }), 'lis');
     keep(document.body);
     await user.selectOptions(screen.getByRole('combobox', { name: 'España' }), 'rom');
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('checkAnswers') }));
+    keep(document.body);
+    cleanup();
+
+    // ── Mark the words: the text's name, the count, and every mark a
+    //    checked word can carry: right, wrong, and missed ─────────────────
+    const mw = {
+      schemaVersion: '1.0',
+      type: 'mark-the-words',
+      id: 'mw1',
+      title: 'Verbos',
+      text: 'Ella corrió y saltó a casa.',
+      targets: [{ text: 'corrió' }, { text: 'saltó' }],
+      scoringStrategy: 'partial',
+    } satisfies MarkTheWordsData;
+    sweep(<MarkTheWords data={mw} onComplete={vi.fn()} />);
+    await user.click(screen.getByRole('option', { name: 'corrió' }));
+    await user.click(screen.getByRole('option', { name: 'casa' }));
     keep(document.body);
     await user.click(screen.getByRole('button', { name: sentinel('checkAnswers') }));
     keep(document.body);

@@ -54,6 +54,7 @@ import { ActivityErrorBoundary } from '../ActivityErrorBoundary.js';
 import { Dictation } from '../Dictation/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
+import { MarkTheWords } from '../MarkTheWords/index.js';
 import { Matching } from '../Matching/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
@@ -1703,6 +1704,8 @@ function Player(props: InteractiveVideoProps) {
             {...(shuffleSeed !== undefined ? { shuffleSeed } : {})}
           />
         );
+      case 'mark-the-words':
+        return <MarkTheWords data={activity} {...common} />;
       case 'matching':
         return (
           <Matching

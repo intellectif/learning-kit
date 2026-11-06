@@ -127,6 +127,18 @@ export interface LkStrings {
   matchMoved: (option: string) => string;
   /** The right option, shown beside a wrong match where the delivery policy shows answers. */
   matchCorrectAnswer: (option: string) => string;
+
+  // ── Mark the Words ────────────────────────────────────────────────────────
+  /** Accessible name of the text whose words are marked: a list a learner selects words in. */
+  markWordsLabel: string;
+  /** How many words are marked, shown under the text. */
+  markCount: (count: number) => string;
+  /** Read after a marked word that is one to mark, once checked. */
+  markCorrect: string;
+  /** Read after a marked word that is not one to mark, once checked. */
+  markWrong: string;
+  /** Read after a word that was to be marked and was not, where answers are shown. */
+  markMissed: string;
   showHint: string;
   hideHint: string;
 
@@ -654,6 +666,11 @@ export const DEFAULT_STRINGS: LkStrings = {
   matchMoved: (option) =>
     `${option} can be used once, so it was taken from the statement that had it.`,
   matchCorrectAnswer: (option) => `Answer: ${option}`,
+  markWordsLabel: 'Words to mark',
+  markCount: (count) => `${count} ${count === 1 ? 'word' : 'words'} marked`,
+  markCorrect: 'right',
+  markWrong: 'not one to mark',
+  markMissed: 'one to mark, left unmarked',
   showHint: 'Show hint',
   hideHint: 'Hide hint',
 

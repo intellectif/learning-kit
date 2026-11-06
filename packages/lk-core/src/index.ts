@@ -19,6 +19,17 @@ export * from './delivery.js';
 export * from './errors.js';
 export * from './grading.js';
 export * from './item-group.js';
+export {
+  MARK_THE_WORDS_MAX_WORDS,
+  MARK_THE_WORDS_TOKENIZER,
+  type MarkableWord,
+  type MarkTargetProblem,
+  type MarkTargetResolution,
+  markableWords,
+  markTargetIndices,
+  markTheWordsFromMarkup,
+  resolveMarkTarget,
+} from './mark-the-words.js';
 export * from './media-budget.js';
 export * from './media-refs.js';
 export * from './reading-route/index.js';

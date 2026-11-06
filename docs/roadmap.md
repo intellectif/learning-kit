@@ -725,8 +725,17 @@ next was the [delivery policy, then AI](#next--the-delivery-policy-then-ai); wha
   one. **Out of scope, deliberately:** a drag presentation (the selectors are the WCAG 2.5.7 path a
   drag would need anyway), several right options for one prompt, and AI explanations, hints, drafts
   and variants, which come next for the type.
-- **`mark-the-words`, then `ordering` — the next activity types**, in that order (maintainer,
-  2026-11-06).
+- ✅ **`mark-the-words` — SHIPPED** in lk-core 1.14.0 / lk-react 23.11.0, second in the
+  maintainer's order of 2026-11-06. A text in which the learner marks the words a task asks for.
+  Words are cut by the SDK's own `lk-words@1`, not `Intl.Segmenter`, whose boundaries move with each
+  runtime's ICU — a response names words by position, so the cut is part of every stored answer.
+  Targets are quotes, never offsets, as in reading routes, and must say which appearance they mean
+  when their words repeat. Each wrong mark costs a found target, never below 0, so marking every
+  word is not a strategy, and the critic warns when most words are targets. Redaction removes the
+  targets entirely, their number included. **Out of scope, deliberately:** marking inside words or
+  across punctuation, scripts written without spaces (one run is one word), and AI help for the
+  type.
+- **`ordering` — the next activity type** (maintainer, 2026-11-06).
 - **`short-answer` — not needed for now** (maintainer, 2026-11-06).
 - ✅ **`speaking-response` — SHIPPED** in lk-core 1.9 / lk-react 23.5, on the groundwork in
   [After 1.4](#after-14--speaking-on-calibrated-grading).
@@ -1150,7 +1159,8 @@ it. It comes after the groundwork it needs, in this order.
    - **Then the help it unlocks,** on the rules of the AI line: coaching on an unscripted answer, and
      feedback on a spoken draft in practice.
 5. **Then the types an item bank may ask for soon**, in the maintainer's order of 2026-11-06:
-   `matching` (✅ shipped in 1.13.0 / 23.10.0), `mark-the-words`, then `ordering`. `short-answer`
+   `matching` (✅ shipped in 1.13.0 / 23.10.0), `mark-the-words` (✅ shipped in 1.14.0 /
+   23.11.0), then `ordering`. `short-answer`
    is not needed for now.
 
 Everything else open stays unordered until it is chosen: `analyzeItem` (statistics, no AI), the

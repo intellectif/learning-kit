@@ -511,6 +511,8 @@ export function structureTargets(entry: unknown): Record<string, unknown> {
           : {}),
       };
     }
+    case 'mark-the-words':
+      return { targets: listOf(entry.targets).length };
     case 'matching':
       return {
         prompts: listOf(entry.prompts).length,
@@ -539,6 +541,7 @@ const SCORED_ALIKE: Readonly<Record<string, readonly string[]>> = {
   'fill-in-the-blanks': ['scoringStrategy'],
   'gap-select': ['scoringStrategy', 'presentation'],
   matching: ['scoringStrategy', 'optionUse'],
+  'mark-the-words': ['scoringStrategy'],
   dictation: ['tolerance', 'hints'],
   'read-aloud': ['recording', 'scoring', 'locale'],
   'written-response': ['rubric', 'minWords', 'maxWords', 'languageTarget'],
@@ -706,6 +709,12 @@ function itemMisses(exemplar: Fields, candidate: Fields): StructureMiss[] {
     });
     if ((exemplar.shuffleChoices === true) !== (candidate.shuffleChoices === true)) {
       miss(['shuffleChoices'], 'Shuffling the choices differs from the exemplar.');
+    }
+  } else if (type === 'mark-the-words') {
+    const mine = listOf(exemplar.targets).length;
+    const theirs = listOf(candidate.targets).length;
+    if (mine !== theirs) {
+      miss(['targets'], `${count(theirs, 'target')}; the exemplar has ${mine}.`);
     }
   } else if (type === 'matching') {
     for (const [field, noun] of [

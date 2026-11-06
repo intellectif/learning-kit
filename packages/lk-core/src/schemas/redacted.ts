@@ -177,6 +177,20 @@ export const RedactedMatchingDataSchema = z.strictObject({
 });
 
 /**
+ * Redacted Mark the Words data: the text, and nothing about which words are
+ * right — not the targets, not even how many there are, since a count tells a
+ * learner when to stop. `scoringStrategy` stays answer-key, as on every type:
+ * whether a wrong mark costs anything is the difference between marking
+ * carefully and marking everything.
+ */
+export const RedactedMarkTheWordsDataSchema = z.strictObject({
+  ...redactedBase,
+  type: z.literal('mark-the-words'),
+  instructions: z.string().optional(),
+  text: z.string().min(1),
+});
+
+/**
  * Redacted Written Response data: the prompt, word bounds and rubric are
  * learner-visible (a rubric tells the learner what they are graded on);
  * authored pass/fail feedback is removed until the grade exists.

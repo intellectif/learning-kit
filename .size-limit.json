@@ -3,13 +3,13 @@
     "name": "lk-core: score",
     "path": "packages/lk-core/dist/scoring.js",
     "import": "{ score }",
-    "limit": "51 kB"
+    "limit": "52 kB"
   },
   {
     "name": "lk-core: validateActivity",
     "path": "packages/lk-core/dist/index.js",
     "import": "{ validateActivity }",
-    "limit": "57 kB"
+    "limit": "58 kB"
   },
   {
     "name": "lk-core: xAPIBuilder",
@@ -21,7 +21,7 @@
     "name": "lk-core: everything",
     "path": "packages/lk-core/dist/index.js",
     "import": "*",
-    "limit": "108 kB"
+    "limit": "111 kB"
   },
   {
     "name": "lk-azure: assessmentFromAzure",
@@ -73,6 +73,13 @@
     "limit": "50 kB"
   },
   {
+    "name": "MarkTheWords",
+    "path": "packages/lk-react/dist/components/MarkTheWords.js",
+    "import": "{ MarkTheWords }",
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
+    "limit": "50 kB"
+  },
+  {
     "name": "Matching",
     "path": "packages/lk-react/dist/components/Matching.js",
     "import": "{ Matching }",
@@ -105,7 +112,7 @@
     "path": "packages/lk-react/dist/components/InteractiveVideo.js",
     "import": "{ InteractiveVideo }",
     "ignore": ["react", "react-dom", "@intellectif/lk-core"],
-    "limit": "55 kB"
+    "limit": "56 kB"
   },
   {
     "name": "ReadingRoute",

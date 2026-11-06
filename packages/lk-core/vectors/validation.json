@@ -278,6 +278,31 @@
         "scoringStrategy": "partial",
         "title": "The return of the tram",
         "type": "matching"
+      },
+      "mark-the-words": {
+        "id": "mw-past",
+        "instructions": "Mark every verb in the past.",
+        "schemaVersion": "1.0",
+        "scoringStrategy": "partial",
+        "targets": [
+          {
+            "occurrence": 1,
+            "text": "went"
+          },
+          {
+            "text": "bought"
+          },
+          {
+            "text": "had never gone"
+          },
+          {
+            "occurrence": 2,
+            "text": "went"
+          }
+        ],
+        "text": "Yesterday she went to the market and bought bread. She had never gone there before, but she went again.",
+        "title": "The past",
+        "type": "mark-the-words"
       }
     },
     "assessments": {
@@ -6871,6 +6896,612 @@
     "validateDraft|matching|type=emoji-4001": ["invalid", "type|type_mismatch|invalid"],
     "validateActivity|matching|type=text-8001": ["type|invalid_value"],
     "validateDraft|matching|type=text-8001": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|seed": true,
+    "validateDraft|mark-the-words|seed": ["complete"],
+    "validateActivity|mark-the-words|extra-key": true,
+    "validateDraft|mark-the-words|extra-key": ["complete"],
+    "validateActivity|mark-the-words|id=deleted": ["id|invalid_type"],
+    "validateDraft|mark-the-words|id=deleted": ["invalid", "id|id_required|invalid"],
+    "validateActivity|mark-the-words|id=null": ["id|invalid_type"],
+    "validateDraft|mark-the-words|id=null": ["invalid", "id|id_required|invalid"],
+    "validateActivity|mark-the-words|id=undefined": ["id|invalid_type"],
+    "validateDraft|mark-the-words|id=undefined": ["invalid", "id|id_required|invalid"],
+    "validateActivity|mark-the-words|id=number": ["id|invalid_type"],
+    "validateDraft|mark-the-words|id=number": ["invalid", "id|invalid_type|invalid"],
+    "validateActivity|mark-the-words|id=empty": ["id|too_small"],
+    "validateDraft|mark-the-words|id=empty": ["invalid", "id|id_required|invalid"],
+    "validateActivity|mark-the-words|id=array": ["id|invalid_type", "id|too_small"],
+    "validateDraft|mark-the-words|id=array": [
+      "invalid",
+      "id|invalid_type|invalid",
+      "id|too_small|invalid"
+    ],
+    "validateActivity|mark-the-words|id=object": ["id|invalid_type"],
+    "validateDraft|mark-the-words|id=object": ["invalid", "id|invalid_type|invalid"],
+    "validateActivity|mark-the-words|id=array-null": ["id|invalid_type"],
+    "validateDraft|mark-the-words|id=array-null": ["invalid", "id|invalid_type|invalid"],
+    "validateActivity|mark-the-words|id=array-hole": ["id|invalid_type"],
+    "validateDraft|mark-the-words|id=array-hole": ["invalid", "id|invalid_type|invalid"],
+    "validateActivity|mark-the-words|id=true": ["id|invalid_type"],
+    "validateDraft|mark-the-words|id=true": ["invalid", "id|invalid_type|invalid"],
+    "validateActivity|mark-the-words|id=text-64": true,
+    "validateDraft|mark-the-words|id=text-64": ["complete"],
+    "validateActivity|mark-the-words|id=text-70": true,
+    "validateDraft|mark-the-words|id=text-70": ["complete"],
+    "validateActivity|mark-the-words|id=emoji-32": true,
+    "validateDraft|mark-the-words|id=emoji-32": ["complete"],
+    "validateActivity|mark-the-words|id=emoji-40": true,
+    "validateDraft|mark-the-words|id=emoji-40": ["complete"],
+    "validateActivity|mark-the-words|id=emoji-4000": true,
+    "validateDraft|mark-the-words|id=emoji-4000": ["complete"],
+    "validateActivity|mark-the-words|id=emoji-4001": true,
+    "validateDraft|mark-the-words|id=emoji-4001": ["complete"],
+    "validateActivity|mark-the-words|id=text-8001": true,
+    "validateDraft|mark-the-words|id=text-8001": ["complete"],
+    "validateActivity|mark-the-words|instructions=deleted": true,
+    "validateDraft|mark-the-words|instructions=deleted": ["complete"],
+    "validateActivity|mark-the-words|instructions=null": ["instructions|invalid_type"],
+    "validateDraft|mark-the-words|instructions=null": [
+      "invalid",
+      "instructions|null_not_allowed|invalid"
+    ],
+    "validateActivity|mark-the-words|instructions=undefined": true,
+    "validateDraft|mark-the-words|instructions=undefined": ["complete"],
+    "validateActivity|mark-the-words|instructions=number": ["instructions|invalid_type"],
+    "validateDraft|mark-the-words|instructions=number": [
+      "invalid",
+      "instructions|invalid_type|invalid"
+    ],
+    "validateActivity|mark-the-words|instructions=empty": true,
+    "validateDraft|mark-the-words|instructions=empty": ["complete"],
+    "validateActivity|mark-the-words|instructions=array": ["instructions|invalid_type"],
+    "validateDraft|mark-the-words|instructions=array": [
+      "invalid",
+      "instructions|invalid_type|invalid"
+    ],
+    "validateActivity|mark-the-words|instructions=object": ["instructions|invalid_type"],
+    "validateDraft|mark-the-words|instructions=object": [
+      "invalid",
+      "instructions|invalid_type|invalid"
+    ],
+    "validateActivity|mark-the-words|instructions=array-null": ["instructions|invalid_type"],
+    "validateDraft|mark-the-words|instructions=array-null": [
+      "invalid",
+      "instructions|invalid_type|invalid"
+    ],
+    "validateActivity|mark-the-words|instructions=array-hole": ["instructions|invalid_type"],
+    "validateDraft|mark-the-words|instructions=array-hole": [
+      "invalid",
+      "instructions|invalid_type|invalid"
+    ],
+    "validateActivity|mark-the-words|instructions=true": ["instructions|invalid_type"],
+    "validateDraft|mark-the-words|instructions=true": [
+      "invalid",
+      "instructions|invalid_type|invalid"
+    ],
+    "validateActivity|mark-the-words|instructions=text-64": true,
+    "validateDraft|mark-the-words|instructions=text-64": ["complete"],
+    "validateActivity|mark-the-words|instructions=text-70": true,
+    "validateDraft|mark-the-words|instructions=text-70": ["complete"],
+    "validateActivity|mark-the-words|instructions=emoji-32": true,
+    "validateDraft|mark-the-words|instructions=emoji-32": ["complete"],
+    "validateActivity|mark-the-words|instructions=emoji-40": true,
+    "validateDraft|mark-the-words|instructions=emoji-40": ["complete"],
+    "validateActivity|mark-the-words|instructions=emoji-4000": true,
+    "validateDraft|mark-the-words|instructions=emoji-4000": ["complete"],
+    "validateActivity|mark-the-words|instructions=emoji-4001": true,
+    "validateDraft|mark-the-words|instructions=emoji-4001": ["complete"],
+    "validateActivity|mark-the-words|instructions=text-8001": true,
+    "validateDraft|mark-the-words|instructions=text-8001": ["complete"],
+    "validateActivity|mark-the-words|schemaVersion=deleted": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=deleted": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=null": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=null": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=undefined": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=undefined": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=number": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=number": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=empty": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=empty": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=array": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=array": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=object": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=object": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=array-null": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=array-null": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=array-hole": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=array-hole": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=true": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=true": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=text-64": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=text-64": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=text-70": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=text-70": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=emoji-32": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=emoji-32": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=emoji-40": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=emoji-40": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=emoji-4000": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=emoji-4000": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=emoji-4001": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=emoji-4001": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|schemaVersion=text-8001": ["schemaVersion|invalid_value"],
+    "validateDraft|mark-the-words|schemaVersion=text-8001": [
+      "invalid",
+      "schemaVersion|schema_version_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=deleted": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=deleted": [
+      "incomplete",
+      "scoringStrategy|scoring_strategy_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=null": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=null": [
+      "incomplete",
+      "scoringStrategy|scoring_strategy_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=undefined": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=undefined": [
+      "incomplete",
+      "scoringStrategy|scoring_strategy_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=number": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=number": [
+      "invalid",
+      "scoringStrategy|invalid_value|invalid"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=empty": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=empty": [
+      "incomplete",
+      "scoringStrategy|scoring_strategy_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=array": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=array": [
+      "invalid",
+      "scoringStrategy|invalid_value|invalid"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=object": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=object": [
+      "invalid",
+      "scoringStrategy|invalid_value|invalid"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=array-null": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=array-null": [
+      "invalid",
+      "scoringStrategy|invalid_value|invalid"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=array-hole": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=array-hole": [
+      "invalid",
+      "scoringStrategy|invalid_value|invalid"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=true": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=true": [
+      "invalid",
+      "scoringStrategy|invalid_value|invalid"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=text-64": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=text-64": [
+      "invalid",
+      "scoringStrategy|invalid_value|invalid"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=text-70": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=text-70": [
+      "invalid",
+      "scoringStrategy|invalid_value|invalid"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=emoji-32": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=emoji-32": [
+      "invalid",
+      "scoringStrategy|invalid_value|invalid"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=emoji-40": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=emoji-40": [
+      "invalid",
+      "scoringStrategy|invalid_value|invalid"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=emoji-4000": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=emoji-4000": [
+      "invalid",
+      "scoringStrategy|invalid_value|invalid"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=emoji-4001": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=emoji-4001": [
+      "invalid",
+      "scoringStrategy|invalid_value|invalid"
+    ],
+    "validateActivity|mark-the-words|scoringStrategy=text-8001": ["scoringStrategy|invalid_value"],
+    "validateDraft|mark-the-words|scoringStrategy=text-8001": [
+      "invalid",
+      "scoringStrategy|invalid_value|invalid"
+    ],
+    "validateActivity|mark-the-words|targets=deleted": ["targets|invalid_type"],
+    "validateDraft|mark-the-words|targets=deleted": [
+      "incomplete",
+      "targets|mw_targets_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|targets=null": ["targets|invalid_type"],
+    "validateDraft|mark-the-words|targets=null": [
+      "incomplete",
+      "targets|mw_targets_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|targets=undefined": ["targets|invalid_type"],
+    "validateDraft|mark-the-words|targets=undefined": [
+      "incomplete",
+      "targets|mw_targets_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|targets=number": ["targets|invalid_type"],
+    "validateDraft|mark-the-words|targets=number": ["invalid", "targets|invalid_type|invalid"],
+    "validateActivity|mark-the-words|targets=empty": ["targets|invalid_type", "targets|too_small"],
+    "validateDraft|mark-the-words|targets=empty": [
+      "invalid",
+      "targets|invalid_type|invalid",
+      "targets|too_small|invalid"
+    ],
+    "validateActivity|mark-the-words|targets=array": ["targets|too_small"],
+    "validateDraft|mark-the-words|targets=array": [
+      "incomplete",
+      "targets|mw_targets_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|targets=object": ["targets|invalid_type"],
+    "validateDraft|mark-the-words|targets=object": ["invalid", "targets|invalid_type|invalid"],
+    "validateActivity|mark-the-words|targets=array-null": ["targets.0|invalid_type"],
+    "validateDraft|mark-the-words|targets=array-null": [
+      "invalid",
+      "targets.0|null_not_allowed|invalid"
+    ],
+    "validateActivity|mark-the-words|targets=array-hole": ["targets.0|invalid_type"],
+    "validateDraft|mark-the-words|targets=array-hole": [
+      "invalid",
+      "targets.0|null_not_allowed|invalid"
+    ],
+    "validateActivity|mark-the-words|targets=true": ["targets|invalid_type"],
+    "validateDraft|mark-the-words|targets=true": ["invalid", "targets|invalid_type|invalid"],
+    "validateActivity|mark-the-words|targets=text-64": ["targets|invalid_type"],
+    "validateDraft|mark-the-words|targets=text-64": ["invalid", "targets|invalid_type|invalid"],
+    "validateActivity|mark-the-words|targets=text-70": ["targets|invalid_type"],
+    "validateDraft|mark-the-words|targets=text-70": ["invalid", "targets|invalid_type|invalid"],
+    "validateActivity|mark-the-words|targets=emoji-32": ["targets|invalid_type"],
+    "validateDraft|mark-the-words|targets=emoji-32": ["invalid", "targets|invalid_type|invalid"],
+    "validateActivity|mark-the-words|targets=emoji-40": ["targets|invalid_type"],
+    "validateDraft|mark-the-words|targets=emoji-40": ["invalid", "targets|invalid_type|invalid"],
+    "validateActivity|mark-the-words|targets=emoji-4000": ["targets|invalid_type"],
+    "validateDraft|mark-the-words|targets=emoji-4000": ["invalid", "targets|invalid_type|invalid"],
+    "validateActivity|mark-the-words|targets=emoji-4001": ["targets|invalid_type"],
+    "validateDraft|mark-the-words|targets=emoji-4001": ["invalid", "targets|invalid_type|invalid"],
+    "validateActivity|mark-the-words|targets=text-8001": ["targets|invalid_type"],
+    "validateDraft|mark-the-words|targets=text-8001": ["invalid", "targets|invalid_type|invalid"],
+    "validateActivity|mark-the-words|targets[0].occurrence=null": [
+      "targets.0.occurrence|invalid_type"
+    ],
+    "validateDraft|mark-the-words|targets[0].occurrence=null": [
+      "invalid",
+      "targets.0.occurrence|null_not_allowed|invalid",
+      "targets.0.text|mw_target_ambiguous|incomplete"
+    ],
+    "validateActivity|mark-the-words|targets[0].occurrence=undefined": ["targets.0.text|custom"],
+    "validateDraft|mark-the-words|targets[0].occurrence=undefined": [
+      "incomplete",
+      "targets.0.text|mw_target_ambiguous|incomplete"
+    ],
+    "validateActivity|mark-the-words|targets[0].occurrence=number": ["targets.0.occurrence|custom"],
+    "validateDraft|mark-the-words|targets[0].occurrence=number": [
+      "invalid",
+      "targets.0.occurrence|mw_target_occurrence_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|targets[0].occurrence=emoji-40": [
+      "targets.0.occurrence|invalid_type"
+    ],
+    "validateDraft|mark-the-words|targets[0].occurrence=emoji-40": [
+      "invalid",
+      "targets.0.occurrence|mw_target_occurrence_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|targets[0].occurrence=text-300": [
+      "targets.0.occurrence|invalid_type"
+    ],
+    "validateDraft|mark-the-words|targets[0].occurrence=text-300": [
+      "invalid",
+      "targets.0.occurrence|mw_target_occurrence_invalid|invalid"
+    ],
+    "validateActivity|mark-the-words|targets[0].text=null": ["targets.0.text|invalid_type"],
+    "validateDraft|mark-the-words|targets[0].text=null": [
+      "incomplete",
+      "targets.0.text|mw_target_text_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|targets[0].text=undefined": ["targets.0.text|invalid_type"],
+    "validateDraft|mark-the-words|targets[0].text=undefined": [
+      "incomplete",
+      "targets.0.text|mw_target_text_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|targets[0].text=number": ["targets.0.text|invalid_type"],
+    "validateDraft|mark-the-words|targets[0].text=number": [
+      "invalid",
+      "targets.0.text|invalid_type|invalid"
+    ],
+    "validateActivity|mark-the-words|targets[0].text=emoji-40": ["targets.0.text|custom"],
+    "validateDraft|mark-the-words|targets[0].text=emoji-40": [
+      "invalid",
+      "targets.0.text|mw_target_no_words|invalid"
+    ],
+    "validateActivity|mark-the-words|targets[0].text=text-300": ["targets.0.text|custom"],
+    "validateDraft|mark-the-words|targets[0].text=text-300": [
+      "invalid",
+      "targets.0.text|mw_target_not_found|invalid"
+    ],
+    "validateActivity|mark-the-words|targets+null": ["targets.4|invalid_type"],
+    "validateDraft|mark-the-words|targets+null": ["invalid", "targets.4|null_not_allowed|invalid"],
+    "validateActivity|mark-the-words|targetsx30": [
+      "targets.10|custom",
+      "targets.11|custom",
+      "targets.12|custom",
+      "targets.13|custom",
+      "targets.14|custom",
+      "targets.15|custom",
+      "targets.16|custom",
+      "targets.17|custom",
+      "targets.18|custom",
+      "targets.19|custom",
+      "targets.1|custom",
+      "targets.20|custom",
+      "targets.21|custom",
+      "targets.22|custom",
+      "targets.23|custom",
+      "targets.24|custom",
+      "targets.25|custom",
+      "targets.26|custom",
+      "targets.27|custom",
+      "targets.28|custom",
+      "targets.29|custom",
+      "targets.2|custom",
+      "targets.3|custom",
+      "targets.4|custom",
+      "targets.5|custom",
+      "targets.6|custom",
+      "targets.7|custom",
+      "targets.8|custom",
+      "targets.9|custom"
+    ],
+    "validateDraft|mark-the-words|targetsx30": [
+      "invalid",
+      "targets.10|mw_target_overlap|invalid",
+      "targets.11|mw_target_overlap|invalid",
+      "targets.12|mw_target_overlap|invalid",
+      "targets.13|mw_target_overlap|invalid",
+      "targets.14|mw_target_overlap|invalid",
+      "targets.15|mw_target_overlap|invalid",
+      "targets.16|mw_target_overlap|invalid",
+      "targets.17|mw_target_overlap|invalid",
+      "targets.18|mw_target_overlap|invalid",
+      "targets.19|mw_target_overlap|invalid",
+      "targets.1|mw_target_overlap|invalid",
+      "targets.20|mw_target_overlap|invalid",
+      "targets.21|mw_target_overlap|invalid",
+      "targets.22|mw_target_overlap|invalid",
+      "targets.23|mw_target_overlap|invalid",
+      "targets.24|mw_target_overlap|invalid",
+      "targets.25|mw_target_overlap|invalid",
+      "targets.26|mw_target_overlap|invalid",
+      "targets.27|mw_target_overlap|invalid",
+      "targets.28|mw_target_overlap|invalid",
+      "targets.29|mw_target_overlap|invalid",
+      "targets.2|mw_target_overlap|invalid",
+      "targets.3|mw_target_overlap|invalid",
+      "targets.4|mw_target_overlap|invalid",
+      "targets.5|mw_target_overlap|invalid",
+      "targets.6|mw_target_overlap|invalid",
+      "targets.7|mw_target_overlap|invalid",
+      "targets.8|mw_target_overlap|invalid",
+      "targets.9|mw_target_overlap|invalid"
+    ],
+    "validateActivity|mark-the-words|text=deleted": ["text|invalid_type"],
+    "validateDraft|mark-the-words|text=deleted": ["incomplete", "text|mw_text_required|incomplete"],
+    "validateActivity|mark-the-words|text=null": ["text|invalid_type"],
+    "validateDraft|mark-the-words|text=null": ["incomplete", "text|mw_text_required|incomplete"],
+    "validateActivity|mark-the-words|text=undefined": ["text|invalid_type"],
+    "validateDraft|mark-the-words|text=undefined": [
+      "incomplete",
+      "text|mw_text_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|text=number": ["text|invalid_type"],
+    "validateDraft|mark-the-words|text=number": ["invalid", "text|invalid_type|invalid"],
+    "validateActivity|mark-the-words|text=empty": ["text|custom", "text|too_small"],
+    "validateDraft|mark-the-words|text=empty": ["incomplete", "text|mw_text_required|incomplete"],
+    "validateActivity|mark-the-words|text=array": ["text|invalid_type", "text|too_small"],
+    "validateDraft|mark-the-words|text=array": [
+      "invalid",
+      "text|invalid_type|invalid",
+      "text|too_small|invalid"
+    ],
+    "validateActivity|mark-the-words|text=object": ["text|invalid_type"],
+    "validateDraft|mark-the-words|text=object": ["invalid", "text|invalid_type|invalid"],
+    "validateActivity|mark-the-words|text=array-null": ["text|invalid_type"],
+    "validateDraft|mark-the-words|text=array-null": ["invalid", "text|invalid_type|invalid"],
+    "validateActivity|mark-the-words|text=array-hole": ["text|invalid_type"],
+    "validateDraft|mark-the-words|text=array-hole": ["invalid", "text|invalid_type|invalid"],
+    "validateActivity|mark-the-words|text=true": ["text|invalid_type"],
+    "validateDraft|mark-the-words|text=true": ["invalid", "text|invalid_type|invalid"],
+    "validateActivity|mark-the-words|text=text-64": [
+      "targets.0.text|custom",
+      "targets.1.text|custom",
+      "targets.2.text|custom",
+      "targets.3.text|custom"
+    ],
+    "validateDraft|mark-the-words|text=text-64": [
+      "invalid",
+      "targets.0.text|mw_target_not_found|invalid",
+      "targets.1.text|mw_target_not_found|invalid",
+      "targets.2.text|mw_target_not_found|invalid",
+      "targets.3.text|mw_target_not_found|invalid"
+    ],
+    "validateActivity|mark-the-words|text=text-70": [
+      "targets.0.text|custom",
+      "targets.1.text|custom",
+      "targets.2.text|custom",
+      "targets.3.text|custom"
+    ],
+    "validateDraft|mark-the-words|text=text-70": [
+      "invalid",
+      "targets.0.text|mw_target_not_found|invalid",
+      "targets.1.text|mw_target_not_found|invalid",
+      "targets.2.text|mw_target_not_found|invalid",
+      "targets.3.text|mw_target_not_found|invalid"
+    ],
+    "validateActivity|mark-the-words|text=emoji-32": ["text|custom"],
+    "validateDraft|mark-the-words|text=emoji-32": [
+      "incomplete",
+      "text|mw_text_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|text=emoji-40": ["text|custom"],
+    "validateDraft|mark-the-words|text=emoji-40": [
+      "incomplete",
+      "text|mw_text_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|text=emoji-4000": ["text|custom"],
+    "validateDraft|mark-the-words|text=emoji-4000": [
+      "incomplete",
+      "text|mw_text_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|text=emoji-4001": ["text|custom"],
+    "validateDraft|mark-the-words|text=emoji-4001": [
+      "incomplete",
+      "text|mw_text_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|text=text-8001": [
+      "targets.0.text|custom",
+      "targets.1.text|custom",
+      "targets.2.text|custom",
+      "targets.3.text|custom"
+    ],
+    "validateDraft|mark-the-words|text=text-8001": [
+      "invalid",
+      "targets.0.text|mw_target_not_found|invalid",
+      "targets.1.text|mw_target_not_found|invalid",
+      "targets.2.text|mw_target_not_found|invalid",
+      "targets.3.text|mw_target_not_found|invalid"
+    ],
+    "validateActivity|mark-the-words|title=deleted": ["title|invalid_type"],
+    "validateDraft|mark-the-words|title=deleted": ["incomplete", "title|title_required|incomplete"],
+    "validateActivity|mark-the-words|title=null": ["title|invalid_type"],
+    "validateDraft|mark-the-words|title=null": ["incomplete", "title|title_required|incomplete"],
+    "validateActivity|mark-the-words|title=undefined": ["title|invalid_type"],
+    "validateDraft|mark-the-words|title=undefined": [
+      "incomplete",
+      "title|title_required|incomplete"
+    ],
+    "validateActivity|mark-the-words|title=number": ["title|invalid_type"],
+    "validateDraft|mark-the-words|title=number": ["invalid", "title|invalid_type|invalid"],
+    "validateActivity|mark-the-words|title=empty": ["title|too_small"],
+    "validateDraft|mark-the-words|title=empty": ["incomplete", "title|title_required|incomplete"],
+    "validateActivity|mark-the-words|title=array": ["title|invalid_type", "title|too_small"],
+    "validateDraft|mark-the-words|title=array": [
+      "invalid",
+      "title|invalid_type|invalid",
+      "title|too_small|invalid"
+    ],
+    "validateActivity|mark-the-words|title=object": ["title|invalid_type"],
+    "validateDraft|mark-the-words|title=object": ["invalid", "title|invalid_type|invalid"],
+    "validateActivity|mark-the-words|title=array-null": ["title|invalid_type"],
+    "validateDraft|mark-the-words|title=array-null": ["invalid", "title|invalid_type|invalid"],
+    "validateActivity|mark-the-words|title=array-hole": ["title|invalid_type"],
+    "validateDraft|mark-the-words|title=array-hole": ["invalid", "title|invalid_type|invalid"],
+    "validateActivity|mark-the-words|title=true": ["title|invalid_type"],
+    "validateDraft|mark-the-words|title=true": ["invalid", "title|invalid_type|invalid"],
+    "validateActivity|mark-the-words|title=text-64": true,
+    "validateDraft|mark-the-words|title=text-64": ["complete"],
+    "validateActivity|mark-the-words|title=text-70": true,
+    "validateDraft|mark-the-words|title=text-70": ["complete"],
+    "validateActivity|mark-the-words|title=emoji-32": true,
+    "validateDraft|mark-the-words|title=emoji-32": ["complete"],
+    "validateActivity|mark-the-words|title=emoji-40": true,
+    "validateDraft|mark-the-words|title=emoji-40": ["complete"],
+    "validateActivity|mark-the-words|title=emoji-4000": true,
+    "validateDraft|mark-the-words|title=emoji-4000": ["complete"],
+    "validateActivity|mark-the-words|title=emoji-4001": true,
+    "validateDraft|mark-the-words|title=emoji-4001": ["complete"],
+    "validateActivity|mark-the-words|title=text-8001": true,
+    "validateDraft|mark-the-words|title=text-8001": ["complete"],
+    "validateActivity|mark-the-words|type=deleted": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=deleted": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=null": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=null": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=undefined": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=undefined": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=number": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=number": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=empty": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=empty": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=array": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=array": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=object": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=object": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=array-null": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=array-null": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=array-hole": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=array-hole": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=true": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=true": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=text-64": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=text-64": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=text-70": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=text-70": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=emoji-32": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=emoji-32": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=emoji-40": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=emoji-40": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=emoji-4000": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=emoji-4000": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=emoji-4001": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=emoji-4001": ["invalid", "type|type_mismatch|invalid"],
+    "validateActivity|mark-the-words|type=text-8001": ["type|invalid_value"],
+    "validateDraft|mark-the-words|type=text-8001": ["invalid", "type|type_mismatch|invalid"],
     "validateItemGroup|seed": true,
     "validateItemGroupDraft|seed": ["complete"],
     "validateItemGroup|extra-key": true,

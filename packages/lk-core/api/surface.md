@@ -30,7 +30,7 @@ const AI_VARIANTS_MAX_MATERIAL_LENGTH: AI_VARIANTS_MAX_MATERIAL_LENGTH = 12000
 const AI_VARIANTS_MAX_REPAIRS: AI_VARIANTS_MAX_REPAIRS = 3
 const AI_WRITING_MAX_CORRECTIONS: AI_WRITING_MAX_CORRECTIONS = 20
 const AI_WRITING_MAX_FIELD_LENGTH: AI_WRITING_MAX_FIELD_LENGTH = 500
-const BUILT_IN_ACTIVITY_TYPES: BUILT_IN_ACTIVITY_TYPES: readonly ["multiple-choice", "fill-in-the-blanks", "written-response", "gap-select", "dictation", "read-aloud", "speaking-response", "matching"]
+const BUILT_IN_ACTIVITY_TYPES: BUILT_IN_ACTIVITY_TYPES: readonly ["multiple-choice", "fill-in-the-blanks", "written-response", "gap-select", "dictation", "read-aloud", "speaking-response", "matching", "mark-the-words"]
 const DEFAULT_ITEM_SCORING_POLICY: DEFAULT_ITEM_SCORING_POLICY: ResolvedItemScoringPolicy
 const DEFAULT_PASS_THRESHOLD: DEFAULT_PASS_THRESHOLD = 0.7
 const DICTATION_MAX_ACCEPTED_TRANSCRIPTS: DICTATION_MAX_ACCEPTED_TRANSCRIPTS = 10
@@ -44,9 +44,11 @@ const fillInTheBlanksJsonSchema: fillInTheBlanksJsonSchema: Record<string, unkno
 const fillInTheBlanksType: fillInTheBlanksType: ActivityTypeDescriptor<FillInTheBlanksData, FillInTheBlanksLearnerResponse>
 const gapSelectJsonSchema: gapSelectJsonSchema: Record<string, unknown>
 const gapSelectType: gapSelectType: ActivityTypeDescriptor<GapSelectData, GapSelectLearnerResponse>
-const INTERACTIVE_VIDEO_ITEM_TYPES: INTERACTIVE_VIDEO_ITEM_TYPES: readonly ["multiple-choice", "fill-in-the-blanks", "gap-select", "dictation", "read-aloud", "speaking-response", "matching"]
+const INTERACTIVE_VIDEO_ITEM_TYPES: INTERACTIVE_VIDEO_ITEM_TYPES: readonly ["multiple-choice", "fill-in-the-blanks", "gap-select", "dictation", "read-aloud", "speaking-response", "matching", "mark-the-words"]
 const ITEM_SCORING_MAX_RETRIES: ITEM_SCORING_MAX_RETRIES = 10
 const itemGroupJsonSchema: itemGroupJsonSchema: Record<string, unknown>
+const MARK_THE_WORDS_MAX_WORDS: MARK_THE_WORDS_MAX_WORDS = 1500
+const MARK_THE_WORDS_TOKENIZER: MARK_THE_WORDS_TOKENIZER = "lk-words@1"
 const multipleChoiceJsonSchema: multipleChoiceJsonSchema: Record<string, unknown>
 const multipleChoiceType: multipleChoiceType: ActivityTypeDescriptor<MultipleChoiceData, MultipleChoiceLearnerResponse>
 const OPEN_DELIVERY_POLICY: OPEN_DELIVERY_POLICY: ResolvedDeliveryPolicy
@@ -155,8 +157,11 @@ function jsonSchemaFor: declare function jsonSchemaFor(type: string, options?: {
 function levenshteinDistance: declare function levenshteinDistance(a: string, b: string, max: number): number;
 function listMediaRefs: declare function listMediaRefs(entry: unknown): MediaRef[];
 function mapMediaRefs: declare function mapMediaRefs<T>(entry: T, fn: (ref: MediaRef) => null | string): T;
+function markableWords: declare function markableWords(text: string): MarkableWord[];
 function markedSentences: declare function markedSentences(trace: RouteTrace, question: string): number[];
 function marksFindEvidence: declare function marksFindEvidence(marked: readonly number[], evidence: readonly number[]): boolean;
+function markTargetIndices: declare function markTargetIndices(data: { targets?: unknown; text?: unknown; }): number[][];
+function markTheWordsFromMarkup: declare function markTheWordsFromMarkup(markup: string): { targets: MarkTargetQuote[]; text: string; };
 function matchText: declare function matchText(input: string, accepted: readonly string[] | string, policy?: TextMatchPolicy): TextMatchResult;
 function nextRouteLearnerState: declare function nextRouteLearnerState(state: RouteLearnerState | null | undefined, summary: RouteSummary, options?: RouteFadingOptions): RouteLearnerState;
 function outcomeFromGrade: declare function outcomeFromGrade(grade: GradeRecord): ItemOutcome;
@@ -180,6 +185,7 @@ function registerActivityType: declare function registerActivityType<TData exten
 function registeredActivityTypes: declare function registeredActivityTypes(): string[];
 function resolveDeliveryPolicy: declare function resolveDeliveryPolicy(policy: unknown): ResolvedDeliveryPolicy;
 function resolveItemScoringPolicy: declare function resolveItemScoringPolicy(policy: unknown): ResolvedItemScoringPolicy;
+function resolveMarkTarget: declare function resolveMarkTarget(words: readonly MarkableWord[], target: { occurrence?: unknown; text?: unknown; }): MarkTargetResolution;
 function resolvePlaybackPolicy: declare function resolvePlaybackPolicy(media: ActivityMedia): ResolvedPlaybackPolicy;
 function restoreAttemptState: declare function restoreAttemptState(plan: AttemptPlan, state: AttemptState): AttemptState;
 function restoreMediaPlayLedger: declare function restoreMediaPlayLedger(plan: AttemptPlan, stored: MediaPlayLedger): MediaPlayLedger;
@@ -216,7 +222,7 @@ function verifyAttemptPlan: declare function verifyAttemptPlan(plan: AttemptPlan
 function withoutAuthorOnly: declare function withoutAuthorOnly<T>(entry: T): T;
 function xapiDefinitionFor: declare function xapiDefinitionFor(data: { type: string; }): Partial<XAPIObjectParams>;
 interface ActivityAiPermissions: interface ActivityAiPermissions { explanations?: boolean; hints?: boolean; }
-interface ActivityDataMap: interface ActivityDataMap { 'multiple-choice': MultipleChoiceData; 'fill-in-the-blanks': FillInTheBlanksData; 'written-response': WrittenResponseData; 'gap-select': GapSelectData; dictation: DictationData; 'read-aloud': ReadAloudData; 'speaking-response': SpeakingResponseData; matching: MatchingData; }
+interface ActivityDataMap: interface ActivityDataMap { 'multiple-choice': MultipleChoiceData; 'fill-in-the-blanks': FillInTheBlanksData; 'written-response': WrittenResponseData; 'gap-select': GapSelectData; dictation: DictationData; 'read-aloud': ReadAloudData; 'speaking-response': SpeakingResponseData; matching: MatchingData; 'mark-the-words': MarkTheWordsData; }
 interface ActivityFeedback: interface ActivityFeedback { correct?: string; incorrect?: string; }
 interface ActivityMedia: interface ActivityMedia { type: 'audio' | 'embed' | 'image' | 'video'; url: string; alt?: string; captionsUrl?: string; tracks?: MediaTrack[]; poster?: string; playback?: MediaPlaybackPolicy; transcript?: string; script?: ScriptTurn[]; }
 interface ActivityResult: interface ActivityResult { score: number; maxScore: number; passed: boolean; timeSpent: number; xapiStatement: XAPIStatement; }
@@ -349,8 +355,12 @@ interface ItemTriesOutcome: interface ItemTriesOutcome { outcome: ItemOutcome; c
 interface ItemTriesScore: interface ItemTriesScore { score: number; maxScore: number; counted: number; tries: ItemTryScore[]; }
 interface ItemTry: interface ItemTry { score: number; maxScore: number; hintsRevealed?: number | undefined; }
 interface ItemTryScore: interface ItemTryScore { score: number; scored: number; maxScore: number; hintsRevealed: number; penalty: number; }
-interface LearnerResponseMap: interface LearnerResponseMap { 'multiple-choice': MultipleChoiceLearnerResponse; 'fill-in-the-blanks': FillInTheBlanksLearnerResponse; 'written-response': WrittenResponseLearnerResponse; 'gap-select': GapSelectLearnerResponse; dictation: DictationLearnerResponse; 'read-aloud': ReadAloudLearnerResponse; 'speaking-response': SpeakingResponseLearnerResponse; matching: MatchingLearnerResponse; }
+interface LearnerResponseMap: interface LearnerResponseMap { 'multiple-choice': MultipleChoiceLearnerResponse; 'fill-in-the-blanks': FillInTheBlanksLearnerResponse; 'written-response': WrittenResponseLearnerResponse; 'gap-select': GapSelectLearnerResponse; dictation: DictationLearnerResponse; 'read-aloud': ReadAloudLearnerResponse; 'speaking-response': SpeakingResponseLearnerResponse; matching: MatchingLearnerResponse; 'mark-the-words': MarkTheWordsLearnerResponse; }
 interface LengthTolerance: interface LengthTolerance { material?: number; item?: number; }
+interface MarkableWord: interface MarkableWord { index: number; text: string; start: number; end: number; }
+interface MarkTheWordsData: interface MarkTheWordsData { schemaVersion: '1.0'; type: 'mark-the-words'; id: string; title: string; instructions?: string; text: string; targets: MarkTheWordsTarget[]; scoringStrategy: 'all-or-nothing' | 'partial'; media?: ActivityMedia; feedback?: ActivityFeedback; passThreshold?: number; locale?: string; learningObjectives?: string[]; difficultyLevel?: 1 | 2 | 3 | 4 | 5; ai?: ActivityAiPermissions; }
+interface MarkTheWordsLearnerResponse: interface MarkTheWordsLearnerResponse { type: 'mark-the-words'; marked: number[]; hintsRevealed?: number; }
+interface MarkTheWordsTarget: interface MarkTheWordsTarget { text: string; occurrence?: number; feedback?: string; }
 interface MatchingData: interface MatchingData { schemaVersion: '1.0'; type: 'matching'; id: string; title: string; instructions?: string; optionsTitle?: string; prompts: MatchingPrompt[]; options: MatchingOption[]; optionUse?: 'many' | 'once'; scoringStrategy: 'all-or-nothing' | 'partial'; shuffleOptions?: boolean; media?: ActivityMedia; feedback?: ActivityFeedback; passThreshold?: number; locale?: string; learningObjectives?: string[]; difficultyLevel?: 1 | 2 | 3 | 4 | 5; ai?: ActivityAiPermissions; }
 interface MatchingLearnerResponse: interface MatchingLearnerResponse { type: 'matching'; matches: Record<string, string>; hintsRevealed?: number; }
 interface MatchingOption: interface MatchingOption { id: string; label?: string; text: string; }
@@ -397,6 +407,7 @@ interface RedactedGapSelectBank: interface RedactedGapSelectBank { id: string; c
 interface RedactedGapSelectChoice: interface RedactedGapSelectChoice { id: string; text: string; }
 interface RedactedGapSelectData: interface RedactedGapSelectData extends RedactedItem { type: 'gap-select'; instructions?: string | undefined; passage: string; passageHtml?: string | undefined; gaps: RedactedGapSelectGap[]; banks?: RedactedGapSelectBank[] | undefined; presentation?: 'dropdown' | undefined; shuffleChoices?: boolean | undefined; locale?: string | undefined; }
 interface RedactedGapSelectGap: interface RedactedGapSelectGap { id: string; choices?: RedactedGapSelectChoice[] | undefined; bankId?: string | undefined; }
+interface RedactedMarkTheWordsData: interface RedactedMarkTheWordsData extends RedactedItem { type: 'mark-the-words'; instructions?: string | undefined; text: string; locale?: string | undefined; }
 interface RedactedMatchingData: interface RedactedMatchingData extends RedactedItem { type: 'matching'; instructions?: string | undefined; optionsTitle?: string | undefined; prompts: RedactedMatchingPrompt[]; options: RedactedMatchingOption[]; optionUse?: 'many' | 'once' | undefined; shuffleOptions?: boolean | undefined; locale?: string | undefined; }
 interface RedactedMatchingOption: interface RedactedMatchingOption { id: string; label?: string | undefined; text: string; }
 interface RedactedMatchingPrompt: interface RedactedMatchingPrompt { id: string; text: string; }
@@ -518,6 +529,8 @@ type ItemOutcome: type ItemOutcome = { code?: string; maxScore: number; reason: 
 type ItemScoringCount: type ItemScoringCount = 'best' | 'first' | 'last';
 type JsonSchemaTarget: type JsonSchemaTarget = 'draft-2020-12' | 'draft-7';
 type LearnerResponse: type LearnerResponse = LearnerResponseMap[keyof LearnerResponseMap];
+type MarkTargetProblem: type MarkTargetProblem = 'ambiguous' | 'no-such-occurrence' | 'no-words' | 'not-found';
+type MarkTargetResolution: type MarkTargetResolution = { found: number; ok: false; problem: MarkTargetProblem; } | { indices: number[]; ok: true; };
 type MediaRefKind: type MediaRefKind = 'audio' | 'captions' | 'embed' | 'image' | 'poster' | 'track' | 'video';
 type MissingOutcomePolicy: type MissingOutcomePolicy = 'deferred' | 'zero' | ((slot: AttemptPlanSlot) => ItemOutcome);
 type NativeControlHint: type NativeControlHint = 'hide-download' | 'hide-rate';
@@ -528,7 +541,7 @@ type QuoteMatch: type QuoteMatch = { count: number; found: false; reason: 'ambig
 type ReadAloudDimension: type ReadAloudDimension = 'accuracy' | 'completeness' | 'fluency' | 'prosody';
 type ReadAloudWordState: type ReadAloudWordState = 'correct' | 'inserted' | 'mispronounced' | 'omitted';
 type ReadingRouteItemType: type ReadingRouteItemType = (typeof READING_ROUTE_ITEM_TYPES)[number];
-type RedactedActivity: type RedactedActivity = RedactedDictationData | RedactedFillInTheBlanksData | RedactedGapSelectData | RedactedMatchingData | RedactedMultipleChoiceData | RedactedReadAloudData | RedactedWrittenResponseData;
+type RedactedActivity: type RedactedActivity = RedactedDictationData | RedactedFillInTheBlanksData | RedactedGapSelectData | RedactedMarkTheWordsData | RedactedMatchingData | RedactedMultipleChoiceData | RedactedReadAloudData | RedactedWrittenResponseData;
 type RedactedItemGroup: type RedactedItemGroup = ItemGroup<RedactedActivityData> & { redacted: true; };
 type RoundingMode: type RoundingMode = 'ceil' | 'floor' | 'half-even' | 'half-up';
 type RouteCause: type RouteCause = 'limit' | 'meaning' | 'search' | 'trap' | 'unanswered' | 'unknown';
@@ -593,6 +606,7 @@ interface RedactedGapSelectBank: interface RedactedGapSelectBank { id: string; c
 interface RedactedGapSelectChoice: interface RedactedGapSelectChoice { id: string; text: string; }
 interface RedactedGapSelectData: interface RedactedGapSelectData extends RedactedItem { type: 'gap-select'; instructions?: string | undefined; passage: string; passageHtml?: string | undefined; gaps: RedactedGapSelectGap[]; banks?: RedactedGapSelectBank[] | undefined; presentation?: 'dropdown' | undefined; shuffleChoices?: boolean | undefined; locale?: string | undefined; }
 interface RedactedGapSelectGap: interface RedactedGapSelectGap { id: string; choices?: RedactedGapSelectChoice[] | undefined; bankId?: string | undefined; }
+interface RedactedMarkTheWordsData: interface RedactedMarkTheWordsData extends RedactedItem { type: 'mark-the-words'; instructions?: string | undefined; text: string; locale?: string | undefined; }
 interface RedactedMatchingData: interface RedactedMatchingData extends RedactedItem { type: 'matching'; instructions?: string | undefined; optionsTitle?: string | undefined; prompts: RedactedMatchingPrompt[]; options: RedactedMatchingOption[]; optionUse?: 'many' | 'once' | undefined; shuffleOptions?: boolean | undefined; locale?: string | undefined; }
 interface RedactedMatchingOption: interface RedactedMatchingOption { id: string; label?: string | undefined; text: string; }
 interface RedactedMatchingPrompt: interface RedactedMatchingPrompt { id: string; text: string; }
@@ -603,7 +617,7 @@ interface RedactedReadAloudData: interface RedactedReadAloudData extends Redacte
 interface RedactedStimulus: interface RedactedStimulus { id: string; kind: 'audio' | 'image' | 'mixed' | 'text' | 'video'; title?: string | undefined; body?: string | undefined; bodyHtml?: string | undefined; media?: Media | undefined; locale?: string | undefined; attribution?: string | undefined; }
 interface RedactedWrittenResponseData: interface RedactedWrittenResponseData extends RedactedItem { type: 'written-response'; prompt: string; promptHtml?: string | undefined; minWords: number; maxWords: number; rubric?: undefined | { criteria: { description?: string | undefined; levels?: undefined | { description?: string | undefined; label: string; }[]; name: string; weight: number; }[]; label?: string | undefined; }; languageTarget?: string | undefined; locale?: string | undefined; }
 type JsonSchemaTarget: type JsonSchemaTarget = 'draft-2020-12' | 'draft-7';
-type RedactedActivity: type RedactedActivity = RedactedDictationData | RedactedFillInTheBlanksData | RedactedGapSelectData | RedactedMatchingData | RedactedMultipleChoiceData | RedactedReadAloudData | RedactedWrittenResponseData;
+type RedactedActivity: type RedactedActivity = RedactedDictationData | RedactedFillInTheBlanksData | RedactedGapSelectData | RedactedMarkTheWordsData | RedactedMatchingData | RedactedMultipleChoiceData | RedactedReadAloudData | RedactedWrittenResponseData;
 ```
 
 ## @intellectif/lk-core/scoring

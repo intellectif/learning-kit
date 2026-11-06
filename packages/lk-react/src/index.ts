@@ -6,6 +6,7 @@ export * from './components/Dictation/index.js';
 export * from './components/FillInTheBlanks/index.js';
 export * from './components/GapSelect/index.js';
 export * from './components/InteractiveVideo/index.js';
+export * from './components/MarkTheWords/index.js';
 export * from './components/Matching/index.js';
 export * from './components/MultipleChoice/index.js';
 export * from './components/PronunciationFeedback/index.js';

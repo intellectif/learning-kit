@@ -21,6 +21,7 @@ export type {
   RedactedGapSelectChoice,
   RedactedGapSelectData,
   RedactedGapSelectGap,
+  RedactedMarkTheWordsData,
   RedactedMatchingData,
   RedactedMatchingOption,
   RedactedMatchingPrompt,

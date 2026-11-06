@@ -27,6 +27,7 @@ export interface ActivityDataMap {
   'read-aloud': ReadAloudData;
   'speaking-response': SpeakingResponseData;
   matching: MatchingData;
+  'mark-the-words': MarkTheWordsData;
 }
 
 /**
@@ -555,6 +556,77 @@ export interface MatchingData {
   ai?: ActivityAiPermissions;
 }
 
+/**
+ * A word, or several words in a row, of a mark-the-words text that the learner
+ * should mark. Written as a quote of the text, never as a position, so an edit
+ * elsewhere in the text leaves it standing.
+ */
+export interface MarkTheWordsTarget {
+  /**
+   * The word or words, copied from the text: whole words, in order. Case and
+   * accents count; punctuation around them does not, and nor does the kind of
+   * apostrophe.
+   */
+  text: string;
+  /**
+   * Which appearance, 1-based. Required when the words appear more than once
+   * in the text — the schema refuses a target that could be either.
+   */
+  occurrence?: number;
+  /** Optional feedback shown beside the target after submission. */
+  feedback?: string;
+}
+
+/**
+ * Data contract for a Mark the Words activity: a text in which the learner
+ * marks the words a task asks for — every past-tense verb, the words that
+ * mean "big", the linkers — by selecting them.
+ *
+ * The text is cut into words by the SDK's own word cut (`lk-words@1`, see
+ * `markableWords`), and a response names words by their position in it.
+ *
+ * **Scoring.** Each target counts once, and only when every one of its words
+ * is marked. A marked word that is part of no target costs one target's worth:
+ * `partial` scores (targets found − words wrongly marked) / targets, never
+ * below 0, so marking every word earns nothing unless most words are targets
+ * — the critic warns when they are. `all-or-nothing` needs every target and no
+ * wrong word.
+ */
+export interface MarkTheWordsData {
+  schemaVersion: '1.0';
+  type: 'mark-the-words';
+  /** Unique identifier for this activity. */
+  id: string;
+  /** Human-readable title used in xAPI statements and error boundaries. */
+  title: string;
+  /**
+   * Optional instructions shown to the learner, as plain text: the task, read
+   * before the text ("Mark every verb in the past simple."). Every AI request
+   * about the item carries them.
+   */
+  instructions?: string;
+  /** The text the learner marks words in, as plain text. Paragraphs are separated by a blank line. At most 1500 words. */
+  text: string;
+  /** The words to mark. At least one; no two share a word. */
+  targets: MarkTheWordsTarget[];
+  /** Scoring algorithm applied when the learner submits. */
+  scoringStrategy: 'all-or-nothing' | 'partial';
+  /** Optional media shown above the text. */
+  media?: ActivityMedia;
+  /** Optional authored overall feedback shown after submission. */
+  feedback?: ActivityFeedback;
+  /** Minimum scaled score [0–1] required to pass. Defaults to {@link DEFAULT_PASS_THRESHOLD} (0.7) when absent. */
+  passThreshold?: number;
+  /** BCP 47 language tag for the activity content. */
+  locale?: string;
+  /** IRI references to learning objectives addressed by this activity. */
+  learningObjectives?: string[];
+  /** Subjective difficulty on a 1–5 scale. */
+  difficultyLevel?: 1 | 2 | 3 | 4 | 5;
+  /** What an author allows AI to do for this item: see {@link ActivityAiPermissions}. */
+  ai?: ActivityAiPermissions;
+}
+
 export interface FillInTheBlanksData {
   schemaVersion: '1.0';
   type: 'fill-in-the-blanks';
@@ -905,6 +977,7 @@ export interface LearnerResponseMap {
   'read-aloud': ReadAloudLearnerResponse;
   'speaking-response': SpeakingResponseLearnerResponse;
   matching: MatchingLearnerResponse;
+  'mark-the-words': MarkTheWordsLearnerResponse;
 }
 
 /** Union of all learner response shapes. */
@@ -974,6 +1047,26 @@ export interface MatchingLearnerResponse {
   type: 'matching';
   /** Map of prompt ID to the ID of the option the learner matched it with. */
   matches: Record<string, string>;
+  /**
+   * Hints the learner was shown before submitting this answer, counted from
+   * the start of the question — the author's and AI hints alike. Written by
+   * the SDK's components in `practice`; absent or 0 means none. A scoring
+   * policy's `hintPenalty` charges for them. Client-reported, like any count
+   * a browser makes.
+   */
+  hintsRevealed?: number;
+}
+
+/**
+ * Learner response for a Mark the Words activity: the words marked, by their
+ * 0-based position in the text's words (`markableWords`). Order does not
+ * matter. A position that names no word, or repeats one, is ignored by the
+ * scorer.
+ */
+export interface MarkTheWordsLearnerResponse {
+  type: 'mark-the-words';
+  /** Positions of the marked words. */
+  marked: number[];
   /**
    * Hints the learner was shown before submitting this answer, counted from
    * the start of the question — the author's and AI hints alike. Written by

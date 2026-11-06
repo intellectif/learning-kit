@@ -84,6 +84,7 @@ const COMPONENT_FOR_TYPE = {
   'read-aloud': 'ReadAloud',
   'speaking-response': 'SpeakingResponse',
   matching: 'Matching',
+  'mark-the-words': 'MarkTheWords',
 };
 
 /**

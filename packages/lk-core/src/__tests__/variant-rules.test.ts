@@ -29,6 +29,23 @@ const messages = (exemplar: Fields, candidate: Fields) =>
   structureMisses(exemplar, candidate).map((one) => `${one.path.join('.')}: ${one.message}`);
 
 describe('structureMisses', () => {
+  it('compares mark-the-words items by their targets and how they score', () => {
+    const marking = (targets: number, scoringStrategy = 'partial'): Fields => ({
+      schemaVersion: '1.0',
+      type: 'mark-the-words',
+      id: 'w',
+      title: 'Verbs',
+      text: 'a b c d',
+      targets: ['a', 'b', 'c'].slice(0, targets).map((text) => ({ text })),
+      scoringStrategy,
+    });
+    expect(messages(marking(2), marking(2))).toEqual([]);
+    expect(messages(marking(2), marking(3, 'all-or-nothing'))).toEqual([
+      "scoringStrategy: The scoring strategy differs from the exemplar's.",
+      'targets: 3 targets; the exemplar has 2.',
+    ]);
+  });
+
   it('compares matching items by their prompts, their list and how they score', () => {
     const matching = (prompts: number, options: number): Fields => ({
       schemaVersion: '1.0',

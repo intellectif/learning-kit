@@ -138,7 +138,7 @@ author to approve. See [Drafts from a source](./ai.md#drafts-from-a-source).
 
 ## What can be embedded
 
-Seven types, and `INTERACTIVE_VIDEO_ITEM_TYPES` is the list the schema and the player both read:
+Eight types, and `INTERACTIVE_VIDEO_ITEM_TYPES` is the list the schema and the player both read:
 
 | Type | Inside a video |
 |---|---|
@@ -149,6 +149,7 @@ Seven types, and `INTERACTIVE_VIDEO_ITEM_TYPES` is the list the schema and the p
 | `read-aloud` | Yes, with a `recordingBinding` |
 | `speaking-response` | Yes, with a `recordingBinding` (lk-core 1.10.0, lk-react 23.6.0) |
 | `matching` | Yes (lk-core 1.13.0, lk-react 23.10.0) |
+| `mark-the-words` | Yes (lk-core 1.14.0, lk-react 23.11.0) |
 
 Anything else — a written response, another interactive video — is refused by the schema, with
 `ig_timeline_item_type` naming the item. The list is deliberately short: these are the types that
