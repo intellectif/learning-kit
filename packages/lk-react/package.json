@@ -133,6 +133,16 @@
         "default": "./dist/components/InteractiveVideo.cjs"
       }
     },
+    "./components/ReadingRoute": {
+      "import": {
+        "types": "./dist/components/ReadingRoute.d.ts",
+        "default": "./dist/components/ReadingRoute.js"
+      },
+      "require": {
+        "types": "./dist/components/ReadingRoute.d.cts",
+        "default": "./dist/components/ReadingRoute.cjs"
+      }
+    },
     "./components/PronunciationFeedback": {
       "import": {
         "types": "./dist/components/PronunciationFeedback.d.ts",

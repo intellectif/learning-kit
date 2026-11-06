@@ -31,6 +31,14 @@
   --lk-iv-caption-secondary-color: #ffe066;
   --lk-iv-caption-secondary-scale: 0.85;
   --lk-iv-caption-gap: 0.25em;
+  /* A reading route's marks on the passage: the step's target, the sentences
+     around it, key words and their paraphrases, the learner's evidence marks,
+     and the opacity of text outside the search. */
+  --lk-route-highlight: #fde68a;
+  --lk-route-context: #fef9c3;
+  --lk-route-pair: #bfdbfe;
+  --lk-route-mark: #d9f99d;
+  --lk-route-dim: 0.45;
 
   /* Spacing */
   --lk-spacing-xs: 4px;

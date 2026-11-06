@@ -20,6 +20,7 @@ export default defineConfig({
     'components/ReadAloud': 'src/components/ReadAloud/index.tsx',
     'components/SpeakingResponse': 'src/components/SpeakingResponse/index.tsx',
     'components/InteractiveVideo': 'src/components/InteractiveVideo/index.tsx',
+    'components/ReadingRoute': 'src/components/ReadingRoute/index.tsx',
     'components/PronunciationFeedback': 'src/components/PronunciationFeedback/index.tsx',
     'components/WrittenResponse': 'src/components/WrittenResponse/index.tsx',
     'components/StimulusPanel': 'src/components/StimulusPanel/index.tsx',

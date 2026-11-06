@@ -90,9 +90,11 @@ const preview: Preview = {
   },
   decorators: [
     validContent,
-    (Story) => (
+    // `parameters.wide`: a story that lays two panes side by side, as a
+    // reading route does, gets the width a paper page has.
+    (Story, context) => (
       <ThemeProvider>
-        <div style={{ maxWidth: 680, padding: 24 }}>
+        <div style={{ maxWidth: context.parameters.wide === true ? 1280 : 680, padding: 24 }}>
           <Story />
         </div>
       </ThemeProvider>

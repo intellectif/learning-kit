@@ -29,6 +29,12 @@ export const defaultTheme: ThemeTokens = {
   '--lk-iv-caption-secondary-color': '#ffe066',
   '--lk-iv-caption-secondary-scale': '0.85',
   '--lk-iv-caption-gap': '0.25em',
+  // A reading route's marks on the passage. Tints the text keeps 4.5:1 on.
+  '--lk-route-highlight': '#fde68a',
+  '--lk-route-context': '#fef9c3',
+  '--lk-route-pair': '#bfdbfe',
+  '--lk-route-mark': '#d9f99d',
+  '--lk-route-dim': '0.45',
 
   // ── Spacing ──────────────────────────────────────────────────────────────
   '--lk-spacing-xs': '4px',

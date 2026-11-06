@@ -3744,3 +3744,478 @@
     }
   }
 }
+
+/* ── Reading route ─────────────────────────────────────────────────────────
+   The passage beside its questions, as on a computer-delivered paper, with a
+   guide above both. Every mark on the passage has a shape as well as a colour
+   — an outline, an underline, a wavy line — so none is told by colour alone
+   (WCAG 1.4.1), and none moves: nothing here is animated.
+   The root is cardless: it sets no colour, because it paints no background.
+   Every part that paints one sets its text colour beside it, so the route
+   reads in either theme on whatever page holds it. */
+@layer lk-skin {
+  .lk-rr {
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-md);
+    font-family: var(--lk-font-family-base);
+    font-size: var(--lk-font-size-base);
+    line-height: var(--lk-line-height-base);
+  }
+
+  .lk-rr *,
+  .lk-rr *::before,
+  .lk-rr *::after {
+    box-sizing: border-box;
+  }
+
+  .lk-rr-bar button,
+  .lk-rr-guide button,
+  .lk-rr-evidence button {
+    font: inherit;
+    padding: var(--lk-spacing-xs) var(--lk-spacing-md);
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    cursor: pointer;
+  }
+
+  .lk-rr-bar button:hover:not(:disabled),
+  .lk-rr-guide button:hover:not(:disabled),
+  .lk-rr-evidence button:hover:not(:disabled) {
+    border-color: var(--lk-color-primary);
+  }
+
+  .lk-rr-guide button:disabled {
+    cursor: not-allowed;
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-rr-bar button:focus-visible,
+  .lk-rr-guide button:focus-visible,
+  .lk-rr-evidence button:focus-visible,
+  .lk-rr [data-selectable]:focus-visible {
+    outline: 2px solid var(--lk-color-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .lk-rr-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--lk-spacing-sm) var(--lk-spacing-md);
+  }
+
+  .lk-rr-strategies {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    gap: var(--lk-spacing-sm);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lk-rr-strategies li,
+  .lk-rr-pace {
+    display: inline-flex;
+    gap: var(--lk-spacing-xs);
+    padding: 2px var(--lk-spacing-sm);
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-lg);
+  }
+
+  .lk-rr-level {
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-rr-pace {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lk-rr-bar .lk-rr-finish,
+  .lk-rr-guide .lk-rr-next {
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-surface);
+    background: var(--lk-color-primary);
+    border-color: var(--lk-color-primary);
+  }
+
+  .lk-rr-bar .lk-rr-finish:hover,
+  .lk-rr-guide .lk-rr-next:hover:not(:disabled) {
+    background: var(--lk-color-primary-hover);
+  }
+
+  .lk-rr-guide .lk-rr-next:disabled {
+    color: var(--lk-color-text-muted);
+    background: var(--lk-color-surface);
+    border-color: var(--lk-color-border);
+  }
+
+  /* The guide stays in view while the passage and the questions scroll. */
+  .lk-rr-guide {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: var(--lk-spacing-md);
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface-raised);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-lg);
+  }
+
+  /* The debrief is read once, not followed step by step: it scrolls away
+     rather than covering the passage it points into. */
+  .lk-rr[data-phase="debrief"] .lk-rr-guide {
+    position: static;
+  }
+
+  .lk-rr-step-progress {
+    margin: 0;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-rr-step-move {
+    margin: var(--lk-spacing-xs) 0;
+    font-size: var(--lk-font-size-lg);
+  }
+
+  .lk-rr-step-text {
+    max-width: 70ch;
+    margin: 0;
+  }
+
+  .lk-rr-step-actions,
+  .lk-rr-locate-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lk-spacing-sm);
+    margin-top: var(--lk-spacing-md);
+  }
+
+  .lk-rr-guide .lk-rr-skip {
+    margin-left: auto;
+    border-color: transparent;
+    text-decoration: underline;
+  }
+
+  .lk-rr-locate-prompt {
+    margin: var(--lk-spacing-md) 0 0;
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-rr-locate-result {
+    margin: var(--lk-spacing-sm) 0 0;
+    padding-left: var(--lk-spacing-sm);
+    border-left: 4px solid var(--lk-color-success);
+  }
+
+  .lk-rr-locate-result[data-hit="false"] {
+    border-left-color: var(--lk-color-warning);
+  }
+
+  .lk-rr-guide .lk-rr-locate-actions [data-prominent] {
+    font-weight: var(--lk-font-weight-bold);
+    border: 2px solid var(--lk-color-primary);
+  }
+
+  .lk-rr-pairs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-xs);
+    margin: var(--lk-spacing-sm) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lk-rr-pair-chip,
+  .lk-rr-pair-number {
+    display: inline-block;
+    min-width: 1.4em;
+    margin-right: var(--lk-spacing-xs);
+    padding: 0 0.3em;
+    font-size: 0.75em;
+    font-weight: var(--lk-font-weight-bold);
+    line-height: 1.4;
+    text-align: center;
+    color: var(--lk-color-text);
+    background: var(--lk-route-pair);
+    border: 1px solid var(--lk-color-text);
+    border-radius: var(--lk-radius-sm);
+  }
+
+  .lk-rr-pair-number {
+    margin-right: 2px;
+    vertical-align: super;
+  }
+
+  /* Passage and questions side by side where there is room, one above the
+     other where there is not. Each scrolls on its own beside the other. */
+  .lk-rr-panes {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--lk-spacing-md);
+    align-items: start;
+  }
+
+  .lk-rr-passage,
+  .lk-rr-questions {
+    max-height: 75vh;
+    overflow: auto;
+    padding: var(--lk-spacing-md);
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-lg);
+  }
+
+  .lk-rr-questions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-md);
+  }
+
+  /* Stacked, a guide that stayed in view would cover half a phone: it stays
+     above the passage, and each step brings what it points to into view. */
+  @container (max-width: 759px) {
+    .lk-rr-panes {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .lk-rr-guide {
+      position: static;
+    }
+
+    .lk-rr-passage,
+    .lk-rr-questions {
+      max-height: none;
+    }
+  }
+
+  .lk-rr-passage-title {
+    margin: 0 0 var(--lk-spacing-md);
+    font-size: var(--lk-font-size-lg);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-rr-section {
+    display: flex;
+    gap: var(--lk-spacing-sm);
+    margin: var(--lk-spacing-lg) 0 var(--lk-spacing-sm);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-rr-paragraph {
+    margin: 0 0 var(--lk-spacing-md);
+    white-space: pre-wrap;
+  }
+
+  .lk-rr-paragraph-label {
+    display: inline-block;
+    min-width: 1.6em;
+    margin-right: var(--lk-spacing-sm);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-rr-piece {
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  .lk-rr-piece[data-kind~="context"] {
+    background: var(--lk-route-context);
+    text-decoration: underline dotted 1px;
+    text-underline-offset: 3px;
+  }
+
+  .lk-rr-piece[data-kind~="target"] {
+    background: var(--lk-route-highlight);
+    outline: 2px dashed var(--lk-color-text);
+    outline-offset: 1px;
+  }
+
+  .lk-rr-piece[data-kind~="pair"] {
+    background: var(--lk-route-pair);
+    text-decoration: underline solid 2px;
+    text-underline-offset: 3px;
+  }
+
+  .lk-rr-piece[data-kind~="lure"] {
+    text-decoration: underline wavy var(--lk-color-error) 2px;
+    text-underline-offset: 3px;
+  }
+
+  .lk-rr-piece[data-kind~="mark"] {
+    background: var(--lk-route-mark);
+    text-decoration: underline double 2px;
+    text-underline-offset: 3px;
+  }
+
+  .lk-rr-piece[data-dim] {
+    opacity: var(--lk-route-dim);
+  }
+
+  .lk-rr-sentence[data-selectable] {
+    cursor: pointer;
+    border-radius: var(--lk-radius-sm);
+  }
+
+  .lk-rr-sentence[data-selectable]:hover {
+    background: var(--lk-color-surface-raised);
+    text-decoration: underline;
+  }
+
+  .lk-rr-sentence[aria-pressed="true"] {
+    background: var(--lk-route-mark);
+  }
+
+  .lk-rr-marking-hint {
+    margin: 0 0 var(--lk-spacing-md);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-rr-attribution {
+    margin: var(--lk-spacing-md) 0 0;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-rr-card {
+    padding: var(--lk-spacing-sm);
+    border: 2px solid transparent;
+    border-radius: var(--lk-radius-lg);
+  }
+
+  .lk-rr-card[data-active] {
+    border-color: var(--lk-color-primary);
+  }
+
+  .lk-rr-card-numbers {
+    margin: 0 0 var(--lk-spacing-sm);
+    font-size: var(--lk-font-size-sm);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  /* The part of a question a step looks at, inside the question's own markup. */
+  .lk-rr [data-lk-route-target] {
+    background: var(--lk-route-highlight);
+    outline: 2px dashed var(--lk-color-text);
+    outline-offset: 2px;
+  }
+
+  ::highlight(lk-route-phrase) {
+    background-color: var(--lk-route-pair);
+    text-decoration: underline solid 2px;
+  }
+
+  .lk-rr-evidence {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lk-spacing-sm);
+    margin-top: var(--lk-spacing-sm);
+  }
+
+  .lk-rr-evidence .lk-rr-mark {
+    font-size: var(--lk-font-size-sm);
+  }
+
+  .lk-rr-evidence .lk-rr-mark[aria-pressed="true"] {
+    background: var(--lk-route-mark);
+    border: 2px solid var(--lk-color-text);
+  }
+
+  .lk-rr-mark-count {
+    margin-left: var(--lk-spacing-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-rr-debrief-title {
+    margin: 0 0 var(--lk-spacing-sm);
+    font-size: var(--lk-font-size-lg);
+  }
+
+  .lk-rr-debrief-score,
+  .lk-rr-debrief-located {
+    margin: 0;
+  }
+
+  .lk-rr-debrief-score {
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-rr-levels {
+    margin: var(--lk-spacing-sm) 0;
+    padding-left: var(--lk-spacing-lg);
+    font-size: var(--lk-font-size-sm);
+  }
+
+  .lk-rr-results {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lk-spacing-sm);
+    margin: var(--lk-spacing-md) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lk-rr-guide .lk-rr-result {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    border-left: 4px solid var(--lk-color-border);
+  }
+
+  .lk-rr-guide .lk-rr-result[data-correct="true"] {
+    border-left-color: var(--lk-color-success);
+  }
+
+  .lk-rr-guide .lk-rr-result[data-correct="false"] {
+    border-left-color: var(--lk-color-error);
+  }
+
+  .lk-rr-guide .lk-rr-result[aria-pressed="true"] {
+    border-width: 2px 2px 2px 4px;
+    border-top-color: var(--lk-color-primary);
+    border-right-color: var(--lk-color-primary);
+    border-bottom-color: var(--lk-color-primary);
+  }
+
+  .lk-rr-result-number {
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-rr-result-mark {
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-rr-detail {
+    max-width: 70ch;
+    margin-top: var(--lk-spacing-md);
+  }
+
+  .lk-rr-detail p {
+    margin: 0 0 var(--lk-spacing-sm);
+  }
+
+  .lk-rr-detail-title {
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-rr-detail-trap {
+    padding-left: var(--lk-spacing-sm);
+    border-left: 4px solid var(--lk-color-error);
+  }
+
+  .lk-rr-detail-time {
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+}

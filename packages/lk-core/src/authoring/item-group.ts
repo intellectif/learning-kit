@@ -1,4 +1,5 @@
 import { UnknownActivityTypeError } from '../errors.js';
+import { routeIssues } from '../reading-route/check.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
 import { GROUP_CAPTIONS_REVEAL_DICTATION, groupCaptionsField } from '../schemas/dictation.js';
 import { ItemGroupSchema, validateItemGroup } from '../schemas/item-group.js';
@@ -82,6 +83,17 @@ export function createInteractiveVideoDraft(context: DraftContext): ItemGroup {
     stimulus: { id: draft.stimulus.id, kind: 'video', media: { type: 'video', url: '' } },
     timeline: { cues: [] },
   };
+}
+
+/**
+ * A new, empty reading route for an editor to start from: an item group with
+ * a text stimulus waiting for its passage, no questions, and a route with no
+ * questions yet. Like every new draft it is `incomplete`.
+ *
+ * @throws Error when `newId` returns an empty or repeated id.
+ */
+export function createReadingRouteDraft(context: DraftContext): ItemGroup {
+  return { ...createItemGroupDraft(context), route: { routeVersion: '1.0', questions: [] } };
 }
 
 /**
@@ -196,6 +208,13 @@ function validateItemGroupDraftInScope(draft: unknown): DraftValidationResult<It
   issues.push(...checkItems(draft));
   if (draft.timeline !== undefined && draft.timeline !== null) {
     issues.push(...checkTimeline(draft));
+  }
+  if (isRecord(draft.route)) {
+    // One list of rules for drafts and for the stored schema, each code with
+    // the severity `DRAFT_ISSUE_SEVERITY` gives it.
+    for (const found of routeIssues(draft)) {
+      issues.push(issue(found.code, found.path, found.message));
+    }
   }
   const captions = groupCaptionsField(draft, (captionsUrl) => !isUnwritten(captionsUrl));
   if (captions !== undefined) {

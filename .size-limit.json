@@ -9,7 +9,7 @@
     "name": "lk-core: validateActivity",
     "path": "packages/lk-core/dist/index.js",
     "import": "{ validateActivity }",
-    "limit": "54 kB"
+    "limit": "56 kB"
   },
   {
     "name": "lk-core: xAPIBuilder",
@@ -21,7 +21,7 @@
     "name": "lk-core: everything",
     "path": "packages/lk-core/dist/index.js",
     "import": "*",
-    "limit": "100 kB"
+    "limit": "108 kB"
   },
   {
     "name": "lk-azure: assessmentFromAzure",
@@ -97,6 +97,13 @@
     "name": "InteractiveVideo",
     "path": "packages/lk-react/dist/components/InteractiveVideo.js",
     "import": "{ InteractiveVideo }",
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
+    "limit": "50 kB"
+  },
+  {
+    "name": "ReadingRoute",
+    "path": "packages/lk-react/dist/components/ReadingRoute.js",
+    "import": "{ ReadingRoute }",
     "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "50 kB"
   },
