@@ -418,6 +418,49 @@ reads first, with the labels the paper answers in. A bank cannot say "each once"
 either. A reading route guides both: a matching item's prompts are its
 questions, one per `partId` — see [Reading routes](./reading-route.md).
 
+### Mark the Words — select the words a task asks for (1.14)
+
+A text in which the learner marks the words a task names: every verb in the past, the words that
+mean "big", the linkers.
+
+```jsonc
+{
+  "schemaVersion": "1.0", "type": "mark-the-words", "id": "q1", "title": "The past",
+  "instructions": "Mark every verb in the past.",
+  "text": "Yesterday she went to the market and bought bread. She had never gone there before, but she went again.",
+  "targets": [
+    { "text": "went", "occurrence": 1 },
+    { "text": "bought" },
+    { "text": "had never gone" },
+    { "text": "went", "occurrence": 2 }
+  ],
+  "scoringStrategy": "partial"
+}
+```
+
+- **Words are the SDK's.** The text is cut into words by `lk-words@1` (`markableWords`): runs of
+  letters, marks and digits, with an apostrophe or hyphen inside one ("don't", "well-known").
+  Punctuation is never a word. A response names marked words by their position in that list, so
+  the cut is the same in every browser and on every server — it is not `Intl.Segmenter`, whose
+  boundaries move with each runtime's ICU.
+- **Targets are quotes, never positions**, as in a [reading route](./reading-route.md): copy the
+  word or words from the text. Case and accents count; the kind of apostrophe does not. Where the
+  words appear more than once, `occurrence` (1-based) says which — a target that could be either
+  is refused. A target of several words ("had never gone") counts only when all of them are marked.
+  No two targets share a word.
+- **Scoring.** `partial` is (targets found − words wrongly marked) / targets, never below 0: a
+  wrong mark costs a target's worth, so marking everything is not a strategy. The critic warns when
+  more than half the words are targets, since then it would be (`mw_targets_dense`).
+  `all-or-nothing` needs every target and no wrong mark. Each target is a detail (`t1`, `t2`…)
+  with its word positions as `correctResponse`; each wrong mark is one more (`w` and its position).
+- **Redaction** keeps the text and removes the targets entirely — even how many there are, since a
+  count tells a learner when to stop. Say the number in the instructions if the task should.
+- **From starred text.** `markTheWordsFromMarkup('I *went* home and *had gone* to bed.')` returns the
+  `text` and `targets`, with `occurrence` set where it is needed — the markup H5P's Mark the Words
+  uses, for importing it or for an editor's text field. `\*` is a literal star.
+- At most 1500 words. A text in a script written without spaces (Chinese, Japanese, Thai) is one
+  word per run and cannot be marked word by word.
+
 ### Media on a multiple-choice option (v0.10)
 
 An option can carry a picture or a recording of its own — the A1/A2
@@ -1013,6 +1056,7 @@ first.
 | `fill-in-the-blanks` | an empty passage, no blanks, `scoringStrategy: 'all-or-nothing'` |
 | `written-response` | an empty prompt, `minWords: 0`, `maxWords: 0`, no rubric |
 | `gap-select` | an empty passage, no gaps, `scoringStrategy: 'all-or-nothing'`, **no choice marked correct** |
+| `mark-the-words` | an empty text, no targets, `scoringStrategy: 'all-or-nothing'` |
 | `matching` | no prompts and no options, `scoringStrategy: 'all-or-nothing'`, **no prompt answered**. An exam's matching task is marked prompt by prompt: set `partial` for one |
 | `dictation` | an empty title and an empty transcript; no recording, hints, tolerances or accepted transcripts; no `scoringStrategy` — the type has one strategy |
 | `read-aloud` | an empty title, text to read and locale; `recording: { maxSeconds: 0 }`; `scoring: { dimensions: [] }` — **no dimension is weighted**, because which of accuracy, fluency, completeness and prosody a grade counts, and what each is worth, is a teaching decision, and a defaulted set would let an author write the text, never open the scoring control, and hold a `complete` item graded on weights nobody chose |
@@ -1153,6 +1197,23 @@ schema reports them.
 A new `matching` draft answers **no** prompt, for the reason a new gap select
 marks no choice correct. The rules over the whole list are reported at `prompts`
 and `options`, where the schema reports them.
+
+`mark-the-words`:
+
+| Code | Severity | Path | When |
+|---|---|---|---|
+| `mw_text_required` | incomplete | `text` | Absent, only whitespace, or no word in it yet |
+| `mw_text_too_long` | invalid | `text` | More than 1500 words |
+| `mw_targets_required` | incomplete | `targets` | No targets |
+| `mw_target_text_required` | incomplete | `targets.N.text` | Absent, or only whitespace |
+| `mw_target_no_words` | invalid | `targets.N.text` | Punctuation only: nothing a learner can mark |
+| `mw_target_not_found` | invalid | `targets.N.text` | Not whole words of the text, in order, as the text writes them |
+| `mw_target_ambiguous` | incomplete | `targets.N.text` | The words appear more than once and `occurrence` does not say which |
+| `mw_target_occurrence_invalid` | invalid | `targets.N.occurrence` | Not a whole number from 1, or more appearances than the text has |
+| `mw_target_overlap` | invalid | `targets.N` | Shares a word with an earlier target |
+
+A target is checked against the text only once the text has words to mark, so an unwritten text is
+reported once, not again under every target.
 
 `written-response`:
 
@@ -1434,6 +1495,9 @@ author: translate by `code`.
 | `mt_title_reveals_answer` | warning | `title` | The title contains the text of an option that answers a prompt, as whole words; short answers not looked for |
 | `mt_options_duplicate` | warning | `options.N.text` | Two options read the same |
 | `mt_answer_in_prompt` | warning | `prompts.N.text` | A prompt contains the text of the option that answers it, word for word — a person's name in their own statement. Short answers, such as a paragraph letter, not looked for |
+| `mw_title_reveals_answer` | warning | `title` | The title contains a target's words; short ones not looked for |
+| `mw_targets_dense` | warning | `targets` | More than half the text's words are targets: marking every word scores above 0, and the message says how much |
+| `mw_target_elsewhere` | advice | `targets.N` | A target's words also appear where they are not a target. A learner who marks them there loses a mark: check that is meant |
 | `mt_no_distractor` | warning | `options` | `optionUse: "once"`, two or more prompts, and no more options than prompts: the last prompt is answered by elimination |
 | `wr_criterion_name_duplicate` | warning | `rubric.criteria.N.name` | Two criteria have one name once case, accents and punctuation are ignored. Feedback on writing and a grader's criteria name a criterion |
 | `wr_levels_unreadable` | warning | `rubric.criteria.N.levels` | A criterion's `levels` cannot be used by the grading functions: not a list, fewer than 2 or more than 10, a level with no label or a description that is not text, or two labels the same once case and spacing are ignored. `validateActivity` does not check `levels` in 1.x, so this warning is how an author learns of it |
@@ -1778,7 +1842,7 @@ nothing is in `slots` with `null` on one side.
 | `versions_section_mismatch` | invalid | The forms have different numbers of sections, or a section's `key` or `title` differs at the same position: weights and pass marks are kept per section |
 | `versions_entry_count` | invalid | A section has a different number of entries, or a paired group a different number of items |
 | `versions_type_mismatch` | invalid | Paired slots, or a paired group's items, are of different types |
-| `versions_structure_mismatch` | invalid | Paired slots fail a structure rule of [variants](./ai.md#what-is-copied-and-what-comes-back): options and how many are right, blanks and their matching, gaps, banks, a matching item's prompts, options and `optionUse`, a part's stimulus and speakers, the rubric, word bounds, a slow recording, the scoring strategy. A form that scores differently is not parallel |
+| `versions_structure_mismatch` | invalid | Paired slots fail a structure rule of [variants](./ai.md#what-is-copied-and-what-comes-back): options and how many are right, blanks and their matching, gaps, banks, a matching item's prompts, options and `optionUse`, a mark-the-words item's targets, a part's stimulus and speakers, the rubric, word bounds, a slow recording, the scoring strategy. A form that scores differently is not parallel |
 | `versions_objectives_mismatch` | warning | Paired items test different `learningObjectives` |
 | `versions_length_out_of_band` | warning | A paired text outside the length band: material within a tenth, an item's own text within a quarter (`lengthTolerance` overrides) |
 | `versions_near_copy` | warning | Any text of the second form reads like any text of its kind in the first — not only its pair: a model can copy question 3 into slot 7 — or a multiple choice has another's options in another order |

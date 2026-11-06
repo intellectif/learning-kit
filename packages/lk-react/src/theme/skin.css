@@ -15,7 +15,8 @@
 @layer lk-skin {
   .lk-mc,
   .lk-fib,
-  .lk-mt {
+  .lk-mt,
+  .lk-mw {
     font-family: var(--lk-font-family-base);
     font-size: var(--lk-font-size-base);
     line-height: var(--lk-line-height-base);
@@ -28,13 +29,15 @@
 
   .lk-mc *,
   .lk-fib *,
-  .lk-mt * {
+  .lk-mt *,
+  .lk-mw * {
     box-sizing: border-box;
   }
 
   .lk-mc fieldset,
   .lk-fib fieldset,
-  .lk-mt fieldset {
+  .lk-mt fieldset,
+  .lk-mw fieldset {
     margin: 0;
     padding: 0;
     border: 0;
@@ -53,7 +56,8 @@
   .lk-mc-instructions,
   .lk-fib-instructions,
   .lk-gs-instructions,
-  .lk-mt-instructions {
+  .lk-mt-instructions,
+  .lk-mw-instructions {
     margin: 0 0 var(--lk-spacing-md);
     font-size: var(--lk-font-size-sm);
     font-weight: var(--lk-font-weight-bold);
@@ -380,6 +384,92 @@
     color: var(--lk-color-text);
   }
 
+  /* ── Mark the words ───────────────────────────────────────────────────
+     The text as written, line breaks and all, with every word something the
+     learner can mark. A marked word is filled and underlined; a checked one
+     is outlined in the marking colour, and its state is also spoken (hidden
+     text), never colour alone. */
+  .lk-mw-text {
+    white-space: pre-wrap;
+    line-height: 2;
+  }
+
+  /* Barely any side padding: the spaces between words are the text's own. */
+  .lk-mw-word {
+    padding: 0.1em 0.05em;
+    border-radius: var(--lk-radius-sm);
+    cursor: pointer;
+    box-decoration-break: clone;
+  }
+
+  .lk-mw-word:hover {
+    background: color-mix(in srgb, var(--lk-color-primary) 10%, var(--lk-color-surface));
+  }
+
+  .lk-mw-word[aria-selected="true"] {
+    background: color-mix(in srgb, var(--lk-color-primary) 22%, var(--lk-color-surface));
+    color: var(--lk-color-text);
+    text-decoration: underline 2px;
+    text-underline-offset: 0.2em;
+  }
+
+  .lk-mw-text[aria-disabled="true"] .lk-mw-word {
+    cursor: default;
+  }
+
+  .lk-mw-word:focus-visible {
+    outline-offset: 0;
+  }
+
+  .lk-mw-word[data-mark="correct"] {
+    background: color-mix(in srgb, var(--lk-color-success) 18%, var(--lk-color-surface));
+    box-shadow: inset 0 0 0 2px var(--lk-color-success);
+  }
+
+  .lk-mw-word[data-mark="wrong"] {
+    background: color-mix(in srgb, var(--lk-color-error) 14%, var(--lk-color-surface));
+    box-shadow: inset 0 0 0 2px var(--lk-color-error);
+    text-decoration: line-through 2px;
+  }
+
+  .lk-mw-word[data-mark="missed"] {
+    outline: 2px dashed var(--lk-color-success);
+    outline-offset: -2px;
+  }
+
+  .lk-mw-count {
+    margin: var(--lk-spacing-sm) 0 0;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-mw-feedback-list {
+    margin: var(--lk-spacing-md) 0 0;
+    padding-inline-start: 1.2em;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-mw-feedback-target {
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-text);
+  }
+
+  .lk-mw-feedback-toggle {
+    margin-top: var(--lk-spacing-md);
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .lk-mw-feedback-toggle:hover {
+    color: var(--lk-color-text);
+  }
+
   /* ── Multiple choice options ─────────────────────────────────────────── */
   .lk-mc-option {
     display: flex;
@@ -681,7 +771,8 @@
   /* ── Submit buttons ──────────────────────────────────────────────────── */
   .lk-mc button[type="submit"],
   .lk-fib button[type="submit"],
-  .lk-mt button[type="submit"] {
+  .lk-mt button[type="submit"],
+  .lk-mw button[type="submit"] {
     margin-top: var(--lk-spacing-md);
     padding: var(--lk-spacing-sm) var(--lk-spacing-lg);
     font: inherit;
@@ -696,13 +787,15 @@
 
   .lk-mc button[type="submit"]:hover,
   .lk-fib button[type="submit"]:hover,
-  .lk-mt button[type="submit"]:hover {
+  .lk-mt button[type="submit"]:hover,
+  .lk-mw button[type="submit"]:hover {
     background: var(--lk-color-primary-hover);
   }
 
   .lk-mc button[type="submit"]:disabled,
   .lk-fib button[type="submit"]:disabled,
-  .lk-mt button[type="submit"]:disabled {
+  .lk-mt button[type="submit"]:disabled,
+  .lk-mw button[type="submit"]:disabled {
     opacity: 0.55;
     cursor: default;
   }
@@ -710,7 +803,8 @@
   /* ── Focus ring (keyboard) ───────────────────────────────────────────── */
   .lk-mc :focus-visible,
   .lk-fib :focus-visible,
-  .lk-mt :focus-visible {
+  .lk-mt :focus-visible,
+  .lk-mw :focus-visible {
     outline: 2px solid var(--lk-color-focus-ring);
     outline-offset: 2px;
   }
@@ -724,7 +818,8 @@
   /* ── Feedback / status region ────────────────────────────────────────── */
   .lk-mc > [aria-live],
   .lk-fib > [aria-live],
-  .lk-mt > [aria-live] {
+  .lk-mt > [aria-live],
+  .lk-mw > [aria-live] {
     margin-top: var(--lk-spacing-md);
     color: var(--lk-color-text-muted);
     font-size: var(--lk-font-size-sm);
@@ -824,6 +919,7 @@
     .lk-mc *,
     .lk-fib *,
     .lk-mt *,
+    .lk-mw *,
     .lk-wr *,
     .lk-seq * {
       transition: none;

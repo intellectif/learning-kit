@@ -153,6 +153,16 @@ export const DRAFT_ISSUE_SEVERITY = {
   mt_correct_option_required: 'incomplete',
   mt_correct_option_unknown: 'invalid',
   mt_option_reused: 'invalid',
+  // mark-the-words
+  mw_text_required: 'incomplete',
+  mw_text_too_long: 'invalid',
+  mw_targets_required: 'incomplete',
+  mw_target_text_required: 'incomplete',
+  mw_target_no_words: 'invalid',
+  mw_target_not_found: 'invalid',
+  mw_target_ambiguous: 'incomplete',
+  mw_target_occurrence_invalid: 'invalid',
+  mw_target_overlap: 'invalid',
   // written-response
   wr_prompt_required: 'incomplete',
   wr_min_words_required: 'incomplete',

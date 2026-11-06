@@ -150,6 +150,27 @@ const mt = (over = {}) => ({
 
 const match = (matches) => ({ type: 'matching', matches });
 
+// Words: 0 Yesterday 1 she 2 went 3 to 4 the 5 market 6 and 7 bought 8 bread
+// 9 She 10 had 11 never 12 gone 13 there 14 before 15 but 16 she 17 went 18 again
+const mw = (over = {}) => ({
+  schemaVersion: '1.0',
+  type: 'mark-the-words',
+  id: 'mw-past',
+  title: 'The past',
+  instructions: 'Mark every verb in the past.',
+  text: 'Yesterday she went to the market and bought bread. She had never gone there before, but she went again.',
+  targets: [
+    { text: 'went', occurrence: 1 },
+    { text: 'bought' },
+    { text: 'had never gone' },
+    { text: 'went', occurrence: 2 },
+  ],
+  scoringStrategy: 'partial',
+  ...over,
+});
+
+const mark = (marked) => ({ type: 'mark-the-words', marked });
+
 const oneBlank = (acceptedAnswers, match) =>
   fib({
     passage: 'Answer: {{b1}}.',
@@ -1350,6 +1371,67 @@ export const CASES = [
       }),
       match({ q1: 'B', q2: 'B', q3: 'C' }),
     ],
+  },
+  // -- Mark the words (1.14.0): a target counts when all its words are
+  //    marked; each wrong mark costs a target's worth; never below zero.
+  {
+    id: 'score/mw/partial/all-found',
+    fn: 'score',
+    args: ['mark-the-words', mw(), mark([2, 7, 10, 11, 12, 17])],
+  },
+  {
+    id: 'score/mw/partial/one-missed',
+    fn: 'score',
+    args: ['mark-the-words', mw(), mark([2, 7, 17])],
+  },
+  {
+    id: 'score/mw/partial/phrase-half-marked',
+    fn: 'score',
+    args: ['mark-the-words', mw(), mark([2, 7, 10, 12, 17])],
+  },
+  {
+    id: 'score/mw/partial/wrong-mark-costs',
+    fn: 'score',
+    args: ['mark-the-words', mw(), mark([2, 7, 10, 11, 12, 17, 5])],
+  },
+  {
+    id: 'score/mw/partial/everything-marked-floors-at-zero',
+    fn: 'score',
+    args: ['mark-the-words', mw(), mark(Array.from({ length: 19 }, (_, word) => word))],
+  },
+  {
+    id: 'score/mw/partial/nothing-marked',
+    fn: 'score',
+    args: ['mark-the-words', mw(), mark([])],
+  },
+  {
+    id: 'score/mw/partial/tampered-positions-ignored',
+    fn: 'score',
+    args: ['mark-the-words', mw(), mark([2, 2, 7, -1, 1.5, 99, '3'])],
+    note: 'A repeated, negative, fractional, out-of-range or non-number position marks nothing, right or wrong.',
+  },
+  {
+    id: 'score/mw/all-or-nothing/all-found',
+    fn: 'score',
+    args: [
+      'mark-the-words',
+      mw({ scoringStrategy: 'all-or-nothing' }),
+      mark([2, 7, 10, 11, 12, 17]),
+    ],
+  },
+  {
+    id: 'score/mw/all-or-nothing/one-wrong-mark',
+    fn: 'score',
+    args: [
+      'mark-the-words',
+      mw({ scoringStrategy: 'all-or-nothing' }),
+      mark([2, 7, 10, 11, 12, 17, 0]),
+    ],
+  },
+  {
+    id: 'evaluate/mw/scored',
+    fn: 'evaluate',
+    args: [mw(), mark([2, 7, 10, 11, 12, 1])],
   },
   {
     id: 'evaluate/mt/scored',

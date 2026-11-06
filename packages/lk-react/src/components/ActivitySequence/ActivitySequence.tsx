@@ -33,6 +33,7 @@ import { everyBuiltInTypeHandled, randomSessionId } from '../_internal.js';
 import { Dictation } from '../Dictation/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
+import { MarkTheWords } from '../MarkTheWords/index.js';
 import { Matching } from '../Matching/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
@@ -1731,6 +1732,9 @@ export function ActivitySequence({
           {...childProps}
         />
       );
+    }
+    if (activity.type === 'mark-the-words') {
+      return <MarkTheWords data={activity} {...childProps} />;
     }
     if (activity.type === 'matching') {
       return (

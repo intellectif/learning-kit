@@ -188,6 +188,14 @@ export interface RedactedMatchingData extends RedactedItem {
   locale?: string | undefined;
 }
 
+/** A Mark the Words item the learner can still answer: the text, with every target gone. */
+export interface RedactedMarkTheWordsData extends RedactedItem {
+  type: 'mark-the-words';
+  instructions?: string | undefined;
+  text: string;
+  locale?: string | undefined;
+}
+
 /** The slower recording of a dictation, unchanged by redaction. */
 export interface RedactedDictationSlowMedia {
   type: 'audio';
@@ -258,4 +266,5 @@ export type RedactedActivity =
   | RedactedGapSelectData
   | RedactedDictationData
   | RedactedReadAloudData
-  | RedactedMatchingData;
+  | RedactedMatchingData
+  | RedactedMarkTheWordsData;

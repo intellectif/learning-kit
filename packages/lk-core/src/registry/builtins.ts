@@ -1,6 +1,7 @@
 import { dictationAuthoring } from '../authoring/dictation.js';
 import { fillInTheBlanksAuthoring } from '../authoring/fill-in-the-blanks.js';
 import { gapSelectAuthoring } from '../authoring/gap-select.js';
+import { markTheWordsAuthoring } from '../authoring/mark-the-words.js';
 import { matchingAuthoring } from '../authoring/matching.js';
 import { multipleChoiceAuthoring } from '../authoring/multiple-choice.js';
 import { readAloudAuthoring } from '../authoring/read-aloud.js';
@@ -8,10 +9,12 @@ import { speakingResponseAuthoring } from '../authoring/speaking-response.js';
 import { writtenResponseAuthoring } from '../authoring/written-response.js';
 import type { BuiltInActivityType } from '../built-in-types.js';
 import { countWords } from '../count-words.js';
+import { markTargetIndices } from '../mark-the-words.js';
 import { readRubricLevels } from '../rubric-levels.js';
 import { DictationDataSchema } from '../schemas/dictation.js';
 import { FillInTheBlanksDataSchema } from '../schemas/fill-in-the-blanks.js';
 import { GapSelectDataSchema } from '../schemas/gap-select.js';
+import { MarkTheWordsDataSchema } from '../schemas/mark-the-words.js';
 import { MatchingDataSchema } from '../schemas/matching.js';
 import { MultipleChoiceDataSchema } from '../schemas/multiple-choice.js';
 import { ReadAloudDataSchema } from '../schemas/read-aloud.js';
@@ -19,6 +22,7 @@ import {
   RedactedDictationDataSchema,
   RedactedFillInTheBlanksDataSchema,
   RedactedGapSelectDataSchema,
+  RedactedMarkTheWordsDataSchema,
   RedactedMatchingDataSchema,
   RedactedMultipleChoiceDataSchema,
   RedactedReadAloudDataSchema,
@@ -30,6 +34,7 @@ import { WrittenResponseDataSchema } from '../schemas/written-response.js';
 import { scoreDictation } from '../scoring/activity-scorers/dictation.js';
 import { scoreFillInTheBlanks } from '../scoring/activity-scorers/fill-in-the-blanks.js';
 import { scoreGapSelect } from '../scoring/activity-scorers/gap-select.js';
+import { scoreMarkTheWords } from '../scoring/activity-scorers/mark-the-words.js';
 import { scoreMatching } from '../scoring/activity-scorers/matching.js';
 import { scoreMultipleChoice } from '../scoring/activity-scorers/multiple-choice.js';
 import {
@@ -45,6 +50,8 @@ import type {
   FillInTheBlanksLearnerResponse,
   GapSelectData,
   GapSelectLearnerResponse,
+  MarkTheWordsData,
+  MarkTheWordsLearnerResponse,
   MatchingData,
   MatchingLearnerResponse,
   MultipleChoiceData,
@@ -268,6 +275,20 @@ const MATCHING_FIELD_POLICY: FieldPolicy = {
     correctOptionId: 'answer-key',
     feedback: 'answer-key',
   },
+};
+
+/**
+ * Mark the Words: the text is what the learner marks in, so it is public; the
+ * targets are the key, as one leaf — their number included, since a count
+ * tells a learner when to stop marking.
+ */
+const MARK_THE_WORDS_FIELD_POLICY: FieldPolicy = {
+  ...SHARED_PUBLIC_FIELDS,
+  instructions: 'public',
+  text: 'public',
+  targets: 'answer-key',
+  scoringStrategy: 'answer-key',
+  feedback: FEEDBACK_FIELD_POLICY,
 };
 
 const FILL_IN_THE_BLANKS_FIELD_POLICY: FieldPolicy = {
@@ -504,6 +525,31 @@ export const matchingType = defineActivityType<MatchingData, MatchingLearnerResp
   mediaSlots: () => MAIN_MEDIA,
 });
 
+/** Built-in Mark the Words descriptor. */
+export const markTheWordsType = defineActivityType<MarkTheWordsData, MarkTheWordsLearnerResponse>({
+  type: 'mark-the-words',
+  schema: MarkTheWordsDataSchema as unknown as StandardSchemaV1<unknown, MarkTheWordsData>,
+  scoring: { kind: 'sync', score: scoreMarkTheWords },
+  isAnswered: (response) => Array.isArray(response?.marked) && response.marked.length > 0,
+  fieldPolicy: MARK_THE_WORDS_FIELD_POLICY,
+  redactedSchema: RedactedMarkTheWordsDataSchema,
+  interop: {
+    xapiActivityTypeIri: 'http://adlnet.gov/expapi/activities/cmi.interaction',
+    // `choice`, as H5P's Mark the Words reports it: the words are the choices,
+    // named by their position in the text, and the key is every target word.
+    xapiInteractionType: 'choice',
+    correctResponsesPattern: (data) => [
+      markTargetIndices(data)
+        .flat()
+        .sort((a, b) => a - b)
+        .join('[,]'),
+    ],
+  },
+  interactions: ['word-marked', 'word-unmarked', 'submitted'],
+  authoring: markTheWordsAuthoring,
+  mediaSlots: () => MAIN_MEDIA,
+});
+
 /**
  * Built-in Dictation descriptor. Graded synchronously: the score is the
  * character-level similarity of the typed text to the transcript, a pure
@@ -690,4 +736,5 @@ export const BUILT_IN_DESCRIPTORS = {
   'read-aloud': readAloudType,
   'speaking-response': speakingResponseType,
   matching: matchingType,
+  'mark-the-words': markTheWordsType,
 } satisfies { readonly [Type in BuiltInActivityType]: { readonly type: Type } };

@@ -4,6 +4,7 @@ import type {
   DictationData,
   FillInTheBlanksData,
   GapSelectData,
+  MarkTheWordsData,
   MatchingData,
   MultipleChoiceData,
   ReadAloudData,
@@ -19,6 +20,7 @@ import { type SpeechCaptureHarness, stubSpeechCapture } from '../../test-support
 import { Dictation } from '../Dictation/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
+import { MarkTheWords } from '../MarkTheWords/index.js';
 import { Matching } from '../Matching/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
@@ -105,6 +107,16 @@ const match: MatchingData = {
   scoringStrategy: 'partial',
 };
 
+const marks: MarkTheWordsData = {
+  schemaVersion: '1.0',
+  type: 'mark-the-words',
+  id: 'mw1',
+  title: 'Verbs',
+  text: 'She ran home.',
+  targets: [{ text: 'ran' }],
+  scoringStrategy: 'partial',
+};
+
 const essay: WrittenResponseData = {
   schemaVersion: '1.0',
   type: 'written-response',
@@ -155,6 +167,7 @@ const COMPONENTS = {
   'fill-in-the-blanks': (props) => <FillInTheBlanks data={fib} {...props} />,
   'gap-select': (props) => <GapSelect data={gs} {...props} />,
   matching: (props) => <Matching data={match} {...props} />,
+  'mark-the-words': (props) => <MarkTheWords data={marks} {...props} />,
   'written-response': (props) => <WrittenResponse data={essay} {...props} />,
   dictation: (props) => <Dictation data={dictation} {...props} />,
   'read-aloud': (props) => (
@@ -234,7 +247,12 @@ describe('before the learner has answered', () => {
  * suite of its own for what it says then.
  */
 const ANSWER: Record<
-  'multiple-choice' | 'fill-in-the-blanks' | 'gap-select' | 'matching' | 'dictation',
+  | 'multiple-choice'
+  | 'fill-in-the-blanks'
+  | 'gap-select'
+  | 'matching'
+  | 'mark-the-words'
+  | 'dictation',
   (user: UserEvent) => Promise<void>
 > = {
   'multiple-choice': async (user) => {
@@ -251,6 +269,10 @@ const ANSWER: Record<
   },
   matching: async (user) => {
     await user.selectOptions(screen.getByRole('combobox', { name: 'Spain' }), 'madrid');
+    await user.click(screen.getByRole('button', { name: 'Check answers' }));
+  },
+  'mark-the-words': async (user) => {
+    await user.click(screen.getByRole('option', { name: 'ran' }));
     await user.click(screen.getByRole('button', { name: 'Check answers' }));
   },
   dictation: async (user) => {

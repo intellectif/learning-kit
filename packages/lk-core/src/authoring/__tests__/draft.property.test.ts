@@ -388,6 +388,47 @@ const matchingDraft = fc
   })
   .map(compact);
 
+const markTargetArb = entry(
+  fc
+    .record({
+      // Found once, found twice, not in the text, punctuation only, overlapping.
+      text: fc.constantFrom<unknown>(
+        undefined,
+        null,
+        '',
+        '  ',
+        'went',
+        'the',
+        'had gone',
+        'flew',
+        '...',
+        'went home',
+      ),
+      occurrence: fc.constantFrom<unknown>(undefined, null, 0, 1, 2, 3, 1.5),
+      feedback: optionalText,
+    })
+    .map(compact),
+);
+
+const markTheWordsDraft = fc
+  .record({
+    ...envelope('mark-the-words'),
+    instructions: optionalText,
+    text: fc.constantFrom<unknown>(
+      undefined,
+      null,
+      '',
+      '   ',
+      '...',
+      'She went home and the dog had gone to the park.',
+      'She went home.',
+    ),
+    targets: orUnset(fc.array(markTargetArb, { maxLength: 3 })),
+    scoringStrategy: fc.constantFrom<unknown>(undefined, null, '', 'all-or-nothing', 'partial'),
+    ...sharedArbs,
+  })
+  .map(compact);
+
 const LONG_TRANSCRIPT = 'a'.repeat(2001);
 const LONG_REWRITE = 'b'.repeat(201);
 
@@ -668,6 +709,7 @@ const EDITOR_DRAFTS = Object.entries({
   'read-aloud': readAloudDraft,
   'speaking-response': speakingResponseDraft,
   matching: matchingDraft,
+  'mark-the-words': markTheWordsDraft,
 } satisfies Record<BuiltInActivityType, fc.Arbitrary<Record<string, unknown>>>) as [
   BuiltInActivityType,
   fc.Arbitrary<Record<string, unknown>>,
@@ -685,6 +727,7 @@ const RESPONSES = {
   'read-aloud': { type: 'read-aloud', recording: null },
   'speaking-response': { type: 'speaking-response', recording: null },
   matching: { type: 'matching', matches: { p1: 'i', p2: '' } },
+  'mark-the-words': { type: 'mark-the-words', marked: [1, 4, 99] },
 } satisfies Record<BuiltInActivityType, LearnerResponse>;
 
 describe('validateDraft properties', () => {

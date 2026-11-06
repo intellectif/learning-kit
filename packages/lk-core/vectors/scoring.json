@@ -2932,6 +2932,839 @@
     },
     {
       "args": [
+        "mark-the-words",
+        {
+          "id": "mw-past",
+          "instructions": "Mark every verb in the past.",
+          "schemaVersion": "1.0",
+          "scoringStrategy": "partial",
+          "targets": [
+            {
+              "occurrence": 1,
+              "text": "went"
+            },
+            {
+              "text": "bought"
+            },
+            {
+              "text": "had never gone"
+            },
+            {
+              "occurrence": 2,
+              "text": "went"
+            }
+          ],
+          "text": "Yesterday she went to the market and bought bread. She had never gone there before, but she went again.",
+          "title": "The past",
+          "type": "mark-the-words"
+        },
+        {
+          "marked": [2, 7, 10, 11, 12, 17],
+          "type": "mark-the-words"
+        }
+      ],
+      "expect": {
+        "details": [
+          {
+            "correctResponse": ["2"],
+            "itemId": "t1",
+            "learnerResponse": ["2"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["7"],
+            "itemId": "t2",
+            "learnerResponse": ["7"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["10", "11", "12"],
+            "itemId": "t3",
+            "learnerResponse": ["10", "11", "12"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["17"],
+            "itemId": "t4",
+            "learnerResponse": ["17"],
+            "outcome": "correct",
+            "weight": 1
+          }
+        ],
+        "feedback": null,
+        "maxScore": 1,
+        "passed": true,
+        "score": 1
+      },
+      "fn": "score",
+      "id": "score/mw/partial/all-found"
+    },
+    {
+      "args": [
+        "mark-the-words",
+        {
+          "id": "mw-past",
+          "instructions": "Mark every verb in the past.",
+          "schemaVersion": "1.0",
+          "scoringStrategy": "partial",
+          "targets": [
+            {
+              "occurrence": 1,
+              "text": "went"
+            },
+            {
+              "text": "bought"
+            },
+            {
+              "text": "had never gone"
+            },
+            {
+              "occurrence": 2,
+              "text": "went"
+            }
+          ],
+          "text": "Yesterday she went to the market and bought bread. She had never gone there before, but she went again.",
+          "title": "The past",
+          "type": "mark-the-words"
+        },
+        {
+          "marked": [2, 7, 17],
+          "type": "mark-the-words"
+        }
+      ],
+      "expect": {
+        "details": [
+          {
+            "correctResponse": ["2"],
+            "itemId": "t1",
+            "learnerResponse": ["2"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["7"],
+            "itemId": "t2",
+            "learnerResponse": ["7"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["10", "11", "12"],
+            "itemId": "t3",
+            "learnerResponse": [],
+            "outcome": "incorrect-omission",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["17"],
+            "itemId": "t4",
+            "learnerResponse": ["17"],
+            "outcome": "correct",
+            "weight": 1
+          }
+        ],
+        "feedback": null,
+        "maxScore": 1,
+        "passed": true,
+        "score": 0.75
+      },
+      "fn": "score",
+      "id": "score/mw/partial/one-missed"
+    },
+    {
+      "args": [
+        "mark-the-words",
+        {
+          "id": "mw-past",
+          "instructions": "Mark every verb in the past.",
+          "schemaVersion": "1.0",
+          "scoringStrategy": "partial",
+          "targets": [
+            {
+              "occurrence": 1,
+              "text": "went"
+            },
+            {
+              "text": "bought"
+            },
+            {
+              "text": "had never gone"
+            },
+            {
+              "occurrence": 2,
+              "text": "went"
+            }
+          ],
+          "text": "Yesterday she went to the market and bought bread. She had never gone there before, but she went again.",
+          "title": "The past",
+          "type": "mark-the-words"
+        },
+        {
+          "marked": [2, 7, 10, 12, 17],
+          "type": "mark-the-words"
+        }
+      ],
+      "expect": {
+        "details": [
+          {
+            "correctResponse": ["2"],
+            "itemId": "t1",
+            "learnerResponse": ["2"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["7"],
+            "itemId": "t2",
+            "learnerResponse": ["7"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["10", "11", "12"],
+            "itemId": "t3",
+            "learnerResponse": ["10", "12"],
+            "outcome": "incorrect",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["17"],
+            "itemId": "t4",
+            "learnerResponse": ["17"],
+            "outcome": "correct",
+            "weight": 1
+          }
+        ],
+        "feedback": null,
+        "maxScore": 1,
+        "passed": true,
+        "score": 0.75
+      },
+      "fn": "score",
+      "id": "score/mw/partial/phrase-half-marked"
+    },
+    {
+      "args": [
+        "mark-the-words",
+        {
+          "id": "mw-past",
+          "instructions": "Mark every verb in the past.",
+          "schemaVersion": "1.0",
+          "scoringStrategy": "partial",
+          "targets": [
+            {
+              "occurrence": 1,
+              "text": "went"
+            },
+            {
+              "text": "bought"
+            },
+            {
+              "text": "had never gone"
+            },
+            {
+              "occurrence": 2,
+              "text": "went"
+            }
+          ],
+          "text": "Yesterday she went to the market and bought bread. She had never gone there before, but she went again.",
+          "title": "The past",
+          "type": "mark-the-words"
+        },
+        {
+          "marked": [2, 7, 10, 11, 12, 17, 5],
+          "type": "mark-the-words"
+        }
+      ],
+      "expect": {
+        "details": [
+          {
+            "correctResponse": ["2"],
+            "itemId": "t1",
+            "learnerResponse": ["2"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["7"],
+            "itemId": "t2",
+            "learnerResponse": ["7"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["10", "11", "12"],
+            "itemId": "t3",
+            "learnerResponse": ["10", "11", "12"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["17"],
+            "itemId": "t4",
+            "learnerResponse": ["17"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w5",
+            "learnerResponse": ["5"],
+            "outcome": "incorrect",
+            "weight": 1
+          }
+        ],
+        "feedback": null,
+        "maxScore": 1,
+        "passed": true,
+        "score": 0.75
+      },
+      "fn": "score",
+      "id": "score/mw/partial/wrong-mark-costs"
+    },
+    {
+      "args": [
+        "mark-the-words",
+        {
+          "id": "mw-past",
+          "instructions": "Mark every verb in the past.",
+          "schemaVersion": "1.0",
+          "scoringStrategy": "partial",
+          "targets": [
+            {
+              "occurrence": 1,
+              "text": "went"
+            },
+            {
+              "text": "bought"
+            },
+            {
+              "text": "had never gone"
+            },
+            {
+              "occurrence": 2,
+              "text": "went"
+            }
+          ],
+          "text": "Yesterday she went to the market and bought bread. She had never gone there before, but she went again.",
+          "title": "The past",
+          "type": "mark-the-words"
+        },
+        {
+          "marked": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+          "type": "mark-the-words"
+        }
+      ],
+      "expect": {
+        "details": [
+          {
+            "correctResponse": ["2"],
+            "itemId": "t1",
+            "learnerResponse": ["2"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["7"],
+            "itemId": "t2",
+            "learnerResponse": ["7"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["10", "11", "12"],
+            "itemId": "t3",
+            "learnerResponse": ["10", "11", "12"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["17"],
+            "itemId": "t4",
+            "learnerResponse": ["17"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w0",
+            "learnerResponse": ["0"],
+            "outcome": "incorrect",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w1",
+            "learnerResponse": ["1"],
+            "outcome": "incorrect",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w3",
+            "learnerResponse": ["3"],
+            "outcome": "incorrect",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w4",
+            "learnerResponse": ["4"],
+            "outcome": "incorrect",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w5",
+            "learnerResponse": ["5"],
+            "outcome": "incorrect",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w6",
+            "learnerResponse": ["6"],
+            "outcome": "incorrect",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w8",
+            "learnerResponse": ["8"],
+            "outcome": "incorrect",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w9",
+            "learnerResponse": ["9"],
+            "outcome": "incorrect",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w13",
+            "learnerResponse": ["13"],
+            "outcome": "incorrect",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w14",
+            "learnerResponse": ["14"],
+            "outcome": "incorrect",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w15",
+            "learnerResponse": ["15"],
+            "outcome": "incorrect",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w16",
+            "learnerResponse": ["16"],
+            "outcome": "incorrect",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w18",
+            "learnerResponse": ["18"],
+            "outcome": "incorrect",
+            "weight": 1
+          }
+        ],
+        "feedback": null,
+        "maxScore": 1,
+        "passed": false,
+        "score": 0
+      },
+      "fn": "score",
+      "id": "score/mw/partial/everything-marked-floors-at-zero"
+    },
+    {
+      "args": [
+        "mark-the-words",
+        {
+          "id": "mw-past",
+          "instructions": "Mark every verb in the past.",
+          "schemaVersion": "1.0",
+          "scoringStrategy": "partial",
+          "targets": [
+            {
+              "occurrence": 1,
+              "text": "went"
+            },
+            {
+              "text": "bought"
+            },
+            {
+              "text": "had never gone"
+            },
+            {
+              "occurrence": 2,
+              "text": "went"
+            }
+          ],
+          "text": "Yesterday she went to the market and bought bread. She had never gone there before, but she went again.",
+          "title": "The past",
+          "type": "mark-the-words"
+        },
+        {
+          "marked": [],
+          "type": "mark-the-words"
+        }
+      ],
+      "expect": {
+        "details": [
+          {
+            "correctResponse": ["2"],
+            "itemId": "t1",
+            "learnerResponse": [],
+            "outcome": "incorrect-omission",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["7"],
+            "itemId": "t2",
+            "learnerResponse": [],
+            "outcome": "incorrect-omission",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["10", "11", "12"],
+            "itemId": "t3",
+            "learnerResponse": [],
+            "outcome": "incorrect-omission",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["17"],
+            "itemId": "t4",
+            "learnerResponse": [],
+            "outcome": "incorrect-omission",
+            "weight": 1
+          }
+        ],
+        "feedback": null,
+        "maxScore": 1,
+        "passed": false,
+        "score": 0
+      },
+      "fn": "score",
+      "id": "score/mw/partial/nothing-marked"
+    },
+    {
+      "args": [
+        "mark-the-words",
+        {
+          "id": "mw-past",
+          "instructions": "Mark every verb in the past.",
+          "schemaVersion": "1.0",
+          "scoringStrategy": "partial",
+          "targets": [
+            {
+              "occurrence": 1,
+              "text": "went"
+            },
+            {
+              "text": "bought"
+            },
+            {
+              "text": "had never gone"
+            },
+            {
+              "occurrence": 2,
+              "text": "went"
+            }
+          ],
+          "text": "Yesterday she went to the market and bought bread. She had never gone there before, but she went again.",
+          "title": "The past",
+          "type": "mark-the-words"
+        },
+        {
+          "marked": [2, 2, 7, -1, 1.5, 99, "3"],
+          "type": "mark-the-words"
+        }
+      ],
+      "expect": {
+        "details": [
+          {
+            "correctResponse": ["2"],
+            "itemId": "t1",
+            "learnerResponse": ["2"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["7"],
+            "itemId": "t2",
+            "learnerResponse": ["7"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["10", "11", "12"],
+            "itemId": "t3",
+            "learnerResponse": [],
+            "outcome": "incorrect-omission",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["17"],
+            "itemId": "t4",
+            "learnerResponse": [],
+            "outcome": "incorrect-omission",
+            "weight": 1
+          }
+        ],
+        "feedback": null,
+        "maxScore": 1,
+        "passed": false,
+        "score": 0.5
+      },
+      "fn": "score",
+      "id": "score/mw/partial/tampered-positions-ignored",
+      "note": "A repeated, negative, fractional, out-of-range or non-number position marks nothing, right or wrong."
+    },
+    {
+      "args": [
+        "mark-the-words",
+        {
+          "id": "mw-past",
+          "instructions": "Mark every verb in the past.",
+          "schemaVersion": "1.0",
+          "scoringStrategy": "all-or-nothing",
+          "targets": [
+            {
+              "occurrence": 1,
+              "text": "went"
+            },
+            {
+              "text": "bought"
+            },
+            {
+              "text": "had never gone"
+            },
+            {
+              "occurrence": 2,
+              "text": "went"
+            }
+          ],
+          "text": "Yesterday she went to the market and bought bread. She had never gone there before, but she went again.",
+          "title": "The past",
+          "type": "mark-the-words"
+        },
+        {
+          "marked": [2, 7, 10, 11, 12, 17],
+          "type": "mark-the-words"
+        }
+      ],
+      "expect": {
+        "details": [
+          {
+            "correctResponse": ["2"],
+            "itemId": "t1",
+            "learnerResponse": ["2"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["7"],
+            "itemId": "t2",
+            "learnerResponse": ["7"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["10", "11", "12"],
+            "itemId": "t3",
+            "learnerResponse": ["10", "11", "12"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["17"],
+            "itemId": "t4",
+            "learnerResponse": ["17"],
+            "outcome": "correct",
+            "weight": 1
+          }
+        ],
+        "feedback": null,
+        "maxScore": 1,
+        "passed": true,
+        "score": 1
+      },
+      "fn": "score",
+      "id": "score/mw/all-or-nothing/all-found"
+    },
+    {
+      "args": [
+        "mark-the-words",
+        {
+          "id": "mw-past",
+          "instructions": "Mark every verb in the past.",
+          "schemaVersion": "1.0",
+          "scoringStrategy": "all-or-nothing",
+          "targets": [
+            {
+              "occurrence": 1,
+              "text": "went"
+            },
+            {
+              "text": "bought"
+            },
+            {
+              "text": "had never gone"
+            },
+            {
+              "occurrence": 2,
+              "text": "went"
+            }
+          ],
+          "text": "Yesterday she went to the market and bought bread. She had never gone there before, but she went again.",
+          "title": "The past",
+          "type": "mark-the-words"
+        },
+        {
+          "marked": [2, 7, 10, 11, 12, 17, 0],
+          "type": "mark-the-words"
+        }
+      ],
+      "expect": {
+        "details": [
+          {
+            "correctResponse": ["2"],
+            "itemId": "t1",
+            "learnerResponse": ["2"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["7"],
+            "itemId": "t2",
+            "learnerResponse": ["7"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["10", "11", "12"],
+            "itemId": "t3",
+            "learnerResponse": ["10", "11", "12"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["17"],
+            "itemId": "t4",
+            "learnerResponse": ["17"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w0",
+            "learnerResponse": ["0"],
+            "outcome": "incorrect",
+            "weight": 1
+          }
+        ],
+        "feedback": null,
+        "maxScore": 1,
+        "passed": false,
+        "score": 0
+      },
+      "fn": "score",
+      "id": "score/mw/all-or-nothing/one-wrong-mark"
+    },
+    {
+      "args": [
+        {
+          "id": "mw-past",
+          "instructions": "Mark every verb in the past.",
+          "schemaVersion": "1.0",
+          "scoringStrategy": "partial",
+          "targets": [
+            {
+              "occurrence": 1,
+              "text": "went"
+            },
+            {
+              "text": "bought"
+            },
+            {
+              "text": "had never gone"
+            },
+            {
+              "occurrence": 2,
+              "text": "went"
+            }
+          ],
+          "text": "Yesterday she went to the market and bought bread. She had never gone there before, but she went again.",
+          "title": "The past",
+          "type": "mark-the-words"
+        },
+        {
+          "marked": [2, 7, 10, 11, 12, 1],
+          "type": "mark-the-words"
+        }
+      ],
+      "expect": {
+        "details": [
+          {
+            "correctResponse": ["2"],
+            "itemId": "t1",
+            "learnerResponse": ["2"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["7"],
+            "itemId": "t2",
+            "learnerResponse": ["7"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["10", "11", "12"],
+            "itemId": "t3",
+            "learnerResponse": ["10", "11", "12"],
+            "outcome": "correct",
+            "weight": 1
+          },
+          {
+            "correctResponse": ["17"],
+            "itemId": "t4",
+            "learnerResponse": [],
+            "outcome": "incorrect-omission",
+            "weight": 1
+          },
+          {
+            "correctResponse": [],
+            "itemId": "w1",
+            "learnerResponse": ["1"],
+            "outcome": "incorrect",
+            "weight": 1
+          }
+        ],
+        "feedback": null,
+        "maxScore": 1,
+        "passed": false,
+        "score": 0.5,
+        "status": "scored"
+      },
+      "fn": "evaluate",
+      "id": "evaluate/mw/scored"
+    },
+    {
+      "args": [
         {
           "id": "mt-headings",
           "instructions": "Choose the correct heading for each paragraph.",

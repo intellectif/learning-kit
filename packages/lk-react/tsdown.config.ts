@@ -17,6 +17,7 @@ export default defineConfig({
     'components/FillInTheBlanks': 'src/components/FillInTheBlanks/index.tsx',
     'components/GapSelect': 'src/components/GapSelect/index.tsx',
     'components/Matching': 'src/components/Matching/index.tsx',
+    'components/MarkTheWords': 'src/components/MarkTheWords/index.tsx',
     'components/Dictation': 'src/components/Dictation/index.tsx',
     'components/ReadAloud': 'src/components/ReadAloud/index.tsx',
     'components/SpeakingResponse': 'src/components/SpeakingResponse/index.tsx',

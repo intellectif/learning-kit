@@ -91,6 +91,16 @@ const ITEMS = {
     prompts: [{ id: 'p1', text: 'prefers the tram', correctOptionId: 'a' }],
     media: { type: 'image', url: `${CDN}/people.png`, alt: 'Anna and Ben' },
   },
+  'mark-the-words': {
+    schemaVersion: '1.0',
+    type: 'mark-the-words',
+    id: 'mw-1',
+    title: 'Past tense',
+    text: 'She went home.',
+    targets: [{ text: 'went' }],
+    scoringStrategy: 'partial',
+    media: { type: 'audio', url: `${CDN}/home.mp3`, alt: 'She went home' },
+  },
   'written-response': {
     schemaVersion: '1.0',
     type: 'written-response',

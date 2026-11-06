@@ -93,6 +93,16 @@
         "default": "./dist/components/GapSelect.cjs"
       }
     },
+    "./components/MarkTheWords": {
+      "import": {
+        "types": "./dist/components/MarkTheWords.d.ts",
+        "default": "./dist/components/MarkTheWords.js"
+      },
+      "require": {
+        "types": "./dist/components/MarkTheWords.d.cts",
+        "default": "./dist/components/MarkTheWords.cjs"
+      }
+    },
     "./components/Matching": {
       "import": {
         "types": "./dist/components/Matching.d.ts",
