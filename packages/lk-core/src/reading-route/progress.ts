@@ -119,6 +119,8 @@ function answered(response: LearnerResponse | undefined, partId: string | undefi
       return partId !== undefined && (response.answers?.[partId] ?? '').trim() !== '';
     case 'gap-select':
       return partId !== undefined && (response.selections?.[partId] ?? '') !== '';
+    case 'matching':
+      return partId !== undefined && (response.matches?.[partId] ?? '') !== '';
     default:
       return false;
   }
@@ -188,6 +190,11 @@ export function routeAnswers(
       answer.chosen = response.selectedOptionIds[0];
     } else if (response?.type === 'gap-select' && question.partId !== undefined) {
       const chosen = response.selections?.[question.partId];
+      if (chosen !== undefined && chosen !== '') {
+        answer.chosen = chosen;
+      }
+    } else if (response?.type === 'matching' && question.partId !== undefined) {
+      const chosen = response.matches?.[question.partId];
       if (chosen !== undefined && chosen !== '') {
         answer.chosen = chosen;
       }

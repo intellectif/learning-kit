@@ -54,6 +54,7 @@ import { ActivityErrorBoundary } from '../ActivityErrorBoundary.js';
 import { Dictation } from '../Dictation/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
+import { Matching } from '../Matching/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
 import type { RecordingBinding } from '../ReadAloud/ReadAloud.js';
@@ -345,7 +346,7 @@ export interface InteractiveVideoProps {
   onPreferencesChange?: (next: VideoPreferences, change: Partial<VideoPreferences>) => void;
   /** A short label in the corner, such as a lesson code. */
   label?: string;
-  /** Seed for the option order of multiple-choice and gap-select questions: the attempt id. */
+  /** Seed for the option order of multiple-choice, gap-select and matching questions: the attempt id. */
   shuffleSeed?: string;
   locale?: string;
   strings?: LkStringsOverride;
@@ -1697,6 +1698,14 @@ function Player(props: InteractiveVideoProps) {
       case 'gap-select':
         return (
           <GapSelect
+            data={activity}
+            {...common}
+            {...(shuffleSeed !== undefined ? { shuffleSeed } : {})}
+          />
+        );
+      case 'matching':
+        return (
+          <Matching
             data={activity}
             {...common}
             {...(shuffleSeed !== undefined ? { shuffleSeed } : {})}

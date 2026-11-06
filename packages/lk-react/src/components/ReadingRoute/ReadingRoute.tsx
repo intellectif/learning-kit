@@ -52,6 +52,7 @@ import type { LkStringsOverride } from '../../i18n/strings.js';
 import { isDevelopment } from '../_internal.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
+import { Matching } from '../Matching/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { useDeliveryPolicy } from '../shared/delivery.js';
 import type { HtmlSanitizer, RenderableActivity } from '../types.js';
@@ -81,7 +82,7 @@ export interface ReadingRouteResult {
 export interface ReadingRouteProps {
   /**
    * An item group with a `route`: a text passage and its multiple-choice,
-   * fill-in-the-blanks and gap-select questions. Full content: the route grades
+   * fill-in-the-blanks, gap-select and matching questions. Full content: the route grades
    * in the browser, as practice does.
    */
   group: ItemGroup<RenderableActivity>;
@@ -145,7 +146,7 @@ type EventInput = RouteEvent extends infer E
     : never
   : never;
 
-const ITEM_TYPES = new Set(['multiple-choice', 'fill-in-the-blanks', 'gap-select']);
+const ITEM_TYPES = new Set(['multiple-choice', 'fill-in-the-blanks', 'gap-select', 'matching']);
 
 function clock(seconds: number): string {
   const whole = Math.max(0, Math.floor(seconds));
@@ -752,6 +753,9 @@ export function ReadingRoute({
     }
     if (item.type === 'gap-select') {
       return <GapSelect key={key} data={item as never} {...props} />;
+    }
+    if (item.type === 'matching') {
+      return <Matching key={key} data={item as never} {...props} />;
     }
     return null;
   };

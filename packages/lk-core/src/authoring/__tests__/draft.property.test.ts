@@ -352,6 +352,42 @@ const gapSelectDraft = fc
   })
   .map(compact);
 
+const matchingOptionArb = entry(
+  fc
+    .record({
+      id: fc.constantFrom<unknown>(undefined, null, '', 'i', 'ii', 'iii'),
+      // Blank, repeated in another case, and the same as the text.
+      label: fc.constantFrom<unknown>(undefined, null, '', '  ', 'A', 'a', 'B', 'i'),
+      text: fc.constantFrom<unknown>(undefined, null, '', '   ', NBSP, 'A', 'The cost', 'i'),
+    })
+    .map(compact),
+);
+
+const matchingPromptArb = entry(
+  fc
+    .record({
+      id: fc.constantFrom<unknown>(undefined, null, '', 'p1', 'p2'),
+      text: text,
+      correctOptionId: fc.constantFrom<unknown>(undefined, null, '', 'i', 'ii', 'nobody'),
+      feedback: optionalText,
+    })
+    .map(compact),
+);
+
+const matchingDraft = fc
+  .record({
+    ...envelope('matching'),
+    instructions: optionalText,
+    optionsTitle: optionalText,
+    prompts: orUnset(fc.array(matchingPromptArb, { maxLength: 3 })),
+    options: orUnset(fc.array(matchingOptionArb, { maxLength: 4 })),
+    optionUse: fc.constantFrom<unknown>(undefined, null, '', 'once', 'many', 'twice'),
+    scoringStrategy: fc.constantFrom<unknown>(undefined, null, '', 'all-or-nothing', 'partial'),
+    shuffleOptions: optionalBool,
+    ...sharedArbs,
+  })
+  .map(compact);
+
 const LONG_TRANSCRIPT = 'a'.repeat(2001);
 const LONG_REWRITE = 'b'.repeat(201);
 
@@ -631,6 +667,7 @@ const EDITOR_DRAFTS = Object.entries({
   dictation: dictationDraft,
   'read-aloud': readAloudDraft,
   'speaking-response': speakingResponseDraft,
+  matching: matchingDraft,
 } satisfies Record<BuiltInActivityType, fc.Arbitrary<Record<string, unknown>>>) as [
   BuiltInActivityType,
   fc.Arbitrary<Record<string, unknown>>,
@@ -647,6 +684,7 @@ const RESPONSES = {
   // has to evaluate without throwing.
   'read-aloud': { type: 'read-aloud', recording: null },
   'speaking-response': { type: 'speaking-response', recording: null },
+  matching: { type: 'matching', matches: { p1: 'i', p2: '' } },
 } satisfies Record<BuiltInActivityType, LearnerResponse>;
 
 describe('validateDraft properties', () => {

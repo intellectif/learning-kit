@@ -192,7 +192,7 @@ describe('validateItemGroupDraft — the items inside it', () => {
     // An author fixing a six-item group wants all six problems listed, not the
     // first one that blew up — the choice validateItemGroup already makes.
     const result = validateItemGroupDraft(
-      group({ items: [{ schemaVersion: '1.0', type: 'matching', id: 'q1' }] }),
+      group({ items: [{ schemaVersion: '1.0', type: 'hotspot', id: 'q1' }] }),
     );
     expect(result.status).toBe('invalid');
     expect(result.issues.map((found) => found.code)).toContain('ig_item_type_unknown');

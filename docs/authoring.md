@@ -360,6 +360,64 @@ interface always keep a non-drag path, so the choice belongs in the content
 rather than in a component prop — but a `'drag'` value nothing renders would be
 API frozen before it was validated. Widening the union later is additive.
 
+### Matching — prompts matched to a shared list (1.13)
+
+Several prompts, each matched to one entry of a shared list: headings to
+paragraphs, statements to the paragraph or the person they come from, sentence
+beginnings to their endings, questions to the section that answers them.
+
+```jsonc
+{
+  "schemaVersion": "1.0", "type": "matching", "id": "q1", "title": "The return of the tram",
+  "instructions": "Choose the correct heading for each paragraph from the list of headings below.",
+  "optionsTitle": "List of Headings",
+  "options": [
+    { "id": "i", "label": "i", "text": "A costly experiment" },
+    { "id": "ii", "label": "ii", "text": "Why the trams disappeared" },
+    { "id": "iii", "label": "iii", "text": "A return nobody expected" },
+    { "id": "iv", "label": "iv", "text": "The view from the passengers" }
+  ],
+  "prompts": [
+    { "id": "pA", "text": "Paragraph A", "correctOptionId": "ii" },
+    { "id": "pB", "text": "Paragraph B", "correctOptionId": "iii" },
+    { "id": "pC", "text": "Paragraph C", "correctOptionId": "i" }
+  ],
+  "optionUse": "once",
+  "scoringStrategy": "partial"
+}
+```
+
+- **`label`** is the short key the paper answers in — `"A"`, `"iv"` — shown
+  before the option's text, and unique in the item, ignoring case. A list that
+  is only letters ("Which paragraph contains…") gives each option its letter as
+  both `label` and `text`; the learner sees it once.
+- **`optionUse`**: `"many"` (the default) lets one option answer any number of
+  prompts, as in *"You may use any letter more than once"*. `"once"` says each
+  option answers at most one prompt: the answer key may not repeat one, and the
+  component **moves** an option a learner picks again — it leaves the prompt
+  that held it, as a heading dragged to another paragraph does on screen, and a
+  screen reader is told so.
+- **More options than prompts** is how a matching task has distractors. With
+  `optionUse: "once"` and as many options as prompts, the last prompt is
+  answered by elimination; the critic says so (`mt_no_distractor`).
+- **Scoring** is per prompt, an identity comparison of the option id, as in gap
+  select: `partial` is correct prompts / prompts, which is how an exam marks
+  it. A prompt left on the empty first entry is `incorrect-omission`. Under
+  `optionUse: "once"`, a response that uses one option twice (only a
+  hand-made one can) is scored prompt by prompt like any other.
+- **Redaction** keeps every option, its label and the prompts, and withholds
+  each prompt's `correctOptionId` and `feedback` — the list is what the learner
+  picks from. `optionUse` is public: it changes what the learner may do.
+- **`shuffleOptions`** is off by default, because an exam prints its list in a
+  fixed order. When on, it needs a `shuffleSeed` outside `practice`, as every
+  shuffle does.
+
+**Why not a gap select with a word bank?** A gap is a hole in a passage; a
+matching prompt is a statement of its own, and the list is content the learner
+reads first, with the labels the paper answers in. A bank cannot say "each once"
+either. A reading route guides both: a matching item's prompts are its
+questions, one per `partId` — see [Reading routes](./reading-route.md).
+
 ### Media on a multiple-choice option (v0.10)
 
 An option can carry a picture or a recording of its own — the A1/A2
@@ -955,6 +1013,7 @@ first.
 | `fill-in-the-blanks` | an empty passage, no blanks, `scoringStrategy: 'all-or-nothing'` |
 | `written-response` | an empty prompt, `minWords: 0`, `maxWords: 0`, no rubric |
 | `gap-select` | an empty passage, no gaps, `scoringStrategy: 'all-or-nothing'`, **no choice marked correct** |
+| `matching` | no prompts and no options, `scoringStrategy: 'all-or-nothing'`, **no prompt answered**. An exam's matching task is marked prompt by prompt: set `partial` for one |
 | `dictation` | an empty title and an empty transcript; no recording, hints, tolerances or accepted transcripts; no `scoringStrategy` — the type has one strategy |
 | `read-aloud` | an empty title, text to read and locale; `recording: { maxSeconds: 0 }`; `scoring: { dimensions: [] }` — **no dimension is weighted**, because which of accuracy, fluency, completeness and prosody a grade counts, and what each is worth, is a teaching decision, and a defaulted set would let an author write the text, never open the scoring control, and hold a `complete` item graded on weights nobody chose |
 | `speaking-response` | an empty title, prompt and locale; `recording: { maxSeconds: 0 }`; `rubric: { criteria: [] }` — how long an answer may be, its language and what it is graded on are teaching decisions |
@@ -1071,6 +1130,29 @@ write four plausible choices, never open the correctness control, and hold a
 `complete` question whose answer key is whatever was listed first. The gap-level
 rules are reported at `gaps` rather than at the gap, because that is where the
 schema reports them.
+
+`matching`:
+
+| Code | Severity | Path | When |
+|---|---|---|---|
+| `mt_prompts_required` | incomplete | `prompts` | No prompts |
+| `mt_prompt_id_required` | invalid | `prompts.N.id` | Absent, or empty |
+| `mt_prompt_id_duplicate` | invalid | `prompts` | Two prompts share an id |
+| `mt_prompt_text_required` | incomplete | `prompts.N.text` | Absent, or only whitespace |
+| `mt_options_too_few` | incomplete | `options` | Fewer than 2 options |
+| `mt_option_id_required` | invalid | `options.N.id` | Absent, or empty |
+| `mt_option_id_duplicate` | invalid | `options` | Two options share an id |
+| `mt_option_text_required` | incomplete | `options.N.text` | Absent, or only whitespace |
+| `mt_option_label_required` | incomplete | `options.N.label` | Present and blank: a label field nobody filled in. Leave `label` out for an option with none |
+| `mt_option_label_duplicate` | invalid | `options` | Two options share a label, ignoring case and surrounding space: the learner answers with it |
+| `mt_option_use_invalid` | invalid | `optionUse` | Anything but `"once"` or `"many"` |
+| `mt_correct_option_required` | incomplete | `prompts.N.correctOptionId` | No option chosen as the prompt's answer |
+| `mt_correct_option_unknown` | invalid | `prompts` | `correctOptionId` names no option |
+| `mt_option_reused` | invalid | `prompts` | With `optionUse: "once"`, one option answers two prompts |
+
+A new `matching` draft answers **no** prompt, for the reason a new gap select
+marks no choice correct. The rules over the whole list are reported at `prompts`
+and `options`, where the schema reports them.
 
 `written-response`:
 
@@ -1349,6 +1431,10 @@ author: translate by `code`.
 | `gs_choices_duplicate` | warning | `gaps.N.choices.M.text`, `banks.N.choices.M.text` | Two choices in one list read the same |
 | `gs_bank_no_distractor` | warning | `banks.N.choices` | A bank drawn on by two or more gaps offers no more choices than it has gaps: the last gap is answered by elimination |
 | `gs_answer_in_passage` | warning | `gaps.N.correctChoiceId` | The passage, its gaps taken out, prints a gap's correct choice; short answers not looked for |
+| `mt_title_reveals_answer` | warning | `title` | The title contains the text of an option that answers a prompt, as whole words; short answers not looked for |
+| `mt_options_duplicate` | warning | `options.N.text` | Two options read the same |
+| `mt_answer_in_prompt` | warning | `prompts.N.text` | A prompt contains the text of the option that answers it, word for word — a person's name in their own statement. Short answers, such as a paragraph letter, not looked for |
+| `mt_no_distractor` | warning | `options` | `optionUse: "once"`, two or more prompts, and no more options than prompts: the last prompt is answered by elimination |
 | `wr_criterion_name_duplicate` | warning | `rubric.criteria.N.name` | Two criteria have one name once case, accents and punctuation are ignored. Feedback on writing and a grader's criteria name a criterion |
 | `wr_levels_unreadable` | warning | `rubric.criteria.N.levels` | A criterion's `levels` cannot be used by the grading functions: not a list, fewer than 2 or more than 10, a level with no label or a description that is not text, or two labels the same once case and spacing are ignored. `validateActivity` does not check `levels` in 1.x, so this warning is how an author learns of it |
 | `ra_text_long_for_time` | warning | `recording.maxSeconds` | The text has more than 2.5 words a second of `maxSeconds` — 150 words a minute, a fluent adult reading aloud. A learner reads slower |
@@ -1384,13 +1470,13 @@ skip an entry of an unknown type, which `validateItemGroupDraft` already reports
 Add `authoring` to a descriptor to give a registered type the same support:
 
 ```ts
-registerActivityType(defineActivityType<MatchingData, MatchingResponse>({
-  type: 'matching',
-  schema: MatchingSchema,
-  scoring: { kind: 'sync', score: scoreMatching },
+registerActivityType(defineActivityType<HotspotData, HotspotResponse>({
+  type: 'hotspot',
+  schema: HotspotSchema,
+  scoring: { kind: 'sync', score: scoreHotspot },
   authoring: {
     createDraft: ({ newId }) => ({
-      schemaVersion: '1.0', type: 'matching', id: newId(), title: '', pairs: [],
+      schemaVersion: '1.0', type: 'hotspot', id: newId(), title: '', spots: [],
     }),
     // The schema requires a title, so the check reports a missing one: a new
     // draft must come back `incomplete`, never `invalid`.
@@ -1398,8 +1484,8 @@ registerActivityType(defineActivityType<MatchingData, MatchingResponse>({
       ...(typeof draft.title !== 'string' || draft.title.trim() === ''
         ? [{ code: 'title_required', severity: 'incomplete' as const, path: ['title'], message: 'Add a title.' }]
         : []),
-      ...(Array.isArray(draft.pairs) && draft.pairs.length === 0
-        ? [{ code: 'pairs_required', severity: 'incomplete' as const, path: ['pairs'], message: 'Add a pair.' }]
+      ...(Array.isArray(draft.spots) && draft.spots.length === 0
+        ? [{ code: 'spots_required', severity: 'incomplete' as const, path: ['spots'], message: 'Add a spot.' }]
         : []),
     ],
   },
@@ -1692,7 +1778,7 @@ nothing is in `slots` with `null` on one side.
 | `versions_section_mismatch` | invalid | The forms have different numbers of sections, or a section's `key` or `title` differs at the same position: weights and pass marks are kept per section |
 | `versions_entry_count` | invalid | A section has a different number of entries, or a paired group a different number of items |
 | `versions_type_mismatch` | invalid | Paired slots, or a paired group's items, are of different types |
-| `versions_structure_mismatch` | invalid | Paired slots fail a structure rule of [variants](./ai.md#what-is-copied-and-what-comes-back): options and how many are right, blanks and their matching, gaps, banks, a part's stimulus and speakers, the rubric, word bounds, a slow recording, the scoring strategy. A form that scores differently is not parallel |
+| `versions_structure_mismatch` | invalid | Paired slots fail a structure rule of [variants](./ai.md#what-is-copied-and-what-comes-back): options and how many are right, blanks and their matching, gaps, banks, a matching item's prompts, options and `optionUse`, a part's stimulus and speakers, the rubric, word bounds, a slow recording, the scoring strategy. A form that scores differently is not parallel |
 | `versions_objectives_mismatch` | warning | Paired items test different `learningObjectives` |
 | `versions_length_out_of_band` | warning | A paired text outside the length band: material within a tenth, an item's own text within a quarter (`lengthTolerance` overrides) |
 | `versions_near_copy` | warning | Any text of the second form reads like any text of its kind in the first — not only its pair: a model can copy question 3 into slot 7 — or a multiple choice has another's options in another order |
@@ -1925,26 +2011,26 @@ import { defineActivityType, registerActivityType } from '@intellectif/lk-core';
 import { ActivitySequence } from '@intellectif/lk-react';
 
 // Registration is a RUNTIME act. On its own the compiler still knows nothing
-// about `'matching'`, so `validateActivity('matching', …)` and
+// about `'hotspot'`, so `validateActivity('hotspot', …)` and
 // `activities={items}` both fail to type-check. The module augmentation is what
 // closes that gap — without it you get TS2345 / TS2322, not a runtime error.
 declare module '@intellectif/lk-core' {
   interface ActivityDataMap {
-    matching: MatchingData;
+    hotspot: HotspotData;
   }
   interface LearnerResponseMap {
-    matching: MatchingResponse;
+    hotspot: HotspotResponse;
   }
 }
 
-registerActivityType(defineActivityType<MatchingData, MatchingResponse>({
-  type: 'matching',
-  schema: MatchingSchema,
-  scoring: { kind: 'sync', score: scoreMatching },
+registerActivityType(defineActivityType<HotspotData, HotspotResponse>({
+  type: 'hotspot',
+  schema: HotspotSchema,
+  scoring: { kind: 'sync', score: scoreHotspot },
   fieldPolicy: { /* … */ },
 }));
 
-<ActivitySequence activities={items} renderers={{ matching: MatchingItem }} />
+<ActivitySequence activities={items} renderers={{ hotspot: HotspotItem }} />
 ```
 
 Both halves are required, and they fail differently: skip `registerActivityType`

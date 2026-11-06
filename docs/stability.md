@@ -142,6 +142,11 @@ lk-core major.
 - **JSON Schema** comes from the descriptor's `jsonSchema` when you give one, or else from the schema's
   Standard JSON Schema converter, which zod 4.6 implements.
 
+- **A minor may add a built-in type.** Its name is then taken: `registerActivityType` refuses a
+  second descriptor for it, and a module augmentation that declares it conflicts with the SDK's. Give
+  your own types a prefix the SDK will not use, such as `acme-hotspot`. A changeset that adds a
+  built-in type names it.
+
 See [Custom activity types end to end](./authoring.md#custom-activity-types-end-to-end).
 
 ## What is not covered

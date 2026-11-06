@@ -26,6 +26,7 @@ export interface ActivityDataMap {
   dictation: DictationData;
   'read-aloud': ReadAloudData;
   'speaking-response': SpeakingResponseData;
+  matching: MatchingData;
 }
 
 /**
@@ -456,6 +457,104 @@ export interface GapSelectData {
   ai?: ActivityAiPermissions;
 }
 
+/**
+ * One entry of a matching item's shared list: a heading, a person, a
+ * paragraph, a sentence ending.
+ */
+export interface MatchingOption {
+  /** Unique identifier within the item. */
+  id: string;
+  /**
+   * The short key the learner answers with, as on the paper: `"A"`, `"iv"`.
+   * Shown before the text. Optional; unique within the item when given.
+   */
+  label?: string;
+  /**
+   * What the learner reads: `"The cost of the new lines"`, `"Mary Lee"`. For a
+   * list that is only letters (which paragraph contains…), the letter itself.
+   */
+  text: string;
+}
+
+/** One statement, question or sentence beginning the learner matches to an option. */
+export interface MatchingPrompt {
+  /** Unique identifier within the item. */
+  id: string;
+  /** What the learner reads, as plain text. */
+  text: string;
+  /** The `id` of the one option that answers it. */
+  correctOptionId: string;
+  /** Optional feedback shown beside this prompt after submission. */
+  feedback?: string;
+}
+
+/**
+ * Data contract for a Matching activity: several prompts, each matched to one
+ * entry of a shared list of options.
+ *
+ * It is the shape of the exam reading tasks that match: headings to
+ * paragraphs, statements to the paragraph or the person they come from,
+ * sentence beginnings to their endings, questions to the section that answers
+ * them. One list serves every prompt, and it is usually longer than the
+ * prompts, so the spare options are the distractors.
+ *
+ * It is **not** a {@link GapSelectData} with a bank, though both score a
+ * choice by identity. A matching prompt is a statement of its own, not a gap
+ * in a passage, and the list is the content the learner reads first — a list
+ * of headings, a list of people — with the labels the paper answers in.
+ * `optionUse: 'once'` says each option answers at most one prompt, which a
+ * word bank cannot say.
+ */
+export interface MatchingData {
+  schemaVersion: '1.0';
+  type: 'matching';
+  /** Unique identifier for this activity. */
+  id: string;
+  /** Human-readable title used in xAPI statements and error boundaries. */
+  title: string;
+  /**
+   * Optional instructions shown to the learner, as plain text: the task, read
+   * before the lists ("Choose the correct heading for each paragraph from the
+   * list of headings below."). Every AI request about the item carries them.
+   */
+  instructions?: string;
+  /** Optional title of the list of options, shown above it: `"List of Headings"`. */
+  optionsTitle?: string;
+  /** The statements to match, in the order the learner answers them. At least one. */
+  prompts: MatchingPrompt[];
+  /** The shared list, in the order shown. At least two. */
+  options: MatchingOption[];
+  /**
+   * `many` (default): an option may answer any number of prompts, as in
+   * "You may use any letter more than once". `once`: each option answers at
+   * most one prompt — the answer key never repeats one, and a learner who
+   * picks an option already used moves it to the new prompt.
+   */
+  optionUse?: 'once' | 'many';
+  /** Scoring algorithm applied when the learner submits. */
+  scoringStrategy: 'all-or-nothing' | 'partial';
+  /**
+   * Whether the SDK shuffles the list of options. Off by default: an exam's
+   * list is printed in a fixed order. Seeded as `MultipleChoiceData.shuffle`
+   * is, and refused without a seed outside `practice` by `<ActivitySequence>`.
+   */
+  shuffleOptions?: boolean;
+  /** Optional media shown above the lists. */
+  media?: ActivityMedia;
+  /** Optional authored overall feedback shown after submission. */
+  feedback?: ActivityFeedback;
+  /** Minimum scaled score [0–1] required to pass. Defaults to {@link DEFAULT_PASS_THRESHOLD} (0.7) when absent. */
+  passThreshold?: number;
+  /** BCP 47 language tag for the activity content. */
+  locale?: string;
+  /** IRI references to learning objectives addressed by this activity. */
+  learningObjectives?: string[];
+  /** Subjective difficulty on a 1–5 scale. */
+  difficultyLevel?: 1 | 2 | 3 | 4 | 5;
+  /** What an author allows AI to do for this item: see {@link ActivityAiPermissions}. */
+  ai?: ActivityAiPermissions;
+}
+
 export interface FillInTheBlanksData {
   schemaVersion: '1.0';
   type: 'fill-in-the-blanks';
@@ -805,6 +904,7 @@ export interface LearnerResponseMap {
   dictation: DictationLearnerResponse;
   'read-aloud': ReadAloudLearnerResponse;
   'speaking-response': SpeakingResponseLearnerResponse;
+  matching: MatchingLearnerResponse;
 }
 
 /** Union of all learner response shapes. */
@@ -853,6 +953,27 @@ export interface GapSelectLearnerResponse {
   type: 'gap-select';
   /** Map of gap ID to the ID of the choice the learner selected. */
   selections: Record<string, string>;
+  /**
+   * Hints the learner was shown before submitting this answer, counted from
+   * the start of the question — the author's and AI hints alike. Written by
+   * the SDK's components in `practice`; absent or 0 means none. A scoring
+   * policy's `hintPenalty` charges for them. Client-reported, like any count
+   * a browser makes.
+   */
+  hintsRevealed?: number;
+}
+
+/**
+ * Learner response for a Matching activity.
+ *
+ * A prompt the learner has not answered is **absent from the map, or holds an
+ * empty string** — equivalent, as in {@link GapSelectLearnerResponse}, and
+ * scored as `incorrect-omission`, never as a wrong answer.
+ */
+export interface MatchingLearnerResponse {
+  type: 'matching';
+  /** Map of prompt ID to the ID of the option the learner matched it with. */
+  matches: Record<string, string>;
   /**
    * Hints the learner was shown before submitting this answer, counted from
    * the start of the question — the author's and AI hints alike. Written by

@@ -295,3 +295,48 @@ export const Faded: Story = {
 
 /** Cambridge-style gapped text: the links that decide which paragraph belongs where. */
 export const GappedText: Story = { args: { group: bakery } };
+
+/**
+ * The same passage with its headings task as one matching item: the list printed once, and
+ * each paragraph a question of its own.
+ */
+const withMatching: ItemGroup = {
+  ...trams,
+  items: trams.items.map((item) =>
+    item.id === 'gs1'
+      ? ({
+          schemaVersion: '1.0',
+          type: 'matching',
+          id: 'mh1',
+          title: 'Headings',
+          instructions:
+            'Choose the correct heading for paragraphs B and E from the list of headings.',
+          optionsTitle: 'List of Headings',
+          options: [
+            { id: 'h1', label: 'i', text: 'Why passengers came back to rails' },
+            { id: 'h2', label: 'ii', text: 'A benefit beyond the journey' },
+            { id: 'h3', label: 'iii', text: 'The high price of digging' },
+            { id: 'h4', label: 'iv', text: 'Faster than the bus' },
+            { id: 'h5', label: 'v', text: 'The end of an era' },
+          ],
+          prompts: [
+            { id: 'pB', text: 'Paragraph B', correctOptionId: 'h1' },
+            { id: 'pE', text: 'Paragraph E', correctOptionId: 'h2' },
+          ],
+          optionUse: 'once',
+          scoringStrategy: 'partial',
+        } as ActivityData)
+      : item,
+  ),
+  route: trams.route && {
+    ...trams.route,
+    questions: trams.route.questions.map((question) =>
+      question.itemId === 'gs1'
+        ? { ...question, itemId: 'mh1', partId: question.partId === 'g1' ? 'pB' : 'pE' }
+        : question,
+    ),
+  },
+} as ItemGroup;
+
+/** Matching headings written as one matching item. */
+export const MatchingHeadings: Story = { args: { group: withMatching } };

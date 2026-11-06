@@ -104,7 +104,7 @@ describe('validateDraft: the result', () => {
   });
 
   it('throws for an unregistered type, and for item-group, which is a container', () => {
-    expect(() => validateDraft('matching' as ActivityType, {})).toThrow(UnknownActivityTypeError);
+    expect(() => validateDraft('hotspot' as ActivityType, {})).toThrow(UnknownActivityTypeError);
     expect(() => validateDraft('item-group' as ActivityType, {})).toThrow(UnknownActivityTypeError);
   });
 

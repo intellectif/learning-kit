@@ -220,7 +220,7 @@ describe('aiDraftsRequest', () => {
     expect(
       aiDraftsRequest({ types: ['gap-select'], source: { kind: 'captions', cues: [] } }),
     ).toBeNull();
-    for (const types of [[], ['multiple-choice', 'multiple-choice'], ['matching']]) {
+    for (const types of [[], ['multiple-choice', 'multiple-choice'], ['hotspot']]) {
       expect(() => ask(types as AiDraftType[]), JSON.stringify(types)).toThrow(RangeError);
     }
     for (const count of [0, 1.5, AI_DRAFTS_MAX_COUNT + 1, Number.NaN]) {

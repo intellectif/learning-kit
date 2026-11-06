@@ -78,6 +78,19 @@ const ITEMS = {
     gaps: [{ id: 'a', bankId: 'p', correctChoiceId: 'from' }],
     media: { type: 'image', url: `${CDN}/map.png`, alt: 'A map of Spain' },
   },
+  matching: {
+    schemaVersion: '1.0',
+    type: 'matching',
+    id: 'mt-1',
+    title: 'Who said it?',
+    scoringStrategy: 'partial',
+    options: [
+      { id: 'a', label: 'A', text: 'Anna' },
+      { id: 'b', label: 'B', text: 'Ben' },
+    ],
+    prompts: [{ id: 'p1', text: 'prefers the tram', correctOptionId: 'a' }],
+    media: { type: 'image', url: `${CDN}/people.png`, alt: 'Anna and Ben' },
+  },
   'written-response': {
     schemaVersion: '1.0',
     type: 'written-response',

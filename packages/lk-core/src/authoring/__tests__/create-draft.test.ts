@@ -201,7 +201,7 @@ describe('createDraft', () => {
   });
 
   it('throws for an unregistered type, and for a type with no createDraft', () => {
-    expect(() => createDraft('matching' as ActivityType, { newId: counter() })).toThrow(
+    expect(() => createDraft('hotspot' as ActivityType, { newId: counter() })).toThrow(
       UnknownActivityTypeError,
     );
     registerActivityType(

@@ -432,6 +432,82 @@ export function critiqueGapSelect(draft: DraftFields): ItemFinding[] {
   return findings;
 }
 
+// ── Matching ───────────────────────────────────────────────────────────
+
+/** Whether `text` writes out `answer` as whole words — an answer of one short word never counts. */
+function writesOut(text: string, answer: string): boolean {
+  const needle = fold(answer);
+  return needle.length > 0 && !isShort(needle) && containsWords(fold(text), needle);
+}
+
+export function critiqueMatching(draft: DraftFields): ItemFinding[] {
+  const findings: ItemFinding[] = [];
+  const prompts = listOf(draft.prompts);
+  const options = listOf(draft.options);
+  const optionText = (option: unknown): string | undefined =>
+    isRecord(option) ? written(option.text) : undefined;
+  const answerOf = (prompt: unknown): string | undefined =>
+    isRecord(prompt)
+      ? optionText(
+          options.find((option) => isRecord(option) && option.id === prompt.correctOptionId),
+        )
+      : undefined;
+
+  const title = written(draft.title);
+  if (
+    title !== undefined &&
+    prompts.some((prompt) => {
+      const answer = answerOf(prompt);
+      return answer !== undefined && writesOut(title, answer);
+    })
+  ) {
+    findings.push(
+      finding(
+        'mt_title_reveals_answer',
+        ['title'],
+        'The title, which the learner sees, contains the answer to a prompt.',
+      ),
+    );
+  }
+
+  for (const { first, second } of duplicates(options, optionText)) {
+    findings.push(
+      finding(
+        'mt_options_duplicate',
+        ['options', second, 'text'],
+        `Options ${ordinal(first)} and ${ordinal(second)} read the same, so a learner cannot tell them apart.`,
+      ),
+    );
+  }
+
+  prompts.forEach((prompt, index) => {
+    const text = isRecord(prompt) ? written(prompt.text) : undefined;
+    const answer = answerOf(prompt);
+    if (text !== undefined && answer !== undefined && writesOut(text, answer)) {
+      findings.push(
+        finding(
+          'mt_answer_in_prompt',
+          ['prompts', index, 'text'],
+          `Prompt ${ordinal(index)} contains "${answer}", the option that answers it, word for word.`,
+        ),
+      );
+    }
+  });
+
+  const promptCount = prompts.filter(isRecord).length;
+  if (draft.optionUse === 'once' && promptCount >= 2 && options.length <= promptCount) {
+    findings.push(
+      finding(
+        'mt_no_distractor',
+        ['options'],
+        `Each option is used once, and there are ${options.length} options for ${promptCount} prompts, so the last prompt is answered by elimination. Add an option that answers no prompt.`,
+      ),
+    );
+  }
+
+  return findings;
+}
+
 // ── Written response ───────────────────────────────────────────────────
 
 /** Why a criterion's levels cannot be graded on, said to the author. */

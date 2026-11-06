@@ -1,6 +1,6 @@
 /**
  * Pointing at part of a question the SDK's own components drew: their
- * instructions, their question, one blank or gap, their options. The marks are
+ * instructions, their question, one blank, gap or prompt, their options. The marks are
  * an attribute on the element, set and cleared from outside, so no question
  * component has to know a route exists; key words inside a question are
  * painted with the CSS Custom Highlight API where the browser has it, and are
@@ -11,10 +11,11 @@ import type { RouteQuestionPart } from '@intellectif/lk-core';
 
 export const TARGET_ATTRIBUTE = 'data-lk-route-target';
 
-const INSTRUCTIONS = '.lk-mc-instructions, .lk-fib-instructions, .lk-gs-instructions';
-const PARTS = '.lk-fib-blank, .lk-fib-answer, .lk-gs-gap';
+const INSTRUCTIONS =
+  '.lk-mc-instructions, .lk-fib-instructions, .lk-gs-instructions, .lk-mt-instructions';
+const PARTS = '.lk-fib-blank, .lk-fib-answer, .lk-gs-gap, .lk-mt-prompt';
 
-/** The elements of a question card that a step's `part` names. `ordinal` is the blank's or gap's, 1-based. */
+/** The elements of a question card that a step's `part` names. `ordinal` is the blank's, gap's or prompt's, 1-based. */
 export function partElements(
   card: HTMLElement,
   part: RouteQuestionPart,
@@ -39,7 +40,8 @@ export function partElements(
     case 'answer':
       return ordinal === undefined ? one('.lk-mc legend') : blank();
     case 'options': {
-      const options = [...card.querySelectorAll<HTMLElement>('.lk-mc-option')];
+      // A matching item's list is shared by its prompts: the whole list.
+      const options = [...card.querySelectorAll<HTMLElement>('.lk-mc-option, .lk-mt-option')];
       return options.length > 0 ? options : blank();
     }
   }

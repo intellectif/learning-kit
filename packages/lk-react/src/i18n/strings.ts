@@ -109,6 +109,24 @@ export interface LkStrings {
    * alone, and how they take an answer back. Never a real choice.
    */
   gapPlaceholder: string;
+
+  // ── Matching ──────────────────────────────────────────────────────────────
+  /**
+   * The empty first entry of a prompt's selector — how a learner leaves a
+   * prompt unanswered, and how they take an answer back. Never a real option.
+   */
+  matchPlaceholder: string;
+  /** Accessible name of the list of options when the item gives it no title. */
+  matchOptionsLabel: string;
+  /**
+   * Beside an option another prompt already holds, when each option is used
+   * once: in the selectors, and read out in the list.
+   */
+  matchOptionUsed: string;
+  /** Announced when picking an option used once takes it from the prompt that held it. `option` is its label and text. */
+  matchMoved: (option: string) => string;
+  /** The right option, shown beside a wrong match where the delivery policy shows answers. */
+  matchCorrectAnswer: (option: string) => string;
   showHint: string;
   hideHint: string;
 
@@ -630,6 +648,12 @@ export const DEFAULT_STRINGS: LkStrings = {
 
   gapLabel: (ordinal) => `Choose the answer for gap ${ordinal}`,
   gapPlaceholder: 'Choose…',
+  matchPlaceholder: 'Choose…',
+  matchOptionsLabel: 'Options',
+  matchOptionUsed: '(used)',
+  matchMoved: (option) =>
+    `${option} can be used once, so it was taken from the statement that had it.`,
+  matchCorrectAnswer: (option) => `Answer: ${option}`,
   showHint: 'Show hint',
   hideHint: 'Hide hint',
 

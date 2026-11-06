@@ -9,7 +9,7 @@
     "name": "lk-core: validateActivity",
     "path": "packages/lk-core/dist/index.js",
     "import": "{ validateActivity }",
-    "limit": "56 kB"
+    "limit": "57 kB"
   },
   {
     "name": "lk-core: xAPIBuilder",
@@ -69,6 +69,13 @@
     "name": "GapSelect",
     "path": "packages/lk-react/dist/components/GapSelect.js",
     "import": "{ GapSelect }",
+    "ignore": ["react", "react-dom", "@intellectif/lk-core"],
+    "limit": "50 kB"
+  },
+  {
+    "name": "Matching",
+    "path": "packages/lk-react/dist/components/Matching.js",
+    "import": "{ Matching }",
     "ignore": ["react", "react-dom", "@intellectif/lk-core"],
     "limit": "50 kB"
   },

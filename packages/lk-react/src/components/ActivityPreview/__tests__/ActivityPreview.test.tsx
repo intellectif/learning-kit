@@ -418,7 +418,7 @@ describe('<ActivityPreview>', () => {
   it('throws on wiring errors instead of guessing', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(() => render(<ActivityPreview draft={{ title: 'No type' }} />)).toThrow(/string `type`/);
-    expect(() => render(<ActivityPreview draft={{ ...capital, type: 'matching' }} />)).toThrow(
+    expect(() => render(<ActivityPreview draft={{ ...capital, type: 'hotspot' }} />)).toThrow(
       UnknownActivityTypeError,
     );
     expect(() =>

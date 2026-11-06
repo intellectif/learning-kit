@@ -144,6 +144,38 @@ export const RedactedGapSelectDataSchema = z.strictObject({
   shuffleChoices: z.boolean().optional(),
 });
 
+/** A redacted matching option: unchanged, because the learner picks from the list. */
+export const RedactedMatchingOptionSchema = z.strictObject({
+  id: z.string().min(1),
+  label: z.string().min(1).optional(),
+  text: z.string().min(1),
+});
+
+/** A redacted prompt: what the learner reads; `correctOptionId` and feedback are gone. */
+export const RedactedMatchingPromptSchema = z.strictObject({
+  id: z.string().min(1),
+  text: z.string().min(1),
+});
+
+/**
+ * Redacted Matching data. As in Gap Select, the list the learner picks from
+ * survives in full and only the key is withheld: each prompt's
+ * `correctOptionId`. `optionUse` survives because it changes what the learner
+ * may do — an exam says "You may use any letter more than once" in its
+ * instructions, and the component moves an option used once. `scoringStrategy`
+ * stays answer-key, as on every type.
+ */
+export const RedactedMatchingDataSchema = z.strictObject({
+  ...redactedBase,
+  type: z.literal('matching'),
+  instructions: z.string().optional(),
+  optionsTitle: z.string().optional(),
+  prompts: z.array(RedactedMatchingPromptSchema).min(1),
+  options: z.array(RedactedMatchingOptionSchema).min(2),
+  optionUse: z.enum(['once', 'many']).optional(),
+  shuffleOptions: z.boolean().optional(),
+});
+
 /**
  * Redacted Written Response data: the prompt, word bounds and rubric are
  * learner-visible (a rubric tells the learner what they are graded on);

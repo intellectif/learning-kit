@@ -1,6 +1,7 @@
 import { dictationAuthoring } from '../authoring/dictation.js';
 import { fillInTheBlanksAuthoring } from '../authoring/fill-in-the-blanks.js';
 import { gapSelectAuthoring } from '../authoring/gap-select.js';
+import { matchingAuthoring } from '../authoring/matching.js';
 import { multipleChoiceAuthoring } from '../authoring/multiple-choice.js';
 import { readAloudAuthoring } from '../authoring/read-aloud.js';
 import { speakingResponseAuthoring } from '../authoring/speaking-response.js';
@@ -11,12 +12,14 @@ import { readRubricLevels } from '../rubric-levels.js';
 import { DictationDataSchema } from '../schemas/dictation.js';
 import { FillInTheBlanksDataSchema } from '../schemas/fill-in-the-blanks.js';
 import { GapSelectDataSchema } from '../schemas/gap-select.js';
+import { MatchingDataSchema } from '../schemas/matching.js';
 import { MultipleChoiceDataSchema } from '../schemas/multiple-choice.js';
 import { ReadAloudDataSchema } from '../schemas/read-aloud.js';
 import {
   RedactedDictationDataSchema,
   RedactedFillInTheBlanksDataSchema,
   RedactedGapSelectDataSchema,
+  RedactedMatchingDataSchema,
   RedactedMultipleChoiceDataSchema,
   RedactedReadAloudDataSchema,
   RedactedSpeakingResponseDataSchema,
@@ -27,6 +30,7 @@ import { WrittenResponseDataSchema } from '../schemas/written-response.js';
 import { scoreDictation } from '../scoring/activity-scorers/dictation.js';
 import { scoreFillInTheBlanks } from '../scoring/activity-scorers/fill-in-the-blanks.js';
 import { scoreGapSelect } from '../scoring/activity-scorers/gap-select.js';
+import { scoreMatching } from '../scoring/activity-scorers/matching.js';
 import { scoreMultipleChoice } from '../scoring/activity-scorers/multiple-choice.js';
 import {
   DICTATION_MAX_TEXT_LENGTH,
@@ -41,6 +45,8 @@ import type {
   FillInTheBlanksLearnerResponse,
   GapSelectData,
   GapSelectLearnerResponse,
+  MatchingData,
+  MatchingLearnerResponse,
   MultipleChoiceData,
   MultipleChoiceLearnerResponse,
   ReadAloudData,
@@ -237,6 +243,29 @@ const GAP_SELECT_FIELD_POLICY: FieldPolicy = {
     bankId: 'public',
     choices: { id: 'public', text: 'public' },
     correctChoiceId: 'answer-key',
+    feedback: 'answer-key',
+  },
+};
+
+/**
+ * Matching: as in Gap Select, the list the learner picks from is public, key
+ * by key, and each prompt's `correctOptionId` is the one field withheld.
+ * `optionUse` is public because it changes what the learner may do: the
+ * component moves an option used once, and the paper says so.
+ */
+const MATCHING_FIELD_POLICY: FieldPolicy = {
+  ...SHARED_PUBLIC_FIELDS,
+  instructions: 'public',
+  optionsTitle: 'public',
+  optionUse: 'public',
+  shuffleOptions: 'public',
+  scoringStrategy: 'answer-key',
+  feedback: FEEDBACK_FIELD_POLICY,
+  options: { id: 'public', label: 'public', text: 'public' },
+  prompts: {
+    id: 'public',
+    text: 'public',
+    correctOptionId: 'answer-key',
     feedback: 'answer-key',
   },
 };
@@ -452,6 +481,29 @@ export const gapSelectType = defineActivityType<GapSelectData, GapSelectLearnerR
   mediaSlots: () => MAIN_MEDIA,
 });
 
+/** Built-in Matching descriptor. */
+export const matchingType = defineActivityType<MatchingData, MatchingLearnerResponse>({
+  type: 'matching',
+  schema: MatchingDataSchema as unknown as StandardSchemaV1<unknown, MatchingData>,
+  scoring: { kind: 'sync', score: scoreMatching },
+  isAnswered: (response) =>
+    Object.values(response?.matches ?? {}).some((optionId) => optionId !== ''),
+  fieldPolicy: MATCHING_FIELD_POLICY,
+  redactedSchema: RedactedMatchingDataSchema,
+  interop: {
+    xapiActivityTypeIri: 'http://adlnet.gov/expapi/activities/cmi.interaction',
+    // The xAPI matching interaction exactly: sources (the prompts) paired
+    // with targets (the options), one `source[.]target` pair per prompt.
+    xapiInteractionType: 'matching',
+    correctResponsesPattern: (data) => [
+      data.prompts.map((prompt) => `${prompt.id}[.]${prompt.correctOptionId}`).join('[,]'),
+    ],
+  },
+  interactions: ['option-matched', 'submitted'],
+  authoring: matchingAuthoring,
+  mediaSlots: () => MAIN_MEDIA,
+});
+
 /**
  * Built-in Dictation descriptor. Graded synchronously: the score is the
  * character-level similarity of the typed text to the transcript, a pure
@@ -637,4 +689,5 @@ export const BUILT_IN_DESCRIPTORS = {
   dictation: dictationType,
   'read-aloud': readAloudType,
   'speaking-response': speakingResponseType,
+  matching: matchingType,
 } satisfies { readonly [Type in BuiltInActivityType]: { readonly type: Type } };

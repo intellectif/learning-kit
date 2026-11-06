@@ -18,6 +18,7 @@ What changed in each release, and what to do about it: the [upgrading guide](./u
 | **Fill in the blanks** — per-blank hints, `showCorrectAnswers` | 0.2.0 / 1.0.0 | [Authoring](./authoring.md) |
 | Opt-in answer matching: Unicode normalisation, accent folding, typo tolerance | 0.3.0 / 2.0.0 | [Authoring](./authoring.md) |
 | **Gap select** — the dropdown cloze, with shared word banks | 0.10.1 / 10.0.0 | [Authoring](./authoring.md) |
+| **Matching** — headings to paragraphs, statements to people, sentence endings: prompts matched to a shared list | 1.13.0 / 23.10.0 | [Authoring](./authoring.md#matching--prompts-matched-to-a-shared-list-113) |
 | **Written response** — graded later, by your grader, never recorded as a zero | 0.3.0 / 2.0.0 | [Authoring](./authoring.md) |
 | A returned grade shown with its criteria and corrections | 0.4.0 / 3.0.0 | [Upgrading](./upgrading.md) |
 | **Dictation** — hear a recording, type it; a score for every word | 0.13.0 / 13.0.0 | [Authoring](./authoring.md) |

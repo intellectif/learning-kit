@@ -181,8 +181,8 @@ function errorPaths(result: ReturnType<typeof validateItemGroup>): string[] {
   return result.success ? [] : result.errors.map((error) => error.path.join('.'));
 }
 
-describe('the six item types', () => {
-  it('names exactly multiple choice, fill-in-the-blanks, gap select, dictation, read-aloud and a spoken answer', () => {
+describe('the seven item types', () => {
+  it('names exactly multiple choice, fill-in-the-blanks, gap select, dictation, read-aloud, a spoken answer and matching', () => {
     expect([...INTERACTIVE_VIDEO_ITEM_TYPES]).toEqual([
       'multiple-choice',
       'fill-in-the-blanks',
@@ -190,8 +190,10 @@ describe('the six item types', () => {
       'dictation',
       'read-aloud',
       'speaking-response',
+      'matching',
     ]);
     expect(isInteractiveVideoItemType('speaking-response')).toBe(true);
+    expect(isInteractiveVideoItemType('matching')).toBe(true);
     expect(isInteractiveVideoItemType('written-response')).toBe(false);
     expect(isInteractiveVideoItemType('item-group')).toBe(false);
     expect(isInteractiveVideoItemType(undefined)).toBe(false);

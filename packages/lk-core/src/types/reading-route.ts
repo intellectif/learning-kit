@@ -112,7 +112,7 @@ export interface RouteTrap {
 export interface RouteQuestion {
   /** The item's `id`. */
   itemId: string;
-  /** The blank or gap id. Required for fill-in-the-blanks and gap-select; absent for multiple-choice. */
+  /** The blank, gap or prompt id. Required for fill-in-the-blanks, gap-select and matching; absent for multiple-choice. */
   partId?: string;
   strategy: RouteStrategyId;
   /**
@@ -165,7 +165,7 @@ export interface ReadingRoute {
   paragraphLabels?: string[];
   /** The stimulus's texts or sections, when it has several (cross-text, multiple matching). Their paragraphs add up to the passage's. */
   sections?: RouteSection[];
-  /** One per question of the group, in any order: numbering follows the items and their blanks or gaps. */
+  /** One per question of the group, in any order: numbering follows the items and their blanks, gaps or prompts. */
   questions: RouteQuestion[];
 }
 
@@ -246,7 +246,7 @@ export interface PassageLayout {
 
 /** A route question with every quote resolved against the passage. */
 export interface PlannedQuestion {
-  /** `itemId`, or `itemId#partId` for a blank or gap. Names the question in traces and summaries. */
+  /** `itemId`, or `itemId#partId` for a blank, gap or prompt. Names the question in traces and summaries. */
   key: string;
   itemId: string;
   partId?: string;

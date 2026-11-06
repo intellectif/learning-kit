@@ -163,6 +163,31 @@ export interface RedactedGapSelectData extends RedactedItem {
   locale?: string | undefined;
 }
 
+/** A matching option, unchanged by redaction — the learner picks from the list. */
+export interface RedactedMatchingOption {
+  id: string;
+  label?: string | undefined;
+  text: string;
+}
+
+/** A matching prompt with its `correctOptionId` and feedback removed. */
+export interface RedactedMatchingPrompt {
+  id: string;
+  text: string;
+}
+
+/** A Matching item the learner can still answer: the list intact, the key gone. */
+export interface RedactedMatchingData extends RedactedItem {
+  type: 'matching';
+  instructions?: string | undefined;
+  optionsTitle?: string | undefined;
+  prompts: RedactedMatchingPrompt[];
+  options: RedactedMatchingOption[];
+  optionUse?: 'once' | 'many' | undefined;
+  shuffleOptions?: boolean | undefined;
+  locale?: string | undefined;
+}
+
 /** The slower recording of a dictation, unchanged by redaction. */
 export interface RedactedDictationSlowMedia {
   type: 'audio';
@@ -232,4 +257,5 @@ export type RedactedActivity =
   | RedactedWrittenResponseData
   | RedactedGapSelectData
   | RedactedDictationData
-  | RedactedReadAloudData;
+  | RedactedReadAloudData
+  | RedactedMatchingData;

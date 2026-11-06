@@ -14,7 +14,8 @@
 
 @layer lk-skin {
   .lk-mc,
-  .lk-fib {
+  .lk-fib,
+  .lk-mt {
     font-family: var(--lk-font-family-base);
     font-size: var(--lk-font-size-base);
     line-height: var(--lk-line-height-base);
@@ -26,12 +27,14 @@
   }
 
   .lk-mc *,
-  .lk-fib * {
+  .lk-fib *,
+  .lk-mt * {
     box-sizing: border-box;
   }
 
   .lk-mc fieldset,
-  .lk-fib fieldset {
+  .lk-fib fieldset,
+  .lk-mt fieldset {
     margin: 0;
     padding: 0;
     border: 0;
@@ -49,7 +52,8 @@
      a gap select paints no surface, and its text keeps the page's colour. */
   .lk-mc-instructions,
   .lk-fib-instructions,
-  .lk-gs-instructions {
+  .lk-gs-instructions,
+  .lk-mt-instructions {
     margin: 0 0 var(--lk-spacing-md);
     font-size: var(--lk-font-size-sm);
     font-weight: var(--lk-font-weight-bold);
@@ -243,6 +247,137 @@
 
   .lk-gs-gap-feedback[data-correct="false"] {
     color: var(--lk-color-error);
+  }
+
+  /* ── Matching ─────────────────────────────────────────────────────────
+     The list the prompts are matched with, read first, then one row per
+     prompt: its text, and a selector holding the same list. A row wraps its
+     selector under the text when the card is narrow. */
+  .lk-mt-list {
+    margin: 0 0 var(--lk-spacing-lg);
+    padding: var(--lk-spacing-md);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    background: var(--lk-color-surface-raised);
+    color: var(--lk-color-text);
+  }
+
+  .lk-mt-list-title {
+    margin: 0 0 var(--lk-spacing-sm);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-mt-options,
+  .lk-mt-prompts {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lk-mt-options {
+    gap: var(--lk-spacing-xs);
+  }
+
+  .lk-mt-option {
+    display: flex;
+    gap: var(--lk-spacing-sm);
+    align-items: baseline;
+  }
+
+  .lk-mt-option-label {
+    flex: none;
+    min-inline-size: 2.5em;
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  /* Used once and already given to a prompt: still readable, set back. */
+  .lk-mt-option[data-used] {
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-mt-prompts {
+    gap: var(--lk-spacing-md);
+  }
+
+  .lk-mt-prompt {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lk-spacing-xs) var(--lk-spacing-md);
+    align-items: center;
+  }
+
+  .lk-mt-prompt-text {
+    flex: 1 1 16rem;
+    min-inline-size: 0;
+  }
+
+  /* One width for every selector, so the column lines up whatever is chosen. */
+  .lk-mt-select {
+    flex: none;
+    inline-size: min(18rem, 100%);
+    max-inline-size: 100%;
+    padding: 0.3em 0.5em;
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+    background: var(--lk-color-surface);
+    color: var(--lk-color-text);
+    font: inherit;
+    transition: var(--lk-transition-fast);
+  }
+
+  .lk-mt-select:disabled {
+    opacity: 1;
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface-raised);
+  }
+
+  .lk-mt-select[data-correct="true"] {
+    border-color: var(--lk-color-success);
+    box-shadow: inset 0 0 0 1px var(--lk-color-success);
+  }
+
+  .lk-mt-select[data-correct="false"] {
+    border-color: var(--lk-color-error);
+    box-shadow: inset 0 0 0 1px var(--lk-color-error);
+  }
+
+  .lk-mt-answer {
+    flex-basis: 100%;
+    padding: var(--lk-spacing-xs) var(--lk-spacing-sm);
+    border-radius: var(--lk-radius-sm);
+    background: color-mix(in srgb, var(--lk-color-success) 14%, var(--lk-color-surface));
+    color: var(--lk-color-text);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-mt-prompt-feedback {
+    flex-basis: 100%;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-mt-prompt-feedback[data-correct="true"] {
+    color: var(--lk-color-success);
+  }
+
+  .lk-mt-prompt-feedback[data-correct="false"] {
+    color: var(--lk-color-error);
+  }
+
+  .lk-mt-feedback-toggle {
+    margin-top: var(--lk-spacing-md);
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .lk-mt-feedback-toggle:hover {
+    color: var(--lk-color-text);
   }
 
   /* ── Multiple choice options ─────────────────────────────────────────── */
@@ -545,7 +680,8 @@
 
   /* ── Submit buttons ──────────────────────────────────────────────────── */
   .lk-mc button[type="submit"],
-  .lk-fib button[type="submit"] {
+  .lk-fib button[type="submit"],
+  .lk-mt button[type="submit"] {
     margin-top: var(--lk-spacing-md);
     padding: var(--lk-spacing-sm) var(--lk-spacing-lg);
     font: inherit;
@@ -559,19 +695,22 @@
   }
 
   .lk-mc button[type="submit"]:hover,
-  .lk-fib button[type="submit"]:hover {
+  .lk-fib button[type="submit"]:hover,
+  .lk-mt button[type="submit"]:hover {
     background: var(--lk-color-primary-hover);
   }
 
   .lk-mc button[type="submit"]:disabled,
-  .lk-fib button[type="submit"]:disabled {
+  .lk-fib button[type="submit"]:disabled,
+  .lk-mt button[type="submit"]:disabled {
     opacity: 0.55;
     cursor: default;
   }
 
   /* ── Focus ring (keyboard) ───────────────────────────────────────────── */
   .lk-mc :focus-visible,
-  .lk-fib :focus-visible {
+  .lk-fib :focus-visible,
+  .lk-mt :focus-visible {
     outline: 2px solid var(--lk-color-focus-ring);
     outline-offset: 2px;
   }
@@ -584,7 +723,8 @@
 
   /* ── Feedback / status region ────────────────────────────────────────── */
   .lk-mc > [aria-live],
-  .lk-fib > [aria-live] {
+  .lk-fib > [aria-live],
+  .lk-mt > [aria-live] {
     margin-top: var(--lk-spacing-md);
     color: var(--lk-color-text-muted);
     font-size: var(--lk-font-size-sm);
@@ -683,6 +823,7 @@
   @media (prefers-reduced-motion: reduce) {
     .lk-mc *,
     .lk-fib *,
+    .lk-mt *,
     .lk-wr *,
     .lk-seq * {
       transition: none;

@@ -274,7 +274,9 @@ function stepsFor(
       case 'eliminate':
         steps.push(
           step(question, move, {
-            part: item.type === 'multiple-choice' ? 'options' : 'answer',
+            // A matching item's options are one shared list, crossed off there.
+            part:
+              item.type === 'multiple-choice' || item.type === 'matching' ? 'options' : 'answer',
             highlight: question.evidence,
             context: question.traps.flatMap((trap) => (trap.lure ? [trap.lure] : [])),
             traps: question.traps,

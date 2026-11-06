@@ -52,6 +52,9 @@ inside a right-to-left page. See [Internationalisation](./i18n.md).
 | `.lk-fib-blank-feedback`, `.lk-fib-feedback-toggle` | Per-blank feedback note + the Hide/Show feedback toggle |
 | `.lk-gs`, `.lk-gs-instructions`, `.lk-gs-passage`, `.lk-gs-gap`, `.lk-gs-select` | Gap Select container / the item's instructions (1.7) / passage / one gap / its selector — `data-correct` lands on the `select` itself after submit |
 | `.lk-gs-gap-feedback`, `.lk-gs-feedback-toggle` | Per-gap feedback note + the Hide/Show feedback toggle |
+| `.lk-mt`, `.lk-mt-instructions`, `.lk-mt-list`, `.lk-mt-list-title`, `.lk-mt-options`, `.lk-mt-option`, `.lk-mt-option-label`, `.lk-mt-option-text` | Matching container (1.13 / 23.10) — `data-option-use="once"` or `"many"` on it / the item's instructions / the list of options and its title / one option, its label and its text — `data-used` lands on an option another prompt holds when each is used once |
+| `.lk-mt-prompts`, `.lk-mt-prompt`, `.lk-mt-prompt-text`, `.lk-mt-select` | The prompts / one prompt row / its text (the selector's label) / its selector — `data-correct` lands on the row and on the `select` after submit |
+| `.lk-mt-answer`, `.lk-mt-prompt-feedback`, `.lk-mt-feedback-toggle` | The right option beside a wrong match / per-prompt feedback note / the Hide/Show feedback toggle |
 | `.lk-dc`, `.lk-dc-title`, `.lk-dc-recordings`, `.lk-dc-recording`, `.lk-dc-recording-label` | Dictation container / title / the recordings block / one recording's fieldset (`[data-slow="true"]` for the slower file) / its legend |
 | `.lk-ai`, `.lk-ai-hint-area` | AI help: the block under an answer (an explanation) or before submit (hints), `data-state="idle" \| "loading" \| "shown" \| "unavailable"` |
 | `.lk-ai-button` | "Explain my answer" / "Get a hint". While a call is on its way it is `[aria-busy="true"][aria-disabled="true"]`, not `:disabled`, so focus stays on it |
