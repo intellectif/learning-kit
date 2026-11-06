@@ -18,6 +18,11 @@ import {
   type MediaTrack,
   type ResolvedDeliveryPolicy,
   type ResolvedItemScoringPolicy,
+  type RouteFadingOptions,
+  type RouteLearnerState,
+  type RouteLevel,
+  type RouteTrace,
+  readingQuizzes,
   readMediaProgress,
   resolveDeliveryPolicy,
   resolveItemScoringPolicy,
@@ -29,7 +34,9 @@ import {
 } from '@intellectif/lk-core';
 import {
   type CSSProperties,
+  lazy,
   type ReactNode,
+  Suspense,
   useCallback,
   useEffect,
   useId,
@@ -50,6 +57,8 @@ import { GapSelect } from '../GapSelect/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
 import type { RecordingBinding } from '../ReadAloud/ReadAloud.js';
+import type { ReadingRouteResult } from '../ReadingRoute/ReadingRoute.js';
+import { type RouteHost, RouteHostContext } from '../ReadingRoute/route-host.js';
 import { SpeakingResponse } from '../SpeakingResponse/index.js';
 import type { SpeakingAssessResult } from '../SpeakingResponse/SpeakingResponse.js';
 import { stopCaptureGroup } from '../shared/capture-registry.js';
@@ -364,12 +373,45 @@ export interface InteractiveVideoProps {
   scoring?: ItemScoringPolicy | null;
   theme?: Partial<ThemeTokens>;
   sanitizeHtml?: HtmlSanitizer;
+  /**
+   * How the video's reading quizzes are guided. A quiz is a reading quiz when
+   * the group's `route` covers every question in it (lk-core's
+   * `readingQuizzes`): in `practice` it opens as a `<ReadingRoute>` over the
+   * stimulus's text, with the passage beside its questions; in `exam` and
+   * `review` it is an ordinary quiz. A route belongs in a reading lesson more
+   * than in a video — see the reading route guide — but a video can hold one.
+   */
+  readingRoute?: InteractiveVideoReading;
 }
+
+/**
+ * The `<ReadingRoute>` settings for every reading quiz of a video, and what
+ * each one hands back, named by its quiz.
+ */
+export interface InteractiveVideoReading {
+  learnerState?: RouteLearnerState | null;
+  level?: RouteLevel;
+  entryLevel?: RouteLevel;
+  fading?: RouteFadingOptions;
+  /** A suggested time for each reading quiz: seconds, or `true` for 90 seconds a question. */
+  pace?: boolean | number;
+  /** When the learner finishes a reading quiz's route: what to store, and the quiz's id. */
+  onFinish?: (result: ReadingRouteResult, cueId: string) => void;
+  onTraceChange?: (trace: RouteTrace, cueId: string) => void;
+}
+
+/**
+ * The reading route, loaded only by a video that has a reading quiz: every
+ * other video stays the size it was.
+ */
+const LazyReadingRoute = lazy(() =>
+  import('../ReadingRoute/ReadingRoute.js').then((module) => ({ default: module.ReadingRoute })),
+);
 
 /** What distinguishes one video's content from another's: when it changes, the player starts over. */
 function contentKey(group: RenderableItemGroup): string {
   try {
-    return JSON.stringify([group.id, group.stimulus, group.items, group.timeline]);
+    return JSON.stringify([group.id, group.stimulus, group.items, group.timeline, group.route]);
   } catch {
     return String(group?.id);
   }
@@ -523,6 +565,13 @@ function Player(props: InteractiveVideoProps) {
     }
     return byCue;
   }, [slots]);
+
+  // The quizzes that open as a reading route: in practice only. An exam or a
+  // review shows the same questions as an ordinary quiz.
+  const reading = useMemo(
+    () => new Set(renderMode === 'practice' ? readingQuizzes(group) : []),
+    [group, renderMode],
+  );
 
   const [playerId] = useState(() => {
     playerCount += 1;
@@ -1701,6 +1750,106 @@ function Player(props: InteractiveVideoProps) {
     }
   };
 
+  // ── Reading quizzes ──────────────────────────────────────────────────
+  /** A reading quiz as a group of its own: the stimulus's text, the quiz's questions, their route. */
+  const routeGroups = useRef(new Map<string, RenderableItemGroup>());
+  const routeGroupFor = (cue: TimelineCue): RenderableItemGroup => {
+    const made = routeGroups.current.get(cue.id);
+    if (made !== undefined) {
+      return made;
+    }
+    const items = (slotsByCue.get(cue.id) ?? []).map((slot) => slot.activity);
+    const ids = new Set(items.map((item) => item.id));
+    const { stimulus } = group;
+    const routed: RenderableItemGroup = {
+      schemaVersion: '1.0',
+      type: 'item-group',
+      // Its own id, so a learner's state counts each quiz as a passage of its own.
+      id: `${group.id}:${cue.id}`,
+      ...(cue.title !== undefined ? { title: cue.title } : {}),
+      stimulus: {
+        id: stimulus.id,
+        kind: 'text',
+        body: stimulus.body ?? '',
+        ...(stimulus.title !== undefined ? { title: stimulus.title } : {}),
+        ...(stimulus.locale !== undefined ? { locale: stimulus.locale } : {}),
+        ...(stimulus.attribution !== undefined ? { attribution: stimulus.attribution } : {}),
+      },
+      items,
+      route: {
+        ...(group.route as NonNullable<ItemGroup['route']>),
+        questions: (group.route?.questions ?? []).filter((question) => ids.has(question.itemId)),
+      },
+    };
+    routeGroups.current.set(cue.id, routed);
+    return routed;
+  };
+  /** The video's calls for each question a reading quiz draws, and its channel around each. */
+  const routeHosts = useRef(new Map<string, RouteHost>());
+  const routeHostFor = (cueId: string): RouteHost => {
+    const made = routeHosts.current.get(cueId);
+    if (made !== undefined) {
+      return made;
+    }
+    const slotOf = (itemId: string) =>
+      (slotsByCue.get(cueId) ?? []).find((slot) => slot.activity.id === itemId);
+    const placeOf = (itemId: string): InteractiveVideoSlot | undefined => {
+      const slot = slotOf(itemId);
+      return slot === undefined ? undefined : places.get(slot.slotId);
+    };
+    const host: RouteHost = {
+      wrap: (itemId, node) => {
+        const slot = slotOf(itemId);
+        return slot === undefined ? (
+          node
+        ) : (
+          <QuestionPane hidden={false} channel={channelFor(slot.slotId)}>
+            {node}
+          </QuestionPane>
+        );
+      },
+      submit: (itemId, response) => {
+        const place = placeOf(itemId);
+        if (place !== undefined) {
+          callsFor(place).submit(response);
+        }
+      },
+      complete: (itemId, result) => {
+        const place = placeOf(itemId);
+        if (place !== undefined) {
+          callsFor(place).complete(result);
+        }
+      },
+    };
+    routeHosts.current.set(cueId, host);
+    return host;
+  };
+  const routeOptions = (cueId: string) => {
+    const options = props.readingRoute;
+    return {
+      renderMode: 'practice' as const,
+      ...(options?.learnerState !== undefined ? { learnerState: options.learnerState } : {}),
+      ...(options?.level !== undefined ? { level: options.level } : {}),
+      ...(options?.entryLevel !== undefined ? { entryLevel: options.entryLevel } : {}),
+      ...(options?.fading !== undefined ? { fading: options.fading } : {}),
+      ...(options?.pace !== undefined ? { pace: options.pace } : {}),
+      ...(options?.onFinish !== undefined
+        ? { onFinish: (result: ReadingRouteResult) => options.onFinish?.(result, cueId) }
+        : {}),
+      ...(options?.onTraceChange !== undefined
+        ? { onTraceChange: (trace: RouteTrace) => options.onTraceChange?.(trace, cueId) }
+        : {}),
+      ...(props.delivery !== undefined ? { delivery: props.delivery } : {}),
+      ...(scoringGiven ? { scoring: props.scoring } : {}),
+      ...(props.strings !== undefined ? { strings: props.strings } : {}),
+      ...(locale !== undefined ? { locale } : {}),
+      ...(theme !== undefined ? { theme } : {}),
+      ...(sanitizeHtml !== undefined ? { sanitizeHtml } : {}),
+      ...(props.ai !== undefined ? { ai: props.ai } : {}),
+      ...(onInteraction !== undefined ? { onInteraction } : {}),
+    };
+  };
+
   if (devError !== null) {
     throw devError;
   }
@@ -1710,8 +1859,12 @@ function Player(props: InteractiveVideoProps) {
   const openSlots = openCue === undefined ? [] : (slotsByCue.get(openCue.id) ?? []);
   const step = openQuiz?.step ?? 0;
   const stepSlot = openSlots[step];
-  const stepAnswered = stepSlot !== undefined && answered.has(stepSlot.slotId);
-  const lastStep = step >= openSlots.length - 1;
+  // A reading quiz is one step: the route holds all its questions at once.
+  const readingQuiz = openCue !== undefined && reading.has(openCue.id);
+  const stepAnswered = readingQuiz
+    ? openSlots.every((slot) => answered.has(slot.slotId))
+    : stepSlot !== undefined && answered.has(stepSlot.slotId);
+  const lastStep = readingQuiz || step >= openSlots.length - 1;
   const required = openCue?.required === true && renderMode !== 'review';
   const canAdvance = !required || stepAnswered;
   const goToStep = (next: number): void => {
@@ -2134,7 +2287,7 @@ function Player(props: InteractiveVideoProps) {
                   </>
                 ) : null}
               </h3>
-              {openSlots.length > 1 ? (
+              {openSlots.length > 1 && !readingQuiz ? (
                 <div className="lk-iv-steps">
                   <span className="lk-iv-steps-label">
                     {strings.videoQuestionProgress(step + 1, openSlots.length)}
@@ -2165,30 +2318,44 @@ function Player(props: InteractiveVideoProps) {
             {cues
               .filter((cue) => mounted.has(cue.id))
               .map((cue) =>
-                (slotsByCue.get(cue.id) ?? []).map((slot, index) => {
-                  const shown = openQuiz?.cueId === cue.id && step === index;
-                  const place = places.get(slot.slotId) as InteractiveVideoSlot;
-                  return (
-                    <QuestionPane
-                      key={slot.slotId}
-                      hidden={!shown}
-                      channel={channelFor(slot.slotId)}
-                    >
-                      <SlotQuestion
-                        title={slot.activity.title}
-                        strings={strings}
-                        render={props.renderQuestion}
-                        question={
-                          props.renderQuestion === undefined
-                            ? undefined
-                            : questionFor(slot, place, shown)
-                        }
-                        sdk={() => sdkQuestion(slot, place)}
-                        setHostPending={callsFor(place).setPending}
-                      />
-                    </QuestionPane>
-                  );
-                }),
+                reading.has(cue.id) ? (
+                  <div
+                    key={`route:${cue.id}`}
+                    className="lk-iv-route"
+                    hidden={openQuiz?.cueId !== cue.id}
+                  >
+                    <Suspense fallback={null}>
+                      <RouteHostContext.Provider value={routeHostFor(cue.id)}>
+                        <LazyReadingRoute group={routeGroupFor(cue)} {...routeOptions(cue.id)} />
+                      </RouteHostContext.Provider>
+                    </Suspense>
+                  </div>
+                ) : (
+                  (slotsByCue.get(cue.id) ?? []).map((slot, index) => {
+                    const shown = openQuiz?.cueId === cue.id && step === index;
+                    const place = places.get(slot.slotId) as InteractiveVideoSlot;
+                    return (
+                      <QuestionPane
+                        key={slot.slotId}
+                        hidden={!shown}
+                        channel={channelFor(slot.slotId)}
+                      >
+                        <SlotQuestion
+                          title={slot.activity.title}
+                          strings={strings}
+                          render={props.renderQuestion}
+                          question={
+                            props.renderQuestion === undefined
+                              ? undefined
+                              : questionFor(slot, place, shown)
+                          }
+                          sdk={() => sdkQuestion(slot, place)}
+                          setHostPending={callsFor(place).setPending}
+                        />
+                      </QuestionPane>
+                    );
+                  })
+                ),
               )}
           </div>
           {openCue !== undefined ? (

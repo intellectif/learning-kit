@@ -1,4 +1,4 @@
-export { type RouteIssue, type RouteIssueCode, routeIssues } from './check.js';
+export { type RouteIssue, type RouteIssueCode, readingQuizzes, routeIssues } from './check.js';
 export {
   countParagraphs,
   overlaps,

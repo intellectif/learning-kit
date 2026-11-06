@@ -2,6 +2,7 @@
 
 import {
   type ActivityData,
+  type ActivityResult,
   ActivitySchemaError,
   combineDeliveryPolicies,
   type DeliveryPolicy,
@@ -35,7 +36,9 @@ import {
 } from '@intellectif/lk-core';
 import {
   type CSSProperties,
+  type ReactNode,
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -61,6 +64,7 @@ import {
   phraseRanges,
   TARGET_ATTRIBUTE,
 } from './question-marks.js';
+import { RouteHostContext } from './route-host.js';
 
 /** What a finished route hands the host to store. */
 export interface ReadingRouteResult {
@@ -225,6 +229,8 @@ export function ReadingRoute({
   onInteraction,
 }: ReadingRouteProps): React.JSX.Element {
   const s = useLkStrings(strings);
+  // An interactive video holding this route as one of its quizzes.
+  const host = useContext(RouteHostContext);
   const policy = useDeliveryPolicy(delivery);
   const review = renderMode === 'review';
   // A route is drawn from the group it mounted with: a new object with the same
@@ -421,6 +427,16 @@ export function ReadingRoute({
       }
     }
     record({ type: 'finished' }, at);
+    // A player around the route counts an answer the learner gave and never
+    // handed in, as the route does.
+    if (host !== null) {
+      for (const item of group.items) {
+        const response = responses.current[item.id];
+        if (response !== undefined && !submitted.current.has(item.id)) {
+          host.submit(item.id, response);
+        }
+      }
+    }
     const trace = traceOf();
     const result = summarizeRoute(group, trace, routeAnswers(group, responses.current));
     const next = nextRouteLearnerState(learnerState, result, fading);
@@ -671,7 +687,12 @@ export function ReadingRoute({
   const announcement =
     step === undefined ? '' : `${progress}. ${s.routeMove(step.move)}. ${stepText(step)}`;
 
-  const renderItem = (item: ItemGroup['items'][number]): React.JSX.Element | null => {
+  const renderItem = (item: ItemGroup['items'][number]): ReactNode => {
+    const node = itemComponent(item);
+    return host === null || node === null ? node : host.wrap(item.id, node);
+  };
+
+  const itemComponent = (item: ItemGroup['items'][number]): React.JSX.Element | null => {
     const planned = questionsOf.get(item.id) ?? [];
     const solo = planned.length > 0 && planned.every((question) => question.level === 'solo');
     const common = {
@@ -707,10 +728,14 @@ export function ReadingRoute({
           responses.current[item.id] = response;
           changedAt.current[item.id] = clockRef.current();
         },
+        ...(host !== null
+          ? { onComplete: (result: ActivityResult) => host.complete(item.id, result) }
+          : {}),
         onSubmit: (response: LearnerResponse) => {
           responses.current[item.id] = response;
           changedAt.current[item.id] = clockRef.current();
           submitted.current.add(item.id);
+          host?.submit(item.id, response);
           for (const question of planned) {
             record({ type: 'answered', question: question.key });
           }

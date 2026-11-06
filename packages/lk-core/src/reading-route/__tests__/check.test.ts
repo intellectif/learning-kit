@@ -4,7 +4,7 @@ import { redactItemGroup } from '../../redact.js';
 import { validateItemGroup } from '../../schemas/index.js';
 import type { ItemGroup } from '../../types/item-group.js';
 import type { RouteQuestion } from '../../types/reading-route.js';
-import { routeIssues } from '../check.js';
+import { readingQuizzes, routeIssues } from '../check.js';
 import { tramGroup } from './fixture.js';
 
 /** The fixture with its route's question `index` changed. */
@@ -81,9 +81,6 @@ describe('the rules of a route', () => {
     const empty = tramGroup();
     empty.stimulus = { id: 's', kind: 'text', body: '  ' };
     expect(codes(empty)).toContain('ig_route_body_required');
-    const both = tramGroup();
-    both.timeline = { cues: [] };
-    expect(codes(both)).toContain('ig_route_with_timeline');
     const shuffled = tramGroup();
     shuffled.shuffle = 'within-group';
     expect(codes(shuffled)).toEqual(['ig_route_shuffle']);
@@ -267,5 +264,71 @@ describe('the rules of a route', () => {
     expect(routeIssues(redacted, 'redacted')).toEqual([]);
     expect(routeIssues({ route: 'nope' })).toEqual([]);
     expect(routeIssues(null)).toEqual([]);
+  });
+});
+
+/**
+ * The fixture as an interactive video: the passage is the video's text, the
+ * three True/False/Not Given statements are one reading quiz, and a check on
+ * the video is an ordinary quiz the route does not cover.
+ */
+function videoGroup(): ItemGroup {
+  const group = tramGroup();
+  const route = group.route as NonNullable<ItemGroup['route']>;
+  group.stimulus = {
+    id: 'clip',
+    kind: 'video',
+    media: { type: 'video', url: 'https://example.org/trams.mp4' },
+    body: group.stimulus.body as string,
+  };
+  group.items = [
+    ...group.items.slice(0, 3),
+    {
+      schemaVersion: '1.0',
+      type: 'dictation',
+      id: 'heard',
+      title: 'Heard',
+      media: { type: 'audio', url: 'https://example.org/heard.mp3' },
+      transcript: 'Trams came back.',
+      scoringStrategy: 'partial',
+    } as never,
+  ];
+  route.questions = route.questions.slice(0, 3);
+  group.timeline = {
+    cues: [
+      { id: 'read', at: 10, itemIds: ['tf1', 'tf2', 'tf3'] },
+      { id: 'check', at: 20, itemIds: ['heard'] },
+    ],
+  };
+  return group;
+}
+
+describe('a reading route in an interactive video', () => {
+  it('reads the video text in the quizzes it covers, and leaves the others alone', () => {
+    const group = videoGroup();
+    expect(routeIssues(group)).toEqual([]);
+    expect(validateItemGroup(group).success).toBe(true);
+    expect(readingQuizzes(group)).toEqual(['read']);
+    // A learner copy keeps its strategies, and the video's other quizzes.
+    expect(routeIssues(redactItemGroup(group), 'redacted')).toEqual([]);
+  });
+
+  it('refuses a quiz the route covers only part of, and a video with no text', () => {
+    const mixed = videoGroup();
+    (mixed.timeline as NonNullable<ItemGroup['timeline']>).cues = [
+      { id: 'read', at: 10, itemIds: ['tf1', 'tf2', 'tf3', 'heard'] },
+    ];
+    expect(codes(mixed)).toEqual(['ig_route_quiz_mixed', 'ig_route_item_type']);
+    const silent = videoGroup();
+    silent.stimulus = { ...silent.stimulus, body: '' };
+    expect(routeIssues(silent).map((issue) => issue.message)).toEqual([
+      "Add the passage the video's reading quizzes are about, as the stimulus's text.",
+    ]);
+    // A video without a timeline is no reading route.
+    const plain = videoGroup();
+    delete plain.timeline;
+    expect(codes(plain)).toContain('ig_route_stimulus_kind');
+    expect(readingQuizzes(plain)).toEqual([]);
+    expect(readingQuizzes(null)).toEqual([]);
   });
 });

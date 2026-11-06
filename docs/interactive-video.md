@@ -21,6 +21,7 @@ It describes `@intellectif/lk-core` 0.17.0 and `@intellectif/lk-react` 17.0.0.
 - [Navigation and required quizzes](#navigation-and-required-quizzes)
 - [Modes](#modes)
 - [Rendering questions yourself](#rendering-questions-yourself)
+- [Reading quizzes](#reading-quizzes)
 - [Chapters](#chapters)
 - [What an older build does with it](#what-an-older-build-does-with-it)
 - [What the SDK does not do](#what-the-sdk-does-not-do)
@@ -543,6 +544,15 @@ function MyReadAloud({ question }: { question: InteractiveVideoQuestion }) {
 
 A video whose recorded questions are all drawn this way needs no `recordingBinding`: the binding
 is required only for a read-aloud or a spoken answer the SDK draws itself.
+
+## Reading quizzes
+
+A quiz whose every question a reading `route` covers is a **reading quiz**: in `practice` it opens as
+a [reading route](./reading-route.md#in-an-interactive-video) over the text the video stimulus
+carries (`stimulus.body`), with the passage beside the quiz's questions and the guide above. The
+route is loaded only by a video that has one. `readingRoute` takes its settings and hands back
+`onFinish(result, cueId)`. In `exam` and `review` a reading quiz is an ordinary quiz. A route fits a
+reading lesson better than a video; this is for a lesson that wants one anyway.
 
 ## Chapters
 

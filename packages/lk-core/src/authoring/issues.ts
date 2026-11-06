@@ -89,7 +89,10 @@ export const DRAFT_ISSUE_SEVERITY = {
   // reading route (an item group with a route)
   ig_route_stimulus_kind: 'invalid',
   ig_route_body_required: 'incomplete',
+  // Reported by 1.11.0 only: 1.12.0 allows a route in an interactive video.
+  // Kept so code that names it still compiles; never reported since.
   ig_route_with_timeline: 'invalid',
+  ig_route_quiz_mixed: 'invalid',
   ig_route_shuffle: 'invalid',
   ig_route_item_type: 'invalid',
   ig_route_question_item_unknown: 'invalid',

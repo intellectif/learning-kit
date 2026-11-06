@@ -10,6 +10,7 @@ import {
 export type {
   InteractiveVideoProps,
   InteractiveVideoQuestion,
+  InteractiveVideoReading,
   InteractiveVideoSlot,
   InteractiveVideoSummary,
   RenderableItemGroup,

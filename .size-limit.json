@@ -98,7 +98,7 @@
     "path": "packages/lk-react/dist/components/InteractiveVideo.js",
     "import": "{ InteractiveVideo }",
     "ignore": ["react", "react-dom", "@intellectif/lk-core"],
-    "limit": "50 kB"
+    "limit": "55 kB"
   },
   {
     "name": "ReadingRoute",

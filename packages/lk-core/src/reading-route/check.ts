@@ -33,7 +33,13 @@ import {
 export type RouteIssueCode =
   | 'ig_route_stimulus_kind'
   | 'ig_route_body_required'
+  /**
+   * @deprecated Reported by 1.11.0 only, for a route in an interactive video,
+   * which 1.12.0 allows: a video's reading quizzes. Never reported since;
+   * kept so code that names it still compiles.
+   */
   | 'ig_route_with_timeline'
+  | 'ig_route_quiz_mixed'
   | 'ig_route_shuffle'
   | 'ig_route_item_type'
   | 'ig_route_question_item_unknown'
@@ -97,6 +103,30 @@ function noteRevealsAnswer(item: unknown, partId: string | undefined, note: stri
 }
 
 /**
+ * The quizzes of an interactive video that are reading quizzes: every question
+ * in them has a route entry. In practice the player opens each as a reading
+ * route over the stimulus's text; in an exam or a review, as an ordinary quiz.
+ * Empty for a group with no timeline or no route.
+ */
+export function readingQuizzes(group: unknown): string[] {
+  if (!isFields(group) || !isFields(group.route) || !isFields(group.timeline)) {
+    return [];
+  }
+  const routed = new Set(
+    list(group.route.questions).flatMap((question) =>
+      isFields(question) && typeof question.itemId === 'string' ? [question.itemId] : [],
+    ),
+  );
+  return list(group.timeline.cues).flatMap((cue) => {
+    if (!isFields(cue) || typeof cue.id !== 'string') {
+      return [];
+    }
+    const ids = list(cue.itemIds);
+    return ids.length > 0 && ids.every((id) => routed.has(id as string)) ? [cue.id] : [];
+  });
+}
+
+/**
  * Every rule the route of `group` breaks. `scope: 'redacted'` checks only what
  * a learner's copy still carries: the evidence, key words, traps and notes are
  * gone from it.
@@ -116,25 +146,23 @@ export function routeIssues(
 
   const stimulus = isFields(group.stimulus) ? group.stimulus : undefined;
   const body = typeof stimulus?.body === 'string' ? stimulus.body : '';
-  if (
-    stimulus !== undefined &&
-    !unset(stimulus.kind) &&
-    stimulus.kind !== 'text' &&
-    stimulus.kind !== 'mixed'
-  ) {
+  // In an interactive video the passage is the video stimulus's `body`, read in
+  // the quizzes the route covers (see `readingQuizzes`).
+  const timeline = isFields(group.timeline) ? group.timeline : undefined;
+  const kinds = timeline === undefined ? ['text', 'mixed'] : ['text', 'mixed', 'video'];
+  if (stimulus !== undefined && !unset(stimulus.kind) && !kinds.includes(stimulus.kind as string)) {
     add(
       'ig_route_stimulus_kind',
       ['stimulus', 'kind'],
       'A reading route needs a text to read: make the stimulus a text.',
     );
   } else if (stimulus !== undefined && body.trim() === '') {
-    add('ig_route_body_required', ['stimulus', 'body'], 'Add the passage the questions are about.');
-  }
-  if (group.timeline !== undefined && group.timeline !== null) {
     add(
-      'ig_route_with_timeline',
-      ['route'],
-      'A group is a reading route or an interactive video, not both.',
+      'ig_route_body_required',
+      ['stimulus', 'body'],
+      timeline === undefined
+        ? 'Add the passage the questions are about.'
+        : "Add the passage the video's reading quizzes are about, as the stimulus's text.",
     );
   }
   if (group.shuffle === 'within-group') {
@@ -146,8 +174,47 @@ export function routeIssues(
   }
 
   const items = list(group.items);
+  // In a video, only the items of its reading quizzes are the route's; the
+  // other quizzes hold whatever a video may.
+  const routed = new Set(
+    list(route.questions).flatMap((question) =>
+      isFields(question) && typeof question.itemId === 'string' ? [question.itemId] : [],
+    ),
+  );
+  const covered = (itemId: unknown): boolean => {
+    if (timeline === undefined) {
+      return true;
+    }
+    return list(timeline.cues).some(
+      (cue) =>
+        isFields(cue) &&
+        list(cue.itemIds).includes(itemId) &&
+        list(cue.itemIds).some((id) => routed.has(id as string)),
+    );
+  };
+  if (timeline !== undefined) {
+    list(timeline.cues).forEach((cue, index) => {
+      if (!isFields(cue)) {
+        return;
+      }
+      const ids = list(cue.itemIds);
+      const inRoute = ids.filter((id) => routed.has(id as string)).length;
+      if (inRoute > 0 && inRoute < ids.length) {
+        add(
+          'ig_route_quiz_mixed',
+          ['timeline', 'cues', index, 'itemIds'],
+          'A quiz is a reading quiz when the route covers all of its questions, or an ordinary one when it covers none.',
+        );
+      }
+    });
+  }
   items.forEach((item, index) => {
-    if (isFields(item) && !unset(item.type) && !isReadingRouteItemType(item.type)) {
+    if (
+      isFields(item) &&
+      !unset(item.type) &&
+      !isReadingRouteItemType(item.type) &&
+      covered(item.id)
+    ) {
       add(
         'ig_route_item_type',
         ['items', index, 'type'],
@@ -413,7 +480,8 @@ export function routeIssues(
     if (
       !seen.has(question.key) &&
       itemsById.has(question.itemId) &&
-      isReadingRouteItemType(question.type)
+      isReadingRouteItemType(question.type) &&
+      covered(question.itemId)
     ) {
       add(
         'ig_route_question_missing',
