@@ -43,20 +43,75 @@ jobs:
       # config has projects for: a missing one fails its tests at launch.
       #
       # `--with-deps` apt-installs about 140 MB of system libraries from the
-      # runner's Ubuntu mirror. On 2026-11-06 that mirror slowed to a trickle on
-      # one runner, and this step ran 37 minutes (6 seconds on a healthy one)
-      # until it was cancelled by hand. Two guards:
+      # runner's Ubuntu mirror (azure.archive.ubuntu.com). Twice on 2026-11-06
+      # that mirror slowed to about 40 KB/s on one runner: one install ran 37
+      # minutes until it was cancelled by hand, the next hit the 10-minute limit
+      # below. A healthy install takes under a minute.
+      #
+      # So the mirror is not asked for those packages on every run. apt keeps
+      # what it downloads in /var/cache/lk-apt, and that folder and the browsers
+      # are cached between runs, keyed on the Ubuntu release and the Playwright
+      # version. With the cache restored apt still reads the mirror's package
+      # index (about 5 MB) but downloads no package it already holds, only one
+      # Ubuntu has updated since. Caches saved by main's runs serve every
+      # pull request.
+      #
+      # When the cache misses (a new Playwright or Ubuntu release, or GitHub
+      # evicted it) the mirror is used as before, with two guards:
       # - apt gives up on a download that sends nothing for 30 seconds and tries
       #   it again, up to five times, instead of waiting minutes per package;
-      # - the step fails after 10 minutes (it takes 1 or 2), so a mirror that is
-      #   slow but not stalled fails the run, marked as a timeout, and a re-run
-      #   on a fresh runner is the fix.
+      # - the install fails after 10 minutes, so a mirror that is slow but not
+      #   stalled fails the run, marked as a timeout, and a re-run is the fix.
+      - name: Prepare the Playwright cache
+        id: playwright
+        run: |
+          # Only the "Version 1.64.1" line: pnpm can print notes of its own.
+          version="$(pnpm exec playwright --version | sed -n 's/^Version \([0-9][0-9.]*\)$/\1/p')"
+          . /etc/os-release
+          test -n "$version" && test -n "$ID" && test -n "$VERSION_ID"
+          echo "release=playwright-$ID-$VERSION_ID-" >> "$GITHUB_OUTPUT"
+          echo "key=playwright-$ID-$VERSION_ID-$version" >> "$GITHUB_OUTPUT"
+          # The folder the cache restores into, so it must exist and belong to
+          # the runner first; `partial` is where apt's download user writes.
+          sudo install -d -o "$USER" /var/cache/lk-apt
+          sudo install -d -o _apt -m 700 /var/cache/lk-apt/partial
+          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nDir::Cache::Archives "/var/cache/lk-apt/";\n' \
+            | sudo tee /etc/apt/apt.conf.d/80-lk-playwright
+
+      - name: Restore the Playwright cache
+        id: playwright-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        # A cache download that stalls is dropped after 2 minutes and the run
+        # goes on as a miss, instead of waiting the default 10.
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            /var/cache/lk-apt/*.deb
+          key: ${{ steps.playwright.outputs.key }}
+          # A new Playwright on the same Ubuntu still needs most of the packages.
+          restore-keys: ${{ steps.playwright.outputs.release }}
+
       - name: Install Playwright browsers
         timeout-minutes: 10
-        run: |
-          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' \
-            | sudo tee /etc/apt/apt.conf.d/80-lk-network-retries
-          pnpm exec playwright install --with-deps chromium firefox webkit
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
+      # Saved as soon as the install succeeds, so a test failure later does not
+      # lose it. `autoclean` first drops packages Ubuntu has replaced, so a
+      # cache carried over from an older key does not grow without end.
+      - name: Drop replaced packages from the cache
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: sudo apt-get autoclean
+
+      - name: Save the Playwright cache
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            /var/cache/lk-apt/*.deb
+          key: ${{ steps.playwright.outputs.key }}
 
       - name: Build
         run: pnpm turbo run build
