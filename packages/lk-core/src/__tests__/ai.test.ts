@@ -714,7 +714,7 @@ describe('hintRevealsAnswer: the floor under every hint', () => {
   });
 
   it('withholds a hint on facts it cannot read, rather than show it unchecked', () => {
-    const unknown = { activityType: 'matching', pairs: [] } as unknown as AiItemFacts;
+    const unknown = { activityType: 'hotspot', spots: [] } as unknown as AiItemFacts;
     expect(hintRevealsAnswer(unknown, 'Anything at all.')).toBe(true);
   });
 

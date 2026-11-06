@@ -19,6 +19,7 @@ import type { ActivityRenderer } from '../ActivitySequence/index.js';
 import { Dictation } from '../Dictation/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
+import { Matching } from '../Matching/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
 import type { RecordingBinding } from '../ReadAloud/ReadAloud.js';
@@ -289,6 +290,15 @@ export function ActivityPreview({
     case 'gap-select':
       return (
         <GapSelect
+          key={key}
+          data={data}
+          shuffleSeed={shuffleSeed ?? PREVIEW_SHUFFLE_SEED}
+          {...shared}
+        />
+      );
+    case 'matching':
+      return (
+        <Matching
           key={key}
           data={data}
           shuffleSeed={shuffleSeed ?? PREVIEW_SHUFFLE_SEED}

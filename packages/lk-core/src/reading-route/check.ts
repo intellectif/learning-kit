@@ -87,6 +87,12 @@ const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
  * "True if it agrees, False if it contradicts, Not Given if it is silent" — is
  * the rule, not the answer.
  */
+/** What one question of an item with parts is called: a blank, a gap or a prompt. */
+function partNoun(type: unknown, capital: boolean): string {
+  const noun = type === 'fill-in-the-blanks' ? 'blank' : type === 'matching' ? 'prompt' : 'gap';
+  return capital ? `${noun[0]?.toUpperCase()}${noun.slice(1)}` : noun;
+}
+
 function noteRevealsAnswer(item: unknown, partId: string | undefined, note: string): boolean {
   const accepted = acceptedAnswersOf(item, partId);
   if (accepted.length > 0) {
@@ -292,7 +298,7 @@ export function routeIssues(
       add(
         'ig_route_question_part_required',
         at('partId'),
-        'Name the blank or gap this question is: each one is a question of its own.',
+        `Name the ${partNoun((item as Fields).type, false)} this question is: each one is a question of its own.`,
       );
       return;
     }
@@ -300,7 +306,7 @@ export function routeIssues(
       add(
         'ig_route_question_part_unknown',
         at('partId'),
-        `Item "${itemId}" has no blank or gap "${partId}".`,
+        `Item "${itemId}" has no ${partNoun((item as Fields).type, false)} "${partId}".`,
       );
       return;
     }
@@ -488,7 +494,7 @@ export function routeIssues(
         ['route', 'questions'],
         question.partId === undefined
           ? `Question "${question.itemId}" has no route entry.`
-          : `Blank or gap "${question.partId}" of "${question.itemId}" has no route entry.`,
+          : `${partNoun(question.type, true)} "${question.partId}" of "${question.itemId}" has no route entry.`,
       );
     }
   }

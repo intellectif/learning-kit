@@ -1,6 +1,6 @@
 /**
  * The questions of a routed group, read off its items: one per multiple-choice
- * item, one per blank or gap of the others, numbered as on the paper. Read
+ * item, one per blank, gap or prompt of the others, numbered as on the paper. Read
  * defensively, because the checks run on drafts and on redacted items.
  */
 
@@ -31,13 +31,23 @@ export function questionKey(itemId: string, partId?: string): string {
   return partId === undefined ? itemId : `${itemId}#${partId}`;
 }
 
-/** The ids of an item's parts in passage order: its blanks or gaps, or none for multiple choice. */
+/**
+ * The ids of an item's parts in the order the learner answers them: its blanks
+ * or gaps in passage order, its prompts in list order, or none for multiple
+ * choice.
+ */
 export function partIdsOf(item: unknown): string[] | null {
   if (!isFields(item)) {
     return null;
   }
   if (item.type === 'multiple-choice') {
     return null;
+  }
+  if (item.type === 'matching') {
+    const ids = list(item.prompts)
+      .map((prompt) => prompt.id)
+      .filter((id): id is string => typeof id === 'string' && id !== '');
+    return [...new Set(ids)];
   }
   const declared = list(item.type === 'gap-select' ? item.gaps : item.blanks)
     .map((part) => part.id)
@@ -80,7 +90,7 @@ export function itemQuestions(items: readonly unknown[]): ItemQuestion[] {
   return found;
 }
 
-/** What the learner reads of an item: its instructions, question or passage, and its options or choices. */
+/** What the learner reads of an item: its instructions, question, passage or prompts, and its options or choices. */
 export function learnerTextOf(item: unknown): string {
   if (!isFields(item)) {
     return '';
@@ -88,6 +98,12 @@ export function learnerTextOf(item: unknown): string {
   const parts = [text(item.instructions)];
   if (item.type === 'multiple-choice') {
     parts.push(text(item.question), ...list(item.options).map((option) => text(option.text)));
+  } else if (item.type === 'matching') {
+    parts.push(
+      text(item.optionsTitle),
+      ...list(item.prompts).map((prompt) => text(prompt.text)),
+      ...list(item.options).map((option) => text(option.text)),
+    );
   } else {
     parts.push(passageWithoutPlaceholders(text(item.passage)));
     for (const gap of list(item.gaps)) {
@@ -115,6 +131,19 @@ export function choicesOf(
         id: option.id as string,
         text: text(option.text),
         correct: option.isCorrect === true,
+      }));
+  }
+  if (item.type === 'matching') {
+    const prompt = list(item.prompts).find((candidate) => candidate.id === partId);
+    if (prompt === undefined) {
+      return [];
+    }
+    return list(item.options)
+      .filter((option) => typeof option.id === 'string')
+      .map((option) => ({
+        id: option.id as string,
+        text: text(option.text),
+        correct: option.id === prompt.correctOptionId,
       }));
   }
   if (item.type !== 'gap-select') {

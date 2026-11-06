@@ -4,6 +4,7 @@ import type {
   DictationData,
   FillInTheBlanksData,
   GapSelectData,
+  MatchingData,
   MultipleChoiceData,
   ReadAloudData,
   SpeakingResponseData,
@@ -18,6 +19,7 @@ import { type SpeechCaptureHarness, stubSpeechCapture } from '../../test-support
 import { Dictation } from '../Dictation/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
+import { Matching } from '../Matching/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
 import { SpeakingResponse } from '../SpeakingResponse/index.js';
@@ -90,6 +92,19 @@ const gs: GapSelectData = {
   scoringStrategy: 'partial',
 };
 
+const match: MatchingData = {
+  schemaVersion: '1.0',
+  type: 'matching',
+  id: 'mt1',
+  title: 'Capitals',
+  options: [
+    { id: 'madrid', text: 'Madrid' },
+    { id: 'lisbon', text: 'Lisbon' },
+  ],
+  prompts: [{ id: 'es', text: 'Spain', correctOptionId: 'madrid' }],
+  scoringStrategy: 'partial',
+};
+
 const essay: WrittenResponseData = {
   schemaVersion: '1.0',
   type: 'written-response',
@@ -139,6 +154,7 @@ const COMPONENTS = {
   'multiple-choice': (props) => <MultipleChoice data={mc} {...props} />,
   'fill-in-the-blanks': (props) => <FillInTheBlanks data={fib} {...props} />,
   'gap-select': (props) => <GapSelect data={gs} {...props} />,
+  matching: (props) => <Matching data={match} {...props} />,
   'written-response': (props) => <WrittenResponse data={essay} {...props} />,
   dictation: (props) => <Dictation data={dictation} {...props} />,
   'read-aloud': (props) => (
@@ -218,7 +234,7 @@ describe('before the learner has answered', () => {
  * suite of its own for what it says then.
  */
 const ANSWER: Record<
-  'multiple-choice' | 'fill-in-the-blanks' | 'gap-select' | 'dictation',
+  'multiple-choice' | 'fill-in-the-blanks' | 'gap-select' | 'matching' | 'dictation',
   (user: UserEvent) => Promise<void>
 > = {
   'multiple-choice': async (user) => {
@@ -231,6 +247,10 @@ const ANSWER: Record<
   },
   'gap-select': async (user) => {
     await user.selectOptions(screen.getByRole('combobox'), 'is');
+    await user.click(screen.getByRole('button', { name: 'Check answers' }));
+  },
+  matching: async (user) => {
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Spain' }), 'madrid');
     await user.click(screen.getByRole('button', { name: 'Check answers' }));
   },
   dictation: async (user) => {

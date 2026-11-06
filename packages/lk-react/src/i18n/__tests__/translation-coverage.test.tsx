@@ -10,6 +10,7 @@ import type {
   ItemGroup,
   ItemOutcome,
   LearnerResponse,
+  MatchingData,
   MultipleChoiceData,
   ReadAloudData,
   RecordingRef,
@@ -33,6 +34,7 @@ import {
   InteractiveVideo,
   type InteractiveVideoQuestion,
 } from '../../components/InteractiveVideo/index.js';
+import { Matching } from '../../components/Matching/index.js';
 import { MultipleChoice } from '../../components/MultipleChoice/index.js';
 import { PronunciationFeedback } from '../../components/PronunciationFeedback/index.js';
 import { ReadAloud } from '../../components/ReadAloud/index.js';
@@ -470,7 +472,7 @@ describe('translation coverage', () => {
     cleanup();
 
     // ── Sequence: pager chrome, and the note for an unregistered type ───────
-    const unsupported = { ...mc, id: 'q9', type: 'matching' } as unknown as ActivityData;
+    const unsupported = { ...mc, id: 'q9', type: 'hotspot' } as unknown as ActivityData;
     sweep(<ActivitySequence activities={[unsupported, mc]} />);
     cleanup();
 
@@ -512,6 +514,37 @@ describe('translation coverage', () => {
 
     sweep(<GapSelect data={gs} renderMode="exam" onSubmit={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: sentinel('submitAnswers') }));
+    keep(document.body);
+    cleanup();
+
+    // ── Matching: the list's name, the empty entry, an option used once
+    //    moving, and the right option beside a wrong match ────────────────
+    const mt = {
+      schemaVersion: '1.0',
+      type: 'matching',
+      id: 'mt1',
+      title: 'Capitales',
+      options: [
+        { id: 'mad', label: 'A', text: 'Madrid' },
+        { id: 'lis', label: 'B', text: 'Lisboa' },
+        { id: 'rom', label: 'C', text: 'Roma' },
+      ],
+      prompts: [
+        { id: 'es', text: 'España', correctOptionId: 'mad' },
+        { id: 'pt', text: 'Portugal', correctOptionId: 'lis' },
+      ],
+      optionUse: 'once',
+      scoringStrategy: 'partial',
+    } satisfies MatchingData;
+    sweep(<Matching data={mt} onComplete={vi.fn()} />);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'España' }), 'lis');
+    keep(document.body);
+    // Taken from Spain: the move is announced, and the option is marked used.
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Portugal' }), 'lis');
+    keep(document.body);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'España' }), 'rom');
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('checkAnswers') }));
     keep(document.body);
     cleanup();
 

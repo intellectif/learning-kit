@@ -31,7 +31,7 @@ describe('BUILT_IN_ACTIVITY_TYPES', () => {
     for (const type of BUILT_IN_ACTIVITY_TYPES) {
       expect(isBuiltInActivityType(type)).toBe(true);
     }
-    for (const other of ['matching', '', 'Multiple-Choice', null, undefined, 1, {}]) {
+    for (const other of ['hotspot', '', 'Multiple-Choice', null, undefined, 1, {}]) {
       expect(isBuiltInActivityType(other)).toBe(false);
     }
   });

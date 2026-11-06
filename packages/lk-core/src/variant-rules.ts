@@ -511,6 +511,11 @@ export function structureTargets(entry: unknown): Record<string, unknown> {
           : {}),
       };
     }
+    case 'matching':
+      return {
+        prompts: listOf(entry.prompts).length,
+        options: listOf(entry.options).length,
+      };
     case 'written-response':
       return {
         minWords: entry.minWords,
@@ -533,6 +538,7 @@ const SCORED_ALIKE: Readonly<Record<string, readonly string[]>> = {
   'multiple-choice': ['mode', 'scoringStrategy'],
   'fill-in-the-blanks': ['scoringStrategy'],
   'gap-select': ['scoringStrategy', 'presentation'],
+  matching: ['scoringStrategy', 'optionUse'],
   dictation: ['tolerance', 'hints'],
   'read-aloud': ['recording', 'scoring', 'locale'],
   'written-response': ['rubric', 'minWords', 'maxWords', 'languageTarget'],
@@ -551,6 +557,7 @@ const DIFFERS: Readonly<Record<string, string>> = {
   minWords: 'The minimum word count differs',
   maxWords: 'The maximum word count differs',
   languageTarget: 'The language target differs',
+  optionUse: 'How often an option may be used differs',
 };
 
 function itemMisses(exemplar: Fields, candidate: Fields): StructureMiss[] {
@@ -699,6 +706,20 @@ function itemMisses(exemplar: Fields, candidate: Fields): StructureMiss[] {
     });
     if ((exemplar.shuffleChoices === true) !== (candidate.shuffleChoices === true)) {
       miss(['shuffleChoices'], 'Shuffling the choices differs from the exemplar.');
+    }
+  } else if (type === 'matching') {
+    for (const [field, noun] of [
+      ['prompts', 'prompt'],
+      ['options', 'option'],
+    ] as const) {
+      const mine = listOf(exemplar[field]).length;
+      const theirs = listOf(candidate[field]).length;
+      if (mine !== theirs) {
+        miss([field], `${count(theirs, noun)}; the exemplar has ${mine}.`);
+      }
+    }
+    if ((exemplar.shuffleOptions === true) !== (candidate.shuffleOptions === true)) {
+      miss(['shuffleOptions'], 'Shuffling the options differs from the exemplar.');
     }
   }
   return misses;

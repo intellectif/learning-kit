@@ -29,6 +29,41 @@ const messages = (exemplar: Fields, candidate: Fields) =>
   structureMisses(exemplar, candidate).map((one) => `${one.path.join('.')}: ${one.message}`);
 
 describe('structureMisses', () => {
+  it('compares matching items by their prompts, their list and how they score', () => {
+    const matching = (prompts: number, options: number): Fields => ({
+      schemaVersion: '1.0',
+      type: 'matching',
+      id: 'm',
+      title: 'Headings',
+      prompts: Array.from({ length: prompts }, (_, index) => ({
+        id: `p${index}`,
+        text: `Paragraph ${index}`,
+        correctOptionId: `o${index}`,
+      })),
+      options: Array.from({ length: options }, (_, index) => ({
+        id: `o${index}`,
+        text: `H${index}`,
+      })),
+      optionUse: 'once',
+      scoringStrategy: 'partial',
+    });
+    expect(messages(matching(3, 5), matching(3, 5))).toEqual([]);
+    expect(
+      messages(matching(3, 5), {
+        ...matching(1, 4),
+        optionUse: 'many',
+        scoringStrategy: 'all-or-nothing',
+        shuffleOptions: true,
+      }),
+    ).toEqual([
+      "scoringStrategy: The scoring strategy differs from the exemplar's.",
+      "optionUse: How often an option may be used differs from the exemplar's.",
+      'prompts: 1 prompt; the exemplar has 3.',
+      'options: 4 options; the exemplar has 5.',
+      'shuffleOptions: Shuffling the options differs from the exemplar.',
+    ]);
+  });
+
   it('finds a parallel item parallel', () => {
     for (const make of [listening, dictation, gapSelect, fillIn, writing, readAloud]) {
       expect(structureMisses(make(), make())).toEqual([]);

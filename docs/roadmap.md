@@ -1,7 +1,7 @@
 # learning-kit — SDK Roadmap
 
 **Status:** living document — the roadmap of record for `@intellectif/lk-core` and `@intellectif/lk-react`.
-**Last updated:** 2026-10-18
+**Last updated:** 2026-11-06
 
 This plan is grounded in a defect audit of the published `lk-core@0.2.1` / `lk-react@1.0.1` packages and in
 production feedback from an integrating application: a CEFR-aligned EN/ES/PT language school running real
@@ -711,11 +711,24 @@ next was the [delivery policy, then AI](#next--the-delivery-policy-then-ai); wha
   timeline still pages as a testlet, which is documented), provider embeds, in-video branching, drawing or
   hotspot overlays, and an editor timeline UI — the SDK ships the model and the codes, the editor stays the
   application's.
-- **`mark-the-words`, `ordering` and `matching` — next after `speaking-response`.** Re-ranked by the
-  maintainer on 2026-10-18 as the types an item bank may ask for soon; `matching` had been demoted to
-  P2 for want of production evidence. See [After 1.4](#after-14--speaking-on-calibrated-grading).
-- **`short-answer` — on evidence of demand.**
-- **`speaking-response` — the next activity type**, on the groundwork in
+- ✅ **Reading routes — SHIPPED** in lk-core 1.11.0 / lk-react 23.8.0, and as reading quizzes in an
+  interactive video in 1.12.0 / 23.9.0: guided practice in reading an IELTS or Cambridge passage for
+  its questions, step by step, faded from a walkthrough to solo per strategy. Not an activity type:
+  an arrangement on an item group (`route`), as a timeline is. Formative only. See
+  [Reading routes](./reading-route.md).
+- ✅ **`matching` — SHIPPED** in lk-core 1.13.0 / lk-react 23.10.0, first of the three types
+  re-ranked on 2026-10-18 and moved to the front by the maintainer on 2026-11-06, for IELTS and
+  Cambridge reading: matching headings, information, features and sentence endings, and multiple
+  matching, are each one matching item rather than a multiple choice per question. Prompts matched
+  to a shared list whose options carry the paper's labels; `optionUse: 'once'` moves an option
+  picked again. A matching item's prompts are reading-route questions, and a video quiz may hold
+  one. **Out of scope, deliberately:** a drag presentation (the selectors are the WCAG 2.5.7 path a
+  drag would need anyway), several right options for one prompt, and AI explanations, hints, drafts
+  and variants, which come next for the type.
+- **`mark-the-words`, then `ordering` — the next activity types**, in that order (maintainer,
+  2026-11-06).
+- **`short-answer` — not needed for now** (maintainer, 2026-11-06).
+- ✅ **`speaking-response` — SHIPPED** in lk-core 1.9 / lk-react 23.5, on the groundwork in
   [After 1.4](#after-14--speaking-on-calibrated-grading).
 - `@intellectif/lk-interop`: H5P import is worth more than first estimated — a real corpus is dominated by
   `H5P.QuestionSet` containers, which map onto the item-group primitive below. Word/PDF/CSV/paste import first.
@@ -1136,8 +1149,9 @@ it. It comes after the groundwork it needs, in this order.
    - **Summative use only through the calibration gate** of step 1.
    - **Then the help it unlocks,** on the rules of the AI line: coaching on an unscripted answer, and
      feedback on a spoken draft in practice.
-5. **Then the types an item bank may ask for soon:** `mark-the-words`, `ordering` and `matching`.
-   `short-answer` waits on evidence of demand.
+5. **Then the types an item bank may ask for soon**, in the maintainer's order of 2026-11-06:
+   `matching` (✅ shipped in 1.13.0 / 23.10.0), `mark-the-words`, then `ordering`. `short-answer`
+   is not needed for now.
 
 Everything else open stays unordered until it is chosen: `analyzeItem` (statistics, no AI), the
 headless layer with CSS dark mode and a reduced-motion pass (web components rest on it), registry

@@ -33,6 +33,7 @@ import { everyBuiltInTypeHandled, randomSessionId } from '../_internal.js';
 import { Dictation } from '../Dictation/index.js';
 import { FillInTheBlanks } from '../FillInTheBlanks/index.js';
 import { GapSelect } from '../GapSelect/index.js';
+import { Matching } from '../Matching/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
 import type { RecordingBinding } from '../ReadAloud/ReadAloud.js';
@@ -635,13 +636,17 @@ function SequencePane({
  * of the sequence entry contract.
  */
 function shufflesItsOwnOptions(entry: unknown): boolean {
-  const item = entry as { shuffle?: unknown; shuffleChoices?: unknown } | null;
-  // Two content fields, one question: does this item deal an order of its own?
-  // `shuffle` is MultipleChoice's; `shuffleChoices` is Gap Select's. A type
-  // added without being named here shuffles unseeded in an exam — and one named
-  // here but not in the seed guard's message sends its author looking for a
-  // shuffle they never wrote.
-  return item?.shuffle === true || item?.shuffleChoices === true;
+  const item = entry as {
+    shuffle?: unknown;
+    shuffleChoices?: unknown;
+    shuffleOptions?: unknown;
+  } | null;
+  // Three content fields, one question: does this item deal an order of its
+  // own? `shuffle` is MultipleChoice's, `shuffleChoices` Gap Select's,
+  // `shuffleOptions` Matching's. A type added without being named here
+  // shuffles unseeded in an exam — and one named here but not in the seed
+  // guard's message sends its author looking for a shuffle they never wrote.
+  return item?.shuffle === true || item?.shuffleChoices === true || item?.shuffleOptions === true;
 }
 
 export function ActivitySequence({
@@ -712,8 +717,9 @@ export function ActivitySequence({
     throw new Error(
       `ActivitySequence: renderMode "${renderMode}" requires a \`shuffleSeed\` when anything ` +
         'in the sequence shuffles: shuffle="entries", a group with shuffle: "within-group", or ' +
-        "an activity's own `data.shuffle` (multiple choice) or `data.shuffleChoices` (gap " +
-        'select), including an activity inside a group. Pass the attempt id, so the server can ' +
+        "an activity's own `data.shuffle` (multiple choice), `data.shuffleChoices` (gap select) " +
+        'or `data.shuffleOptions` (matching), including an activity inside a group. Pass the ' +
+        'attempt id, so the server can ' +
         'rebuild every order the learner saw from that one seed.',
     );
   }
@@ -1721,6 +1727,17 @@ export function ActivitySequence({
           // same reason it reaches MultipleChoice's options: a resumed or
           // reviewed item that dealt a fresh order would show the learner
           // their answers against an arrangement they never sat.
+          {...(shuffleSeed !== undefined ? { shuffleSeed } : {})}
+          {...childProps}
+        />
+      );
+    }
+    if (activity.type === 'matching') {
+      return (
+        <Matching
+          data={activity}
+          // The sequence seed reaches the list's shuffle, for the reason it
+          // reaches every other item's own order.
           {...(shuffleSeed !== undefined ? { shuffleSeed } : {})}
           {...childProps}
         />

@@ -66,14 +66,14 @@ Strategy instruction helps, by a moderate amount; it is no substitute for langua
 ```text
 ItemGroup
   stimulus     a text: the passage (body)
-  items        multiple-choice, fill-in-the-blanks, gap-select
+  items        multiple-choice, fill-in-the-blanks, gap-select, matching
   route
     routeVersion '1.0'
     startAt          the first question's number (IELTS Passage 2 starts at 14)
     paragraphLabels  'A', 'B'... one per paragraph (paragraphs are separated by a blank line)
     sections         several texts in one stimulus: cross-text, gapped text, multiple matching
     questions        one per question of the items
-      itemId, partId     the item, and its blank or gap (fill-in-the-blanks, gap-select)
+      itemId, partId     the item, and its blank, gap or prompt (fill-in-the-blanks, gap-select, matching)
       strategy           which technique it practises (see Strategies)
       evidence           quotes of the passage that justify the answer
       evidenceMatch      'any' (default) or 'all' quotes are needed
@@ -85,8 +85,14 @@ ItemGroup
 ```
 
 **A question** is what an exam awards one mark for: a multiple-choice item, or one blank of a
-fill-in-the-blanks item, or one gap of a gap-select item. Questions are numbered as on the paper,
-from `startAt`, in item order and then blank order.
+fill-in-the-blanks item, one gap of a gap-select item, or one prompt of a matching item.
+Questions are numbered as on the paper, from `startAt`, in item order and then blank, gap or
+prompt order.
+
+**A matching task is best written as one matching item** (lk-core 1.13): the list of headings,
+people or endings is printed once, as on the paper, and each prompt is a question with its own
+`partId`. Written as one multiple-choice item per question, it still works, and repeats the list in
+every question. A matching item's elimination step points at the shared list.
 
 **Places in the passage are quotes, never offsets.** An author copies the words; the SDK finds them.
 A quote survives an edit elsewhere in the passage, and is matched ignoring runs of whitespace and
@@ -125,15 +131,15 @@ no exam content.
 | `tfng` | IELTS True / False / Not Given | multiple-choice, gap-select | instructions, key words, locate, read around, match the meaning, decide |
 | `ynng` | IELTS Yes / No / Not Given (the writer's views) | multiple-choice, gap-select | as `tfng`, deciding on the writer's view |
 | `multiple-choice` | IELTS multiple choice; C1/C2 Part 5 | multiple-choice | key words, predict, locate, read around, match the meaning, rule out the traps |
-| `matching-headings` | IELTS matching headings | multiple-choice, gap-select | skim, the main-idea sentence, match the meaning, rule out the traps |
-| `matching-information` | IELTS "which paragraph contains" | multiple-choice, gap-select | key words (the kind of information), locate anywhere, read around, match |
-| `matching-features` | IELTS matching features | multiple-choice, gap-select | key words, locate anywhere, read around, match |
-| `multiple-matching` | C1 Part 8, C2 Part 7 | multiple-choice, gap-select | skim, key words, locate anywhere, read around, match |
-| `sentence-endings` | IELTS sentence endings | multiple-choice, gap-select | key words, predict, locate, read around, rule out |
+| `matching-headings` | IELTS matching headings | multiple-choice, gap-select, matching | skim, the main-idea sentence, match the meaning, rule out the traps |
+| `matching-information` | IELTS "which paragraph contains" | multiple-choice, gap-select, matching | key words (the kind of information), locate anywhere, read around, match |
+| `matching-features` | IELTS matching features | multiple-choice, gap-select, matching | key words, locate anywhere, read around, match |
+| `multiple-matching` | C1 Part 8, C2 Part 7 | multiple-choice, gap-select, matching | skim, key words, locate anywhere, read around, match |
+| `sentence-endings` | IELTS sentence endings | multiple-choice, gap-select, matching | key words, predict, locate, read around, rule out |
 | `completion` | IELTS sentence, note, table, flow-chart completion; short answers | fill-in-the-blanks | instructions and word limit, key words, predict the word, locate, read around, check the answer |
 | `summary-word-list` | IELTS summary completion from a list | gap-select | key words, predict, locate, read around, match, check |
-| `gapped-text` | C1 Part 7, C2 Part 6 | multiple-choice, gap-select | read the text, the sentences either side of the gap, follow the links, test the fit |
-| `cross-text` | C1 Part 6 | multiple-choice, gap-select | skim each text, key words, find every writer's view, compare |
+| `gapped-text` | C1 Part 7, C2 Part 6 | multiple-choice, gap-select, matching | read the text, the sentences either side of the gap, follow the links, test the fit |
+| `cross-text` | C1 Part 6 | multiple-choice, gap-select, matching | skim each text, key words, find every writer's view, compare |
 
 Where answers follow the order of the text (`followsOrder`), each search starts after the previous
 answer: the guide says so, and dims the text before it. A heading's search is its own paragraph.

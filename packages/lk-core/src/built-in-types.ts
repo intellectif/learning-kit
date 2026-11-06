@@ -19,6 +19,7 @@ export const BUILT_IN_ACTIVITY_TYPES = [
   'dictation',
   'read-aloud',
   'speaking-response',
+  'matching',
 ] as const;
 
 /** One of {@link BUILT_IN_ACTIVITY_TYPES}: an activity type the SDK ships, not one a host registered. */

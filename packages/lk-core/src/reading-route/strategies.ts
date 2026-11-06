@@ -14,14 +14,15 @@
 import type { RouteMoveId, RouteStrategyId } from '../types/reading-route.js';
 
 /**
- * The item types a reading route may hold: the three that every common exam
- * reading task is written in. CLOSED on purpose, as an interactive video's
- * list is: a type added later is not silently routable.
+ * The item types a reading route may hold: the ones every common exam reading
+ * task is written in. CLOSED on purpose, as an interactive video's list is: a
+ * type added later is not silently routable.
  */
 export const READING_ROUTE_ITEM_TYPES = [
   'multiple-choice',
   'fill-in-the-blanks',
   'gap-select',
+  'matching',
 ] as const;
 
 /** One of {@link READING_ROUTE_ITEM_TYPES}. */
@@ -48,6 +49,9 @@ export interface RouteStrategy {
 }
 
 const CHOICE: readonly ReadingRouteItemType[] = ['multiple-choice', 'gap-select'];
+
+/** The tasks that match prompts to a shared list: written one question per item, or as one matching item. */
+const MATCHING: readonly ReadingRouteItemType[] = ['multiple-choice', 'gap-select', 'matching'];
 
 /**
  * The built-in strategies. Data, versioned with lk-core: a route stores only
@@ -82,7 +86,7 @@ export const ROUTE_STRATEGIES: Readonly<Record<RouteStrategyId, RouteStrategy>> 
     id: 'matching-headings',
     title: 'Matching headings',
     serves: 'IELTS matching headings.',
-    itemTypes: CHOICE,
+    itemTypes: MATCHING,
     moves: ['survey', 'locate', 'paraphrase', 'eliminate'],
     followsOrder: false,
   },
@@ -90,7 +94,7 @@ export const ROUTE_STRATEGIES: Readonly<Record<RouteStrategyId, RouteStrategy>> 
     id: 'matching-information',
     title: 'Matching information',
     serves: 'IELTS matching information ("Which paragraph contains...").',
-    itemTypes: CHOICE,
+    itemTypes: MATCHING,
     moves: ['keywords', 'locate', 'read-around', 'paraphrase'],
     followsOrder: false,
   },
@@ -98,7 +102,7 @@ export const ROUTE_STRATEGIES: Readonly<Record<RouteStrategyId, RouteStrategy>> 
     id: 'matching-features',
     title: 'Matching features',
     serves: 'IELTS matching features (people, dates, places to statements).',
-    itemTypes: CHOICE,
+    itemTypes: MATCHING,
     moves: ['keywords', 'locate', 'read-around', 'paraphrase'],
     followsOrder: false,
   },
@@ -106,7 +110,7 @@ export const ROUTE_STRATEGIES: Readonly<Record<RouteStrategyId, RouteStrategy>> 
     id: 'multiple-matching',
     title: 'Multiple matching',
     serves: 'Cambridge C1 Advanced Part 8 and C2 Proficiency Part 7.',
-    itemTypes: CHOICE,
+    itemTypes: MATCHING,
     moves: ['survey', 'keywords', 'locate', 'read-around', 'paraphrase'],
     followsOrder: false,
   },
@@ -114,7 +118,7 @@ export const ROUTE_STRATEGIES: Readonly<Record<RouteStrategyId, RouteStrategy>> 
     id: 'sentence-endings',
     title: 'Matching sentence endings',
     serves: 'IELTS matching sentence endings.',
-    itemTypes: CHOICE,
+    itemTypes: MATCHING,
     moves: ['keywords', 'predict', 'locate', 'read-around', 'eliminate'],
     followsOrder: true,
   },
@@ -138,7 +142,7 @@ export const ROUTE_STRATEGIES: Readonly<Record<RouteStrategyId, RouteStrategy>> 
     id: 'gapped-text',
     title: 'Gapped text',
     serves: 'Cambridge C1 Advanced Part 7 and C2 Proficiency Part 6.',
-    itemTypes: CHOICE,
+    itemTypes: MATCHING,
     moves: ['survey', 'locate', 'cohesion', 'eliminate'],
     followsOrder: false,
   },
@@ -146,7 +150,7 @@ export const ROUTE_STRATEGIES: Readonly<Record<RouteStrategyId, RouteStrategy>> 
     id: 'cross-text',
     title: 'Cross-text matching',
     serves: 'Cambridge C1 Advanced Part 6.',
-    itemTypes: CHOICE,
+    itemTypes: MATCHING,
     moves: ['survey', 'keywords', 'locate', 'compare-views'],
     followsOrder: false,
   },

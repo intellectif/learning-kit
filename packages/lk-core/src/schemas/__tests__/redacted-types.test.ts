@@ -263,8 +263,11 @@ describe('derived redacted types match redact() output', () => {
       if (item.type === 'read-aloud') {
         return `${item.scoring.dimensions.length} dimensions`;
       }
-      // Narrowed to the written response by elimination — no cast needed.
-      return `${item.minWords}-${item.maxWords} words`;
+      if (item.type === 'written-response') {
+        return `${item.minWords}-${item.maxWords} words`;
+      }
+      // A union a minor may widen (docs/stability.md): a default branch.
+      return item.type;
     });
 
     expect(described).toEqual([

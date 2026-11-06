@@ -120,6 +120,36 @@ const gs = (over = {}) => ({
 
 const choose = (selections) => ({ type: 'gap-select', selections });
 
+const mt = (over = {}) => ({
+  schemaVersion: '1.0',
+  type: 'matching',
+  id: 'mt-headings',
+  title: 'The return of the tram',
+  instructions: 'Choose the correct heading for each paragraph.',
+  optionsTitle: 'List of Headings',
+  options: [
+    { id: 'i', label: 'i', text: 'A costly experiment' },
+    { id: 'ii', label: 'ii', text: 'Why the trams disappeared' },
+    { id: 'iii', label: 'iii', text: 'A return nobody expected' },
+    { id: 'iv', label: 'iv', text: 'The view from the passengers' },
+  ],
+  prompts: [
+    { id: 'pA', text: 'Paragraph A', correctOptionId: 'ii' },
+    { id: 'pB', text: 'Paragraph B', correctOptionId: 'iii' },
+    {
+      id: 'pC',
+      text: 'Paragraph C',
+      correctOptionId: 'i',
+      feedback: 'Look at the second sentence.',
+    },
+  ],
+  optionUse: 'once',
+  scoringStrategy: 'partial',
+  ...over,
+});
+
+const match = (matches) => ({ type: 'matching', matches });
+
 const oneBlank = (acceptedAnswers, match) =>
   fib({
     passage: 'Answer: {{b1}}.',
@@ -1247,6 +1277,84 @@ export const CASES = [
     id: 'evaluate/gs/scored',
     fn: 'evaluate',
     args: [gs(), choose({ a: 'from', b: 'from' })],
+  },
+  // -- Matching (1.13.0), frozen from its first release: every prompt an
+  //    identity comparison, as a gap select's gap.
+  {
+    id: 'score/mt/partial/all-right',
+    fn: 'score',
+    args: ['matching', mt(), match({ pA: 'ii', pB: 'iii', pC: 'i' })],
+  },
+  {
+    id: 'score/mt/partial/one-wrong',
+    fn: 'score',
+    args: ['matching', mt(), match({ pA: 'ii', pB: 'iv', pC: 'i' })],
+  },
+  {
+    id: 'score/mt/partial/unanswered-prompt',
+    fn: 'score',
+    args: ['matching', mt(), match({ pA: 'ii', pC: 'i' })],
+  },
+  {
+    id: 'score/mt/partial/empty-string-is-unanswered',
+    fn: 'score',
+    args: ['matching', mt(), match({ pA: 'ii', pB: '', pC: 'i' })],
+  },
+  {
+    id: 'score/mt/partial/option-never-offered',
+    fn: 'score',
+    args: ['matching', mt(), match({ pA: 'smuggled', pB: 'iii', pC: 'i' })],
+  },
+  {
+    id: 'score/mt/partial/one-option-for-two-prompts',
+    fn: 'score',
+    args: ['matching', mt(), match({ pA: 'ii', pB: 'ii', pC: 'i' })],
+    note: 'Under optionUse "once" a repeated option is scored prompt by prompt: the second use earns nothing the key does not give it.',
+  },
+  {
+    id: 'score/mt/all-or-nothing/all-right',
+    fn: 'score',
+    args: [
+      'matching',
+      mt({ scoringStrategy: 'all-or-nothing' }),
+      match({ pA: 'ii', pB: 'iii', pC: 'i' }),
+    ],
+  },
+  {
+    id: 'score/mt/all-or-nothing/one-wrong',
+    fn: 'score',
+    args: [
+      'matching',
+      mt({ scoringStrategy: 'all-or-nothing' }),
+      match({ pA: 'ii', pB: 'iii', pC: 'iv' }),
+    ],
+  },
+  {
+    id: 'score/mt/many/reused-letter',
+    fn: 'score',
+    args: [
+      'matching',
+      mt({
+        optionUse: 'many',
+        optionsTitle: undefined,
+        options: [
+          { id: 'A', label: 'A', text: 'A' },
+          { id: 'B', label: 'B', text: 'B' },
+          { id: 'C', label: 'C', text: 'C' },
+        ],
+        prompts: [
+          { id: 'q1', text: 'a reference to a failed plan', correctOptionId: 'B' },
+          { id: 'q2', text: 'the cost of a new line', correctOptionId: 'B' },
+          { id: 'q3', text: 'what passengers said', correctOptionId: 'A' },
+        ],
+      }),
+      match({ q1: 'B', q2: 'B', q3: 'C' }),
+    ],
+  },
+  {
+    id: 'evaluate/mt/scored',
+    fn: 'evaluate',
+    args: [mt(), match({ pA: 'ii', pB: 'iii', pC: 'iv' })],
   },
   {
     id: 'score/fib/all-or-nothing/two-of-three',

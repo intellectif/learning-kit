@@ -64,10 +64,10 @@ function asSubmitted(outcome: SequenceItemOutcome | undefined) {
  * Deliberately trivial: what is under test is the registry wiring, not the
  * activity.
  */
-function MatchingRenderer({ data, onComplete }: ActivityProps) {
+function HotspotRenderer({ data, onComplete }: ActivityProps) {
   return (
-    <div className="fake-matching">
-      <p>Custom matching renderer for {data.id}</p>
+    <div className="fake-hotspot">
+      <p>Custom hotspot renderer for {data.id}</p>
       <button
         type="button"
         onClick={() =>
@@ -80,7 +80,7 @@ function MatchingRenderer({ data, onComplete }: ActivityProps) {
           })
         }
       >
-        Finish matching
+        Finish hotspot
       </button>
     </div>
   );
@@ -206,17 +206,17 @@ describe('ActivitySequence renderer registry', () => {
     const user = userEvent.setup();
     const onFinished = vi.fn<(items: SequenceItemOutcome[]) => void>();
     const onComplete = vi.fn();
-    const matching = {
+    const hotspot = {
       schemaVersion: '1.0',
-      type: 'matching',
+      type: 'hotspot',
       id: 'm1',
-      title: 'Matching',
+      title: 'Hotspot',
     } as unknown as ActivityData;
 
     render(
       <ActivitySequence
-        activities={[mc('r1', 'R one?'), matching]}
-        renderers={{ matching: MatchingRenderer }}
+        activities={[mc('r1', 'R one?'), hotspot]}
+        renderers={{ hotspot: HotspotRenderer }}
         onFinished={onFinished}
         onComplete={onComplete}
       />,
@@ -226,10 +226,10 @@ describe('ActivitySequence renderer registry', () => {
     await user.click(screen.getByRole('button', { name: 'Next' }));
 
     // The registered component is on screen — not the "no renderer" note.
-    expect(screen.getByText('Custom matching renderer for m1')).toBeInTheDocument();
+    expect(screen.getByText('Custom hotspot renderer for m1')).toBeInTheDocument();
     expect(screen.queryByRole('note')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Finish matching' }));
+    await user.click(screen.getByRole('button', { name: 'Finish hotspot' }));
 
     expect(onFinished).toHaveBeenCalledTimes(1);
     const items = onFinished.mock.calls[0]?.[0] ?? [];
@@ -263,7 +263,7 @@ describe('ActivitySequence renderer registry', () => {
   it('falls back to a note when an unknown type has no registered renderer', () => {
     const unknown = {
       schemaVersion: '1.0',
-      type: 'matching',
+      type: 'hotspot',
       id: 'u1',
       title: 'Unknown',
     } as unknown as ActivityData;

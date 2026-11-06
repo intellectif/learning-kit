@@ -124,8 +124,8 @@ describe('the rules of a route', () => {
     const missing = tramGroup();
     missing.route?.questions.splice(6, 2);
     expect(routeIssues(missing).map((issue) => issue.message)).toEqual([
-      'Blank or gap "g1" of "gs1" has no route entry.',
-      'Blank or gap "g2" of "gs1" has no route entry.',
+      'Gap "g1" of "gs1" has no route entry.',
+      'Gap "g2" of "gs1" has no route entry.',
     ]);
   });
 
