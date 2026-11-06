@@ -17,6 +17,10 @@ jobs:
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
+    # A healthy run takes about 5 minutes. Without a limit, a job that hangs
+    # runs for GitHub's default of 6 hours and holds the pull request — and the
+    # Release that waits on it — for all of that time.
+    timeout-minutes: 25
     steps:
       # Pinned to commits, as in release.yml; Dependabot updates them.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -37,8 +41,22 @@ jobs:
       # empty spec folder fails the job (Playwright exits non-zero on "No tests
       # found") instead of passing it with nothing run. All three engines the
       # config has projects for: a missing one fails its tests at launch.
+      #
+      # `--with-deps` apt-installs about 140 MB of system libraries from the
+      # runner's Ubuntu mirror. On 2026-11-06 that mirror slowed to a trickle on
+      # one runner, and this step ran 37 minutes (6 seconds on a healthy one)
+      # until it was cancelled by hand. Two guards:
+      # - apt gives up on a download that sends nothing for 30 seconds and tries
+      #   it again, up to five times, instead of waiting minutes per package;
+      # - the step fails after 10 minutes (it takes 1 or 2), so a mirror that is
+      #   slow but not stalled fails the run, marked as a timeout, and a re-run
+      #   on a fresh runner is the fix.
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
+        timeout-minutes: 10
+        run: |
+          printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' \
+            | sudo tee /etc/apt/apt.conf.d/80-lk-network-retries
+          pnpm exec playwright install --with-deps chromium firefox webkit
 
       - name: Build
         run: pnpm turbo run build
