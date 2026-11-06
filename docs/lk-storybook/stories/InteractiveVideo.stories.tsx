@@ -232,3 +232,89 @@ export const SpokenAnswerReview: Story = {
     recordingBinding: videoBinding(),
   },
 };
+
+/**
+ * A reading quiz in a video: the quiz at 0:02 covers two statements the
+ * route guides, over a short passage carried as the video's text. In practice
+ * it opens as a reading route; the quiz at 0:05 stays an ordinary one.
+ */
+const readingGroup: ItemGroup = {
+  ...group,
+  id: 'sb-video-reading',
+  stimulus: {
+    ...group.stimulus,
+    title: 'Clocks on Screen',
+    body: [
+      'Test patterns were once shown on television before the day began. Many carried a clock, so engineers could check that pictures arrived on time.',
+      'The pattern in this clip counts up from zero. Its clock stops after eight seconds, when the clip ends.',
+    ].join('\n\n'),
+  },
+  items: [
+    {
+      schemaVersion: '1.0',
+      type: 'multiple-choice',
+      id: 'sb-video-read-1',
+      title: 'Engineers',
+      instructions: 'Do the statements agree with the passage? Choose TRUE, FALSE or NOT GIVEN.',
+      question: 'Engineers used the clock to check timing.',
+      mode: 'single',
+      scoringStrategy: 'all-or-nothing',
+      options: [
+        { id: 't', text: 'True', isCorrect: true },
+        { id: 'f', text: 'False', isCorrect: false },
+        { id: 'ng', text: 'Not Given', isCorrect: false },
+      ],
+    },
+    {
+      schemaVersion: '1.0',
+      type: 'multiple-choice',
+      id: 'sb-video-read-2',
+      title: 'Colours',
+      instructions: 'Do the statements agree with the passage? Choose TRUE, FALSE or NOT GIVEN.',
+      question: 'The pattern in this clip is shown in colour.',
+      mode: 'single',
+      scoringStrategy: 'all-or-nothing',
+      options: [
+        { id: 't', text: 'True', isCorrect: false },
+        { id: 'f', text: 'False', isCorrect: false },
+        { id: 'ng', text: 'Not Given', isCorrect: true },
+      ],
+    },
+    group.items[1] as ItemGroup['items'][number],
+  ],
+  timeline: {
+    cues: [
+      {
+        id: 'read',
+        at: 2,
+        title: 'Read the passage',
+        itemIds: ['sb-video-read-1', 'sb-video-read-2'],
+      },
+      { id: 'second', at: 5, title: 'Second pause', itemIds: ['sb-video-stop'] },
+    ],
+  },
+  route: {
+    routeVersion: '1.0',
+    paragraphLabels: ['A', 'B'],
+    questions: [
+      {
+        itemId: 'sb-video-read-1',
+        strategy: 'tfng',
+        evidence: ['so engineers could check that pictures arrived on time'],
+        keywords: [{ question: 'check timing', passage: 'check that pictures arrived on time' }],
+      },
+      {
+        itemId: 'sb-video-read-2',
+        strategy: 'tfng',
+        evidence: ['The pattern in this clip counts up from zero.'],
+        traps: [{ optionId: 'f', kind: 'outside-knowledge' }],
+      },
+    ],
+  },
+};
+
+/** A reading quiz: the route, opened by the video at 0:02. Formative, and a stretch for a video — but it works. */
+export const ReadingQuiz: Story = {
+  args: { group: readingGroup, readingRoute: { onFinish: fn() } },
+  parameters: { wide: true },
+};

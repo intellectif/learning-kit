@@ -13,7 +13,8 @@ stays its own question and grades exactly as it would without one.
 **It is a formative tool**: for practice, not for a paper of record. `<ActivitySequence>` presents
 the same group as an ordinary testlet for an exam.
 
-It describes `@intellectif/lk-core` 1.11.0 and `@intellectif/lk-react` 23.8.0.
+It describes `@intellectif/lk-core` 1.11.0 and `@intellectif/lk-react` 23.8.0; reading quizzes in an
+interactive video, lk-core 1.12.0 and lk-react 23.9.0.
 
 - [What it teaches, and why](#what-it-teaches-and-why)
 - [The model](#the-model)
@@ -22,6 +23,7 @@ It describes `@intellectif/lk-core` 1.11.0 and `@intellectif/lk-react` 23.8.0.
 - [Rendering it](#rendering-it)
 - [The debrief, the trace and the summary](#the-debrief-the-trace-and-the-summary)
 - [Authoring one](#authoring-one)
+- [In an interactive video](#in-an-interactive-video)
 - [Translating it](#translating-it)
 - [Accessibility](#accessibility)
 - [What it does not do](#what-it-does-not-do)
@@ -239,6 +241,27 @@ allowed.
 `passageLayout(body)` how the passage is cut into paragraphs and sentences. The sentences are cut by
 the SDK's own rules (`ROUTE_SEGMENTER`), never by the browser's, so a server and every browser
 number them alike. Run the passage through it once to see where your evidence falls.
+
+## In an interactive video
+
+A video can hold a reading quiz: a quiz whose every question the route covers.
+**A route belongs in a reading lesson more than in a video** — a passage of several paragraphs and
+its questions need the room of a page, and a soundtrack competes with reading — but it works, and
+the pairing the evidence supports best is a short video modelling the steps, then a route on a new
+passage. To put one in a video:
+
+- the video stimulus carries the passage as its text, `stimulus.body`, which the quotes are found in;
+- the route has an entry for each question of the reading quiz, and none for the other quizzes'
+  questions (`ig_route_quiz_mixed` refuses a quiz the route covers only part of);
+- `readingQuizzes(group)` lists the reading quizzes.
+
+In `practice`, `<InteractiveVideo>` opens a reading quiz as a `<ReadingRoute>` in its quiz panel,
+loaded only then, with the passage beside the quiz's questions; `readingRoute` on the player takes
+the route's settings (`learnerState`, `level`, `pace`…) and `onFinish(result, cueId)`. Each
+answer is recorded by the video under its own slot, as any quiz's is, and an answer given and not
+handed in is handed in when the learner finishes. In `exam` and `review` a reading quiz is an
+ordinary quiz. Each reading quiz counts as a passage of its own (`<group id>:<quiz id>`) in the
+learner's state.
 
 ## Translating it
 

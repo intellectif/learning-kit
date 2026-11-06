@@ -1262,9 +1262,10 @@ schema, **and** every item is itself `complete`.
 | `ig_timeline_dictation_media` | incomplete | `items.N.media` | A dictation with no recording of its own |
 | `ig_timeline_chapter_order` | invalid | `timeline.chapters.N.at` | A chapter that does not start after the one before it |
 | `ig_timeline_chapter_title` | incomplete | `timeline.chapters.N.title` | A chapter with no title yet |
-| `ig_route_stimulus_kind` | invalid | `stimulus.kind` | A reading route whose stimulus is not a `text` or `mixed` passage |
+| `ig_route_stimulus_kind` | invalid | `stimulus.kind` | A reading route whose stimulus is not a `text` or `mixed` passage (or, in an interactive video, a `video` with a text body) |
 | `ig_route_body_required` | incomplete | `stimulus.body` | A reading route with no passage yet |
-| `ig_route_with_timeline` | invalid | `route` | A group that is both a reading route and an interactive video |
+| `ig_route_with_timeline` | invalid | `route` | No longer reported: 1.11.0 refused a route in an interactive video, which 1.12.0 allows |
+| `ig_route_quiz_mixed` | invalid | `timeline.cues.N.itemIds` | In an interactive video, a quiz the route covers only some questions of |
 | `ig_route_shuffle` | invalid | `shuffle` | `within-group` on a reading route, whose questions keep paper order |
 | `ig_route_item_type` | invalid | `items.N.type` | A question type a route does not hold (only `multiple-choice`, `fill-in-the-blanks`, `gap-select`) |
 | `ig_route_question_item_unknown` | invalid | `route.questions.N.itemId` | No item of the group has this id |
