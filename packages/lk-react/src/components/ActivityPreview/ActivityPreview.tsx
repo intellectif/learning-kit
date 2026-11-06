@@ -22,6 +22,7 @@ import { GapSelect } from '../GapSelect/index.js';
 import { MarkTheWords } from '../MarkTheWords/index.js';
 import { Matching } from '../Matching/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
+import { Ordering } from '../Ordering/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
 import type { RecordingBinding } from '../ReadAloud/ReadAloud.js';
 import { SpeakingResponse } from '../SpeakingResponse/index.js';
@@ -299,6 +300,8 @@ export function ActivityPreview({
       );
     case 'mark-the-words':
       return <MarkTheWords key={key} data={data} {...shared} />;
+    case 'ordering':
+      return <Ordering key={key} data={data} {...shared} />;
     case 'matching':
       return (
         <Matching

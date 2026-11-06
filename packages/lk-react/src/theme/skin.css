@@ -16,7 +16,8 @@
   .lk-mc,
   .lk-fib,
   .lk-mt,
-  .lk-mw {
+  .lk-mw,
+  .lk-or {
     font-family: var(--lk-font-family-base);
     font-size: var(--lk-font-size-base);
     line-height: var(--lk-line-height-base);
@@ -30,14 +31,16 @@
   .lk-mc *,
   .lk-fib *,
   .lk-mt *,
-  .lk-mw * {
+  .lk-mw *,
+  .lk-or * {
     box-sizing: border-box;
   }
 
   .lk-mc fieldset,
   .lk-fib fieldset,
   .lk-mt fieldset,
-  .lk-mw fieldset {
+  .lk-mw fieldset,
+  .lk-or fieldset {
     margin: 0;
     padding: 0;
     border: 0;
@@ -57,7 +60,8 @@
   .lk-fib-instructions,
   .lk-gs-instructions,
   .lk-mt-instructions,
-  .lk-mw-instructions {
+  .lk-mw-instructions,
+  .lk-or-instructions {
     margin: 0 0 var(--lk-spacing-md);
     font-size: var(--lk-font-size-sm);
     font-weight: var(--lk-font-weight-bold);
@@ -470,6 +474,149 @@
     color: var(--lk-color-text);
   }
 
+  /* ── Ordering ─────────────────────────────────────────────────────────
+     A numbered list of cards, each with its text, its mark once checked, and
+     two buttons that move it. The mark is a word as well as a colour. */
+  /* A flex item has no list marker, so the numbers are a counter. */
+  .lk-or-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lk-spacing-sm);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: lk-or;
+  }
+
+  /* On a narrow screen the mark and the buttons wrap under the text. */
+  .lk-or-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--lk-spacing-sm);
+    padding: var(--lk-spacing-sm) var(--lk-spacing-md);
+    background: var(--lk-color-surface);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-base);
+  }
+
+  .lk-or-item {
+    counter-increment: lk-or;
+  }
+
+  .lk-or-item::before {
+    content: counter(lk-or);
+    min-inline-size: 1.5em;
+    color: var(--lk-color-text-muted);
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+  }
+
+  .lk-or-text {
+    flex: 1 1 14rem;
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .lk-or-item[data-mark="correct"] {
+    border-color: var(--lk-color-success);
+    box-shadow: inset 3px 0 0 var(--lk-color-success);
+  }
+
+  .lk-or-item[data-mark="wrong"] {
+    border-color: var(--lk-color-error);
+    box-shadow: inset 3px 0 0 var(--lk-color-error);
+  }
+
+  .lk-or-mark {
+    font-size: var(--lk-font-size-sm);
+    font-weight: var(--lk-font-weight-bold);
+    white-space: nowrap;
+  }
+
+  .lk-or-item[data-mark="correct"] .lk-or-mark {
+    color: var(--lk-color-success);
+  }
+
+  .lk-or-item[data-mark="wrong"] .lk-or-mark {
+    color: var(--lk-color-error);
+  }
+
+  .lk-or-moves {
+    display: flex;
+    margin-inline-start: auto;
+    gap: var(--lk-spacing-xs);
+  }
+
+  /* At least 24 px square (WCAG 2.5.8). */
+  .lk-or-moves button {
+    min-inline-size: 2.25rem;
+    min-block-size: 2.25rem;
+    font: inherit;
+    line-height: 1;
+    color: var(--lk-color-text);
+    background: var(--lk-color-surface);
+    border: 1px solid var(--lk-color-border);
+    border-radius: var(--lk-radius-sm);
+    cursor: pointer;
+  }
+
+  .lk-or-moves button:hover {
+    background: color-mix(in srgb, var(--lk-color-primary) 10%, var(--lk-color-surface));
+  }
+
+  .lk-or-moves button[aria-disabled="true"],
+  .lk-or fieldset:disabled .lk-or-moves button {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .lk-or-moves button[aria-disabled="true"]:hover {
+    background: var(--lk-color-surface);
+  }
+
+  .lk-or-solution {
+    margin-top: var(--lk-spacing-md);
+    font-size: var(--lk-font-size-sm);
+  }
+
+  .lk-or-solution-title {
+    margin: 0 0 var(--lk-spacing-xs);
+    font-weight: var(--lk-font-weight-bold);
+  }
+
+  .lk-or-solution ol {
+    margin: 0;
+    padding-inline-start: 2em;
+  }
+
+  .lk-or-feedback-list {
+    margin: var(--lk-spacing-md) 0 0;
+    padding-inline-start: 1.2em;
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+  }
+
+  .lk-or-feedback-item {
+    font-weight: var(--lk-font-weight-bold);
+    color: var(--lk-color-text);
+  }
+
+  .lk-or-feedback-toggle {
+    margin-top: var(--lk-spacing-md);
+    font-size: var(--lk-font-size-sm);
+    color: var(--lk-color-text-muted);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .lk-or-feedback-toggle:hover {
+    color: var(--lk-color-text);
+  }
+
   /* ── Multiple choice options ─────────────────────────────────────────── */
   .lk-mc-option {
     display: flex;
@@ -772,7 +919,8 @@
   .lk-mc button[type="submit"],
   .lk-fib button[type="submit"],
   .lk-mt button[type="submit"],
-  .lk-mw button[type="submit"] {
+  .lk-mw button[type="submit"],
+  .lk-or button[type="submit"] {
     margin-top: var(--lk-spacing-md);
     padding: var(--lk-spacing-sm) var(--lk-spacing-lg);
     font: inherit;
@@ -788,14 +936,16 @@
   .lk-mc button[type="submit"]:hover,
   .lk-fib button[type="submit"]:hover,
   .lk-mt button[type="submit"]:hover,
-  .lk-mw button[type="submit"]:hover {
+  .lk-mw button[type="submit"]:hover,
+  .lk-or button[type="submit"]:hover {
     background: var(--lk-color-primary-hover);
   }
 
   .lk-mc button[type="submit"]:disabled,
   .lk-fib button[type="submit"]:disabled,
   .lk-mt button[type="submit"]:disabled,
-  .lk-mw button[type="submit"]:disabled {
+  .lk-mw button[type="submit"]:disabled,
+  .lk-or button[type="submit"]:disabled {
     opacity: 0.55;
     cursor: default;
   }
@@ -804,7 +954,8 @@
   .lk-mc :focus-visible,
   .lk-fib :focus-visible,
   .lk-mt :focus-visible,
-  .lk-mw :focus-visible {
+  .lk-mw :focus-visible,
+  .lk-or :focus-visible {
     outline: 2px solid var(--lk-color-focus-ring);
     outline-offset: 2px;
   }
@@ -819,7 +970,8 @@
   .lk-mc > [aria-live],
   .lk-fib > [aria-live],
   .lk-mt > [aria-live],
-  .lk-mw > [aria-live] {
+  .lk-mw > [aria-live],
+  .lk-or > [aria-live] {
     margin-top: var(--lk-spacing-md);
     color: var(--lk-color-text-muted);
     font-size: var(--lk-font-size-sm);
@@ -920,6 +1072,7 @@
     .lk-fib *,
     .lk-mt *,
     .lk-mw *,
+    .lk-or *,
     .lk-wr *,
     .lk-seq * {
       transition: none;

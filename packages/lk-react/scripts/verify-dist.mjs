@@ -85,6 +85,7 @@ const COMPONENT_FOR_TYPE = {
   'speaking-response': 'SpeakingResponse',
   matching: 'Matching',
   'mark-the-words': 'MarkTheWords',
+  ordering: 'Ordering',
 };
 
 /**

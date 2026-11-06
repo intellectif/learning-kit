@@ -36,6 +36,7 @@ import { GapSelect } from '../GapSelect/index.js';
 import { MarkTheWords } from '../MarkTheWords/index.js';
 import { Matching } from '../Matching/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
+import { Ordering } from '../Ordering/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
 import type { RecordingBinding } from '../ReadAloud/ReadAloud.js';
 import { SpeakingResponse } from '../SpeakingResponse/index.js';
@@ -1735,6 +1736,9 @@ export function ActivitySequence({
     }
     if (activity.type === 'mark-the-words') {
       return <MarkTheWords data={activity} {...childProps} />;
+    }
+    if (activity.type === 'ordering') {
+      return <Ordering data={activity} {...childProps} />;
     }
     if (activity.type === 'matching') {
       return (

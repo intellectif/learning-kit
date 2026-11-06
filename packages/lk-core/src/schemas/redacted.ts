@@ -190,6 +190,26 @@ export const RedactedMarkTheWordsDataSchema = z.strictObject({
   text: z.string().min(1),
 });
 
+/** A redacted ordering item: what the learner reads and moves; its feedback is gone. */
+export const RedactedOrderingItemSchema = z.strictObject({
+  id: z.string().min(1),
+  text: z.string().min(1),
+});
+
+/**
+ * Redacted Ordering data. The items survive, since the learner moves them,
+ * but the key is their order: `redact()` lists them in the order they start in
+ * (`orderingStart`), never as authored, and drops each item's feedback.
+ * `scoringStrategy` stays answer-key, as on every type. A schema cannot see an
+ * order, so a copy built by hand must use `orderingStart` too.
+ */
+export const RedactedOrderingDataSchema = z.strictObject({
+  ...redactedBase,
+  type: z.literal('ordering'),
+  instructions: z.string().optional(),
+  items: z.array(RedactedOrderingItemSchema).min(2),
+});
+
 /**
  * Redacted Written Response data: the prompt, word bounds and rubric are
  * learner-visible (a rubric tells the learner what they are graded on);

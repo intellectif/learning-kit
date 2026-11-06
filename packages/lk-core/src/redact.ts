@@ -1,4 +1,5 @@
 import { ActivitySchemaError, UnknownActivityTypeError } from './errors.js';
+import { orderingStart } from './ordering.js';
 import { MEDIA_FIELD_POLICY } from './registry/builtins.js';
 import { getActivityTypeDescriptor } from './registry/index.js';
 import { guardOf } from './registry/keep-when.js';
@@ -97,6 +98,27 @@ function isEmptyObject(value: unknown): boolean {
   );
 }
 
+/**
+ * A learner's copy of a type whose answer key is the order of a list: the
+ * list as it starts, never as authored. Only `ordering` has one. Applied
+ * under `reveal: 'none'`; an `after-submit` copy reveals the key on purpose.
+ */
+function arrangeForLearner(projected: Record<string, unknown>): Record<string, unknown> {
+  if (projected.type === 'ordering' && typeof projected.id === 'string') {
+    const items = projected.items;
+    if (
+      Array.isArray(items) &&
+      items.every((item) => typeof (item as { id?: unknown } | null)?.id === 'string')
+    ) {
+      return {
+        ...projected,
+        items: orderingStart({ id: projected.id, items: items as { id: string }[] }),
+      };
+    }
+  }
+  return projected;
+}
+
 function redactValue(
   value: unknown,
   policy: FieldPolicy,
@@ -181,7 +203,8 @@ export function redact<T extends { type: string }>(
 
   const effectivePolicy = mergePolicy(descriptor.fieldPolicy, options.policy);
   const projected = redactValue(data, effectivePolicy, reveal) as Record<string, unknown>;
-  const result = { ...projected, redacted: true as const } as RedactedActivityData;
+  const arranged = reveal === 'none' ? arrangeForLearner(projected) : projected;
+  const result = { ...arranged, redacted: true as const } as RedactedActivityData;
 
   if (reveal === 'none' && descriptor.redactedSchema !== undefined) {
     const parsed = readSchema(

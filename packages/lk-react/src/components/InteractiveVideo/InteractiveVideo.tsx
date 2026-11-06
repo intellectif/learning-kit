@@ -57,6 +57,7 @@ import { GapSelect } from '../GapSelect/index.js';
 import { MarkTheWords } from '../MarkTheWords/index.js';
 import { Matching } from '../Matching/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
+import { Ordering } from '../Ordering/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
 import type { RecordingBinding } from '../ReadAloud/ReadAloud.js';
 import type { ReadingRouteResult } from '../ReadingRoute/ReadingRoute.js';
@@ -1706,6 +1707,8 @@ function Player(props: InteractiveVideoProps) {
         );
       case 'mark-the-words':
         return <MarkTheWords data={activity} {...common} />;
+      case 'ordering':
+        return <Ordering data={activity} {...common} />;
       case 'matching':
         return (
           <Matching

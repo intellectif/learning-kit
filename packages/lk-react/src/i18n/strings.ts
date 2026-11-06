@@ -139,6 +139,22 @@ export interface LkStrings {
   markWrong: string;
   /** Read after a word that was to be marked and was not, where answers are shown. */
   markMissed: string;
+
+  // ── Ordering ──────────────────────────────────────────────────────────────
+  /** Accessible name of the list of items the learner puts in order. */
+  orderListLabel: string;
+  /** Accessible name of the button that moves an item one place up; the item's text describes it. */
+  orderMoveUp: string;
+  /** Accessible name of the button that moves an item one place down; the item's text describes it. */
+  orderMoveDown: string;
+  /** Read out after a move: the item, and where it is now. */
+  orderMoved: (item: string, position: number, total: number) => string;
+  /** Shown beside an item that follows the one it should (or is rightly first), once checked. */
+  orderInOrder: string;
+  /** Shown beside an item that does not follow the one it should, once checked. */
+  orderOutOfOrder: string;
+  /** Heading of the right order, shown where the delivery policy shows answers. */
+  orderSolution: string;
   showHint: string;
   hideHint: string;
 
@@ -671,6 +687,13 @@ export const DEFAULT_STRINGS: LkStrings = {
   markCorrect: 'right',
   markWrong: 'not one to mark',
   markMissed: 'one to mark, left unmarked',
+  orderListLabel: 'Items to put in order',
+  orderMoveUp: 'Move up',
+  orderMoveDown: 'Move down',
+  orderMoved: (item, position, total) => `Moved to ${position} of ${total}: ${item}`,
+  orderInOrder: 'in order',
+  orderOutOfOrder: 'out of order',
+  orderSolution: 'The right order',
   showHint: 'Show hint',
   hideHint: 'Hide hint',
 

@@ -32,6 +32,7 @@ export {
 } from './mark-the-words.js';
 export * from './media-budget.js';
 export * from './media-refs.js';
+export { ORDERING_MAX_ITEMS, type OrderingStartInput, orderingStart } from './ordering.js';
 export * from './reading-route/index.js';
 export * from './redact.js';
 export * from './registry/index.js';

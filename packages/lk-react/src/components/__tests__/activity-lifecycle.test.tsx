@@ -7,6 +7,7 @@ import type {
   MarkTheWordsData,
   MatchingData,
   MultipleChoiceData,
+  OrderingData,
   ReadAloudData,
   SpeakingResponseData,
   WrittenResponseData,
@@ -23,6 +24,7 @@ import { GapSelect } from '../GapSelect/index.js';
 import { MarkTheWords } from '../MarkTheWords/index.js';
 import { Matching } from '../Matching/index.js';
 import { MultipleChoice } from '../MultipleChoice/index.js';
+import { Ordering } from '../Ordering/index.js';
 import { ReadAloud } from '../ReadAloud/index.js';
 import { SpeakingResponse } from '../SpeakingResponse/index.js';
 import type { RenderMode } from '../types.js';
@@ -117,6 +119,18 @@ const marks: MarkTheWordsData = {
   scoringStrategy: 'partial',
 };
 
+const steps: OrderingData = {
+  schemaVersion: '1.0',
+  type: 'ordering',
+  id: 'or1',
+  title: 'Steps',
+  items: [
+    { id: 'k', text: 'Boil the water.' },
+    { id: 'q', text: 'Add the pasta.' },
+  ],
+  scoringStrategy: 'partial',
+};
+
 const essay: WrittenResponseData = {
   schemaVersion: '1.0',
   type: 'written-response',
@@ -168,6 +182,7 @@ const COMPONENTS = {
   'gap-select': (props) => <GapSelect data={gs} {...props} />,
   matching: (props) => <Matching data={match} {...props} />,
   'mark-the-words': (props) => <MarkTheWords data={marks} {...props} />,
+  ordering: (props) => <Ordering data={steps} {...props} />,
   'written-response': (props) => <WrittenResponse data={essay} {...props} />,
   dictation: (props) => <Dictation data={dictation} {...props} />,
   'read-aloud': (props) => (
@@ -252,6 +267,7 @@ const ANSWER: Record<
   | 'gap-select'
   | 'matching'
   | 'mark-the-words'
+  | 'ordering'
   | 'dictation',
   (user: UserEvent) => Promise<void>
 > = {
@@ -273,6 +289,10 @@ const ANSWER: Record<
   },
   'mark-the-words': async (user) => {
     await user.click(screen.getByRole('option', { name: 'ran' }));
+    await user.click(screen.getByRole('button', { name: 'Check answers' }));
+  },
+  ordering: async (user) => {
+    await user.click(screen.getAllByRole('button', { name: 'Move down' })[0] as HTMLElement);
     await user.click(screen.getByRole('button', { name: 'Check answers' }));
   },
   dictation: async (user) => {

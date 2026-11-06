@@ -196,6 +196,23 @@ export interface RedactedMarkTheWordsData extends RedactedItem {
   locale?: string | undefined;
 }
 
+/** An ordering item as a learner's copy carries it: what it reads, and its id. */
+export interface RedactedOrderingItem {
+  id: string;
+  text: string;
+}
+
+/**
+ * An Ordering item the learner can still answer: the items, listed in the
+ * order they start in (`orderingStart`), never in their right order.
+ */
+export interface RedactedOrderingData extends RedactedItem {
+  type: 'ordering';
+  instructions?: string | undefined;
+  items: RedactedOrderingItem[];
+  locale?: string | undefined;
+}
+
 /** The slower recording of a dictation, unchanged by redaction. */
 export interface RedactedDictationSlowMedia {
   type: 'audio';
@@ -267,4 +284,5 @@ export type RedactedActivity =
   | RedactedDictationData
   | RedactedReadAloudData
   | RedactedMatchingData
-  | RedactedMarkTheWordsData;
+  | RedactedMarkTheWordsData
+  | RedactedOrderingData;

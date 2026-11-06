@@ -103,6 +103,16 @@
         "default": "./dist/components/MarkTheWords.cjs"
       }
     },
+    "./components/Ordering": {
+      "import": {
+        "types": "./dist/components/Ordering.d.ts",
+        "default": "./dist/components/Ordering.js"
+      },
+      "require": {
+        "types": "./dist/components/Ordering.d.cts",
+        "default": "./dist/components/Ordering.cjs"
+      }
+    },
     "./components/Matching": {
       "import": {
         "types": "./dist/components/Matching.d.ts",
