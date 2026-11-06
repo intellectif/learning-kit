@@ -1,4 +1,10 @@
 import * as z from 'zod/v4';
+import { routeIssues } from '../reading-route/check.js';
+import {
+  ROUTE_NOTE_MAX_LENGTH,
+  ROUTE_STRATEGY_IDS,
+  ROUTE_WORD_LIMIT_MAX,
+} from '../reading-route/strategies.js';
 import { getActivityTypeDescriptor } from '../registry/index.js';
 import {
   INTERACTIVE_VIDEO_ITEM_TYPES,
@@ -163,6 +169,98 @@ export const MediaTimelineSchema = z
       }
     });
   });
+
+/** Words copied from the passage: the words, or the words and which occurrence of them. */
+const RouteQuoteSchema = z.union([
+  z.string().min(1),
+  z.strictObject({ text: z.string().min(1), occurrence: z.number().int().min(1).optional() }),
+]);
+
+const ROUTE_TRAP_KINDS = [
+  'word-match',
+  'opposite',
+  'partial',
+  'outside-knowledge',
+  'too-general',
+  'too-specific',
+  'not-the-question',
+] as const;
+
+const ROUTE_MOVE_IDS = [
+  'read-instructions',
+  'survey',
+  'keywords',
+  'predict',
+  'locate',
+  'read-around',
+  'paraphrase',
+  'decide',
+  'eliminate',
+  'cohesion',
+  'check-answer',
+  'compare-views',
+] as const;
+
+const RouteSectionSchema = z.strictObject({
+  label: z.string().min(1),
+  title: z.string().optional(),
+  paragraphs: z.number().int().min(1),
+});
+
+/**
+ * One question of a route. STRICT, like every part of a route: a misspelt
+ * `evidense` would otherwise leave a question with no evidence and no error.
+ * The rules that need the passage or the items are {@link routeIssues}.
+ */
+const RouteQuestionSchema = z.strictObject({
+  itemId: z.string().min(1),
+  partId: z.string().min(1).optional(),
+  strategy: z.enum(ROUTE_STRATEGY_IDS as unknown as [string, ...string[]]),
+  evidence: z.array(RouteQuoteSchema).min(1),
+  evidenceMatch: z.enum(['any', 'all']).optional(),
+  keywords: z
+    .array(z.strictObject({ question: z.string().min(1), passage: RouteQuoteSchema.optional() }))
+    .optional(),
+  links: z.array(z.strictObject({ from: RouteQuoteSchema, to: RouteQuoteSchema })).optional(),
+  wordLimit: z.number().int().min(1).max(ROUTE_WORD_LIMIT_MAX).optional(),
+  traps: z
+    .array(
+      z.strictObject({
+        optionId: z.string().min(1),
+        kind: z.enum(ROUTE_TRAP_KINDS),
+        lure: RouteQuoteSchema.optional(),
+      }),
+    )
+    .optional(),
+  notes: z
+    .partialRecord(z.enum(ROUTE_MOVE_IDS), maxUnits(z.string().min(1), ROUTE_NOTE_MAX_LENGTH))
+    .optional(),
+});
+
+/** A route on its own. The rules that span the route, the passage and the items are {@link routeIssues}, which both group schemas run. */
+export const ReadingRouteSchema = z.strictObject({
+  routeVersion: z.literal('1.0'),
+  startAt: z.number().int().min(1).optional(),
+  paragraphLabels: z.array(z.string()).optional(),
+  sections: z.array(RouteSectionSchema).min(1).optional(),
+  questions: z.array(RouteQuestionSchema),
+});
+
+/** A route as a learner's copy carries it: which question practises which strategy, and nothing that locates an answer. */
+export const RedactedReadingRouteSchema = z.strictObject({
+  routeVersion: z.literal('1.0'),
+  startAt: z.number().int().min(1).optional(),
+  paragraphLabels: z.array(z.string()).optional(),
+  sections: z.array(RouteSectionSchema).min(1).optional(),
+  questions: z.array(
+    z.strictObject({
+      itemId: z.string().min(1),
+      partId: z.string().min(1).optional(),
+      strategy: z.enum(ROUTE_STRATEGY_IDS as unknown as [string, ...string[]]),
+      wordLimit: z.number().int().min(1).max(ROUTE_WORD_LIMIT_MAX).optional(),
+    }),
+  ),
+});
 
 /** A URL only this document can resolve, or one that inlines the bytes. */
 function isLocalOnlyUrl(url: unknown): boolean {
@@ -349,6 +447,7 @@ export const ItemGroupSchema = z
     items: z.array(ItemShapeSchema).min(1),
     shuffle: z.enum(['none', 'within-group']).optional(),
     timeline: MediaTimelineSchema.optional(),
+    route: ReadingRouteSchema.optional(),
   })
   .refine((group) => group.items.every((item) => item.type !== 'item-group'), {
     error: 'Item groups do not nest: every item must be an activity.',
@@ -361,6 +460,9 @@ export const ItemGroupSchema = z
   .check((ctx) => {
     for (const issue of timelineIssues(ctx.value, 'content')) {
       ctx.issues.push({ code: 'custom', ...issue });
+    }
+    for (const { path, message } of routeIssues(ctx.value, 'content')) {
+      ctx.issues.push({ code: 'custom', input: ctx.value.route, path, message });
     }
   });
 
@@ -396,10 +498,14 @@ export const RedactedItemGroupSchema = z
     items: z.array(z.unknown()).min(1),
     shuffle: z.enum(['none', 'within-group']).optional(),
     timeline: MediaTimelineSchema.optional(),
+    route: RedactedReadingRouteSchema.optional(),
   })
   .check((ctx) => {
     for (const issue of timelineIssues(ctx.value, 'redacted')) {
       ctx.issues.push({ code: 'custom', ...issue });
+    }
+    for (const { path, message } of routeIssues(ctx.value, 'redacted')) {
+      ctx.issues.push({ code: 'custom', input: ctx.value.route, path, message });
     }
     const captions = groupCaptionsField(ctx.value);
     if (captions !== undefined) {

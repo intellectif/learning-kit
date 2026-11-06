@@ -2882,6 +2882,325 @@
             "cues"
           ],
           "additionalProperties": false
+        },
+        "route": {
+          "type": "object",
+          "properties": {
+            "routeVersion": {
+              "type": "string",
+              "const": "1.0"
+            },
+            "startAt": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "paragraphLabels": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "sections": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "paragraphs": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "label",
+                  "paragraphs"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "questions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "itemId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "partId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "strategy": {
+                    "type": "string",
+                    "enum": [
+                      "tfng",
+                      "ynng",
+                      "multiple-choice",
+                      "matching-headings",
+                      "matching-information",
+                      "matching-features",
+                      "multiple-matching",
+                      "sentence-endings",
+                      "completion",
+                      "summary-word-list",
+                      "gapped-text",
+                      "cross-text"
+                    ]
+                  },
+                  "evidence": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "text": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "occurrence": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "text"
+                          ],
+                          "additionalProperties": false
+                        }
+                      ]
+                    }
+                  },
+                  "evidenceMatch": {
+                    "type": "string",
+                    "enum": [
+                      "any",
+                      "all"
+                    ]
+                  },
+                  "keywords": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "question": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "passage": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "text": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "occurrence": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "text"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "question"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "links": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "from": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "text": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "occurrence": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "text"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        },
+                        "to": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "text": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "occurrence": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "text"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "from",
+                        "to"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "wordLimit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "traps": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "optionId": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "word-match",
+                            "opposite",
+                            "partial",
+                            "outside-knowledge",
+                            "too-general",
+                            "too-specific",
+                            "not-the-question"
+                          ]
+                        },
+                        "lure": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "text": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "occurrence": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "text"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "optionId",
+                        "kind"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "notes": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "enum": [
+                        "read-instructions",
+                        "survey",
+                        "keywords",
+                        "predict",
+                        "locate",
+                        "read-around",
+                        "paraphrase",
+                        "decide",
+                        "eliminate",
+                        "cohesion",
+                        "check-answer",
+                        "compare-views"
+                      ]
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 280
+                    }
+                  }
+                },
+                "required": [
+                  "itemId",
+                  "strategy",
+                  "evidence"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "routeVersion",
+            "questions"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

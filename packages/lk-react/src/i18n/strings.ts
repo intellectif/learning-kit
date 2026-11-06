@@ -1,4 +1,14 @@
-import type { ReadAloudDimension, ReadAloudWordState, Stimulus } from '@intellectif/lk-core';
+import type {
+  PlannedTrap,
+  ReadAloudDimension,
+  ReadAloudWordState,
+  RouteCause,
+  RouteLevel,
+  RouteMoveId,
+  RouteStep,
+  RouteStrategyId,
+  Stimulus,
+} from '@intellectif/lk-core';
 import type { CaptionSize } from '../components/InteractiveVideo/prefs.js';
 import type { VideoShortcutAction } from '../components/InteractiveVideo/shortcuts.js';
 import type { MediaTransportStrings } from '../components/types.js';
@@ -405,6 +415,73 @@ export interface LkStrings {
   videoWatchAgain: string;
   videoFinish: string;
 
+  // ── Reading route ──────────────────────────────────────────────────────
+  /** A level of guidance: how much the route shows for a strategy. */
+  routeLevel: (level: RouteLevel) => string;
+  /**
+   * A strategy's name, as the learner meets it. Absent, the route uses
+   * lk-core's English (`ROUTE_STRATEGIES[id].title`). Optional, as the two
+   * below are, so the English stays in lk-core and out of every component
+   * that never draws a route.
+   */
+  routeStrategy?: (strategy: RouteStrategyId) => string;
+  /** A step's short name: "Find the key words", "Locate", "Decide". */
+  routeMove: (move: RouteMoveId) => string;
+  /**
+   * What the learner reads at a step. Absent, lk-core's `routeStepText`,
+   * which a translation can also call for any step it does not translate.
+   */
+  routeStep?: (step: RouteStep) => string;
+  /** Why a trapped option attracts. Absent, lk-core's `routeTrapText`. */
+  routeTrap?: (trap: PlannedTrap) => string;
+  /** e.g. "Step 3 of 21". */
+  routeStepProgress: (index: number, total: number) => string;
+  /** The question numbers an item carries: "Question 4", "Questions 5–6". */
+  routeQuestionNumbers: (first: number, last: number) => string;
+  routeGuide: string;
+  routePassage: string;
+  routeQuestions: string;
+  routeNext: string;
+  routeBack: string;
+  routeShowMe: string;
+  routeSkipGuide: string;
+  /** Asked before anything is shown at a locate step. */
+  routeLocatePrompt: string;
+  /** Moves focus into the passage to choose a sentence by keyboard. */
+  routeChooseSentence: string;
+  routeLocateHit: string;
+  /** A sentence that holds no evidence. `revealed`: the evidence is now shown. */
+  routeLocateMiss: (revealed: boolean) => string;
+  routeGuideDone: string;
+  routeFinish: string;
+  /** The button that starts marking the evidence for a question. */
+  routeMarkEvidence: (question: number) => string;
+  routeMarkDone: string;
+  /** How many sentences are marked for a question, read after the button's own name. */
+  routeMarked: (count: number) => string;
+  /** While marking: what to select. */
+  routeMarkingHint: (question: number) => string;
+  /** The advisory clock: already formatted `m:ss` strings. */
+  routePace: (elapsed: string, suggested: string) => string;
+  routeDebrief: string;
+  routeDebriefScore: (correct: number, total: number) => string;
+  routeDebriefLocated: (found: number, of: number) => string;
+  /** A wrong answer's cause, as a short label. */
+  routeCause: (cause: RouteCause) => string;
+  /** What a wrong answer's cause means, and what to do next time. */
+  routeCauseAdvice: (cause: RouteCause) => string;
+  routeCorrect: string;
+  /** A strategy's level this time and next, given already-translated names. */
+  routeNextLevel: (strategy: string, now: string, next: string) => string;
+  /** A question's button in the debrief. */
+  routeShowEvidence: (question: number) => string;
+  /** A key word and the passage's word for it. */
+  routeParaphrase: (question: string, passage: string) => string;
+  /** Heading over the sentences a learner marked for a question. */
+  routeYourMarks: (count: number) => string;
+  /** Time spent on a question, in whole seconds. */
+  routeSeconds: (seconds: number) => string;
+
   // ── Authoring preview ──────────────────────────────────────────────────
   /**
    * `<ActivityPreview>`, in place of a draft that still has something missing.
@@ -787,6 +864,83 @@ export const DEFAULT_STRINGS: LkStrings = {
   videoEndAnswered: (answered, total) => `You answered ${answered} of ${total} questions`,
   videoWatchAgain: 'Watch again',
   videoFinish: 'Finish',
+
+  routeLevel: (level) => ({ walkthrough: 'Walkthrough', coached: 'Coached', solo: 'Solo' })[level],
+  routeMove: (move) =>
+    ({
+      'read-instructions': 'Read the instructions',
+      survey: 'Skim the text',
+      keywords: 'Find the key words',
+      predict: 'Predict the answer',
+      locate: 'Locate',
+      'read-around': 'Read around it',
+      paraphrase: 'Match the meaning',
+      decide: 'Decide',
+      eliminate: 'Rule out the traps',
+      cohesion: 'Follow the links',
+      'check-answer': 'Check your answer',
+      'compare-views': 'Compare the views',
+    })[move],
+  routeStepProgress: (index, total) => `Step ${index} of ${total}`,
+  routeQuestionNumbers: (first, last) =>
+    first === last ? `Question ${first}` : `Questions ${first}–${last}`,
+  routeGuide: 'Reading guide',
+  routePassage: 'Passage',
+  routeQuestions: 'Questions',
+  routeNext: 'Next',
+  routeBack: 'Back',
+  routeShowMe: 'Show me',
+  routeSkipGuide: 'Skip the guide',
+  routeLocatePrompt: 'Where would you look? Select the sentence in the passage.',
+  routeChooseSentence: 'Choose a sentence',
+  routeLocateHit: 'Yes — that is where the evidence is.',
+  routeLocateMiss: (revealed) =>
+    revealed
+      ? 'Not quite. The evidence is highlighted now.'
+      : 'Not there. Try again, or ask to be shown.',
+  routeGuideDone: 'That is the whole route. Answer any questions left, then finish.',
+  routeFinish: 'Finish and review',
+  routeMarkEvidence: (question) => `Mark evidence for question ${question}`,
+  routeMarkDone: 'Done marking',
+  routeMarked: (count) => `(${count} marked)`,
+  routeMarkingHint: (question) =>
+    `Select the sentence that proves your answer to question ${question}. Select it again to unmark it.`,
+  routePace: (elapsed, suggested) => `${elapsed} of ${suggested} suggested`,
+  routeDebrief: 'How you read',
+  routeDebriefScore: (correct, total) => `${correct} of ${total} correct`,
+  routeDebriefLocated: (found, of) => `Evidence found for ${found} of ${of}`,
+  routeCause: (cause) =>
+    ({
+      search: 'Missed the evidence',
+      meaning: 'Found it, misread it',
+      trap: 'Fell for a trap',
+      limit: 'Over the word limit',
+      unanswered: 'Not answered',
+      unknown: 'No evidence marked',
+    })[cause],
+  routeCauseAdvice: (cause) =>
+    ({
+      search:
+        'The answer was in the text, but the search missed it. Next time, scan for the key words and for words that mean the same.',
+      meaning:
+        'You found the right place. The answer turned on its exact meaning: read every word of that sentence, and the ones around it.',
+      trap: 'This option was written to attract you.',
+      limit:
+        'Your answer had more words than the question allows. Count them before you move on: a longer answer loses the mark.',
+      unanswered: 'No answer. In the exam, never leave one blank: a guess may score.',
+      unknown:
+        'You did not mark the sentence that proves your answer, so there is no telling whether the search or the reading went wrong.',
+    })[cause],
+  routeCorrect: 'Correct',
+  routeNextLevel: (strategy, now, next) =>
+    now === next
+      ? `${strategy}: ${now} again next time`
+      : `${strategy}: ${now} now, ${next} next time`,
+  routeShowEvidence: (question) => `Question ${question}`,
+  routeParaphrase: (question, passage) =>
+    `The question says “${question}”; the text says “${passage}”.`,
+  routeYourMarks: (count) => (count === 1 ? 'The sentence you marked' : 'The sentences you marked'),
+  routeSeconds: (seconds) => `${Math.round(seconds)} s`,
 
   previewIncomplete: 'This activity is not finished yet, so it cannot be previewed.',
   previewInvalid: 'This activity has a problem to fix before it can be previewed.',

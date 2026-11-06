@@ -17,4 +17,8 @@ export const darkTheme: Partial<ThemeTokens> = {
   '--lk-color-error': '#f87171',
   '--lk-color-warning': '#fbbf24',
   '--lk-color-focus-ring': '#fafafa',
+  '--lk-route-highlight': '#713f12',
+  '--lk-route-context': '#3f2d0c',
+  '--lk-route-pair': '#1e3a8a',
+  '--lk-route-mark': '#365314',
 };

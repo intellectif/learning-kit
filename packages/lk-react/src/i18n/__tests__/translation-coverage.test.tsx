@@ -37,6 +37,7 @@ import { MultipleChoice } from '../../components/MultipleChoice/index.js';
 import { PronunciationFeedback } from '../../components/PronunciationFeedback/index.js';
 import { ReadAloud } from '../../components/ReadAloud/index.js';
 import type { ReadAloudAssessResult } from '../../components/ReadAloud/ReadAloud.js';
+import { ReadingRoute } from '../../components/ReadingRoute/index.js';
 import { SpeakingResponse } from '../../components/SpeakingResponse/index.js';
 import type { SpeakingAssessResult } from '../../components/SpeakingResponse/SpeakingResponse.js';
 import { StimulusPanel } from '../../components/StimulusPanel/index.js';
@@ -1301,6 +1302,119 @@ describe('translation coverage', () => {
     act(() => {
       (document.querySelector('video') as HTMLVideoElement).dispatchEvent(new Event('ended'));
     });
+    keep(document.body);
+    cleanup();
+
+    // ── Reading route: the guide at each level, marking, the clock, the debrief ─
+    const routeGroup = (): ItemGroup =>
+      ({
+        schemaVersion: '1.0',
+        type: 'item-group',
+        id: 'ruta',
+        title: 'Ruta',
+        stimulus: {
+          id: 'texto',
+          kind: 'text',
+          title: 'El tranvía',
+          body: 'En 1960 quedaban pocos tranvías. Los autobuses eran baratos.\n\nHoy el tranvía vuelve a las ciudades.',
+        },
+        items: [
+          {
+            schemaVersion: '1.0',
+            type: 'multiple-choice',
+            id: 'v1',
+            title: 'Uno',
+            instructions: 'Elige una respuesta.',
+            question: 'En 1960 había muchos tranvías.',
+            mode: 'single',
+            scoringStrategy: 'all-or-nothing',
+            options: [
+              { id: 'v', text: 'Verdadero', isCorrect: false },
+              { id: 'f', text: 'Falso', isCorrect: true },
+              { id: 'n', text: 'No consta', isCorrect: false },
+            ],
+          },
+          {
+            schemaVersion: '1.0',
+            type: 'fill-in-the-blanks',
+            id: 'c1',
+            title: 'Dos',
+            passage: 'Hoy el tranvía {{a}} a las ciudades.',
+            blanks: [{ id: 'a', acceptedAnswers: ['vuelve'] }],
+            scoringStrategy: 'partial',
+          },
+        ],
+        route: {
+          routeVersion: '1.0',
+          paragraphLabels: ['A', 'B'],
+          questions: [
+            {
+              itemId: 'v1',
+              strategy: 'tfng',
+              evidence: ['En 1960 quedaban pocos tranvías.'],
+              keywords: [{ question: 'muchos tranvías', passage: 'pocos tranvías' }],
+              traps: [{ optionId: 'v', kind: 'opposite', lure: 'pocos tranvías' }],
+            },
+            {
+              itemId: 'c1',
+              partId: 'a',
+              strategy: 'completion',
+              wordLimit: 1,
+              evidence: ['el tranvía vuelve a las ciudades'],
+            },
+          ],
+        },
+      }) as ItemGroup;
+    const sentenceWith = (text: string): HTMLElement =>
+      [...document.querySelectorAll<HTMLElement>('.lk-rr-sentence')].find((element) =>
+        element.textContent?.includes(text),
+      ) as HTMLElement;
+    const routeButton = (name: string): HTMLElement =>
+      screen.getByRole('button', { name: sentinel(name) });
+
+    // Walkthrough: the steps, the locate prompt, a miss, the paraphrases, the end.
+    sweep(<ReadingRoute group={routeGroup()} />);
+    await user.click(routeButton('routeNext'));
+    await user.click(routeButton('routeNext'));
+    keep(document.body);
+    await user.click(sentenceWith('Los autobuses'));
+    keep(document.body);
+    await user.click(routeButton('routeNext'));
+    await user.click(routeButton('routeNext'));
+    keep(document.body);
+    await user.click(routeButton('routeSkipGuide'));
+    keep(document.body);
+    cleanup();
+
+    // Coached: a sentence found.
+    sweep(<ReadingRoute group={routeGroup()} level="coached" />);
+    await user.click(routeButton('routeNext'));
+    await user.click(routeButton('routeNext'));
+    await user.click(sentenceWith('En 1960'));
+    keep(document.body);
+    cleanup();
+
+    // Solo, with a suggested time: evidence marked, one answer trapped, the debrief.
+    // A clock that moves five seconds a reading, so each answer took time.
+    let routeTime = 0;
+    sweep(
+      <ReadingRoute
+        group={routeGroup()}
+        level="solo"
+        pace={true}
+        now={() => {
+          routeTime += 5000;
+          return routeTime;
+        }}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: /«routeMarkEvidence\(1\)»/ }));
+    keep(document.body);
+    await user.click(sentenceWith('En 1960'));
+    await user.click(screen.getByRole('button', { name: /«routeMarkDone»/ }));
+    await user.click(screen.getByRole('radio', { name: 'Verdadero' }));
+    await user.type(screen.getByRole('textbox'), 'vuelve');
+    await user.click(routeButton('routeFinish'));
     keep(document.body);
     cleanup();
 

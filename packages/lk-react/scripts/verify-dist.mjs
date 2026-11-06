@@ -101,6 +101,7 @@ const REQUIRED_EXPORTS = {
   'dist/components/ActivityPreview.js': ['ActivityPreview'],
   'dist/components/InteractiveVideo.js': ['InteractiveVideo', 'resolveCaptionTracks'],
   'dist/components/PronunciationFeedback.js': ['PronunciationFeedback'],
+  'dist/components/ReadingRoute.js': ['ReadingRoute'],
   // The processor source is pinned beside the hook: `workletUrl` is unusable
   // without it, and a missing re-export fails silently into a fallback.
   'dist/hooks/useSpeechRecorder.js': ['CAPTURE_PROCESSOR_SOURCE', 'useSpeechRecorder'],
@@ -140,6 +141,7 @@ const REQUIRED_EXPORTS = {
     'InteractiveVideo',
     'LkIntlProvider',
     'PronunciationFeedback',
+    'ReadingRoute',
     'createTailwindTheme',
     'resolveCaptionTracks',
     'useLkStrings',

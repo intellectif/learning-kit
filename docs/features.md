@@ -24,6 +24,7 @@ What changed in each release, and what to do about it: the [upgrading guide](./u
 | **Read-aloud** — record, assess with your speech engine, show the marks | 0.14.0 / 14.0.0 | [Speech assessment](./speech-assessment.md) |
 | **Interactive video** — questions at moments of a video (formative only) | 0.15.0 / 15.0.0 | [Interactive video](./interactive-video.md) |
 | Two caption languages at once | 0.16.0 / 16.0.0 | [Interactive video](./interactive-video.md) |
+| **Reading routes** — guided practice in reading an IELTS or Cambridge passage for its questions, faded to solo (formative only) | 1.11.0 / 23.8.0 | [Reading routes](./reading-route.md) |
 | **Your own activity types**, registered once and rendered by the pager | 0.4.0 / 3.0.0 | [Authoring](./authoring.md) |
 | …with a schema from any library that implements Standard Schema — zod 4, valibot, ArkType | 1.0.0 / — | [Authoring](./authoring.md#custom-activity-types-end-to-end) |
 

@@ -309,6 +309,37 @@ const ITEM_GROUP_FIELD_POLICY: FieldPolicy = {
     },
     navigation: 'public',
   },
+  // A reading route: which question practises which strategy is public — a
+  // learner answering alone still sees "Question 3: True / False / Not Given",
+  // and still marks sentences. Everything that locates an answer — its
+  // evidence, the passage's words for the question's, the traps and the
+  // author's notes — is the key, and returns only after submit, for the
+  // debrief.
+  route: {
+    routeVersion: 'public',
+    startAt: 'public',
+    paragraphLabels: 'public',
+    sections: {
+      label: 'public',
+      title: 'public',
+      paragraphs: 'public',
+    },
+    questions: {
+      itemId: 'public',
+      partId: 'public',
+      strategy: 'public',
+      wordLimit: 'public',
+      // Whole leaves, not key by key: a nested policy would leave an empty
+      // object behind for every key word in a learner's copy. What they hold is
+      // strict in the stored schema, so nothing can be parked inside them.
+      evidence: 'answer-key',
+      evidenceMatch: 'answer-key',
+      keywords: 'answer-key',
+      links: 'answer-key',
+      traps: 'answer-key',
+      notes: 'answer-key',
+    },
+  },
 };
 
 /** A learner-safe item group: the container with its marker, holding `redact()` projections. */

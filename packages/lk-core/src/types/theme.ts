@@ -36,6 +36,18 @@ export interface ThemeTokens {
   '--lk-iv-caption-secondary-color'?: string;
   '--lk-iv-caption-secondary-scale'?: string;
   '--lk-iv-caption-gap'?: string;
+  /**
+   * A reading route's marks on the passage, optional like the captions above.
+   * The step's target; the sentences around it, more faintly; a question's key
+   * words and the passage's words for them; the sentences a learner marked as
+   * evidence; and the opacity of text outside where to search (a number). Each
+   * is drawn with an outline or underline as well, never by colour alone.
+   */
+  '--lk-route-highlight'?: string;
+  '--lk-route-context'?: string;
+  '--lk-route-pair'?: string;
+  '--lk-route-mark'?: string;
+  '--lk-route-dim'?: string;
 
   // ── Spacing ──────────────────────────────────────────────────────────────
   '--lk-spacing-xs': string;

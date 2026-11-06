@@ -1262,6 +1262,33 @@ schema, **and** every item is itself `complete`.
 | `ig_timeline_dictation_media` | incomplete | `items.N.media` | A dictation with no recording of its own |
 | `ig_timeline_chapter_order` | invalid | `timeline.chapters.N.at` | A chapter that does not start after the one before it |
 | `ig_timeline_chapter_title` | incomplete | `timeline.chapters.N.title` | A chapter with no title yet |
+| `ig_route_stimulus_kind` | invalid | `stimulus.kind` | A reading route whose stimulus is not a `text` or `mixed` passage |
+| `ig_route_body_required` | incomplete | `stimulus.body` | A reading route with no passage yet |
+| `ig_route_with_timeline` | invalid | `route` | A group that is both a reading route and an interactive video |
+| `ig_route_shuffle` | invalid | `shuffle` | `within-group` on a reading route, whose questions keep paper order |
+| `ig_route_item_type` | invalid | `items.N.type` | A question type a route does not hold (only `multiple-choice`, `fill-in-the-blanks`, `gap-select`) |
+| `ig_route_question_item_unknown` | invalid | `route.questions.N.itemId` | No item of the group has this id |
+| `ig_route_question_part_required` | incomplete | `route.questions.N.partId` | A fill-in-the-blanks or gap-select entry that does not name its blank or gap |
+| `ig_route_question_part_unknown` | invalid | `route.questions.N.partId` | The item has no blank or gap with this id |
+| `ig_route_question_part_not_allowed` | invalid | `route.questions.N.partId` | A `partId` on a multiple-choice item, which is one question |
+| `ig_route_question_duplicate` | invalid | `route.questions.N` | Two entries for one question |
+| `ig_route_question_missing` | incomplete | `route.questions` | A question of the items with no route entry yet |
+| `ig_route_strategy_required` | incomplete | `route.questions.N.strategy` | No strategy chosen yet |
+| `ig_route_strategy_unknown` | invalid | `route.questions.N.strategy` | Not one of `ROUTE_STRATEGY_IDS` |
+| `ig_route_strategy_item_type` | invalid | `route.questions.N.strategy` | A strategy the item type cannot be written in (completion is fill-in-the-blanks; a summary from a list is gap-select) |
+| `ig_route_evidence_required` | incomplete | `route.questions.N.evidence` | No evidence quoted yet |
+| `ig_route_quote_not_found` | invalid | the quote | A quote that is not in the passage, or an `occurrence` past the last one |
+| `ig_route_quote_ambiguous` | invalid | the quote | A quote that appears more than once, with no `occurrence` |
+| `ig_route_keyword_not_in_question` | invalid | `route.questions.N.keywords.N.question` | Key words the question does not contain |
+| `ig_route_trap_option_unknown` | invalid | `route.questions.N.traps.N.optionId` | The question has no such option or choice |
+| `ig_route_trap_on_answer` | invalid | `route.questions.N.traps.N.optionId` | A trap tag on the right answer |
+| `ig_route_note_move_unknown` | invalid | `route.questions.N.notes.<move>` | A note for a step the strategy does not take |
+| `ig_route_note_too_long` | invalid | `route.questions.N.notes.<move>` | A note over 280 characters |
+| `ig_route_note_reveals_answer` | invalid | `route.questions.N.notes.<move>` | A note that names the answer (naming every option, as a rule does, is allowed) |
+| `ig_route_word_limit_type` | invalid | `route.questions.N.wordLimit` | A word limit on a question the learner does not write |
+| `ig_route_answer_over_limit` | invalid | `route.questions.N.wordLimit` | An accepted answer longer than the word limit, which a learner would lose the mark for |
+| `ig_route_paragraph_labels` | invalid | `route.paragraphLabels` | Not one label per paragraph of the passage |
+| `ig_route_sections` | invalid | `route.sections` | Sections that do not add up to the passage's paragraphs |
 
 The stimulus's media reports under the codes media already uses
 (`media_url_required`, `media_alt_required`, `media_url_invalid`,

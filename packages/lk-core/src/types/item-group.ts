@@ -1,4 +1,5 @@
 import type { ActivityData, ActivityMedia, ScriptTurn } from './activity.js';
+import type { ReadingRoute } from './reading-route.js';
 
 /** What a stimulus primarily is. Drives validation and layout, never scoring. */
 export type StimulusKind = 'text' | 'audio' | 'video' | 'image' | 'mixed';
@@ -167,6 +168,15 @@ export interface ItemGroup<TItem = ActivityData> {
    * items as an ordinary video testlet, with the same slots and grades.
    */
   timeline?: MediaTimeline;
+  /**
+   * Makes the group a reading route: guided practice in how to read the passage
+   * for its questions (see `ReadingRoute`). The stimulus must be a text, every
+   * item one of `READING_ROUTE_ITEM_TYPES`, and the group neither shuffled nor
+   * an interactive video. An older lk-core that does not know this field
+   * presents the same items as an ordinary testlet, with the same slots and
+   * grades.
+   */
+  route?: ReadingRoute;
 }
 
 /**

@@ -242,6 +242,7 @@ export function critiqueDraft(type: ActivityType, draft: unknown): ItemFinding[]
 export {
   createInteractiveVideoDraft,
   createItemGroupDraft,
+  createReadingRouteDraft,
   critiqueDrafts,
   critiqueItemGroupDraft,
   validateItemGroupDraft,

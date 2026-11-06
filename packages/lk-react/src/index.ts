@@ -9,6 +9,7 @@ export * from './components/InteractiveVideo/index.js';
 export * from './components/MultipleChoice/index.js';
 export * from './components/PronunciationFeedback/index.js';
 export * from './components/ReadAloud/index.js';
+export * from './components/ReadingRoute/index.js';
 export * from './components/SpeakingResponse/index.js';
 export * from './components/StimulusPanel/index.js';
 export * from './components/types.js';

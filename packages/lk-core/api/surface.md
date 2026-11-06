@@ -56,6 +56,12 @@ const READ_ALOUD_MAX_SECONDS: READ_ALOUD_MAX_SECONDS = 300
 const READ_ALOUD_MAX_TAKES: READ_ALOUD_MAX_TAKES = 20
 const readAloudJsonSchema: readAloudJsonSchema: Record<string, unknown>
 const readAloudType: readAloudType: ActivityTypeDescriptor<ReadAloudData, ReadAloudLearnerResponse>
+const READING_ROUTE_ITEM_TYPES: READING_ROUTE_ITEM_TYPES: readonly ["multiple-choice", "fill-in-the-blanks", "gap-select"]
+const ROUTE_NOTE_MAX_LENGTH: ROUTE_NOTE_MAX_LENGTH = 280
+const ROUTE_SEGMENTER: ROUTE_SEGMENTER = "lk-sentences@1"
+const ROUTE_STRATEGIES: ROUTE_STRATEGIES: Readonly<Record<RouteStrategyId, RouteStrategy>>
+const ROUTE_STRATEGY_IDS: ROUTE_STRATEGY_IDS: readonly RouteStrategyId[]
+const ROUTE_WORD_LIMIT_MAX: ROUTE_WORD_LIMIT_MAX = 10
 const SCRIPT_MAX_TURNS: SCRIPT_MAX_TURNS = 500
 const SPEECH_ASSESSMENT_MAX_WORDS: SPEECH_ASSESSMENT_MAX_WORDS = 1000
 const stimulusJsonSchema: stimulusJsonSchema: Record<string, unknown>
@@ -105,10 +111,12 @@ function composeTimelineScore: declare function composeTimelineScore(entryKey: s
 function computePassThreshold: declare function computePassThreshold(activityData: ActivityData, score: number, rounding?: RoundingPolicy): boolean;
 function contentHash: declare function contentHash(value: unknown): string;
 function contentJsonSchema: declare function contentJsonSchema(options?: { target?: JsonSchemaTarget; }): Record<string, unknown>;
+function countParagraphs: declare function countParagraphs(body: string): number;
 function countWords: declare function countWords(text: string): number;
 function createDraft: declare function createDraft<T extends ActivityType>(type: T, context: DraftContext): ActivityDataMap[T];
 function createInteractiveVideoDraft: declare function createInteractiveVideoDraft(context: DraftContext): ItemGroup;
 function createItemGroupDraft: declare function createItemGroupDraft(context: DraftContext): ItemGroup;
+function createReadingRouteDraft: declare function createReadingRouteDraft(context: DraftContext): ItemGroup;
 function critiqueDraft: declare function critiqueDraft(type: ActivityType, draft: unknown): ItemFinding[];
 function critiqueDrafts: declare function critiqueDrafts(entries: readonly unknown[]): ItemFinding[];
 function critiqueItemGroupDraft: declare function critiqueItemGroupDraft(draft: unknown): ItemFinding[];
@@ -120,6 +128,7 @@ function diffResponses: declare function diffResponses(before: Pick<AttemptState
 function entryKeyOf: declare function entryKeyOf(slotId: string): string;
 function evaluate: declare function evaluate(data: ActivityData, response: LearnerResponse, options?: EvaluateOptions): ItemOutcome;
 function evaluateTries: declare function evaluateTries(data: ActivityData, responses: readonly LearnerResponse[], options?: EvaluateOptions): ItemTriesOutcome;
+function findQuote: declare function findQuote(body: string, quote: RouteQuote | unknown): QuoteMatch;
 function fingerprint: declare function fingerprint(input: string): string;
 function flattenSequence: declare function flattenSequence<TItem extends { id: string; type: string; }>(entries: readonly SequenceEntry<TItem>[], options?: FlattenSequenceOptions): SequenceSlot<TItem>[];
 function generateDrafts: declare function generateDrafts(input: { newId: () => string; port: (request: AiDraftsRequest) => Promise<unknown> | unknown; repairs?: number; request: AiDraftsRequest; }): Promise<AiDraftsRun>;
@@ -140,18 +149,30 @@ function interactiveVideoFromDrafts: declare function interactiveVideoFromDrafts
 function isBuiltInActivityType: declare function isBuiltInActivityType(type: unknown): type is BuiltInActivityType;
 function isInteractiveVideoItemType: declare function isInteractiveVideoItemType(type: unknown): type is InteractiveVideoItemType;
 function isItemGroup: declare function isItemGroup<TItem extends { type: string; }>(entry: SequenceEntry<TItem>): entry is ItemGroup<TItem>;
+function isReadingRouteItemType: declare function isReadingRouteItemType(type: unknown): type is ReadingRouteItemType;
+function isRouteStrategyId: declare function isRouteStrategyId(id: unknown): id is RouteStrategyId;
 function jsonSchemaFor: declare function jsonSchemaFor(type: string, options?: { target?: JsonSchemaTarget; }): Record<string, unknown>;
 function levenshteinDistance: declare function levenshteinDistance(a: string, b: string, max: number): number;
 function listMediaRefs: declare function listMediaRefs(entry: unknown): MediaRef[];
 function mapMediaRefs: declare function mapMediaRefs<T>(entry: T, fn: (ref: MediaRef) => null | string): T;
+function markedSentences: declare function markedSentences(trace: RouteTrace, question: string): number[];
+function marksFindEvidence: declare function marksFindEvidence(marked: readonly number[], evidence: readonly number[]): boolean;
 function matchText: declare function matchText(input: string, accepted: readonly string[] | string, policy?: TextMatchPolicy): TextMatchResult;
+function nextRouteLearnerState: declare function nextRouteLearnerState(state: RouteLearnerState | null | undefined, summary: RouteSummary, options?: RouteFadingOptions): RouteLearnerState;
 function outcomeFromGrade: declare function outcomeFromGrade(grade: GradeRecord): ItemOutcome;
 function outcomeFromRoutedGrade: declare function outcomeFromRoutedGrade(grade: GradeRecord, routing: GradeRouting): ItemOutcome;
 function outcomeFromUnscorable: declare function outcomeFromUnscorable(result: { code: string; reason: string; }): ItemOutcome;
+function overlaps: declare function overlaps(a: TextRange, b: TextRange): boolean;
+function passageLayout: declare function passageLayout(body: string, route?: { paragraphLabels?: readonly string[]; sections?: readonly RouteSection[]; }): PassageLayout;
 function planAttempt: declare function planAttempt<TItem extends { id: string; type: string; }>(entries: readonly SequenceEntry<TItem>[], options?: PlanAttemptOptions<TItem>): AttemptPlan;
 function planMediaBudgets: declare function planMediaBudgets(plan: AttemptPlan): Record<string, number>;
+function planRoute: declare function planRoute(group: ItemGroup, options?: PlanRouteOptions): RoutePlan;
+function questionKey: declare function questionKey(itemId: string, partId?: string): string;
+function quoteText: declare function quoteText(quote: RouteQuote | unknown): string;
 function readAiTextResult: declare function readAiTextResult(raw: unknown): { ok: false; refusal: AiRefusal; } | { ok: true; result: AiTextResult; };
 function readMediaProgress: declare function readMediaProgress(value: unknown, duration?: number): MediaProgress | null;
+function readRouteLearnerState: declare function readRouteLearnerState(value: unknown): RouteLearnerState;
+function readRouteTrace: declare function readRouteTrace(value: unknown): RouteTrace | null;
 function redact: declare function redact<T extends { type: string; }>(data: T, options?: RedactOptions): RedactedActivityData;
 function redactItemGroup: declare function redactItemGroup<TItem extends { type: string; }>(group: ItemGroup<TItem>, options?: RedactOptions): RedactedItemGroup;
 function registerActivityType: declare function registerActivityType<TData extends { type: string; }, TResponse>(descriptor: ActivityTypeDescriptor<TData, TResponse>): void;
@@ -162,15 +183,23 @@ function resolvePlaybackPolicy: declare function resolvePlaybackPolicy(media: Ac
 function restoreAttemptState: declare function restoreAttemptState(plan: AttemptPlan, state: AttemptState): AttemptState;
 function restoreMediaPlayLedger: declare function restoreMediaPlayLedger(plan: AttemptPlan, stored: MediaPlayLedger): MediaPlayLedger;
 function roundGrade: declare function roundGrade(value: number, policy: RoundingPolicy): number;
+function routeAnswers: declare function routeAnswers(group: ItemGroup, responses: Readonly<Record<string, LearnerResponse | undefined>>, outcomes?: Readonly<Record<string, ItemOutcome | undefined>>): Record<string, RouteAnswer>;
 function routeGrade: declare function routeGrade(grade: GradeRecord, context: GradeRoutingContext): GradeRouting;
+function routeIssues: declare function routeIssues(group: unknown, scope?: 'content' | 'redacted'): RouteIssue[];
+function routeLevels: declare function routeLevels(group: ItemGroup, state: RouteLearnerState | null | undefined, options?: { entry?: RouteLevel; level?: RouteLevel; }): Partial<Record<RouteStrategyId, RouteLevel>>;
+function routePassageFingerprint: declare function routePassageFingerprint(body: string): string;
+function routeStepText: declare function routeStepText(step: RouteStep): string;
+function routeTrapText: declare function routeTrapText(trap: PlannedTrap): string;
 function score: declare function score(activityType: ActivityType, activityData: ActivityData, learnerResponse: LearnerResponse, options?: ScoringOptions): ScoringResult;
 function scoredItemsFromPlan: declare function scoredItemsFromPlan(plan: AttemptPlan, outcomes: Readonly<Record<string, ItemOutcome>>, options?: { missing?: MissingOutcomePolicy; }): ScoredItem[];
 function scoreTries: declare function scoreTries(tries: readonly ItemTry[], policy?: ItemScoringPolicy | ResolvedItemScoringPolicy | null): ItemTriesScore;
 function seededShuffle: declare function seededShuffle<T>(items: readonly T[], seed: string, options: SeededShuffleOptions & { version: ShuffleVersion; }): T[]; declare function seededShuffle<T>(items: readonly T[], seed: string, options?: SeededShuffleOptions): T[];
+function sentencesTouching: declare function sentencesTouching(layout: PassageLayout, range: TextRange): number[];
 function serializeAttemptState: declare function serializeAttemptState(plan: AttemptPlan, progress: AttemptProgress): AttemptState;
 function serializeMediaPlayLedger: declare function serializeMediaPlayLedger(plan: AttemptPlan, entries: Readonly<Record<string, MediaPlayLedgerEntry>>, options?: { savedAt?: string; }): MediaPlayLedger;
 function slotMediaKey: declare function slotMediaKey(slotId: string): string;
 function stimulusMediaKey: declare function stimulusMediaKey(slotId: string): string;
+function summarizeRoute: declare function summarizeRoute(group: ItemGroup, trace: RouteTrace, answers: Readonly<Record<string, RouteAnswer | undefined>>): RouteSummary;
 function transcriptOf: declare function transcriptOf(holder: unknown): null | string;
 function validateActivity: declare function validateActivity<T extends ActivityType>(type: T, data: unknown): ValidationResult<ActivityDataMap[T]>;
 function validateDeliveryPolicy: declare function validateDeliveryPolicy(policy: unknown): { data: DeliveryPolicy; success: true; } | { issues: DeliveryPolicyIssue[]; success: false; };
@@ -312,7 +341,7 @@ interface GradeSpeakingResponseOptions: interface GradeSpeakingResponseOptions e
 interface InlineCorrection: interface InlineCorrection { original: string; corrected: string; explanation?: string; range?: { end: number; start: number; }; category?: string; }
 interface InteractionEvent: interface InteractionEvent { type: InteractionKind; activityId: string; timestamp: number; payload: Record<string, unknown>; }
 interface ItemFinding: interface ItemFinding extends ValidationError { severity: ItemFindingSeverity; related?: string[][]; }
-interface ItemGroup: interface ItemGroup<TItem = ActivityData> { schemaVersion: '1.0'; type: 'item-group'; id: string; title?: string; slotKey?: string; stimulus: Stimulus; items: (TItem & { slotKey?: string; })[]; shuffle?: 'none' | 'within-group'; timeline?: MediaTimeline; }
+interface ItemGroup: interface ItemGroup<TItem = ActivityData> { schemaVersion: '1.0'; type: 'item-group'; id: string; title?: string; slotKey?: string; stimulus: Stimulus; items: (TItem & { slotKey?: string; })[]; shuffle?: 'none' | 'within-group'; timeline?: MediaTimeline; route?: ReadingRoute; }
 interface ItemScoringPolicy: interface ItemScoringPolicy { hintPenalty?: null | number; retries?: null | number; retryPenalty?: null | number; counts?: ItemScoringCount | null; }
 interface ItemScoringPolicyIssue: interface ItemScoringPolicyIssue { path: string; message: string; }
 interface ItemTriesOutcome: interface ItemTriesOutcome { outcome: ItemOutcome; counted: null | number; tries: ItemTryScore[]; }
@@ -336,12 +365,22 @@ interface MultipleChoiceData: interface MultipleChoiceData { schemaVersion: '1.0
 interface MultipleChoiceLearnerResponse: interface MultipleChoiceLearnerResponse { type: 'multiple-choice'; selectedOptionIds: string[]; hintsRevealed?: number; }
 interface MultipleChoiceOption: interface MultipleChoiceOption { id: string; text: string; isCorrect: boolean; feedback?: string; media?: MultipleChoiceOptionMedia; }
 interface MultipleChoiceOptionMedia: interface MultipleChoiceOptionMedia { type: 'audio' | 'image'; url: string; alt?: string; captionsUrl?: string; transcript?: string; script?: ScriptTurn[]; }
+interface PassageLayout: interface PassageLayout { paragraphs: PassageParagraph[]; sentences: PassageSentence[]; sections: PassageSection[]; }
+interface PassageParagraph: interface PassageParagraph extends TextRange { index: number; label?: string; section?: number; }
+interface PassageSection: interface PassageSection { label: string; title?: string; first: number; last: number; }
+interface PassageSentence: interface PassageSentence extends TextRange { index: number; paragraph: number; }
 interface PlanAttemptOptions: interface PlanAttemptOptions<TItem> { shuffleEntries?: boolean; seed?: string; points?: (slot: SequenceSlot<TItem>) => number; delivery?: DeliveryPolicy | null; scoring?: ItemScoringPolicy | null; }
+interface PlannedPair: interface PlannedPair { index: number; question?: string; passage?: QuotedRange; from?: QuotedRange; to?: QuotedRange; }
+interface PlannedQuestion: interface PlannedQuestion { key: string; itemId: string; partId?: string; number: number; strategy: RouteStrategyId; level: RouteLevel; evidence: TextRange[]; evidenceMatch: 'all' | 'any'; evidenceSentences: number[]; pairs: PlannedPair[]; traps: PlannedTrap[]; wordLimit?: number; notes: Partial<Record<RouteMoveId, string>>; }
+interface PlannedTrap: interface PlannedTrap { optionId: string; kind: RouteTrapKind; option?: string; lure?: QuotedRange; }
+interface PlanRouteOptions: interface PlanRouteOptions { levels?: Partial<Record<RouteStrategyId, RouteLevel>>; level?: RouteLevel; }
+interface QuotedRange: interface QuotedRange extends TextRange { text: string; }
 interface ReadAloudData: interface ReadAloudData { schemaVersion: '1.0'; type: 'read-aloud'; id: string; title: string; instructions?: string; referenceText: string; locale: string; media?: ActivityMedia; slowMedia?: ReadAloudSlowMedia; recording: RecordingBounds; scoring: { dimensions: ReadAloudDimensionWeight[]; }; passThreshold?: number; feedback?: ActivityFeedback; learningObjectives?: string[]; difficultyLevel?: 1 | 2 | 3 | 4 | 5; ai?: ActivityAiPermissions; }
 interface ReadAloudDimensionWeight: interface ReadAloudDimensionWeight { name: ReadAloudDimension; weight: number; }
 interface ReadAloudLearnerResponse: interface ReadAloudLearnerResponse { type: 'read-aloud'; recording: RecordingRef | null; takes?: number; }
 interface ReadAloudSlowMedia: interface ReadAloudSlowMedia { type: 'audio'; url: string; alt?: string; }
 interface ReadAloudWordAlignment: interface ReadAloudWordAlignment { itemId?: string; reference: string; heard: string; state: ReadAloudWordState; accuracy?: number; wordIndex?: number; }
+interface ReadingRoute: interface ReadingRoute { routeVersion: '1.0'; startAt?: number; paragraphLabels?: string[]; sections?: RouteSection[]; questions: RouteQuestion[]; }
 interface RecordingBounds: interface RecordingBounds { maxSeconds: number; minSeconds?: number; maxTakes?: number; }
 interface RecordingRef: interface RecordingRef { key: string; mimeType: string; durationMs?: number; }
 interface RedactedActivityData: interface RedactedActivityData { redacted: true; schemaVersion: string; type: string; id: string; title: string; [key: string]: unknown; }
@@ -366,6 +405,22 @@ interface ResolvedItemScoringPolicy: interface ResolvedItemScoringPolicy { hintP
 interface ResolvedPlaybackPolicy: interface ResolvedPlaybackPolicy { controls: 'minimal' | 'native'; maxPlays: null | number; seek: 'allow' | 'none'; rate: 'allow' | 'fixed'; nativeControlHints: readonly NativeControlHint[]; }
 interface ResponseDiffEntry: interface ResponseDiffEntry { slotId: string; change: 'added' | 'changed' | 'removed'; before?: LearnerResponse; after?: LearnerResponse; }
 interface RoundingPolicy: interface RoundingPolicy { mode: RoundingMode; dp: number; }
+interface RouteAnswer: interface RouteAnswer { correct: boolean | null; chosen?: string; written?: string; }
+interface RouteFadingOptions: interface RouteFadingOptions { promoteAfter?: number; demoteAfter?: number; entry?: RouteLevel; remember?: number; }
+interface RouteIssue: interface RouteIssue { code: RouteIssueCode; path: (number | string)[]; message: string; }
+interface RouteKeyword: interface RouteKeyword { question: string; passage?: RouteQuote; }
+interface RouteLearnerState: interface RouteLearnerState { stateVersion: '1'; strategies: Partial<Record<RouteStrategyId, { level: RouteLevel; streak: number; }>>; seen: string[]; }
+interface RouteLink: interface RouteLink { from: RouteQuote; to: RouteQuote; }
+interface RoutePlan: interface RoutePlan { layout: PassageLayout; questions: PlannedQuestion[]; steps: RouteStep[]; levels: Partial<Record<RouteStrategyId, RouteLevel>>; }
+interface RouteQuestion: interface RouteQuestion { itemId: string; partId?: string; strategy: RouteStrategyId; evidence: RouteQuote[]; evidenceMatch?: 'all' | 'any'; keywords?: RouteKeyword[]; links?: RouteLink[]; wordLimit?: number; traps?: RouteTrap[]; notes?: Partial<Record<RouteMoveId, string>>; }
+interface RouteQuestionSummary: interface RouteQuestionSummary { key: string; itemId: string; partId?: string; number: number; strategy: RouteStrategyId; level: RouteLevel; located: boolean | null; tries: number; shown: boolean; correct: boolean | null; cause: RouteCause | null; chosen?: string; trap?: RouteTrapKind; seconds: null | number; }
+interface RouteSection: interface RouteSection { label: string; title?: string; paragraphs: number; }
+interface RouteStep: interface RouteStep { id: string; move: RouteMoveId; level: RouteLevel; question?: string; number?: number; strategy?: RouteStrategyId; highlight: TextRange[]; context: TextRange[]; zone?: TextRange; part?: RouteQuestionPart; phrases: string[]; pairs: PlannedPair[]; traps: PlannedTrap[]; ask?: 'locate'; note?: string; params: { previous?: number; region?: string; wordLimit?: number; }; }
+interface RouteStrategy: interface RouteStrategy { id: RouteStrategyId; title: string; serves: string; itemTypes: readonly ReadingRouteItemType[]; moves: readonly RouteMoveId[]; followsOrder: boolean; }
+interface RouteStrategySummary: interface RouteStrategySummary { strategy: RouteStrategyId; level: RouteLevel; questions: number; correct: number; located: number; locatable: number; }
+interface RouteSummary: interface RouteSummary { groupId: string; questions: RouteQuestionSummary[]; strategies: RouteStrategySummary[]; correct: number; total: number; seconds: null | number; }
+interface RouteTrace: interface RouteTrace { traceVersion: '1'; passage: string; events: RouteEvent[]; }
+interface RouteTrap: interface RouteTrap { optionId: string; kind: RouteTrapKind; lure?: RouteQuote; }
 interface ScoredItem: interface ScoredItem { slotId: string; activityId?: string; points: number; outcome: ItemOutcome; }
 interface ScoringDetail: interface ScoringDetail { itemId: string; outcome: ScoringOutcome; learnerResponse: string | string[]; correctResponse: string | string[]; weight?: number; score?: number; }
 interface ScoringOptions: interface ScoringOptions { rounding?: RoundingPolicy; }
@@ -393,7 +448,8 @@ interface Stimulus: interface Stimulus { id: string; kind: StimulusKind; title?:
 interface SubmittedStatementParams: interface SubmittedStatementParams { actor: XAPIActor; object: XAPIObjectParams; timeSpentMs: number; response?: string; context?: XAPIContext; resultExtensions?: Record<string, unknown>; }
 interface TextMatchPolicy: interface TextMatchPolicy { caseSensitive?: boolean; trim?: boolean; normalize?: 'NFC' | 'NFKC' | 'none'; foldDiacritics?: boolean; collapseInnerWhitespace?: boolean; ignorePunctuation?: boolean; levenshtein?: number; locale?: string; }
 interface TextMatchResult: interface TextMatchResult { matched: boolean; via: 'exact' | 'folded' | 'fuzzy' | 'none' | 'normalized'; }
-interface ThemeTokens: interface ThemeTokens { '--lk-color-primary': string; '--lk-color-primary-hover': string; '--lk-color-surface': string; '--lk-color-surface-raised': string; '--lk-color-border': string; '--lk-color-text': string; '--lk-color-text-muted': string; '--lk-color-success': string; '--lk-color-error': string; '--lk-color-warning': string; '--lk-color-focus-ring': string; '--lk-color-media-accent'?: string; '--lk-iv-caption-color'?: string; '--lk-iv-caption-secondary-color'?: string; '--lk-iv-caption-secondary-scale'?: string; '--lk-iv-caption-gap'?: string; '--lk-spacing-xs': string; '--lk-spacing-sm': string; '--lk-spacing-md': string; '--lk-spacing-lg': string; '--lk-spacing-xl': string; '--lk-font-family-base': string; '--lk-font-size-sm': string; '--lk-font-size-base': string; '--lk-font-size-lg': string; '--lk-font-weight-normal': string; '--lk-font-weight-bold': string; '--lk-line-height-base': string; '--lk-radius-sm': string; '--lk-radius-base': string; '--lk-radius-lg': string; '--lk-transition-fast': string; '--lk-transition-base': string; }
+interface TextRange: interface TextRange { start: number; end: number; }
+interface ThemeTokens: interface ThemeTokens { '--lk-color-primary': string; '--lk-color-primary-hover': string; '--lk-color-surface': string; '--lk-color-surface-raised': string; '--lk-color-border': string; '--lk-color-text': string; '--lk-color-text-muted': string; '--lk-color-success': string; '--lk-color-error': string; '--lk-color-warning': string; '--lk-color-focus-ring': string; '--lk-color-media-accent'?: string; '--lk-iv-caption-color'?: string; '--lk-iv-caption-secondary-color'?: string; '--lk-iv-caption-secondary-scale'?: string; '--lk-iv-caption-gap'?: string; '--lk-route-highlight'?: string; '--lk-route-context'?: string; '--lk-route-pair'?: string; '--lk-route-mark'?: string; '--lk-route-dim'?: string; '--lk-spacing-xs': string; '--lk-spacing-sm': string; '--lk-spacing-md': string; '--lk-spacing-lg': string; '--lk-spacing-xl': string; '--lk-font-family-base': string; '--lk-font-size-sm': string; '--lk-font-size-base': string; '--lk-font-size-lg': string; '--lk-font-weight-normal': string; '--lk-font-weight-bold': string; '--lk-line-height-base': string; '--lk-radius-sm': string; '--lk-radius-base': string; '--lk-radius-lg': string; '--lk-transition-fast': string; '--lk-transition-base': string; }
 interface TimelineChapter: interface TimelineChapter { at: number; title: string; }
 interface TimelineCue: interface TimelineCue { id: string; at: number; itemIds: string[]; title?: string; required?: boolean; }
 interface TotalCalibration: interface TotalCalibration { pairs: number; pearson: null | number; meanAbsoluteError: null | number; standardizedMeanDifference: null | number; passAgreement: null | number; humanPairs?: number; humanPearson?: null | number; degradation?: null | number; }
@@ -460,11 +516,22 @@ type NativeControlHint: type NativeControlHint = 'hide-download' | 'hide-rate';
 type PartialScoringResult: type PartialScoringResult = Omit<ScoringResult, 'passed'>;
 type PassFailureReason: type PassFailureReason = 'both' | 'overall_below_threshold' | 'section_below_threshold' | null;
 type PlannableEntry: type PlannableEntry = SequenceEntry<ActivityData>;
+type QuoteMatch: type QuoteMatch = { count: number; found: false; reason: 'ambiguous' | 'empty' | 'missing' | 'occurrence'; } | { found: true; range: TextRange; };
 type ReadAloudDimension: type ReadAloudDimension = 'accuracy' | 'completeness' | 'fluency' | 'prosody';
 type ReadAloudWordState: type ReadAloudWordState = 'correct' | 'inserted' | 'mispronounced' | 'omitted';
+type ReadingRouteItemType: type ReadingRouteItemType = (typeof READING_ROUTE_ITEM_TYPES)[number];
 type RedactedActivity: type RedactedActivity = RedactedDictationData | RedactedFillInTheBlanksData | RedactedGapSelectData | RedactedMultipleChoiceData | RedactedReadAloudData | RedactedWrittenResponseData;
 type RedactedItemGroup: type RedactedItemGroup = ItemGroup<RedactedActivityData> & { redacted: true; };
 type RoundingMode: type RoundingMode = 'ceil' | 'floor' | 'half-even' | 'half-up';
+type RouteCause: type RouteCause = 'limit' | 'meaning' | 'search' | 'trap' | 'unanswered' | 'unknown';
+type RouteEvent: type RouteEvent = { at: number; hit: boolean; question: string; sentence: number; type: 'located'; } | { at: number; levels: Partial<Record<RouteStrategyId, RouteLevel>>; type: 'started'; } | { at: number; on: boolean; question: string; sentence: number; type: 'marked'; } | { at: number; question: string; type: 'answered'; } | { at: number; question: string; type: 'shown'; } | { at: number; question?: string; step: string; type: 'step'; } | { at: number; type: 'finished'; };
+type RouteIssueCode: type RouteIssueCode = 'ig_route_answer_over_limit' | 'ig_route_body_required' | 'ig_route_evidence_required' | 'ig_route_item_type' | 'ig_route_keyword_not_in_question' | 'ig_route_note_move_unknown' | 'ig_route_note_reveals_answer' | 'ig_route_note_too_long' | 'ig_route_paragraph_labels' | 'ig_route_question_duplicate' | 'ig_route_question_item_unknown' | 'ig_route_question_missing' | 'ig_route_question_part_not_allowed' | 'ig_route_question_part_required' | 'ig_route_question_part_unknown' | 'ig_route_quote_ambiguous' | 'ig_route_quote_not_found' | 'ig_route_sections' | 'ig_route_shuffle' | 'ig_route_stimulus_kind' | 'ig_route_strategy_item_type' | 'ig_route_strategy_required' | 'ig_route_strategy_unknown' | 'ig_route_trap_on_answer' | 'ig_route_trap_option_unknown' | 'ig_route_with_timeline' | 'ig_route_word_limit_type';
+type RouteLevel: type RouteLevel = 'coached' | 'solo' | 'walkthrough';
+type RouteMoveId: type RouteMoveId = 'check-answer' | 'cohesion' | 'compare-views' | 'decide' | 'eliminate' | 'keywords' | 'locate' | 'paraphrase' | 'predict' | 'read-around' | 'read-instructions' | 'survey';
+type RouteQuestionPart: type RouteQuestionPart = 'answer' | 'instructions' | 'options' | 'question';
+type RouteQuote: type RouteQuote = string | { occurrence?: number; text: string; };
+type RouteStrategyId: type RouteStrategyId = 'completion' | 'cross-text' | 'gapped-text' | 'matching-features' | 'matching-headings' | 'matching-information' | 'multiple-choice' | 'multiple-matching' | 'sentence-endings' | 'summary-word-list' | 'tfng' | 'ynng';
+type RouteTrapKind: type RouteTrapKind = 'not-the-question' | 'opposite' | 'outside-knowledge' | 'partial' | 'too-general' | 'too-specific' | 'word-match';
 type ScoringOutcome: type ScoringOutcome = 'correct' | 'correct-omission' | 'incorrect' | 'incorrect-omission';
 type Sensitivity: type Sensitivity = 'answer-key' | 'author-only' | 'public';
 type SequenceEntry: type SequenceEntry<TItem = ActivityData> = (TItem & { slotKey?: string; }) | ItemGroup<TItem>;
