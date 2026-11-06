@@ -28,6 +28,8 @@ export type {
   RedactedMultipleChoiceData,
   RedactedMultipleChoiceOption,
   RedactedMultipleChoiceOptionMedia,
+  RedactedOrderingData,
+  RedactedOrderingItem,
   RedactedReadAloudData,
   RedactedStimulus,
   RedactedWrittenResponseData,

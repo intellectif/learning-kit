@@ -13,6 +13,7 @@ import type {
   MarkTheWordsData,
   MatchingData,
   MultipleChoiceData,
+  OrderingData,
   ReadAloudData,
   RecordingRef,
   SpeakingResponseData,
@@ -38,6 +39,7 @@ import {
 import { MarkTheWords } from '../../components/MarkTheWords/index.js';
 import { Matching } from '../../components/Matching/index.js';
 import { MultipleChoice } from '../../components/MultipleChoice/index.js';
+import { Ordering } from '../../components/Ordering/index.js';
 import { PronunciationFeedback } from '../../components/PronunciationFeedback/index.js';
 import { ReadAloud } from '../../components/ReadAloud/index.js';
 import type { ReadAloudAssessResult } from '../../components/ReadAloud/ReadAloud.js';
@@ -564,6 +566,36 @@ describe('translation coverage', () => {
     sweep(<MarkTheWords data={mw} onComplete={vi.fn()} />);
     await user.click(screen.getByRole('option', { name: 'corrió' }));
     await user.click(screen.getByRole('option', { name: 'casa' }));
+    keep(document.body);
+    await user.click(screen.getByRole('button', { name: sentinel('checkAnswers') }));
+    keep(document.body);
+    cleanup();
+
+    // ── Ordering: the list, its move buttons, the move read out, both marks
+    //    and the right order ─────────────────────────────────────────────────
+    const or = {
+      schemaVersion: '1.0',
+      type: 'ordering',
+      id: 'or1',
+      title: 'Pasos',
+      items: [
+        { id: 'a', text: 'Hervir el agua.' },
+        { id: 'b', text: 'Echar la pasta.' },
+        { id: 'c', text: 'Escurrirla.' },
+      ],
+      scoringStrategy: 'partial',
+    } satisfies OrderingData;
+    // a c b; moving a down gives c a b: c and a out of order, b in order.
+    sweep(
+      <Ordering
+        data={or}
+        defaultValue={{ type: 'ordering', order: ['a', 'c', 'b'] }}
+        onComplete={vi.fn()}
+      />,
+    );
+    await user.click(
+      screen.getAllByRole('button', { name: sentinel('orderMoveDown') })[0] as HTMLElement,
+    );
     keep(document.body);
     await user.click(screen.getByRole('button', { name: sentinel('checkAnswers') }));
     keep(document.body);

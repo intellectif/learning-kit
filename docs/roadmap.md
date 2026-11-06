@@ -735,7 +735,16 @@ next was the [delivery policy, then AI](#next--the-delivery-policy-then-ai); wha
   targets entirely, their number included. **Out of scope, deliberately:** marking inside words or
   across punctuation, scripts written without spaces (one run is one word), and AI help for the
   type.
-- **`ordering` — the next activity type** (maintainer, 2026-11-06).
+- ✅ **`ordering` — SHIPPED** in lk-core 1.15.0 / lk-react 23.12.0, third in the maintainer's
+  order of 2026-11-06. Items the learner puts in order: sentences, steps, events, turns. Credit by
+  links, as the gap analysis required: an item is right when it follows the item it should, or is
+  rightly first, so one item moved to the front costs two items rather than every one after it.
+  Items are authored in their right order, which is the key, so `orderingStart` seeds the order
+  every presentation starts in — none of it in place, so an untouched answer scores 0 — and
+  `redact()` lists a learner's copy in that order. The critic warns when ids or numbering give the
+  order away. Move buttons, not dragging (WCAG 2.5.7). **Out of scope, deliberately:** a drag
+  presentation, fixed items ("the first is done for you"), items with media, and AI help for the
+  type.
 - **`short-answer` — not needed for now** (maintainer, 2026-11-06).
 - ✅ **`speaking-response` — SHIPPED** in lk-core 1.9 / lk-react 23.5, on the groundwork in
   [After 1.4](#after-14--speaking-on-calibrated-grading).
@@ -1160,8 +1169,8 @@ it. It comes after the groundwork it needs, in this order.
      feedback on a spoken draft in practice.
 5. **Then the types an item bank may ask for soon**, in the maintainer's order of 2026-11-06:
    `matching` (✅ shipped in 1.13.0 / 23.10.0), `mark-the-words` (✅ shipped in 1.14.0 /
-   23.11.0), then `ordering`. `short-answer`
-   is not needed for now.
+   23.11.0), then `ordering` (✅ shipped in 1.15.0 / 23.12.0). `short-answer` is not needed for
+   now.
 
 Everything else open stays unordered until it is chosen: `analyzeItem` (statistics, no AI), the
 headless layer with CSS dark mode and a reduced-motion pass (web components rest on it), registry

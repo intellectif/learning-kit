@@ -9,6 +9,7 @@ export * from './components/InteractiveVideo/index.js';
 export * from './components/MarkTheWords/index.js';
 export * from './components/Matching/index.js';
 export * from './components/MultipleChoice/index.js';
+export * from './components/Ordering/index.js';
 export * from './components/PronunciationFeedback/index.js';
 export * from './components/ReadAloud/index.js';
 export * from './components/ReadingRoute/index.js';

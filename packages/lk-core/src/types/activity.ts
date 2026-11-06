@@ -28,6 +28,7 @@ export interface ActivityDataMap {
   'speaking-response': SpeakingResponseData;
   matching: MatchingData;
   'mark-the-words': MarkTheWordsData;
+  ordering: OrderingData;
 }
 
 /**
@@ -627,6 +628,71 @@ export interface MarkTheWordsData {
   ai?: ActivityAiPermissions;
 }
 
+/** One item of an ordering activity: a sentence, a step, a paragraph, an event. */
+export interface OrderingItem {
+  /**
+   * Unique within the activity. A response names items by id, and an id
+   * survives redaction: never number or letter ids in the right order
+   * (`"1"`, `"2"`… or `"a"`, `"b"`…), which would hand the order to an exam
+   * learner who reads the payload — the critic warns when they sort that way.
+   */
+  id: string;
+  /** What the learner reads and moves, as plain text. */
+  text: string;
+  /** Optional feedback shown beside the item after submission. */
+  feedback?: string;
+}
+
+/**
+ * Data contract for an Ordering activity: items the learner puts in order —
+ * the sentences of a paragraph, the steps of a process, the events of a story,
+ * the turns of a dialogue.
+ *
+ * `items` is written in the right order: that order is the answer key. No
+ * presentation shows it. Every one starts from `orderingStart`, and a
+ * redacted copy lists the items in that order, so the key does not travel with
+ * an exam paper either.
+ *
+ * **Scoring.** Each item counts once, and is right when it follows the item
+ * that should come before it — or, for the item that should come first, when
+ * it is first. `partial` scores the items right / the items; a learner who
+ * puts the whole sequence in order but one item at the front loses two items,
+ * not all of them. `all-or-nothing` needs every item right, which is the right
+ * order exactly.
+ */
+export interface OrderingData {
+  schemaVersion: '1.0';
+  type: 'ordering';
+  /** Unique identifier for this activity. Seeds the order the items start in. */
+  id: string;
+  /** Human-readable title used in xAPI statements and error boundaries. */
+  title: string;
+  /**
+   * Optional instructions shown to the learner, as plain text: the task, read
+   * before the items ("Put the sentences in order to make a paragraph."). Every
+   * AI request about the item carries them.
+   */
+  instructions?: string;
+  /** The items, in their right order. From 2 to 30; no two read the same. */
+  items: OrderingItem[];
+  /** Scoring algorithm applied when the learner submits. */
+  scoringStrategy: 'all-or-nothing' | 'partial';
+  /** Optional media shown above the items. */
+  media?: ActivityMedia;
+  /** Optional authored overall feedback shown after submission. */
+  feedback?: ActivityFeedback;
+  /** Minimum scaled score [0–1] required to pass. Defaults to {@link DEFAULT_PASS_THRESHOLD} (0.7) when absent. */
+  passThreshold?: number;
+  /** BCP 47 language tag for the activity content. */
+  locale?: string;
+  /** IRI references to learning objectives addressed by this activity. */
+  learningObjectives?: string[];
+  /** Subjective difficulty on a 1–5 scale. */
+  difficultyLevel?: 1 | 2 | 3 | 4 | 5;
+  /** What an author allows AI to do for this item: see {@link ActivityAiPermissions}. */
+  ai?: ActivityAiPermissions;
+}
+
 export interface FillInTheBlanksData {
   schemaVersion: '1.0';
   type: 'fill-in-the-blanks';
@@ -978,6 +1044,7 @@ export interface LearnerResponseMap {
   'speaking-response': SpeakingResponseLearnerResponse;
   matching: MatchingLearnerResponse;
   'mark-the-words': MarkTheWordsLearnerResponse;
+  ordering: OrderingLearnerResponse;
 }
 
 /** Union of all learner response shapes. */
@@ -1067,6 +1134,25 @@ export interface MarkTheWordsLearnerResponse {
   type: 'mark-the-words';
   /** Positions of the marked words. */
   marked: number[];
+  /**
+   * Hints the learner was shown before submitting this answer, counted from
+   * the start of the question — the author's and AI hints alike. Written by
+   * the SDK's components in `practice`; absent or 0 means none. A scoring
+   * policy's `hintPenalty` charges for them. Client-reported, like any count
+   * a browser makes.
+   */
+  hintsRevealed?: number;
+}
+
+/**
+ * Learner response for an Ordering activity: the item ids in the order the
+ * learner left them, first to last. An id that names no item, or repeats one,
+ * is ignored by the scorer; an item the response leaves out was not placed.
+ */
+export interface OrderingLearnerResponse {
+  type: 'ordering';
+  /** Item ids, first to last. */
+  order: string[];
   /**
    * Hints the learner was shown before submitting this answer, counted from
    * the start of the question — the author's and AI hints alike. Written by

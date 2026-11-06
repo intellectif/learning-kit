@@ -31,6 +31,9 @@
       "$ref": "#/$defs/mark-the-words"
     },
     {
+      "$ref": "#/$defs/ordering"
+    },
+    {
       "$ref": "#/$defs/item-group"
     }
   ],
@@ -3115,6 +3118,297 @@
       ],
       "additionalProperties": {}
     },
+    "ordering": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "type": {
+          "type": "string",
+          "const": "ordering"
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "instructions": {
+          "type": "string"
+        },
+        "items": {
+          "minItems": 2,
+          "maxItems": 30,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "feedback": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "text"
+            ],
+            "additionalProperties": {}
+          }
+        },
+        "scoringStrategy": {
+          "type": "string",
+          "enum": [
+            "all-or-nothing",
+            "partial"
+          ]
+        },
+        "media": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "image",
+                "audio",
+                "video",
+                "embed"
+              ]
+            },
+            "url": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uri"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^\\/(?!\\/)\\S*$"
+                }
+              ]
+            },
+            "alt": {
+              "type": "string",
+              "minLength": 1
+            },
+            "captionsUrl": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uri"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^\\/(?!\\/)\\S*$"
+                }
+              ]
+            },
+            "tracks": {
+              "minItems": 1,
+              "maxItems": 12,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "captions",
+                      "subtitles"
+                    ]
+                  },
+                  "src": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      {
+                        "type": "string",
+                        "pattern": "^\\/(?!\\/)\\S*$"
+                      }
+                    ]
+                  },
+                  "srclang": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+                  },
+                  "label": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "default": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "src",
+                  "srclang",
+                  "label"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "poster": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uri"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^\\/(?!\\/)\\S*$"
+                }
+              ]
+            },
+            "playback": {
+              "type": "object",
+              "properties": {
+                "controls": {
+                  "type": "string",
+                  "enum": [
+                    "native",
+                    "minimal"
+                  ]
+                },
+                "maxPlays": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 20
+                },
+                "seek": {
+                  "type": "string",
+                  "enum": [
+                    "allow",
+                    "none"
+                  ]
+                },
+                "rate": {
+                  "type": "string",
+                  "enum": [
+                    "allow",
+                    "fixed"
+                  ]
+                },
+                "nativeControlHints": {
+                  "minItems": 1,
+                  "maxItems": 2,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "hide-download",
+                      "hide-rate"
+                    ]
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "transcript": {
+              "type": "string"
+            },
+            "script": {
+              "minItems": 1,
+              "maxItems": 500,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "speaker": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "speaker",
+                  "text"
+                ],
+                "additionalProperties": {}
+              }
+            }
+          },
+          "required": [
+            "type",
+            "url"
+          ],
+          "additionalProperties": {}
+        },
+        "feedback": {
+          "type": "object",
+          "properties": {
+            "correct": {
+              "type": "string",
+              "minLength": 1
+            },
+            "incorrect": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": {}
+        },
+        "passThreshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "locale": {
+          "type": "string"
+        },
+        "learningObjectives": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "difficultyLevel": {
+          "type": "number",
+          "enum": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        "ai": {
+          "type": "object",
+          "properties": {
+            "explanations": {
+              "type": "boolean"
+            },
+            "hints": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "type",
+        "id",
+        "title",
+        "items",
+        "scoringStrategy"
+      ],
+      "additionalProperties": {}
+    },
     "stimulus": {
       "type": "object",
       "properties": {
@@ -3434,6 +3728,9 @@
                   },
                   {
                     "$ref": "#/$defs/mark-the-words"
+                  },
+                  {
+                    "$ref": "#/$defs/ordering"
                   }
                 ]
               }

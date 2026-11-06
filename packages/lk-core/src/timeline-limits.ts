@@ -17,9 +17,10 @@
  * plays only when the learner presses play while the video is paused. A
  * dictation must carry its own recording (the timeline rule).
  *
- * `speaking-response` joined in 1.10.0, `matching` in 1.13.0 and
- * `mark-the-words` in 1.14.0: a host with an exhaustive `switch` or `Record`
- * over {@link InteractiveVideoItemType} needs one more entry for each.
+ * `speaking-response` joined in 1.10.0, `matching` in 1.13.0,
+ * `mark-the-words` in 1.14.0 and `ordering` in 1.15.0: a host with an
+ * exhaustive `switch` or `Record` over {@link InteractiveVideoItemType} needs
+ * one more entry for each.
  */
 export const INTERACTIVE_VIDEO_ITEM_TYPES = [
   'multiple-choice',
@@ -30,6 +31,7 @@ export const INTERACTIVE_VIDEO_ITEM_TYPES = [
   'speaking-response',
   'matching',
   'mark-the-words',
+  'ordering',
 ] as const;
 
 /** One of {@link INTERACTIVE_VIDEO_ITEM_TYPES}. */

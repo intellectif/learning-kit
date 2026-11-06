@@ -429,6 +429,36 @@ const markTheWordsDraft = fc
   })
   .map(compact);
 
+const orderingItemArb = entry(
+  fc
+    .record({
+      // Two ids and two texts repeat, so duplicates are drawn.
+      id: fc.constantFrom<unknown>(undefined, null, '', ' ', 'k', 'q', 'w'),
+      text: fc.constantFrom<unknown>(
+        undefined,
+        null,
+        '',
+        '  ',
+        'Boil the water.',
+        'Boil  the water. ',
+        'Add the pasta.',
+        'Drain it.',
+      ),
+      feedback: optionalText,
+    })
+    .map(compact),
+);
+
+const orderingDraft = fc
+  .record({
+    ...envelope('ordering'),
+    instructions: optionalText,
+    items: orUnset(fc.array(orderingItemArb, { maxLength: 4 })),
+    scoringStrategy: fc.constantFrom<unknown>(undefined, null, '', 'all-or-nothing', 'partial'),
+    ...sharedArbs,
+  })
+  .map(compact);
+
 const LONG_TRANSCRIPT = 'a'.repeat(2001);
 const LONG_REWRITE = 'b'.repeat(201);
 
@@ -710,6 +740,7 @@ const EDITOR_DRAFTS = Object.entries({
   'speaking-response': speakingResponseDraft,
   matching: matchingDraft,
   'mark-the-words': markTheWordsDraft,
+  ordering: orderingDraft,
 } satisfies Record<BuiltInActivityType, fc.Arbitrary<Record<string, unknown>>>) as [
   BuiltInActivityType,
   fc.Arbitrary<Record<string, unknown>>,
@@ -728,6 +759,7 @@ const RESPONSES = {
   'speaking-response': { type: 'speaking-response', recording: null },
   matching: { type: 'matching', matches: { p1: 'i', p2: '' } },
   'mark-the-words': { type: 'mark-the-words', marked: [1, 4, 99] },
+  ordering: { type: 'ordering', order: ['q', 'k', 'zz', 'q'] },
 } satisfies Record<BuiltInActivityType, LearnerResponse>;
 
 describe('validateDraft properties', () => {

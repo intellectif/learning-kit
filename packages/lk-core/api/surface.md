@@ -30,7 +30,7 @@ const AI_VARIANTS_MAX_MATERIAL_LENGTH: AI_VARIANTS_MAX_MATERIAL_LENGTH = 12000
 const AI_VARIANTS_MAX_REPAIRS: AI_VARIANTS_MAX_REPAIRS = 3
 const AI_WRITING_MAX_CORRECTIONS: AI_WRITING_MAX_CORRECTIONS = 20
 const AI_WRITING_MAX_FIELD_LENGTH: AI_WRITING_MAX_FIELD_LENGTH = 500
-const BUILT_IN_ACTIVITY_TYPES: BUILT_IN_ACTIVITY_TYPES: readonly ["multiple-choice", "fill-in-the-blanks", "written-response", "gap-select", "dictation", "read-aloud", "speaking-response", "matching", "mark-the-words"]
+const BUILT_IN_ACTIVITY_TYPES: BUILT_IN_ACTIVITY_TYPES: readonly ["multiple-choice", "fill-in-the-blanks", "written-response", "gap-select", "dictation", "read-aloud", "speaking-response", "matching", "mark-the-words", "ordering"]
 const DEFAULT_ITEM_SCORING_POLICY: DEFAULT_ITEM_SCORING_POLICY: ResolvedItemScoringPolicy
 const DEFAULT_PASS_THRESHOLD: DEFAULT_PASS_THRESHOLD = 0.7
 const DICTATION_MAX_ACCEPTED_TRANSCRIPTS: DICTATION_MAX_ACCEPTED_TRANSCRIPTS = 10
@@ -44,7 +44,7 @@ const fillInTheBlanksJsonSchema: fillInTheBlanksJsonSchema: Record<string, unkno
 const fillInTheBlanksType: fillInTheBlanksType: ActivityTypeDescriptor<FillInTheBlanksData, FillInTheBlanksLearnerResponse>
 const gapSelectJsonSchema: gapSelectJsonSchema: Record<string, unknown>
 const gapSelectType: gapSelectType: ActivityTypeDescriptor<GapSelectData, GapSelectLearnerResponse>
-const INTERACTIVE_VIDEO_ITEM_TYPES: INTERACTIVE_VIDEO_ITEM_TYPES: readonly ["multiple-choice", "fill-in-the-blanks", "gap-select", "dictation", "read-aloud", "speaking-response", "matching", "mark-the-words"]
+const INTERACTIVE_VIDEO_ITEM_TYPES: INTERACTIVE_VIDEO_ITEM_TYPES: readonly ["multiple-choice", "fill-in-the-blanks", "gap-select", "dictation", "read-aloud", "speaking-response", "matching", "mark-the-words", "ordering"]
 const ITEM_SCORING_MAX_RETRIES: ITEM_SCORING_MAX_RETRIES = 10
 const itemGroupJsonSchema: itemGroupJsonSchema: Record<string, unknown>
 const MARK_THE_WORDS_MAX_WORDS: MARK_THE_WORDS_MAX_WORDS = 1500
@@ -52,6 +52,7 @@ const MARK_THE_WORDS_TOKENIZER: MARK_THE_WORDS_TOKENIZER = "lk-words@1"
 const multipleChoiceJsonSchema: multipleChoiceJsonSchema: Record<string, unknown>
 const multipleChoiceType: multipleChoiceType: ActivityTypeDescriptor<MultipleChoiceData, MultipleChoiceLearnerResponse>
 const OPEN_DELIVERY_POLICY: OPEN_DELIVERY_POLICY: ResolvedDeliveryPolicy
+const ORDERING_MAX_ITEMS: ORDERING_MAX_ITEMS = 30
 const READ_ALOUD_MAX_DIMENSION_WEIGHT: READ_ALOUD_MAX_DIMENSION_WEIGHT = 1000
 const READ_ALOUD_MAX_REFERENCE_LENGTH: READ_ALOUD_MAX_REFERENCE_LENGTH = 2000
 const READ_ALOUD_MAX_SECONDS: READ_ALOUD_MAX_SECONDS = 300
@@ -164,6 +165,7 @@ function markTargetIndices: declare function markTargetIndices(data: { targets?:
 function markTheWordsFromMarkup: declare function markTheWordsFromMarkup(markup: string): { targets: MarkTargetQuote[]; text: string; };
 function matchText: declare function matchText(input: string, accepted: readonly string[] | string, policy?: TextMatchPolicy): TextMatchResult;
 function nextRouteLearnerState: declare function nextRouteLearnerState(state: RouteLearnerState | null | undefined, summary: RouteSummary, options?: RouteFadingOptions): RouteLearnerState;
+function orderingStart: declare function orderingStart<TItem extends { id: string; }>(data: OrderingStartInput<TItem>): TItem[];
 function outcomeFromGrade: declare function outcomeFromGrade(grade: GradeRecord): ItemOutcome;
 function outcomeFromRoutedGrade: declare function outcomeFromRoutedGrade(grade: GradeRecord, routing: GradeRouting): ItemOutcome;
 function outcomeFromUnscorable: declare function outcomeFromUnscorable(result: { code: string; reason: string; }): ItemOutcome;
@@ -222,7 +224,7 @@ function verifyAttemptPlan: declare function verifyAttemptPlan(plan: AttemptPlan
 function withoutAuthorOnly: declare function withoutAuthorOnly<T>(entry: T): T;
 function xapiDefinitionFor: declare function xapiDefinitionFor(data: { type: string; }): Partial<XAPIObjectParams>;
 interface ActivityAiPermissions: interface ActivityAiPermissions { explanations?: boolean; hints?: boolean; }
-interface ActivityDataMap: interface ActivityDataMap { 'multiple-choice': MultipleChoiceData; 'fill-in-the-blanks': FillInTheBlanksData; 'written-response': WrittenResponseData; 'gap-select': GapSelectData; dictation: DictationData; 'read-aloud': ReadAloudData; 'speaking-response': SpeakingResponseData; matching: MatchingData; 'mark-the-words': MarkTheWordsData; }
+interface ActivityDataMap: interface ActivityDataMap { 'multiple-choice': MultipleChoiceData; 'fill-in-the-blanks': FillInTheBlanksData; 'written-response': WrittenResponseData; 'gap-select': GapSelectData; dictation: DictationData; 'read-aloud': ReadAloudData; 'speaking-response': SpeakingResponseData; matching: MatchingData; 'mark-the-words': MarkTheWordsData; ordering: OrderingData; }
 interface ActivityFeedback: interface ActivityFeedback { correct?: string; incorrect?: string; }
 interface ActivityMedia: interface ActivityMedia { type: 'audio' | 'embed' | 'image' | 'video'; url: string; alt?: string; captionsUrl?: string; tracks?: MediaTrack[]; poster?: string; playback?: MediaPlaybackPolicy; transcript?: string; script?: ScriptTurn[]; }
 interface ActivityResult: interface ActivityResult { score: number; maxScore: number; passed: boolean; timeSpent: number; xapiStatement: XAPIStatement; }
@@ -355,7 +357,7 @@ interface ItemTriesOutcome: interface ItemTriesOutcome { outcome: ItemOutcome; c
 interface ItemTriesScore: interface ItemTriesScore { score: number; maxScore: number; counted: number; tries: ItemTryScore[]; }
 interface ItemTry: interface ItemTry { score: number; maxScore: number; hintsRevealed?: number | undefined; }
 interface ItemTryScore: interface ItemTryScore { score: number; scored: number; maxScore: number; hintsRevealed: number; penalty: number; }
-interface LearnerResponseMap: interface LearnerResponseMap { 'multiple-choice': MultipleChoiceLearnerResponse; 'fill-in-the-blanks': FillInTheBlanksLearnerResponse; 'written-response': WrittenResponseLearnerResponse; 'gap-select': GapSelectLearnerResponse; dictation: DictationLearnerResponse; 'read-aloud': ReadAloudLearnerResponse; 'speaking-response': SpeakingResponseLearnerResponse; matching: MatchingLearnerResponse; 'mark-the-words': MarkTheWordsLearnerResponse; }
+interface LearnerResponseMap: interface LearnerResponseMap { 'multiple-choice': MultipleChoiceLearnerResponse; 'fill-in-the-blanks': FillInTheBlanksLearnerResponse; 'written-response': WrittenResponseLearnerResponse; 'gap-select': GapSelectLearnerResponse; dictation: DictationLearnerResponse; 'read-aloud': ReadAloudLearnerResponse; 'speaking-response': SpeakingResponseLearnerResponse; matching: MatchingLearnerResponse; 'mark-the-words': MarkTheWordsLearnerResponse; ordering: OrderingLearnerResponse; }
 interface LengthTolerance: interface LengthTolerance { material?: number; item?: number; }
 interface MarkableWord: interface MarkableWord { index: number; text: string; start: number; end: number; }
 interface MarkTheWordsData: interface MarkTheWordsData { schemaVersion: '1.0'; type: 'mark-the-words'; id: string; title: string; instructions?: string; text: string; targets: MarkTheWordsTarget[]; scoringStrategy: 'all-or-nothing' | 'partial'; media?: ActivityMedia; feedback?: ActivityFeedback; passThreshold?: number; locale?: string; learningObjectives?: string[]; difficultyLevel?: 1 | 2 | 3 | 4 | 5; ai?: ActivityAiPermissions; }
@@ -380,6 +382,10 @@ interface MultipleChoiceData: interface MultipleChoiceData { schemaVersion: '1.0
 interface MultipleChoiceLearnerResponse: interface MultipleChoiceLearnerResponse { type: 'multiple-choice'; selectedOptionIds: string[]; hintsRevealed?: number; }
 interface MultipleChoiceOption: interface MultipleChoiceOption { id: string; text: string; isCorrect: boolean; feedback?: string; media?: MultipleChoiceOptionMedia; }
 interface MultipleChoiceOptionMedia: interface MultipleChoiceOptionMedia { type: 'audio' | 'image'; url: string; alt?: string; captionsUrl?: string; transcript?: string; script?: ScriptTurn[]; }
+interface OrderingData: interface OrderingData { schemaVersion: '1.0'; type: 'ordering'; id: string; title: string; instructions?: string; items: OrderingItem[]; scoringStrategy: 'all-or-nothing' | 'partial'; media?: ActivityMedia; feedback?: ActivityFeedback; passThreshold?: number; locale?: string; learningObjectives?: string[]; difficultyLevel?: 1 | 2 | 3 | 4 | 5; ai?: ActivityAiPermissions; }
+interface OrderingItem: interface OrderingItem { id: string; text: string; feedback?: string; }
+interface OrderingLearnerResponse: interface OrderingLearnerResponse { type: 'ordering'; order: string[]; hintsRevealed?: number; }
+interface OrderingStartInput: interface OrderingStartInput<TItem extends { id: string; }> { id: string; items: readonly TItem[]; }
 interface PassageLayout: interface PassageLayout { paragraphs: PassageParagraph[]; sentences: PassageSentence[]; sections: PassageSection[]; }
 interface PassageParagraph: interface PassageParagraph extends TextRange { index: number; label?: string; section?: number; }
 interface PassageSection: interface PassageSection { label: string; title?: string; first: number; last: number; }
@@ -414,6 +420,8 @@ interface RedactedMatchingPrompt: interface RedactedMatchingPrompt { id: string;
 interface RedactedMultipleChoiceData: interface RedactedMultipleChoiceData extends RedactedItem { type: 'multiple-choice'; instructions?: string | undefined; question: string; questionHtml?: string | undefined; mode: 'multi' | 'single'; options: RedactedMultipleChoiceOption[]; shuffle?: boolean | undefined; locale?: string | undefined; }
 interface RedactedMultipleChoiceOption: interface RedactedMultipleChoiceOption { id: string; text: string; media?: RedactedMultipleChoiceOptionMedia | undefined; }
 interface RedactedMultipleChoiceOptionMedia: interface RedactedMultipleChoiceOptionMedia { type: 'audio' | 'image'; url: string; alt?: string | undefined; captionsUrl?: string | undefined; }
+interface RedactedOrderingData: interface RedactedOrderingData extends RedactedItem { type: 'ordering'; instructions?: string | undefined; items: RedactedOrderingItem[]; locale?: string | undefined; }
+interface RedactedOrderingItem: interface RedactedOrderingItem { id: string; text: string; }
 interface RedactedReadAloudData: interface RedactedReadAloudData extends RedactedItem { type: 'read-aloud'; instructions?: string | undefined; referenceText: string; locale: string; slowMedia?: RedactedDictationSlowMedia | undefined; recording: { maxSeconds: number; maxTakes?: number | undefined; minSeconds?: number | undefined; }; scoring: { dimensions: { name: 'accuracy' | 'completeness' | 'fluency' | 'prosody'; weight: number; }[]; }; }
 interface RedactedStimulus: interface RedactedStimulus { id: string; kind: 'audio' | 'image' | 'mixed' | 'text' | 'video'; title?: string | undefined; body?: string | undefined; bodyHtml?: string | undefined; media?: Media | undefined; locale?: string | undefined; attribution?: string | undefined; }
 interface RedactedWrittenResponseData: interface RedactedWrittenResponseData extends RedactedItem { type: 'written-response'; prompt: string; promptHtml?: string | undefined; minWords: number; maxWords: number; rubric?: undefined | { criteria: { description?: string | undefined; levels?: undefined | { description?: string | undefined; label: string; }[]; name: string; weight: number; }[]; label?: string | undefined; }; languageTarget?: string | undefined; locale?: string | undefined; }
@@ -541,7 +549,7 @@ type QuoteMatch: type QuoteMatch = { count: number; found: false; reason: 'ambig
 type ReadAloudDimension: type ReadAloudDimension = 'accuracy' | 'completeness' | 'fluency' | 'prosody';
 type ReadAloudWordState: type ReadAloudWordState = 'correct' | 'inserted' | 'mispronounced' | 'omitted';
 type ReadingRouteItemType: type ReadingRouteItemType = (typeof READING_ROUTE_ITEM_TYPES)[number];
-type RedactedActivity: type RedactedActivity = RedactedDictationData | RedactedFillInTheBlanksData | RedactedGapSelectData | RedactedMarkTheWordsData | RedactedMatchingData | RedactedMultipleChoiceData | RedactedReadAloudData | RedactedWrittenResponseData;
+type RedactedActivity: type RedactedActivity = RedactedDictationData | RedactedFillInTheBlanksData | RedactedGapSelectData | RedactedMarkTheWordsData | RedactedMatchingData | RedactedMultipleChoiceData | RedactedOrderingData | RedactedReadAloudData | RedactedWrittenResponseData;
 type RedactedItemGroup: type RedactedItemGroup = ItemGroup<RedactedActivityData> & { redacted: true; };
 type RoundingMode: type RoundingMode = 'ceil' | 'floor' | 'half-even' | 'half-up';
 type RouteCause: type RouteCause = 'limit' | 'meaning' | 'search' | 'trap' | 'unanswered' | 'unknown';
@@ -613,11 +621,13 @@ interface RedactedMatchingPrompt: interface RedactedMatchingPrompt { id: string;
 interface RedactedMultipleChoiceData: interface RedactedMultipleChoiceData extends RedactedItem { type: 'multiple-choice'; instructions?: string | undefined; question: string; questionHtml?: string | undefined; mode: 'multi' | 'single'; options: RedactedMultipleChoiceOption[]; shuffle?: boolean | undefined; locale?: string | undefined; }
 interface RedactedMultipleChoiceOption: interface RedactedMultipleChoiceOption { id: string; text: string; media?: RedactedMultipleChoiceOptionMedia | undefined; }
 interface RedactedMultipleChoiceOptionMedia: interface RedactedMultipleChoiceOptionMedia { type: 'audio' | 'image'; url: string; alt?: string | undefined; captionsUrl?: string | undefined; }
+interface RedactedOrderingData: interface RedactedOrderingData extends RedactedItem { type: 'ordering'; instructions?: string | undefined; items: RedactedOrderingItem[]; locale?: string | undefined; }
+interface RedactedOrderingItem: interface RedactedOrderingItem { id: string; text: string; }
 interface RedactedReadAloudData: interface RedactedReadAloudData extends RedactedItem { type: 'read-aloud'; instructions?: string | undefined; referenceText: string; locale: string; slowMedia?: RedactedDictationSlowMedia | undefined; recording: { maxSeconds: number; maxTakes?: number | undefined; minSeconds?: number | undefined; }; scoring: { dimensions: { name: 'accuracy' | 'completeness' | 'fluency' | 'prosody'; weight: number; }[]; }; }
 interface RedactedStimulus: interface RedactedStimulus { id: string; kind: 'audio' | 'image' | 'mixed' | 'text' | 'video'; title?: string | undefined; body?: string | undefined; bodyHtml?: string | undefined; media?: Media | undefined; locale?: string | undefined; attribution?: string | undefined; }
 interface RedactedWrittenResponseData: interface RedactedWrittenResponseData extends RedactedItem { type: 'written-response'; prompt: string; promptHtml?: string | undefined; minWords: number; maxWords: number; rubric?: undefined | { criteria: { description?: string | undefined; levels?: undefined | { description?: string | undefined; label: string; }[]; name: string; weight: number; }[]; label?: string | undefined; }; languageTarget?: string | undefined; locale?: string | undefined; }
 type JsonSchemaTarget: type JsonSchemaTarget = 'draft-2020-12' | 'draft-7';
-type RedactedActivity: type RedactedActivity = RedactedDictationData | RedactedFillInTheBlanksData | RedactedGapSelectData | RedactedMarkTheWordsData | RedactedMatchingData | RedactedMultipleChoiceData | RedactedReadAloudData | RedactedWrittenResponseData;
+type RedactedActivity: type RedactedActivity = RedactedDictationData | RedactedFillInTheBlanksData | RedactedGapSelectData | RedactedMarkTheWordsData | RedactedMatchingData | RedactedMultipleChoiceData | RedactedOrderingData | RedactedReadAloudData | RedactedWrittenResponseData;
 ```
 
 ## @intellectif/lk-core/scoring

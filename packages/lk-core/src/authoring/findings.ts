@@ -35,6 +35,10 @@ export const ITEM_FINDING_SEVERITY = {
   mw_title_reveals_answer: 'warning',
   mw_targets_dense: 'warning',
   mw_target_elsewhere: 'advice',
+  // ordering
+  or_ids_reveal_order: 'warning',
+  or_items_numbered: 'warning',
+  or_items_too_few: 'advice',
   // written-response
   wr_criterion_name_duplicate: 'warning',
   wr_levels_unreadable: 'warning',

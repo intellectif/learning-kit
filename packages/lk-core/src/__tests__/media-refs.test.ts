@@ -101,6 +101,18 @@ const ITEMS = {
     scoringStrategy: 'partial',
     media: { type: 'audio', url: `${CDN}/home.mp3`, alt: 'She went home' },
   },
+  ordering: {
+    schemaVersion: '1.0',
+    type: 'ordering',
+    id: 'or-1',
+    title: 'The recipe',
+    items: [
+      { id: 'k', text: 'Boil the water.' },
+      { id: 'q', text: 'Add the pasta.' },
+    ],
+    scoringStrategy: 'partial',
+    media: { type: 'image', url: `${CDN}/pasta.png`, alt: 'A pot of pasta' },
+  },
   'written-response': {
     schemaVersion: '1.0',
     type: 'written-response',

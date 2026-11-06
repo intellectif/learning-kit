@@ -335,8 +335,8 @@ describe('schemas', () => {
     const described = Object.values(defs).filter(
       (def) => def.properties !== undefined && 'instructions' in def.properties,
     );
-    // Read aloud's, the three of 1.7, speaking response's, matching's and mark the words'.
-    expect(described).toHaveLength(7);
+    // Read aloud's, the three of 1.7, speaking response's, matching's, mark the words' and ordering's.
+    expect(described).toHaveLength(8);
   });
 });
 

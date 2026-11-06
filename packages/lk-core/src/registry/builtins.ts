@@ -4,6 +4,7 @@ import { gapSelectAuthoring } from '../authoring/gap-select.js';
 import { markTheWordsAuthoring } from '../authoring/mark-the-words.js';
 import { matchingAuthoring } from '../authoring/matching.js';
 import { multipleChoiceAuthoring } from '../authoring/multiple-choice.js';
+import { orderingAuthoring } from '../authoring/ordering.js';
 import { readAloudAuthoring } from '../authoring/read-aloud.js';
 import { speakingResponseAuthoring } from '../authoring/speaking-response.js';
 import { writtenResponseAuthoring } from '../authoring/written-response.js';
@@ -17,6 +18,7 @@ import { GapSelectDataSchema } from '../schemas/gap-select.js';
 import { MarkTheWordsDataSchema } from '../schemas/mark-the-words.js';
 import { MatchingDataSchema } from '../schemas/matching.js';
 import { MultipleChoiceDataSchema } from '../schemas/multiple-choice.js';
+import { OrderingDataSchema } from '../schemas/ordering.js';
 import { ReadAloudDataSchema } from '../schemas/read-aloud.js';
 import {
   RedactedDictationDataSchema,
@@ -25,6 +27,7 @@ import {
   RedactedMarkTheWordsDataSchema,
   RedactedMatchingDataSchema,
   RedactedMultipleChoiceDataSchema,
+  RedactedOrderingDataSchema,
   RedactedReadAloudDataSchema,
   RedactedSpeakingResponseDataSchema,
   RedactedWrittenResponseDataSchema,
@@ -37,6 +40,7 @@ import { scoreGapSelect } from '../scoring/activity-scorers/gap-select.js';
 import { scoreMarkTheWords } from '../scoring/activity-scorers/mark-the-words.js';
 import { scoreMatching } from '../scoring/activity-scorers/matching.js';
 import { scoreMultipleChoice } from '../scoring/activity-scorers/multiple-choice.js';
+import { scoreOrdering } from '../scoring/activity-scorers/ordering.js';
 import {
   DICTATION_MAX_TEXT_LENGTH,
   normalizeDictationText,
@@ -56,6 +60,8 @@ import type {
   MatchingLearnerResponse,
   MultipleChoiceData,
   MultipleChoiceLearnerResponse,
+  OrderingData,
+  OrderingLearnerResponse,
   ReadAloudData,
   ReadAloudLearnerResponse,
   SpeakingResponseData,
@@ -289,6 +295,20 @@ const MARK_THE_WORDS_FIELD_POLICY: FieldPolicy = {
   targets: 'answer-key',
   scoringStrategy: 'answer-key',
   feedback: FEEDBACK_FIELD_POLICY,
+};
+
+/**
+ * Ordering: the items are what the learner moves, so their ids and texts are
+ * public; their order is the key, which no field policy can express —
+ * `redact()` lists them in the order they start in. Each item's feedback is
+ * the key's, as on every type.
+ */
+const ORDERING_FIELD_POLICY: FieldPolicy = {
+  ...SHARED_PUBLIC_FIELDS,
+  instructions: 'public',
+  scoringStrategy: 'answer-key',
+  feedback: FEEDBACK_FIELD_POLICY,
+  items: { id: 'public', text: 'public', feedback: 'answer-key' },
 };
 
 const FILL_IN_THE_BLANKS_FIELD_POLICY: FieldPolicy = {
@@ -550,6 +570,25 @@ export const markTheWordsType = defineActivityType<MarkTheWordsData, MarkTheWord
   mediaSlots: () => MAIN_MEDIA,
 });
 
+/** Built-in Ordering descriptor. */
+export const orderingType = defineActivityType<OrderingData, OrderingLearnerResponse>({
+  type: 'ordering',
+  schema: OrderingDataSchema as unknown as StandardSchemaV1<unknown, OrderingData>,
+  scoring: { kind: 'sync', score: scoreOrdering },
+  isAnswered: (response) => Array.isArray(response?.order) && response.order.length > 0,
+  fieldPolicy: ORDERING_FIELD_POLICY,
+  redactedSchema: RedactedOrderingDataSchema,
+  interop: {
+    xapiActivityTypeIri: 'http://adlnet.gov/expapi/activities/cmi.interaction',
+    // The xAPI sequencing interaction exactly: the item ids, first to last.
+    xapiInteractionType: 'sequencing',
+    correctResponsesPattern: (data) => [data.items.map((item) => item.id).join('[,]')],
+  },
+  interactions: ['item-moved', 'submitted'],
+  authoring: orderingAuthoring,
+  mediaSlots: () => MAIN_MEDIA,
+});
+
 /**
  * Built-in Dictation descriptor. Graded synchronously: the score is the
  * character-level similarity of the typed text to the transcript, a pure
@@ -737,4 +776,5 @@ export const BUILT_IN_DESCRIPTORS = {
   'speaking-response': speakingResponseType,
   matching: matchingType,
   'mark-the-words': markTheWordsType,
+  ordering: orderingType,
 } satisfies { readonly [Type in BuiltInActivityType]: { readonly type: Type } };

@@ -461,6 +461,47 @@ mean "big", the linkers.
 - At most 1500 words. A text in a script written without spaces (Chinese, Japanese, Thai) is one
   word per run and cannot be marked word by word.
 
+### Ordering — put items in their order (1.15)
+
+Items the learner puts in order: the sentences of a paragraph, the steps of a process, the events
+of a story, the turns of a dialogue.
+
+```jsonc
+{
+  "schemaVersion": "1.0", "type": "ordering", "id": "q1", "title": "Making pasta",
+  "instructions": "Put the steps in order.",
+  "items": [
+    { "id": "k7f", "text": "Fill a pot with water." },
+    { "id": "zq2", "text": "Bring it to the boil." },
+    { "id": "m4w", "text": "Add the pasta." },
+    { "id": "p9d", "text": "Cook it for ten minutes." },
+    { "id": "c2x", "text": "Drain it." }
+  ],
+  "scoringStrategy": "partial"
+}
+```
+
+- **Write the items in their right order.** That order is the key, so nothing shows it: every
+  presentation starts from `orderingStart(item)`, a shuffle seeded by the item's `id`, the same in
+  every runtime, in which no item is already first that should be first and none already follows
+  the item it should follow. A learner who submits without moving anything scores 0.
+- **Ids say nothing about the order.** Ids reach the learner with the items, so `"1"`, `"2"`… or
+  `"a"`, `"b"`… would hand an exam's answer to anyone who reads the page source. `createDraft`
+  takes every id from `newId`; the critic warns when ids count up in the right order
+  (`or_ids_reveal_order`), and when items are numbered in their text (`or_items_numbered`).
+- **Scoring by links, not positions.** An item is right when it follows, in the learner's order,
+  the item that comes before it in the right order — or, for the item that comes first, when it is
+  first. `partial` is the items right / the items. A sequence right except for one item moved to
+  the front loses two items, not every item after it, as scoring by position would. `all-or-nothing`
+  needs the right order exactly. Each item is a detail under its id, with the id of the item before
+  it as `correctResponse` (`""` for first) and the one the learner put there as `learnerResponse`;
+  an item the response leaves out is `incorrect-omission`.
+- **Redaction** keeps every item's id and text, drops their feedback, and lists them in the order
+  they start in, never as authored — a schema cannot see an order, so a copy built by hand must use
+  `orderingStart` too. A `reveal: 'after-submit'` copy keeps the right order on purpose.
+- From 2 to 30 items, and no two reading the same (spaces aside): two items a learner cannot tell
+  apart have no right order between them. The xAPI interaction is `sequencing`.
+
 ### Media on a multiple-choice option (v0.10)
 
 An option can carry a picture or a recording of its own — the A1/A2
@@ -1057,6 +1098,7 @@ first.
 | `written-response` | an empty prompt, `minWords: 0`, `maxWords: 0`, no rubric |
 | `gap-select` | an empty passage, no gaps, `scoringStrategy: 'all-or-nothing'`, **no choice marked correct** |
 | `mark-the-words` | an empty text, no targets, `scoringStrategy: 'all-or-nothing'` |
+| `ordering` | two empty items, each with an id from `newId`, `scoringStrategy: 'all-or-nothing'` |
 | `matching` | no prompts and no options, `scoringStrategy: 'all-or-nothing'`, **no prompt answered**. An exam's matching task is marked prompt by prompt: set `partial` for one |
 | `dictation` | an empty title and an empty transcript; no recording, hints, tolerances or accepted transcripts; no `scoringStrategy` — the type has one strategy |
 | `read-aloud` | an empty title, text to read and locale; `recording: { maxSeconds: 0 }`; `scoring: { dimensions: [] }` — **no dimension is weighted**, because which of accuracy, fluency, completeness and prosody a grade counts, and what each is worth, is a teaching decision, and a defaulted set would let an author write the text, never open the scoring control, and hold a `complete` item graded on weights nobody chose |
@@ -1214,6 +1256,17 @@ and `options`, where the schema reports them.
 
 A target is checked against the text only once the text has words to mark, so an unwritten text is
 reported once, not again under every target.
+
+`ordering`:
+
+| Code | Severity | Path | When |
+|---|---|---|---|
+| `or_items_required` | incomplete | `items` | Fewer than two items |
+| `or_items_too_many` | invalid | `items` | More than 30 items |
+| `or_item_id_required` | invalid | `items.N.id` | An item with no id |
+| `or_item_id_duplicate` | invalid | `items.N.id` | The same id as an earlier item |
+| `or_item_text_required` | incomplete | `items.N.text` | Absent, or only whitespace |
+| `or_item_text_duplicate` | invalid | `items.N.text` | Reads the same as an earlier item, spaces aside |
 
 `written-response`:
 
@@ -1498,6 +1551,9 @@ author: translate by `code`.
 | `mw_title_reveals_answer` | warning | `title` | The title contains a target's words; short ones not looked for |
 | `mw_targets_dense` | warning | `targets` | More than half the text's words are targets: marking every word scores above 0, and the message says how much |
 | `mw_target_elsewhere` | advice | `targets.N` | A target's words also appear where they are not a target. A learner who marks them there loses a mark: check that is meant |
+| `or_ids_reveal_order` | warning | `items` | The item ids count up in the right order (`s1`, `s2`…; `a`, `b`…): ids reach the learner, so the page source gives the answer |
+| `or_items_numbered` | warning | `items` | Two or more items start with a list marker (`1.`, `b)`, `(iii)`), which may tell the learner where they go |
+| `or_items_too_few` | advice | `items` | Two items: only two orders, so a guess is right half the time |
 | `mt_no_distractor` | warning | `options` | `optionUse: "once"`, two or more prompts, and no more options than prompts: the last prompt is answered by elimination |
 | `wr_criterion_name_duplicate` | warning | `rubric.criteria.N.name` | Two criteria have one name once case, accents and punctuation are ignored. Feedback on writing and a grader's criteria name a criterion |
 | `wr_levels_unreadable` | warning | `rubric.criteria.N.levels` | A criterion's `levels` cannot be used by the grading functions: not a list, fewer than 2 or more than 10, a level with no label or a description that is not text, or two labels the same once case and spacing are ignored. `validateActivity` does not check `levels` in 1.x, so this warning is how an author learns of it |
@@ -1842,7 +1898,7 @@ nothing is in `slots` with `null` on one side.
 | `versions_section_mismatch` | invalid | The forms have different numbers of sections, or a section's `key` or `title` differs at the same position: weights and pass marks are kept per section |
 | `versions_entry_count` | invalid | A section has a different number of entries, or a paired group a different number of items |
 | `versions_type_mismatch` | invalid | Paired slots, or a paired group's items, are of different types |
-| `versions_structure_mismatch` | invalid | Paired slots fail a structure rule of [variants](./ai.md#what-is-copied-and-what-comes-back): options and how many are right, blanks and their matching, gaps, banks, a matching item's prompts, options and `optionUse`, a mark-the-words item's targets, a part's stimulus and speakers, the rubric, word bounds, a slow recording, the scoring strategy. A form that scores differently is not parallel |
+| `versions_structure_mismatch` | invalid | Paired slots fail a structure rule of [variants](./ai.md#what-is-copied-and-what-comes-back): options and how many are right, blanks and their matching, gaps, banks, a matching item's prompts, options and `optionUse`, a mark-the-words item's targets, an ordering item's items, a part's stimulus and speakers, the rubric, word bounds, a slow recording, the scoring strategy. A form that scores differently is not parallel |
 | `versions_objectives_mismatch` | warning | Paired items test different `learningObjectives` |
 | `versions_length_out_of_band` | warning | A paired text outside the length band: material within a tenth, an item's own text within a quarter (`lengthTolerance` overrides) |
 | `versions_near_copy` | warning | Any text of the second form reads like any text of its kind in the first — not only its pair: a model can copy question 3 into slot 7 — or a multiple choice has another's options in another order |

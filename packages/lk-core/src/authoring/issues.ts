@@ -163,6 +163,13 @@ export const DRAFT_ISSUE_SEVERITY = {
   mw_target_ambiguous: 'incomplete',
   mw_target_occurrence_invalid: 'invalid',
   mw_target_overlap: 'invalid',
+  // ordering
+  or_items_required: 'incomplete',
+  or_items_too_many: 'invalid',
+  or_item_id_required: 'invalid',
+  or_item_id_duplicate: 'invalid',
+  or_item_text_required: 'incomplete',
+  or_item_text_duplicate: 'invalid',
   // written-response
   wr_prompt_required: 'incomplete',
   wr_min_words_required: 'incomplete',

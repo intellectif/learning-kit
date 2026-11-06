@@ -171,6 +171,26 @@ const mw = (over = {}) => ({
 
 const mark = (marked) => ({ type: 'mark-the-words', marked });
 
+// Right order: k q w e r
+const or = (over = {}) => ({
+  schemaVersion: '1.0',
+  type: 'ordering',
+  id: 'or-pasta',
+  title: 'Making pasta',
+  instructions: 'Put the steps in order.',
+  items: [
+    { id: 'k', text: 'Fill a pot with water.' },
+    { id: 'q', text: 'Bring it to the boil.' },
+    { id: 'w', text: 'Add the pasta.' },
+    { id: 'e', text: 'Cook it for ten minutes.' },
+    { id: 'r', text: 'Drain it.' },
+  ],
+  scoringStrategy: 'partial',
+  ...over,
+});
+
+const order = (ids) => ({ type: 'ordering', order: ids });
+
 const oneBlank = (acceptedAnswers, match) =>
   fib({
     passage: 'Answer: {{b1}}.',
@@ -1432,6 +1452,61 @@ export const CASES = [
     id: 'evaluate/mw/scored',
     fn: 'evaluate',
     args: [mw(), mark([2, 7, 10, 11, 12, 1])],
+  },
+  // -- Ordering (1.15.0): an item is right when it follows the item that
+  //    comes before it, or is first when it comes first.
+  {
+    id: 'score/or/partial/right-order',
+    fn: 'score',
+    args: ['ordering', or(), order(['k', 'q', 'w', 'e', 'r'])],
+  },
+  {
+    id: 'score/or/partial/one-moved-to-the-front',
+    fn: 'score',
+    args: ['ordering', or(), order(['r', 'k', 'q', 'w', 'e'])],
+    note: 'Three of five: the moved item and the one it displaced lose their place; the rest still follow theirs.',
+  },
+  {
+    id: 'score/or/partial/two-swapped',
+    fn: 'score',
+    args: ['ordering', or(), order(['k', 'w', 'q', 'e', 'r'])],
+  },
+  {
+    id: 'score/or/partial/reversed',
+    fn: 'score',
+    args: ['ordering', or(), order(['r', 'e', 'w', 'q', 'k'])],
+  },
+  {
+    id: 'score/or/partial/start-order-scores-nothing',
+    fn: 'score',
+    args: ['ordering', or(), order(['q', 'r', 'k', 'e', 'w'])],
+    note: 'orderingStart for this item: a learner who submits it unmoved scores 0.',
+  },
+  {
+    id: 'score/or/partial/tampered-ids-ignored',
+    fn: 'score',
+    args: ['ordering', or(), order(['k', 'zz', 'q', 'k', 7, 'e', 'r'])],
+    note: 'An unknown, repeated or non-string id places nothing; w is not placed, so e follows q.',
+  },
+  {
+    id: 'score/or/partial/nothing-placed',
+    fn: 'score',
+    args: ['ordering', or(), order([])],
+  },
+  {
+    id: 'score/or/all-or-nothing/right-order',
+    fn: 'score',
+    args: ['ordering', or({ scoringStrategy: 'all-or-nothing' }), order(['k', 'q', 'w', 'e', 'r'])],
+  },
+  {
+    id: 'score/or/all-or-nothing/last-two-swapped',
+    fn: 'score',
+    args: ['ordering', or({ scoringStrategy: 'all-or-nothing' }), order(['k', 'q', 'w', 'r', 'e'])],
+  },
+  {
+    id: 'evaluate/or/scored',
+    fn: 'evaluate',
+    args: [or(), order(['k', 'q', 'e', 'w', 'r'])],
   },
   {
     id: 'evaluate/mt/scored',
