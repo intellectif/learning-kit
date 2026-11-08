@@ -68,10 +68,20 @@ export const PLAYER_CSS = `
 [data-lkia-root] [data-lkia-hint] { font-size:1.1em; font-weight:600; }
 [data-lkia-root] [data-lkia-progress] { display:block; height:12px; border-radius:999px; background:var(--lkia-surface-strong); overflow:hidden; }
 [data-lkia-root] [data-lkia-progress]::before { content:""; display:block; height:100%; width:100%; border-radius:inherit; background:var(--lkia-accent); transform-origin:left center; transform:scaleX(var(--lkia-progress, 0)); transition:transform 260ms linear; }
-[data-lkia-root] [data-lkia-supports] { display:flex; flex-direction:column; gap:14px; }
-[data-lkia-root] [data-lkia-supports] h3 { font-size:.8em; font-weight:600; color:var(--lkia-ink-2); letter-spacing:0; }
-[data-lkia-root] [data-lkia-supports] ul { list-style:none; padding:0; display:flex; flex-wrap:wrap; gap:12px; }
-[data-lkia-root] [data-lkia-supports] li { background:var(--lkia-surface-strong); border-radius:999px; padding:.35em .85em; font-size:.92em; }
+/* "To help you": hidden until the teacher opens it. The panel grows to make room, the
+   chevron turns, and the phrases spring in one after another; closing folds them away. */
+[data-lkia-root] [data-lkia-supports] { display:flex; flex-direction:column; align-items:flex-start; }
+[data-lkia-root] [data-lkia-panel] [data-lkia-help-toggle] { font-size:.95em; gap:.5em; padding-inline:.9em 1em; }
+[data-lkia-root] [data-lkia-panel] [data-lkia-supports][data-open="true"] [data-lkia-help-toggle] { background:var(--lkia-accent-soft); color:var(--lkia-ink-1); }
+[data-lkia-root] [data-lkia-help-toggle] [data-lkia-icon] { color:var(--lkia-accent); }
+[data-lkia-root] [data-lkia-chevron] { display:inline-flex; transition:transform var(--lkia-duration) var(--lkia-easing); }
+[data-lkia-root] [data-lkia-supports][data-open="true"] [data-lkia-chevron] { transform:rotate(180deg); }
+[data-lkia-root] [data-lkia-supports-body] { display:grid; grid-template-rows:0fr; width:100%; opacity:0; visibility:hidden; transition:grid-template-rows var(--lkia-duration-slow) var(--lkia-easing), opacity var(--lkia-duration) var(--lkia-easing), visibility 0s linear var(--lkia-duration-slow); }
+[data-lkia-root] [data-lkia-supports][data-open="true"] [data-lkia-supports-body] { grid-template-rows:1fr; opacity:1; visibility:visible; transition:grid-template-rows var(--lkia-duration-slow) var(--lkia-easing), opacity var(--lkia-duration-fast) var(--lkia-easing), visibility 0s; }
+[data-lkia-root] [data-lkia-supports] ul { min-height:0; overflow:hidden; list-style:none; margin:0; padding:18px 4px 6px; display:flex; flex-wrap:wrap; gap:12px; }
+[data-lkia-root] [data-lkia-supports] li { background:var(--lkia-surface-strong); border-radius:999px; padding:.35em .85em; font-size:.92em; opacity:0; transform:translateY(18px) scale(.86); transform-origin:left center; transition:transform var(--lkia-duration-fast) var(--lkia-easing), opacity var(--lkia-duration-fast) var(--lkia-easing); }
+[data-lkia-root] [data-lkia-supports][data-open="true"] li { opacity:1; transform:none; transition:transform var(--lkia-duration-slow) cubic-bezier(.34, 1.56, .64, 1), opacity var(--lkia-duration) var(--lkia-easing); transition-delay:calc(90ms + var(--i, 0) * var(--lkia-stagger)); }
+[data-lkia-root] [data-has-backdrop="true"] [data-lkia-supports] li { background:var(--lkia-bg); }
 [data-lkia-root] [data-animate="answer-fade-up"] { display:flex; flex-direction:column; gap:22px; }
 [data-lkia-root] [data-animate="answer-fade-up"] > h2 { font-size:.8em; font-family:var(--lkia-font-body); font-weight:600; color:var(--lkia-ink-2); letter-spacing:0; }
 [data-lkia-root] [data-lkia-answer] { font-family:var(--lkia-font-heading); font-size:1.65em; font-weight:600; line-height:1.3; letter-spacing:-0.01em; max-width:30ch; }
@@ -127,10 +137,35 @@ export const PLAYER_CSS = `
 [data-lkia-root] [data-lkia-check] { font-size:1.05em; }
 
 /* A clip: its loop fills the frame; its name and the way back sit on it. */
-[data-lkia-root] [data-lkia-clip] { position:relative; aspect-ratio:16 / 9; border-radius:var(--lkia-radius-video); overflow:hidden; background:#000; cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none; transition:outline-color var(--lkia-duration-fast) var(--lkia-easing), scale var(--lkia-duration-fast) var(--lkia-easing); outline:4px solid transparent; outline-offset:3px; animation:lkia-panel-fade var(--lkia-duration) var(--lkia-easing) both; }
-[data-lkia-root] [data-lkia-clip]:hover { scale:1.02; }
-[data-lkia-root] [data-lkia-clip][data-selected="true"] { outline-color:var(--lkia-accent); }
-[data-lkia-root] [data-lkia-clip][data-dragging="true"] { cursor:grabbing; z-index:20; scale:1.05; box-shadow:var(--lkia-shadow-lg); transition:none; } /* taste-skill-ignore: a dragged clip is lifted off the page */
+[data-lkia-root] [data-lkia-clip] { position:relative; aspect-ratio:16 / 9; border-radius:var(--lkia-radius-video); overflow:hidden; background:#000; cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none; transition:outline-color var(--lkia-duration-fast) var(--lkia-easing), scale var(--lkia-duration-fast) var(--lkia-easing), opacity var(--lkia-duration) var(--lkia-easing), filter var(--lkia-duration) var(--lkia-easing); outline:4px solid transparent; outline-offset:3px; animation:lkia-panel-fade var(--lkia-duration) var(--lkia-easing) both; }
+[data-lkia-root] [data-lkia-clip]:hover { scale:1.03; }
+[data-lkia-root] [data-lkia-clip]:active { scale:.97; }
+[data-lkia-root] [data-lkia-clip][data-selected="true"] { outline-color:var(--lkia-accent); scale:1.03; }
+[data-lkia-root] [data-lkia-grip] { position:absolute; top:10px; inset-inline-end:10px; z-index:2; display:grid; place-items:center; width:1.9em; height:1.9em; border-radius:999px; background:var(--lkia-bg); color:var(--lkia-ink-1); font-size:.55em; opacity:0; scale:.7; transition:opacity var(--lkia-duration-fast) var(--lkia-easing), scale var(--lkia-duration-fast) var(--lkia-easing); pointer-events:none; }
+[data-lkia-root] [data-lkia-clip]:hover [data-lkia-grip], [data-lkia-root] [data-lkia-clip][data-selected="true"] [data-lkia-grip], [data-lkia-root] [data-lkia-clip][data-dragging="true"] [data-lkia-grip] { opacity:1; scale:1; }
+[data-lkia-root] [data-lkia-clip][data-dragging="true"] [data-lkia-grip] { background:var(--lkia-accent); color:var(--lkia-on-accent); }
+
+/* Dragging: the clip lifts off the board, follows the pointer and leans into its movement;
+   the spot it left shows as a hole, the other clips step back, the open slots light up and
+   the one beneath the clip opens to receive it. */
+[data-lkia-root] [data-lkia-clip][data-dragging="true"] { z-index:40; cursor:grabbing; translate:var(--lkia-drag-x, 0) var(--lkia-drag-y, 0); rotate:var(--lkia-drag-tilt, 0deg); scale:1.08; outline-color:var(--lkia-accent); box-shadow:var(--lkia-shadow-lg); transition:rotate 140ms var(--lkia-easing), scale var(--lkia-duration-fast) var(--lkia-easing), outline-color var(--lkia-duration-fast) var(--lkia-easing); animation:none; } /* taste-skill-ignore: a dragged clip is lifted off the page */
+[data-lkia-root] [data-drag-active="true"], [data-lkia-root] [data-drag-active="true"] * { cursor:grabbing; }
+[data-lkia-root] [data-drag-active="true"] [data-lkia-clip]:not([data-dragging="true"]) { opacity:.42; filter:saturate(.5); scale:.97; }
+[data-lkia-root] [data-lkia-cell] { position:relative; border-radius:var(--lkia-radius-video); }
+[data-lkia-root] [data-lkia-cell]:has(> [data-dragging="true"])::before { content:""; position:absolute; inset:0; border-radius:inherit; border:3px dashed var(--lkia-accent); background:var(--lkia-accent-soft); animation:lkia-fade var(--lkia-duration) var(--lkia-easing) both; }
+[data-lkia-root] [data-drag-active="true"] [data-lkia-drop] { border-color:var(--lkia-accent); color:var(--lkia-ink-1); animation:lkia-drop-breathe 1.4s ease-in-out infinite; }
+[data-lkia-root] [data-drag-active="true"] [data-lkia-slot][data-drop-target="true"] [data-lkia-dropzone] { scale:1.05; background:var(--lkia-accent-soft); outline-color:var(--lkia-accent); }
+[data-lkia-root] [data-drag-active="true"] [data-lkia-slot][data-drop-target="true"] [data-lkia-drop] { animation:none; border-style:solid; background:transparent; }
+[data-lkia-root] [data-drag-active="true"] [data-lkia-slot][data-drop-target="true"] [data-lkia-slot-number] { background:var(--lkia-accent); color:var(--lkia-on-accent); scale:1.2; }
+[data-lkia-root] [data-lkia-dropzone], [data-lkia-root] [data-lkia-slot-number] { transition:scale var(--lkia-duration-fast) var(--lkia-easing), background-color var(--lkia-duration-fast) var(--lkia-easing), outline-color var(--lkia-duration-fast) var(--lkia-easing); }
+
+/* Every move ends in a flight: the clip travels from where it was to where it lands, and
+   the slot that receives it flashes. */
+[data-lkia-root] [data-lkia-clip][data-flip="true"] { z-index:30; animation:lkia-clip-fly var(--lkia-duration-slow) cubic-bezier(.2, .9, .25, 1.12) both; }
+[data-lkia-root] [data-lkia-dropzone]:has(> [data-flip="true"]) { animation:lkia-slot-flash var(--lkia-duration-slow) var(--lkia-easing); }
+@keyframes lkia-clip-fly { from { translate:var(--lkia-from-x, 0) var(--lkia-from-y, 0); scale:var(--lkia-from-scale, 1); } to { translate:0 0; scale:1; } }
+@keyframes lkia-slot-flash { 0%, 55% { outline-color:var(--lkia-accent); } 100% { outline-color:transparent; } }
+@keyframes lkia-drop-breathe { 0%, 100% { background-color:transparent; } 50% { background-color:var(--lkia-accent-soft); } }
 [data-lkia-root] [data-lkia-loop] { display:block; width:100%; height:100%; }
 [data-lkia-root] [data-lkia-loop] video { width:100%; height:100%; object-fit:contain; pointer-events:none; }
 [data-lkia-root] [data-lkia-loop] [data-lkia-play] { position:absolute; top:50%; left:50%; translate:-50% -50%; font-size:.62em; }
@@ -179,8 +214,12 @@ export const PLAYER_CSS = `
 [data-lkia-root][data-lkia-layout="portrait"] [data-lkia-vocab] { padding:20px; gap:18px; }
 [data-lkia-root][data-lkia-layout="portrait"] [data-lkia-vocab] dl { grid-template-columns:minmax(0, 1fr); }
 
+[data-lkia-root][data-reduced-motion="true"] { --lkia-duration-fast:.01ms; --lkia-duration:.01ms; --lkia-duration-slow:.01ms; --lkia-stagger:0ms; }
 [data-lkia-root][data-reduced-motion="true"] [data-animate], [data-lkia-root][data-reduced-motion="true"] [data-lkia-clip] { animation-name:lkia-fade; animation-duration:.01ms; transition-duration:.01ms; transform:none; }
+[data-lkia-root][data-reduced-motion="true"] [data-lkia-clip][data-dragging="true"], [data-lkia-root][data-reduced-motion="true"] [data-lkia-supports] li { rotate:none; transition-delay:0ms; }
+[data-lkia-root][data-reduced-motion="true"] [data-lkia-drop] { animation:none; }
 @media (prefers-reduced-motion: reduce) {
-  [data-lkia-root] [data-lkia-clip], [data-lkia-root] [data-lkia-watch], [data-lkia-root] [data-lkia-progress]::before { animation-duration:.01ms; transition-duration:.01ms; }
+  [data-lkia-root] [data-lkia-clip], [data-lkia-root] [data-lkia-watch], [data-lkia-root] [data-lkia-progress]::before, [data-lkia-root] [data-lkia-supports] li, [data-lkia-root] [data-lkia-drop] { animation-duration:.01ms; animation-iteration-count:1; transition-duration:.01ms; transition-delay:0ms; }
+  [data-lkia-root] [data-lkia-clip][data-dragging="true"] { rotate:none; }
 }
 `;

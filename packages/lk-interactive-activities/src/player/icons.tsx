@@ -4,7 +4,18 @@ import type { JSX } from 'react';
  * The few icons the players draw, as inline SVG in the current text colour.
  * Every one is decorative: the words beside it carry the meaning.
  */
-type IconName = 'back' | 'play' | 'listen' | 'check' | 'cross' | 'return' | 'replay' | 'book';
+type IconName =
+  | 'back'
+  | 'play'
+  | 'listen'
+  | 'check'
+  | 'cross'
+  | 'return'
+  | 'replay'
+  | 'book'
+  | 'help'
+  | 'chevron'
+  | 'grip';
 
 const PATHS: Record<IconName, JSX.Element> = {
   back: <path d="M15 5l-7 7 7 7" />,
@@ -19,6 +30,23 @@ const PATHS: Record<IconName, JSX.Element> = {
   cross: <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />,
   return: <path d="M9 14l-4-4 4-4M5 10h9a5 5 0 0 1 0 10h-3" />,
   replay: <path d="M5 12a7 7 0 1 0 2.1-5M5 4.5V9h4.5" />,
+  help: (
+    <>
+      <path d="M9 17.5h6M10 21h4" />
+      <path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2V17h5v-1c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z" />
+    </>
+  ),
+  chevron: <path d="M6 9l6 6 6-6" />,
+  grip: (
+    <g fill="currentColor" stroke="none">
+      <circle cx="9" cy="6" r="1.7" />
+      <circle cx="15" cy="6" r="1.7" />
+      <circle cx="9" cy="12" r="1.7" />
+      <circle cx="15" cy="12" r="1.7" />
+      <circle cx="9" cy="18" r="1.7" />
+      <circle cx="15" cy="18" r="1.7" />
+    </g>
+  ),
   book: (
     <path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15H7.5A2.5 2.5 0 0 0 5 20.5zM5 20.5A2.5 2.5 0 0 1 7.5 18H19v3H7.5" />
   ),

@@ -282,7 +282,14 @@ describe('Cine-Scramble React player', () => {
     hit.mockReturnValue(slot(container, 0));
     fireEvent.pointerMove(drag, { pointerId: 1, clientX: 40, clientY: 30 });
     expect(drag.getAttribute('data-dragging')).toBe('true');
-    expect(drag.style.transform).toBe('translate(40px, 30px)');
+    expect(drag.style.getPropertyValue('--lkia-drag-x')).toBe('40px');
+    expect(drag.style.getPropertyValue('--lkia-drag-y')).toBe('30px');
+    // It leans into a move to the right, the board enters drag mode, and its pool cell shows the hole.
+    expect(Number.parseFloat(drag.style.getPropertyValue('--lkia-drag-tilt'))).toBeGreaterThan(0);
+    expect(container.querySelector('[data-lkia-arrange]')?.getAttribute('data-drag-active')).toBe(
+      'true',
+    );
+    expect(drag.parentElement?.hasAttribute('data-lkia-cell')).toBe(true);
     expect(slot(container, 0).getAttribute('data-drop-target')).toBe('true');
     fireEvent.pointerUp(drag, { pointerId: 1, clientX: 40, clientY: 30 });
     expect(
@@ -420,5 +427,39 @@ describe('Cine-Scramble React player', () => {
     start();
     last.unmount();
     await act(async () => reject(new Error('late')));
+  });
+});
+
+describe('Cine-Scramble: the drag tidies up after itself', () => {
+  it('clears the drag position, the lean and drag mode when the drop is cancelled', () => {
+    vi.useFakeTimers();
+    try {
+      const activity = cineScrambleFixture();
+      const { container } = render(<CineScramblePlayer activity={activity} />);
+      start();
+      const drag = card(activity, 0);
+      fireEvent.pointerDown(drag, { button: 0, pointerId: 7, clientX: 0, clientY: 0 });
+      fireEvent.pointerMove(drag, { pointerId: 7, clientX: -30, clientY: 10 });
+      expect(Number.parseFloat(drag.style.getPropertyValue('--lkia-drag-tilt'))).toBeLessThan(0);
+      vi.advanceTimersByTime(130);
+      expect(drag.style.getPropertyValue('--lkia-drag-tilt')).toBe('0deg');
+      // A clip dragged out of the pool does not light the pool up as a place to drop.
+      vi.mocked(document.elementFromPoint).mockReturnValue(
+        container.querySelector('[data-lkia-pool]'),
+      );
+      fireEvent.pointerMove(drag, { pointerId: 7, clientX: -20, clientY: 40 });
+      expect(container.querySelector('[data-lkia-pool]')?.getAttribute('data-drop-target')).toBe(
+        'false',
+      );
+      fireEvent.pointerCancel(drag, { pointerId: 7 });
+      for (const property of ['--lkia-drag-x', '--lkia-drag-y', '--lkia-drag-tilt'])
+        expect(drag.style.getPropertyValue(property)).toBe('');
+      expect(drag.getAttribute('data-dragging')).toBe('false');
+      expect(container.querySelector('[data-lkia-arrange]')?.getAttribute('data-drag-active')).toBe(
+        'false',
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

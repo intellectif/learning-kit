@@ -354,3 +354,62 @@ describe('embed resize', () => {
     expect(disconnect).toHaveBeenCalled();
   });
 });
+
+describe('What Happens: the help the teacher shows', () => {
+  it('starts hidden, opens and closes by button or H, and closes again on the next clip', () => {
+    const activity = whatHappensFixture();
+    activity.clips.push({ ...activity.clips[0], id: 'second', title: 'The second garden' });
+    const onEvent = vi.fn();
+    const { container } = render(<WhatHappensPlayer activity={activity} onEvent={onEvent} />);
+    toTell(container);
+    const help = screen.getByRole('button', { name: 'To help you' });
+    const body = document.getElementById(help.getAttribute('aria-controls') ?? '') as HTMLElement;
+    expect(help.getAttribute('aria-expanded')).toBe('false');
+    expect(body.hasAttribute('inert')).toBe(true);
+    expect(container.querySelector('[data-lkia-supports]')?.getAttribute('data-open')).toBe(
+      'false',
+    );
+    fireEvent.click(help);
+    expect(body.hasAttribute('inert')).toBe(false);
+    expect(container.querySelector('[data-lkia-supports]')?.getAttribute('data-open')).toBe('true');
+    expect(
+      Array.from(body.querySelectorAll('li'), (li) => li.style.getPropertyValue('--i')),
+    ).toEqual(['0', '1', '2']);
+    fireEvent.keyDown(root(container), { key: 'h' });
+    expect(help.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.keyDown(root(container), { key: 'h', ctrlKey: true });
+    expect(help.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.keyDown(root(container), { key: 'H' });
+    expect(help.getAttribute('aria-expanded')).toBe('true');
+    expect(
+      onEvent.mock.calls.map(([event]) => event.type).filter((type) => type.startsWith('supports')),
+    ).toEqual(['supports.shown', 'supports.hidden', 'supports.shown']);
+    fireEvent.click(screen.getByRole('button', { name: 'Show answer' }));
+    expect(screen.queryByRole('button', { name: 'To help you' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: /^The second garden/ }));
+    video(container).currentTime = 3;
+    fireEvent.timeUpdate(video(container));
+    fireEvent.click(screen.getByRole('button', { name: 'Reveal' }));
+    fireEvent.ended(video(container));
+    expect(screen.getByRole('button', { name: 'To help you' }).getAttribute('aria-expanded')).toBe(
+      'false',
+    );
+  });
+  it('labels the toggle with the editor’s own words, and has no toggle without supports', () => {
+    const activity = whatHappensFixture();
+    activity.clips[0].supportsLabel = 'Help';
+    const { container, unmount } = render(<WhatHappensPlayer activity={activity} />);
+    toTell(container);
+    expect(screen.getByRole('button', { name: 'Help' })).toBeTruthy();
+    fireEvent.keyDown(root(container), { key: 'h' });
+    expect(screen.getByRole('button', { name: 'Help' }).getAttribute('aria-expanded')).toBe('true');
+    unmount();
+    const bare = whatHappensFixture();
+    bare.clips[0].supports = [];
+    const second = render(<WhatHappensPlayer activity={bare} />);
+    toTell(second.container);
+    fireEvent.keyDown(root(second.container), { key: 'h' });
+    expect(second.container.querySelector('[data-lkia-supports]')).toBeNull();
+  });
+});

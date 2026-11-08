@@ -1,5 +1,5 @@
 import type { CSSProperties, JSX, KeyboardEvent } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from '../../../player/icons.js';
 import {
   fillTemplate,
@@ -51,6 +51,9 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
   const [error, setError] = useState(false);
   const [controls, setControls] = useState(true);
   const [progress, setProgress] = useState(0);
+  // The supports start hidden on every clip: the teacher shows them when the class needs them.
+  const [helpOpen, setHelpOpen] = useState(false);
+  const helpId = useId();
   const video = useRef<HTMLVideoElement>(null);
   const audio = useRef<HTMLAudioElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -180,6 +183,7 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
     setClipIndex(index);
     setError(false);
     setBlocked(false);
+    setHelpOpen(false);
     showControls();
     move('open');
     host.onEvent?.({ type: 'clip.opened', activityId: activity.id, clipId: item.id });
@@ -264,6 +268,9 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
       event.preventDefault();
       if (hasAnswer) showAnswer();
       else next();
+    } else if (stage === 'tell' && key === 'h' && showSupports) {
+      event.preventDefault();
+      toggleHelp();
     } else if (stage === 'answer' && key === 'l') {
       event.preventDefault();
       void listen();
@@ -277,6 +284,15 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
   const tellPrompt = clip.tellPrompt ?? chrome.tellTitle;
   const supportsLabel = clip.supportsLabel ?? chrome.supportsLabel;
   const showSupports = isSupportsEnabled(activity, clip) && !!clip.supports?.length;
+  const toggleHelp = () => {
+    const opening = !helpOpen;
+    setHelpOpen(opening);
+    host.onEvent?.({
+      type: opening ? 'supports.shown' : 'supports.hidden',
+      activityId: activity.id,
+      clipId: clip.id,
+    });
+  };
 
   return (
     <Stage
@@ -445,15 +461,32 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
               <>
                 <h2 {...authored(clip.tellPrompt ?? activity.copy?.tellTitle)}>{tellPrompt}</h2>
                 {showSupports && (
-                  <div data-lkia-supports="">
-                    <h3 {...authored(clip.supportsLabel ?? activity.copy?.supportsLabel)}>
-                      {supportsLabel}
-                    </h3>
-                    <ul {...content}>
-                      {clip.supports?.map((support) => (
-                        <li key={support}>{support}</li>
-                      ))}
-                    </ul>
+                  <div data-lkia-supports="" data-open={helpOpen}>
+                    <button
+                      type="button"
+                      data-lkia-help-toggle=""
+                      data-animate="button-press"
+                      aria-expanded={helpOpen}
+                      aria-controls={helpId}
+                      onClick={toggleHelp}
+                    >
+                      <Icon name="help" />
+                      <span {...authored(clip.supportsLabel ?? activity.copy?.supportsLabel)}>
+                        {supportsLabel}
+                      </span>
+                      <span data-lkia-chevron="">
+                        <Icon name="chevron" />
+                      </span>
+                    </button>
+                    <div id={helpId} data-lkia-supports-body="" inert={!helpOpen}>
+                      <ul {...content}>
+                        {clip.supports?.map((support, index) => (
+                          <li key={support} style={{ '--i': index } as CSSProperties}>
+                            {support}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
                 )}
                 <div data-lkia-actions="">

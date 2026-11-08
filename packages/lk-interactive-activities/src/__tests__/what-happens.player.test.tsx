@@ -110,7 +110,10 @@ describe('What Happens React player', () => {
     fireEvent.seeking(video(container));
     expect(video(container).currentTime).toBe(8);
     fireEvent.ended(video(container));
-    expect(screen.getByText('To help you')).toBeTruthy();
+    const help = screen.getByRole('button', { name: 'To help you' });
+    expect(help.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(help);
+    expect(help.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
     fireEvent.keyDown(container.querySelector('[data-lkia-root]') as Element, { key: 'a' });
     expect(screen.queryByRole('list')).toBeNull();
@@ -125,6 +128,7 @@ describe('What Happens React player', () => {
       'clip.frozen',
       'clip.frozen',
       'clip.revealed',
+      'supports.shown',
       'answer.shown',
       'audio.played',
       'clip.completed',

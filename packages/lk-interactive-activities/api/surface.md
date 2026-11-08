@@ -136,7 +136,7 @@ type AssetUrlResolver: type AssetUrlResolver = (asset: AssetRef) => string;
 type ChromeLocale: type ChromeLocale = keyof typeof WHAT_HAPPENS_CHROME;
 type ColorMode: type ColorMode = 'auto' | 'dark' | 'light';
 type MotionPresetId: type MotionPresetId = (typeof MOTION_PRESET_IDS)[number];
-type PlayerEvent: type PlayerEvent = { activityId: string; clipId: string; type: 'answer.shown' | 'clip.completed' | 'clip.frozen' | 'clip.opened' | 'clip.revealed'; } | { activityId: string; clipId: string; type: 'audio.played'; via: 'audio' | 'speechSynthesis'; } | { activityId: string; correct: boolean; sceneId: string; type: 'scramble.checked'; } | { activityId: string; sceneId: string; type: 'scramble.completed' | 'scramble.started'; } | { activityId: string; type: 'board.completed'; } | { activityId: string; type: 'vocab.opened'; };
+type PlayerEvent: type PlayerEvent = { activityId: string; clipId: string; type: 'answer.shown' | 'clip.completed' | 'clip.frozen' | 'clip.opened' | 'clip.revealed'; } | { activityId: string; clipId: string; type: 'audio.played'; via: 'audio' | 'speechSynthesis'; } | { activityId: string; clipId: string; type: 'supports.hidden' | 'supports.shown'; } | { activityId: string; correct: boolean; sceneId: string; type: 'scramble.checked'; } | { activityId: string; sceneId: string; type: 'scramble.completed' | 'scramble.started'; } | { activityId: string; type: 'board.completed'; } | { activityId: string; type: 'vocab.opened'; };
 type StylePresetId: type StylePresetId = (typeof STYLE_PRESET_IDS)[number];
 type ValidationResult: type ValidationResult<T> = { data: T; success: true; } | { errors: ValidationIssue[]; success: false; };
 type VideoAspect: type VideoAspect = '16:9' | '9:16';

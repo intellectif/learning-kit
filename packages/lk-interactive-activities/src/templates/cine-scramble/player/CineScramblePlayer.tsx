@@ -5,7 +5,7 @@ import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from 'react';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../../player/icons.js';
 import {
   fillTemplate,
@@ -42,10 +42,35 @@ interface Drag {
   moved: boolean;
   scale: number;
   element: HTMLElement;
+  lastX: number;
+  tilt: number;
+  settle?: ReturnType<typeof setTimeout>;
 }
 
 /** How far a pointer must travel before a press becomes a drag, in CSS pixels. */
 const DRAG_THRESHOLD = 6;
+/** The most a dragged clip leans into its movement, in degrees. */
+const MAX_TILT = 7;
+
+/** The custom properties that move a dragged clip; set on the element, not through React. */
+const DRAG_PROPERTIES = ['--lkia-drag-x', '--lkia-drag-y', '--lkia-drag-tilt'] as const;
+
+/** The scale of the stage an element is drawn in: its rendered width over its layout width. */
+function stageScaleOf(element: HTMLElement | null): number {
+  if (!element || element.offsetWidth === 0) return 1;
+  const width = element.getBoundingClientRect().width;
+  return width > 0 ? width / element.offsetWidth : 1;
+}
+
+/** Where every clip is drawn now, by its number. */
+function clipRects(root: HTMLElement | null): Map<string, DOMRect> {
+  const rects = new Map<string, DOMRect>();
+  for (const element of root?.querySelectorAll<HTMLElement>('[data-lkia-clip]') ?? []) {
+    const number = element.getAttribute('data-lkia-clip');
+    if (number) rects.set(number, element.getBoundingClientRect());
+  }
+  return rects;
+}
 
 function LoopVideo({
   clip,
@@ -144,13 +169,14 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
   const [slots, setSlots] = useState<(number | null)[]>([]);
   const [results, setResults] = useState<boolean[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
-  const [dragOffset, setDragOffset] = useState<{ id: number; x: number; y: number } | null>(null);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
   const [target, setTarget] = useState<DropTarget>(null);
   const [announcement, setAnnouncement] = useState('');
   const [vocab, setVocab] = useState(false);
   const drag = useRef<Drag | null>(null);
   const suppressClickUntil = useRef(0);
   const focusAfter = useRef<string | null>(null);
+  const flipFrom = useRef<Map<string, DOMRect> | null>(null);
   const board = useRef<HTMLDivElement>(null);
   const vocabButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -174,6 +200,34 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
     focusAfter.current = null;
     board.current?.querySelector<HTMLElement>(selector)?.focus();
   });
+  // Every clip that changed place flies there from where it was drawn: from the
+  // pool into its slot, from a slot back to the pool, from the spot where a drag
+  // was let go, or back home when it was dropped on nothing. CSS does the motion
+  // (`lkia-clip-fly`); this only measures the start, before the browser paints.
+  useLayoutEffect(() => {
+    const before = flipFrom.current;
+    if (!before) return;
+    flipFrom.current = null;
+    const root = board.current;
+    const scale = stageScaleOf(root);
+    for (const element of root?.querySelectorAll<HTMLElement>('[data-lkia-clip]') ?? []) {
+      const from = before.get(element.getAttribute('data-lkia-clip') ?? '');
+      if (!from) continue;
+      const to = element.getBoundingClientRect();
+      const dx = from.left + from.width / 2 - (to.left + to.width / 2);
+      const dy = from.top + from.height / 2 - (to.top + to.height / 2);
+      if (Math.hypot(dx, dy) < 2 || to.width === 0) continue;
+      element.style.setProperty('--lkia-from-x', `${dx / scale}px`);
+      element.style.setProperty('--lkia-from-y', `${dy / scale}px`);
+      element.style.setProperty('--lkia-from-scale', `${from.width / to.width}`);
+      element.removeAttribute('data-flip');
+      void element.offsetWidth;
+      element.setAttribute('data-flip', 'true');
+      element.addEventListener('animationend', () => element.removeAttribute('data-flip'), {
+        once: true,
+      });
+    }
+  });
 
   const startScene = (index: number, nextAttempt: number) => {
     const chosen = activity.scenes[index];
@@ -195,6 +249,7 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
   };
   const place = (id: number, index: number, via: Via) => {
     if (index < 0 || index >= slots.length) return;
+    flipFrom.current ??= clipRects(board.current);
     const nextSlots = placeClip(slots, id, index);
     setSlots(nextSlots);
     setResults([]);
@@ -204,6 +259,7 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
   };
   const returnToPool = (id: number, via: Via) => {
     if (!slots.includes(id)) return;
+    flipFrom.current ??= clipRects(board.current);
     setSlots(slots.map((value) => (value === id ? null : value)));
     setResults([]);
     setSelected(null);
@@ -255,17 +311,16 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
 
   const onPointerDown = (id: number) => (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || (event.target as Element).closest('[data-lkia-no-drag]')) return;
-    const element = event.currentTarget;
-    const rect = element.getBoundingClientRect();
-    const scale = element.offsetWidth > 0 && rect.width > 0 ? rect.width / element.offsetWidth : 1;
     drag.current = {
       id,
       pointerId: event.pointerId,
       x: event.clientX,
       y: event.clientY,
       moved: false,
-      scale,
-      element,
+      scale: stageScaleOf(board.current),
+      element: event.currentTarget,
+      lastX: event.clientX,
+      tilt: 0,
     };
   };
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -282,24 +337,54 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
         /* The pointer is already gone; the drag ends at pointerup. */
       }
       setSelected(null);
+      setDraggingId(current.id);
     }
-    setDragOffset({ id: current.id, x: dx / current.scale, y: dy / current.scale });
-    setTarget(dropTargetAt(event.clientX, event.clientY, current.element, board.current));
+    // The clip follows the pointer and leans into the way it is moving; React
+    // re-renders only when the slot under it changes.
+    const lean = Math.max(-MAX_TILT, Math.min(MAX_TILT, (event.clientX - current.lastX) * 0.9));
+    current.tilt = current.tilt * 0.6 + lean * 0.4;
+    current.lastX = event.clientX;
+    const style = current.element.style;
+    style.setProperty('--lkia-drag-x', `${dx / current.scale}px`);
+    style.setProperty('--lkia-drag-y', `${dy / current.scale}px`);
+    style.setProperty('--lkia-drag-tilt', `${current.tilt.toFixed(2)}deg`);
+    clearTimeout(current.settle);
+    current.settle = setTimeout(() => {
+      current.tilt = 0;
+      style.setProperty('--lkia-drag-tilt', '0deg');
+    }, 120);
+    const over = dropTargetAt(event.clientX, event.clientY, current.element, board.current);
+    // The pool is a target only for a clip coming back from a slot.
+    setTarget(over === 'pool' && !slots.includes(current.id) ? null : over);
   };
   const endDrag = () => {
+    const current = drag.current;
     drag.current = null;
-    setDragOffset(null);
+    if (current) {
+      clearTimeout(current.settle);
+      for (const property of DRAG_PROPERTIES) current.element.style.removeProperty(property);
+    }
+    setDraggingId(null);
     setTarget(null);
   };
   const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     const current = drag.current;
     if (!current || current.pointerId !== event.pointerId) return;
-    endDrag();
-    if (!current.moved) return;
-    suppressClickUntil.current = performance.now() + 400;
+    if (!current.moved) {
+      endDrag();
+      return;
+    }
+    // Measured before the clip lets go, so it flies from where it was dropped.
+    flipFrom.current = clipRects(board.current);
     const drop = dropTargetAt(event.clientX, event.clientY, current.element, board.current);
+    endDrag();
+    suppressClickUntil.current = performance.now() + 400;
     if (typeof drop === 'number') place(current.id, drop, 'pointer');
     else if (drop === 'pool') returnToPool(current.id, 'pointer');
+  };
+  const cancelDrag = () => {
+    if (drag.current?.moved) flipFrom.current = clipRects(board.current);
+    endDrag();
   };
   const onClipClick = (id: number) => (event: ReactMouseEvent<HTMLDivElement>) => {
     if (performance.now() < suppressClickUntil.current) return;
@@ -328,7 +413,7 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
     if (!clip) return null;
     const number = numberOf(id);
     const name = nameOf(id);
-    const dragging = dragOffset?.id === id;
+    const dragging = draggingId === id;
     return (
       // biome-ignore lint/a11y/noStaticElementInteractions: Pointer dragging; the button inside is the keyboard and screen-reader control.
       // biome-ignore lint/a11y/useKeyWithClickEvents: Keyboard clicks come from the button inside and bubble here.
@@ -337,13 +422,10 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
         data-lkia-clip={number}
         data-selected={selected === id}
         data-dragging={dragging}
-        style={
-          dragging ? { transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)` } : undefined
-        }
         onPointerDown={onPointerDown(id)}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={endDrag}
+        onPointerCancel={cancelDrag}
         onClick={onClipClick(id)}
       >
         <LoopVideo
@@ -352,6 +434,9 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
           playLabel={chrome.playFallback}
           errorLabel={chrome.mediaError}
         />
+        <span data-lkia-grip="" aria-hidden="true">
+          <Icon name="grip" />
+        </span>
         <span data-lkia-clip-foot="">
           <button
             type="button"
@@ -513,7 +598,12 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
       )}
 
       {stage === 'arranging' && (
-        <div ref={board} data-lkia-arrange="" data-has-selection={selected !== null}>
+        <div
+          ref={board}
+          data-lkia-arrange=""
+          data-has-selection={selected !== null}
+          data-drag-active={draggingId !== null}
+        >
           <p id={helpId} data-lkia-help="">
             {chrome.keyboardHelp}
           </p>
@@ -577,7 +667,9 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
               slots.includes(clip.id) ? (
                 <div key={`gap-${clip.id}`} data-lkia-pool-gap="" aria-hidden="true" />
               ) : (
-                renderClip(clip.id)
+                <div key={`cell-${clip.id}`} data-lkia-cell="">
+                  {renderClip(clip.id)}
+                </div>
               ),
             )}
           </section>

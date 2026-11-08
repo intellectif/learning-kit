@@ -178,7 +178,7 @@
     "path": "packages/lk-interactive-activities/dist/index.js",
     "import": "{ InteractiveActivityPlayer }",
     "ignore": ["react", "react-dom", "@intellectif/lk-core", "@intellectif/lk-react"],
-    "limit": "22 kB"
+    "limit": "24 kB"
   },
   {
     "name": "lk-interactive-activities: playerEventToXapi",
@@ -192,6 +192,6 @@
     "path": "packages/lk-interactive-activities/dist/index.js",
     "import": "*",
     "ignore": ["react", "react-dom", "@intellectif/lk-core", "@intellectif/lk-react"],
-    "limit": "24 kB"
+    "limit": "26 kB"
   }
 ]

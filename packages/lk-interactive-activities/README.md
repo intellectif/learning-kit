@@ -38,8 +38,9 @@ Host options, shared by every player:
   relative path for an offline bundle. Without it the player uses a nonempty `asset.url`, then
   `assetKey`. Return the same URL for the same asset until it really changes (a refreshed
   signature): a new URL reloads that media.
-- **`onEvent`** receives typed `PlayerEvent`s: a clip opened, frozen, revealed or completed, an answer
-  shown, audio played, a board or scene completed, an order checked, the vocabulary opened.
+- **`onEvent`** receives typed `PlayerEvent`s: a clip opened, frozen, revealed or completed, the
+  supports shown or hidden, an answer shown, audio played, a board or scene completed, an order
+  checked, the vocabulary opened.
 - **`locale`** is the language of the chrome (buttons, labels, announcements), a BCP 47 tag:
   Spanish for any `es` tag (`es`, `es-CO`, `es-419`), otherwise English, the default. It is
   independent of the activity's own `locale`, the language of its content, which sets `lang` and
@@ -64,15 +65,20 @@ to load (see [Styles](#styles-motion-and-fonts)).
 
 The learner picks a card, watches the clip to its freeze point, predicts what happens next, reveals
 the rest, tells the story aloud, compares it with a sample answer and can listen to it. Optional
-supports (useful phrases) are shown while telling; only the ones that appear verbatim in the answer
+supports (useful phrases) are offered while telling; only the ones that appear verbatim in the answer
 are underlined.
+
+- The supports start hidden on every clip, behind a button labelled with the supports label ("To
+  help you" by default, or the editor's own words). The teacher opens them when the class needs
+  them, with the button or H: the panel grows, and the phrases spring in one after another. Closing
+  folds them away; while closed they are out of the tab order and hidden from screen readers.
 
 - The freeze is frame-accurate: playback is checked on every frame (`requestVideoFrameCallback`,
   else every animation frame) and stops one frame before the freeze point, so nothing after it is
   shown. Before the reveal the clip cannot be scrubbed past it.
 - "All clips" (or Escape) returns to the cards from any step, including a clip that failed to load.
-- Keyboard: R or Enter reveals, A or Enter shows the answer, L listens, N or Enter goes on, Escape
-  goes back. Shortcuts never fire with Ctrl, Cmd or Alt held, nor in a text field.
+- Keyboard: R or Enter reveals, H shows or hides the supports, A or Enter shows the answer, L
+  listens, N or Enter goes on, Escape goes back. Shortcuts never fire with Ctrl, Cmd or Alt held, nor in a text field.
 - Playback controls hide after inactivity and come back on pointer or focus. Blocked autoplay and
   unavailable media show a visible fallback.
 - Listen plays the supplied audio, or else the system speech voice in the activity's language
@@ -87,10 +93,15 @@ The learner puts a scene's 3 to 6 muted, looping clips in order and checks.
 - Clips start in one order for every learner of the same activity and scene (lk-core's
   `orderingStart`), so a teacher and a class see the same "Clip 3"; no clip starts in its place.
   Clips are numbered by that start order: the page never carries the answer.
-- Three ways to place a clip: drag it (native pointer events; the clip follows the pointer and the
-  slot beneath it lights up); tap a clip and then a slot; or focus a clip and press a slot number,
-  after which focus moves on to the next clip, then to Check. Delete or Backspace returns a placed
-  clip; placing on a filled slot returns the previous clip.
+- Three ways to place a clip: drag it; tap a clip and then a slot; or focus a clip and press a slot
+  number, after which focus moves on to the next clip, then to Check. Delete or Backspace returns a
+  placed clip; placing on a filled slot returns the previous clip.
+- Dragging (native pointer events) is shown in every part of the board: the clip lifts, follows the
+  pointer and leans into its movement; the spot it left shows as an outline; the other clips step
+  back; the open slots light up and the one beneath the clip grows to receive it. However a clip
+  moves (dropped, tapped into place, placed from the keyboard, returned, or dropped on nothing and
+  sent home), it flies from where it was to where it lands, and a slot that receives it flashes.
+  All of it is CSS, and reduced motion keeps only the fades.
 - C checks once every clip is placed. Each slot's feedback is in words and an icon as well as
   colour, and a status line says how many are right. A correct scene pairs each clip with its
   caption, two to a row, under the story they tell; the next unfinished scene is offered.
