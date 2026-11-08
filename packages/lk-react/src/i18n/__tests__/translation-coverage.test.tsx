@@ -349,6 +349,9 @@ describe('translation coverage', () => {
     vi.restoreAllMocks();
   });
 
+  // Coverage on a shared CI runner regularly exceeds the package's 30s hang-guard
+  // because this test mounts every learner-facing surface and clicks through each
+  // string. The timeout here is only a hang check, like the production-bundle tests.
   it('renders every string in LkStrings from the provider, and no English default', async () => {
     const user = userEvent.setup();
 
@@ -1584,7 +1587,7 @@ describe('translation coverage', () => {
       return typeof value === 'string' && withoutSentinels.includes(value);
     });
     expect(leaked, 'these English defaults survived the override').toEqual([]);
-  });
+  }, 60_000);
 
   it('the wrappers hand the provider strings to the class error boundary', () => {
     // The boundary is the one place a hook cannot reach, so each wrapper reads
