@@ -1,7 +1,7 @@
 {
   "name": "@intellectif/lk-interactive-activities",
-  "version": "0.0.0",
-  "description": "React player and activity contracts for hosted interactive activities \u2014 starting with What Happens and Cine-Scramble \u2014 with zero runtime dependencies.",
+  "version": "0.1.0",
+  "description": "React player and activity contracts for hosted interactive activities — starting with What Happens and Cine-Scramble — with zero runtime dependencies.",
   "keywords": [
     "react",
     "react19",
