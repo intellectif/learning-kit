@@ -1,12 +1,12 @@
 import {
   type CineScrambleData,
   hostedFontsCssUrl,
-  InteractiveActivityPlayer,
   type StyleChoice,
   validateCineScrambleData,
   validateWhatHappensData,
   type WhatHappensData,
 } from '@intellectif/lk-interactive-activities';
+import { InteractiveActivityPlayer } from '@intellectif/lk-interactive-activities/player';
 import type { Decorator, Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 

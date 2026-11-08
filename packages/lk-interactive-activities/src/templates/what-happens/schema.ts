@@ -1,31 +1,46 @@
-import { type ActivityTypeDescriptor, defineActivityType } from '@intellectif/lk-core';
 import {
-  defineStandardSchema,
-  isIssue,
-  readBoolean,
-  readNumber,
-  readObject,
-  readString,
-} from '../../contract/standard-schema.js';
+  type ActivityTypeDescriptor,
+  type DraftIssue,
+  defineActivityType,
+  type MediaSlot,
+} from '@intellectif/lk-core';
+import {
+  arrayAt,
+  assetRefAt,
+  booleanAt,
+  copyAt,
+  detached,
+  Issues,
+  isRecord,
+  localeAt,
+  numberAt,
+  objectAt,
+  oneOfAt,
+  type Path,
+  refuseKeys,
+  result,
+  stringAt,
+  styleAt,
+} from '../../contract/read.js';
+import { defineStandardSchema } from '../../contract/standard-schema.js';
 import type {
-  AssetRef,
-  StyleChoice,
   TemplateDefinition,
   TemplateMediaSlot,
-  ValidationIssue,
   ValidationResult,
-  VideoAspect,
 } from '../../contract/types.js';
-import {
-  FONT_ALLOW_LIST,
-  isAllowedFont,
-  isMotionPresetId,
-  isStylePresetId,
-  MOTION_PRESET_IDS,
-  STYLE_PRESET_IDS,
-} from '../../style/catalog.js';
+import { FONT_ALLOW_LIST, MOTION_PRESET_IDS, STYLE_PRESET_IDS } from '../../style/catalog.js';
 import { WHAT_HAPPENS_AI_SPEC } from './ai-spec.js';
 import { WHAT_HAPPENS_CHROME, whatHappensChrome } from './copy.js';
+import type { WhatHappensClip, WhatHappensData, WhatHappensResponse } from './types.js';
+
+export { answerTextHash, isAnswerAudioCurrent, isSupportsEnabled } from './rules.js';
+export type {
+  WhatHappensClip,
+  WhatHappensCopy,
+  WhatHappensData,
+  WhatHappensResponse,
+} from './types.js';
+export { whatHappensChrome };
 
 export const WHAT_HAPPENS_TYPE = 'what-happens';
 export const WHAT_HAPPENS_SCHEMA_VERSION = '1.0';
@@ -33,464 +48,210 @@ export const WHAT_HAPPENS_CLIP_COUNT_DEFAULT = 8;
 export const WHAT_HAPPENS_CLIP_COUNT_MIN = 1;
 export const WHAT_HAPPENS_CLIP_COUNT_MAX = 12;
 
-const REVEAL_KEYS = new Set(['easyCaption', 'hardCaption', 'revealPrompt', 'captions']);
+const REVEAL_KEYS = ['easyCaption', 'hardCaption', 'revealPrompt', 'captionPairs'] as const;
+const AUTHOR_ONLY_CLIP_KEYS = ['videoPrompt', 'origin'] as const;
+const COPY_KEYS = Object.keys(WHAT_HAPPENS_CHROME.en);
 
-export interface WhatHappensCopy {
-  playFallback?: string;
-  replayToFreeze?: string;
-  mediaError?: string;
-  backButton?: string;
-  boardHint?: string;
-  watchHint?: string;
-  completedLabel?: string;
-  clipCount?: string;
-
-  predictTitle?: string;
-  revealButton?: string;
-  tellTitle?: string;
-  supportsLabel?: string;
-  showAnswer?: string;
-  answerLabel?: string;
-  nextButton?: string;
-  listenButton?: string;
-}
-
-export interface WhatHappensClip {
-  id: string;
-  title: string;
-  video: AssetRef & { aspect: VideoAspect; durationS?: number };
-  thumb?: AssetRef;
-  poster?: AssetRef;
-  freezeAt: number;
-  predictPrompt?: string;
-  tellPrompt?: string;
-  supportsEnabled?: boolean;
-  supportsLabel?: string;
-  supports?: string[];
-  answer: { text: string };
-  audio?: AssetRef & { voice?: string; textHash: string };
-  videoPrompt?: { text: string; generatedBy?: string };
-  origin?: 'authored' | 'generated';
-}
-
-export interface WhatHappensData {
-  schemaVersion: typeof WHAT_HAPPENS_SCHEMA_VERSION;
-  type: typeof WHAT_HAPPENS_TYPE;
-  id: string;
-  title: string;
-  locale: string;
-  style: StyleChoice;
-  supportsEnabled?: boolean;
-  copy?: WhatHappensCopy;
-  clips: WhatHappensClip[];
-}
-
-export interface WhatHappensResponse {
-  clipId: string;
-}
-
-function issue(path: Array<string | number>, message: string): ValidationIssue {
-  return { path, message };
-}
-
-function readAssetRef(value: unknown, path: Array<string | number>): AssetRef | ValidationIssue {
-  const object = readObject(value, path);
-  if (isIssue(object)) {
-    return object;
+function readClip(issues: Issues, raw: unknown, path: Path): WhatHappensClip | undefined {
+  const object = objectAt(issues, raw, path);
+  if (object === undefined) return undefined;
+  const before = issues.count;
+  for (const key of REVEAL_KEYS) {
+    if (key in object)
+      issues.add([...path, key], 'reveal_field', 'Reveal fields are not part of What Happens.');
   }
-  const assetKey = readString(object.assetKey, [...path, 'assetKey']);
-  if (isIssue(assetKey)) {
-    return assetKey;
-  }
-  const ref: AssetRef = { assetKey };
-  if (object.url !== undefined) {
-    const url = readString(object.url, [...path, 'url']);
-    if (isIssue(url)) {
-      return url;
-    }
-    ref.url = url;
-  }
-  return ref;
-}
+  const id = stringAt(issues, object.id, [...path, 'id']);
+  stringAt(issues, object.title, [...path, 'title']);
 
-function readStyle(value: unknown, path: Array<string | number>): StyleChoice | ValidationIssue[] {
-  const errors: ValidationIssue[] = [];
-  const object = readObject(value, path);
-  if (isIssue(object)) {
-    return [object];
-  }
-  const presetId = readString(object.presetId, [...path, 'presetId']);
-  if (isIssue(presetId)) {
-    errors.push(presetId);
-  } else if (!isStylePresetId(presetId)) {
-    errors.push(issue([...path, 'presetId'], `Unknown style preset "${presetId}".`));
-  }
-  if (
-    object.mode !== undefined &&
-    object.mode !== 'light' &&
-    object.mode !== 'dark' &&
-    object.mode !== 'auto'
-  ) {
-    errors.push(issue([...path, 'mode'], 'Expected "light", "dark", or "auto".'));
-  }
-  if (object.motionPresetId !== undefined) {
-    const motion = readString(object.motionPresetId, [...path, 'motionPresetId']);
-    if (isIssue(motion)) {
-      errors.push(motion);
-    } else if (!isMotionPresetId(motion)) {
-      errors.push(issue([...path, 'motionPresetId'], `Unknown motion preset "${motion}".`));
+  const video = assetRefAt(issues, object.video, [...path, 'video']);
+  let durationS: number | undefined;
+  if (isRecord(object.video)) {
+    oneOfAt(issues, object.video.aspect, [...path, 'video', 'aspect'], ['9:16', '16:9']);
+    durationS = numberAt(issues, object.video.durationS, [...path, 'video', 'durationS'], {
+      required: false,
+    });
+    if (durationS !== undefined && durationS <= 0) {
+      issues.add(
+        [...path, 'video', 'durationS'],
+        'not_positive',
+        'The duration must be more than 0 seconds.',
+      );
     }
   }
-  if (object.fonts !== undefined) {
-    const fonts = readObject(object.fonts, [...path, 'fonts']);
-    if (isIssue(fonts)) {
-      errors.push(fonts);
-    } else {
-      for (const key of ['heading', 'body'] as const) {
-        if (fonts[key] === undefined) {
-          continue;
-        }
-        const font = readString(fonts[key], [...path, 'fonts', key]);
-        if (isIssue(font)) {
-          errors.push(font);
-        } else if (!isAllowedFont(font)) {
-          errors.push(issue([...path, 'fonts', key], `Unknown font "${font}".`));
-        }
-      }
-    }
-  }
-  if (errors.length > 0) {
-    return errors;
-  }
-  const style: StyleChoice = { presetId: presetId as string };
-  if (object.mode === 'light' || object.mode === 'dark' || object.mode === 'auto') {
-    style.mode = object.mode;
-  }
-  if (typeof object.motionPresetId === 'string') {
-    style.motionPresetId = object.motionPresetId;
-  }
-  if (object.fonts !== undefined) {
-    style.fonts = object.fonts as NonNullable<StyleChoice['fonts']>;
-  }
-  return style;
-}
-
-function readClip(
-  value: unknown,
-  path: Array<string | number>,
-): WhatHappensClip | ValidationIssue[] {
-  const errors: ValidationIssue[] = [];
-  const object = readObject(value, path);
-  if (isIssue(object)) {
-    return [object];
-  }
-  for (const key of Object.keys(object)) {
-    if (REVEAL_KEYS.has(key)) {
-      errors.push(issue([...path, key], 'Reveal fields are not part of What Happens.'));
-    }
-  }
-
-  const id = readString(object.id, [...path, 'id']);
-  const title = readString(object.title, [...path, 'title']);
-  const freezeAt = readNumber(object.freezeAt, [...path, 'freezeAt']);
-  const answerObject = readObject(object.answer, [...path, 'answer']);
-  const videoObject = readObject(object.video, [...path, 'video']);
-
-  if (isIssue(id)) errors.push(id);
-  if (isIssue(title)) errors.push(title);
-  if (isIssue(freezeAt)) errors.push(freezeAt);
-  if (isIssue(answerObject)) errors.push(answerObject);
-  if (isIssue(videoObject)) errors.push(videoObject);
-
-  let answerText: string | undefined;
-  if (!isIssue(answerObject)) {
-    const text = readString(answerObject.text, [...path, 'answer', 'text'], { allowEmpty: true });
-    if (isIssue(text)) errors.push(text);
-    else answerText = text;
-  }
-
-  let video: (AssetRef & { aspect: VideoAspect; durationS?: number }) | undefined;
-  if (!isIssue(videoObject)) {
-    const asset = readAssetRef(videoObject, [...path, 'video']);
-    if (isIssue(asset)) {
-      errors.push(asset);
-    } else {
-      const aspect = videoObject.aspect;
-      if (aspect !== '9:16' && aspect !== '16:9') {
-        errors.push(issue([...path, 'video', 'aspect'], 'Expected "9:16" or "16:9".'));
-      } else {
-        video = { ...asset, aspect };
-        if (videoObject.durationS !== undefined) {
-          const durationS = readNumber(videoObject.durationS, [...path, 'video', 'durationS']);
-          if (isIssue(durationS)) {
-            errors.push(durationS);
-          } else if (durationS <= 0) {
-            errors.push(issue([...path, 'video', 'durationS'], 'Duration must be greater than 0.'));
-          } else {
-            video.durationS = durationS;
-          }
-        }
-      }
-    }
-  }
-
-  if (!isIssue(freezeAt)) {
+  const freezeAt = numberAt(issues, object.freezeAt, [...path, 'freezeAt']);
+  if (freezeAt !== undefined) {
     if (freezeAt <= 0) {
-      errors.push(issue([...path, 'freezeAt'], 'freezeAt must be greater than 0.'));
-    }
-    if (video?.durationS !== undefined && freezeAt >= video.durationS) {
-      errors.push(issue([...path, 'freezeAt'], 'freezeAt must be less than the clip duration.'));
+      issues.add(
+        [...path, 'freezeAt'],
+        'freeze_out_of_bounds',
+        'The freeze point must be after the start of the clip.',
+      );
+    } else if (durationS !== undefined && durationS > 0 && freezeAt >= durationS) {
+      issues.add(
+        [...path, 'freezeAt'],
+        'freeze_out_of_bounds',
+        'The freeze point must be before the end of the clip.',
+      );
     }
   }
 
-  const optionalStrings = ['predictPrompt', 'tellPrompt', 'supportsLabel'] as const;
-  const extras: Partial<WhatHappensClip> = {};
-  for (const key of optionalStrings) {
-    if (object[key] === undefined) continue;
-    const text = readString(object[key], [...path, key]);
-    if (isIssue(text)) errors.push(text);
-    else extras[key] = text;
+  for (const key of ['predictPrompt', 'tellPrompt', 'supportsLabel'] as const) {
+    stringAt(issues, object[key], [...path, key], { required: false });
   }
-  if (object.supportsEnabled !== undefined) {
-    const enabled = readBoolean(object.supportsEnabled, [...path, 'supportsEnabled']);
-    if (isIssue(enabled)) errors.push(enabled);
-    else extras.supportsEnabled = enabled;
-  }
-  if (object.supports !== undefined) {
-    if (!Array.isArray(object.supports)) {
-      errors.push(issue([...path, 'supports'], 'Expected an array of strings.'));
-    } else {
-      const supports: string[] = [];
-      const seenSupports = new Set<string>();
-      object.supports.forEach((item, index) => {
-        const text = readString(item, [...path, 'supports', index]);
-        if (isIssue(text)) {
-          errors.push(text);
-          return;
-        }
-        const key = text.trim().toLowerCase();
-        if (seenSupports.has(key)) {
-          errors.push(issue([...path, 'supports', index], `Duplicate support item "${text}".`));
-        }
-        seenSupports.add(key);
-        supports.push(text);
-      });
-      extras.supports = supports;
-    }
-  }
-  if (object.thumb !== undefined) {
-    const thumb = readAssetRef(object.thumb, [...path, 'thumb']);
-    if (isIssue(thumb)) errors.push(thumb);
-    else extras.thumb = thumb;
-  }
-  if (object.poster !== undefined) {
-    const poster = readAssetRef(object.poster, [...path, 'poster']);
-    if (isIssue(poster)) errors.push(poster);
-    else extras.poster = poster;
-  }
-  if (object.audio !== undefined) {
-    const audioObject = readObject(object.audio, [...path, 'audio']);
-    if (isIssue(audioObject)) {
-      errors.push(audioObject);
-    } else {
-      const asset = readAssetRef(audioObject, [...path, 'audio']);
-      const textHash = readString(audioObject.textHash, [...path, 'audio', 'textHash']);
-      if (isIssue(asset)) errors.push(asset);
-      if (isIssue(textHash)) errors.push(textHash);
-      if (!isIssue(asset) && !isIssue(textHash)) {
-        extras.audio = { ...asset, textHash };
-        if (audioObject.voice !== undefined) {
-          const voice = readString(audioObject.voice, [...path, 'audio', 'voice'], {
-            allowEmpty: true,
-          });
-          if (isIssue(voice)) errors.push(voice);
-          else extras.audio.voice = voice;
-        }
+  booleanAt(issues, object.supportsEnabled, [...path, 'supportsEnabled'], { required: false });
+  const supports = arrayAt(issues, object.supports, [...path, 'supports'], { required: false });
+  if (supports !== undefined) {
+    const seen = new Set<string>();
+    supports.forEach((item, index) => {
+      const text = stringAt(issues, item, [...path, 'supports', index]);
+      if (text === undefined) return;
+      const key = text.trim().toLowerCase();
+      if (seen.has(key)) {
+        issues.add(
+          [...path, 'supports', index],
+          'duplicate_item',
+          `Duplicate support item "${text}".`,
+        );
       }
-    }
+      seen.add(key);
+    });
+  }
+  for (const key of ['thumb', 'poster'] as const) {
+    assetRefAt(issues, object[key], [...path, key], { required: false });
+  }
+  if (assetRefAt(issues, object.captions, [...path, 'captions'], { required: false })) {
+    const captions = object.captions as Record<string, unknown>;
+    localeAt(issues, captions.srclang, [...path, 'captions', 'srclang'], { required: false });
+    stringAt(issues, captions.label, [...path, 'captions', 'label'], { required: false });
+  }
+  const answer = objectAt(issues, object.answer, [...path, 'answer']);
+  if (answer !== undefined) {
+    stringAt(issues, answer.text, [...path, 'answer', 'text'], { allowEmpty: true });
+  }
+  if (assetRefAt(issues, object.audio, [...path, 'audio'], { required: false })) {
+    const audio = object.audio as Record<string, unknown>;
+    stringAt(issues, audio.textHash, [...path, 'audio', 'textHash']);
+    stringAt(issues, audio.voice, [...path, 'audio', 'voice'], {
+      required: false,
+      allowEmpty: true,
+    });
   }
   if (object.videoPrompt !== undefined) {
-    const prompt = readObject(object.videoPrompt, [...path, 'videoPrompt']);
-    if (isIssue(prompt)) {
-      errors.push(prompt);
-    } else {
-      const text = readString(prompt.text, [...path, 'videoPrompt', 'text'], { allowEmpty: true });
-      if (isIssue(text)) errors.push(text);
-      else {
-        extras.videoPrompt = { text };
-        if (prompt.generatedBy !== undefined) {
-          const generatedBy = readString(
-            prompt.generatedBy,
-            [...path, 'videoPrompt', 'generatedBy'],
-            {
-              allowEmpty: true,
-            },
-          );
-          if (isIssue(generatedBy)) errors.push(generatedBy);
-          else extras.videoPrompt.generatedBy = generatedBy;
-        }
-      }
+    const prompt = objectAt(issues, object.videoPrompt, [...path, 'videoPrompt']);
+    if (prompt !== undefined) {
+      stringAt(issues, prompt.text, [...path, 'videoPrompt', 'text'], { allowEmpty: true });
+      stringAt(issues, prompt.generatedBy, [...path, 'videoPrompt', 'generatedBy'], {
+        required: false,
+        allowEmpty: true,
+      });
     }
   }
-  if (
-    object.origin !== undefined &&
-    object.origin !== 'authored' &&
-    object.origin !== 'generated'
-  ) {
-    errors.push(issue([...path, 'origin'], 'Expected "authored" or "generated".'));
-  } else if (object.origin === 'authored' || object.origin === 'generated') {
-    extras.origin = object.origin;
-  }
+  oneOfAt(issues, object.origin, [...path, 'origin'], ['authored', 'generated'], {
+    required: false,
+  });
 
-  if (
-    errors.length > 0 ||
-    isIssue(id) ||
-    isIssue(title) ||
-    video === undefined ||
-    answerText === undefined ||
-    isIssue(freezeAt)
-  ) {
-    return errors.length > 0 ? errors : [issue(path, 'Clip is incomplete.')];
-  }
-
-  return {
-    id,
-    title,
-    video,
-    freezeAt,
-    answer: { text: answerText },
-    ...extras,
-  };
+  if (issues.count > before || id === undefined || video === undefined) return undefined;
+  return object as unknown as WhatHappensClip;
 }
 
-function validateWhatHappens(value: unknown): ValidationResult<WhatHappensData> {
-  const errors: ValidationIssue[] = [];
-  const object = readObject(value);
-  if (isIssue(object)) {
-    return { success: false, errors: [object] };
-  }
+function validate(value: unknown, { learnerCopy = false } = {}): ValidationResult<WhatHappensData> {
+  const issues = new Issues();
+  const object = objectAt(issues, value, []);
+  if (object === undefined) return result<WhatHappensData>(issues, undefined);
 
   if (object.schemaVersion !== WHAT_HAPPENS_SCHEMA_VERSION) {
-    errors.push(
-      issue(['schemaVersion'], `Unknown schema version "${String(object.schemaVersion)}".`),
+    issues.add(
+      ['schemaVersion'],
+      'unknown_schema_version',
+      `Unknown schema version "${String(object.schemaVersion)}"; expected "${WHAT_HAPPENS_SCHEMA_VERSION}".`,
     );
   }
   if (object.type !== WHAT_HAPPENS_TYPE) {
-    errors.push(issue(['type'], `Unknown template "${String(object.type)}".`));
+    issues.add(['type'], 'unknown_template', `Unknown template "${String(object.type)}".`);
   }
+  stringAt(issues, object.id, ['id']);
+  stringAt(issues, object.title, ['title']);
+  localeAt(issues, object.locale, ['locale']);
+  styleAt(issues, object.style, ['style']);
+  booleanAt(issues, object.supportsEnabled, ['supportsEnabled'], { required: false });
+  copyAt(issues, object.copy, ['copy'], COPY_KEYS);
 
-  const id = readString(object.id, ['id']);
-  const title = readString(object.title, ['title']);
-  const locale = readString(object.locale, ['locale']);
-  if (isIssue(id)) errors.push(id);
-  if (isIssue(title)) errors.push(title);
-  if (isIssue(locale)) errors.push(locale);
-
-  const style =
-    object.style === undefined
-      ? [issue(['style'], 'Expected a style choice.')]
-      : readStyle(object.style, ['style']);
-  let styleValue: StyleChoice | undefined;
-  if (Array.isArray(style)) errors.push(...style);
-  else styleValue = style;
-
-  let supportsEnabled: boolean | undefined;
-  if (object.supportsEnabled !== undefined) {
-    const enabled = readBoolean(object.supportsEnabled, ['supportsEnabled']);
-    if (isIssue(enabled)) errors.push(enabled);
-    else supportsEnabled = enabled;
-  }
-
-  let copy: WhatHappensCopy | undefined;
-  if (object.copy !== undefined) {
-    const copyObject = readObject(object.copy, ['copy']);
-    if (isIssue(copyObject)) {
-      errors.push(copyObject);
-    } else {
-      copy = {};
-      for (const key of Object.keys(WHAT_HAPPENS_CHROME.en) as Array<keyof WhatHappensCopy>) {
-        if (copyObject[key] === undefined) continue;
-        const text = readString(copyObject[key], ['copy', key]);
-        if (isIssue(text)) errors.push(text);
-        else copy[key] = text;
-      }
-    }
-  }
-
-  if (!Array.isArray(object.clips)) {
-    errors.push(issue(['clips'], 'Expected an array of clips.'));
-    return { success: false, errors };
-  }
-  if (
-    object.clips.length < WHAT_HAPPENS_CLIP_COUNT_MIN ||
-    object.clips.length > WHAT_HAPPENS_CLIP_COUNT_MAX
-  ) {
-    errors.push(
-      issue(
+  const clips = arrayAt(issues, object.clips, ['clips']);
+  if (clips !== undefined) {
+    if (clips.length < WHAT_HAPPENS_CLIP_COUNT_MIN || clips.length > WHAT_HAPPENS_CLIP_COUNT_MAX) {
+      issues.add(
         ['clips'],
+        'count_out_of_range',
         `Expected between ${WHAT_HAPPENS_CLIP_COUNT_MIN} and ${WHAT_HAPPENS_CLIP_COUNT_MAX} clips.`,
-      ),
-    );
-  }
-
-  const clips: WhatHappensClip[] = [];
-  const seen = new Set<string>();
-  object.clips.forEach((raw, index) => {
-    const clip = readClip(raw, ['clips', index]);
-    if (Array.isArray(clip)) {
-      errors.push(...clip);
-      return;
+      );
     }
-    if (seen.has(clip.id)) {
-      errors.push(issue(['clips', index, 'id'], `Duplicate clip id "${clip.id}".`));
-    }
-    seen.add(clip.id);
-    clips.push(clip);
-  });
-
-  if (
-    errors.length > 0 ||
-    isIssue(id) ||
-    isIssue(title) ||
-    isIssue(locale) ||
-    styleValue === undefined
-  ) {
-    return { success: false, errors };
+    const seen = new Set<string>();
+    clips.forEach((raw, index) => {
+      const clip = readClip(issues, raw, ['clips', index]);
+      if (learnerCopy && isRecord(raw)) {
+        refuseKeys(
+          issues,
+          raw,
+          ['clips', index],
+          AUTHOR_ONLY_CLIP_KEYS,
+          'author_only_field',
+          'An authoring-only field; a learner copy must not carry it.',
+        );
+      }
+      if (clip === undefined) return;
+      if (seen.has(clip.id)) {
+        issues.add(['clips', index, 'id'], 'duplicate_id', `Duplicate clip id "${clip.id}".`);
+      }
+      seen.add(clip.id);
+    });
   }
-
-  return {
-    success: true,
-    data: {
-      schemaVersion: WHAT_HAPPENS_SCHEMA_VERSION,
-      type: WHAT_HAPPENS_TYPE,
-      id,
-      title,
-      locale,
-      style: styleValue,
-      ...(supportsEnabled !== undefined ? { supportsEnabled } : {}),
-      ...(copy !== undefined ? { copy } : {}),
-      clips,
-    },
-  };
+  // Nothing is rewritten, and keys the contract does not know (a host's own
+  // fields) are kept as they are, in a copy detached from the input.
+  return result(
+    issues,
+    issues.count === 0 ? detached(object as unknown as WhatHappensData) : undefined,
+  );
 }
 
-export const whatHappensSchema = defineStandardSchema<WhatHappensData>((value) => {
-  const result = validateWhatHappens(value);
-  return result.success ? { value: result.data } : { issues: result.errors };
-});
+/**
+ * Whether stored JSON is a publishable What Happens activity. Every problem is
+ * reported at its path with a stable code; nothing is fixed silently. Keys the
+ * contract does not know are kept as they are.
+ */
+export function validateWhatHappensData(data: unknown): ValidationResult<WhatHappensData> {
+  return validate(data);
+}
 
+export const whatHappensSchema = defineStandardSchema<WhatHappensData>((value) => validate(value));
+/** A learner's copy (`redact()` output): valid, and without authoring-only fields. */
+const whatHappensRedactedSchema = defineStandardSchema<WhatHappensData>((value) =>
+  validate(value, { learnerCopy: true }),
+);
+
+const text = { type: 'string', pattern: '\\S' };
+const assetRef = {
+  type: 'object',
+  required: ['assetKey'],
+  properties: { assetKey: text, url: { type: 'string' } },
+};
+
+/**
+ * The contract as JSON Schema (draft 2020-12), for forms and API documentation.
+ * `validate()` stays authoritative: it also checks freeze points against the
+ * duration, unique ids, duplicate supports, safe URLs and language tags.
+ * Unknown keys are allowed, as the validator keeps them.
+ */
 export const WHAT_HAPPENS_JSON_SCHEMA: Record<string, unknown> = {
   $id: 'https://intellectif.com/schemas/what-happens/1.0.json',
   title: 'What Happens activity',
   type: 'object',
-  additionalProperties: false,
   required: ['schemaVersion', 'type', 'id', 'title', 'locale', 'style', 'clips'],
   properties: {
     schemaVersion: { const: WHAT_HAPPENS_SCHEMA_VERSION },
     type: { const: WHAT_HAPPENS_TYPE },
-    id: { type: 'string', minLength: 1 },
-    title: { type: 'string', minLength: 1 },
-    locale: { type: 'string', minLength: 1 },
+    id: text,
+    title: text,
+    locale: text,
     supportsEnabled: { type: 'boolean', default: true },
     style: {
       type: 'object',
@@ -508,7 +269,10 @@ export const WHAT_HAPPENS_JSON_SCHEMA: Record<string, unknown> = {
         },
       },
     },
-    copy: { type: 'object', additionalProperties: { type: 'string', minLength: 1 } },
+    copy: {
+      type: 'object',
+      properties: Object.fromEntries(COPY_KEYS.map((key) => [key, text])),
+    },
     clips: {
       type: 'array',
       minItems: WHAT_HAPPENS_CLIP_COUNT_MIN,
@@ -521,39 +285,164 @@ export const WHAT_HAPPENS_JSON_SCHEMA: Record<string, unknown> = {
       type: 'object',
       required: ['id', 'title', 'video', 'freezeAt', 'answer'],
       properties: {
-        id: { type: 'string', minLength: 1 },
-        title: { type: 'string', minLength: 1 },
+        id: text,
+        title: text,
         video: {
           type: 'object',
           required: ['assetKey', 'aspect'],
           properties: {
-            assetKey: { type: 'string', minLength: 1 },
-            url: { type: 'string' },
+            ...assetRef.properties,
             aspect: { type: 'string', enum: ['9:16', '16:9'] },
             durationS: { type: 'number', exclusiveMinimum: 0 },
           },
         },
+        thumb: assetRef,
+        poster: assetRef,
+        captions: {
+          type: 'object',
+          required: ['assetKey'],
+          properties: { ...assetRef.properties, srclang: text, label: text },
+        },
         freezeAt: { type: 'number', exclusiveMinimum: 0 },
-        predictPrompt: { type: 'string', minLength: 1 },
-        tellPrompt: { type: 'string', minLength: 1 },
+        predictPrompt: text,
+        tellPrompt: text,
         supportsEnabled: { type: 'boolean' },
-        supportsLabel: { type: 'string', minLength: 1 },
-        supports: { type: 'array', uniqueItems: true, items: { type: 'string', minLength: 1 } },
+        supportsLabel: text,
+        supports: { type: 'array', items: text },
         answer: {
           type: 'object',
           required: ['text'],
           properties: { text: { type: 'string' } },
         },
+        audio: {
+          type: 'object',
+          required: ['assetKey', 'textHash'],
+          properties: { ...assetRef.properties, textHash: text, voice: { type: 'string' } },
+        },
+        videoPrompt: {
+          type: 'object',
+          required: ['text'],
+          properties: { text: { type: 'string' }, generatedBy: { type: 'string' } },
+        },
+        origin: { type: 'string', enum: ['authored', 'generated'] },
       },
     },
   },
 };
 
+/** Draft codes `checkWhatHappensDraft` reports, each `incomplete`. */
+export type WhatHappensDraftCode =
+  | 'wh_title_required'
+  | 'wh_clip_title_required'
+  | 'wh_video_required'
+  | 'wh_freeze_required';
+
+/**
+ * What is still to write in a draft, as lk-core `DraftIssue`s of severity
+ * `incomplete`, at the paths `validate` reports them: an empty title, an
+ * unnamed clip, a clip with no video yet, a freeze point not set. Accepts any
+ * object and never throws.
+ */
+export function checkWhatHappensDraft(draft: Readonly<Record<string, unknown>>): DraftIssue[] {
+  const issues: DraftIssue[] = [];
+  const add = (path: Path, code: WhatHappensDraftCode, message: string) =>
+    issues.push({ path: path.map(String), code, message, severity: 'incomplete' });
+  const blank = (value: unknown) => typeof value === 'string' && value.trim() === '';
+  if (blank(draft.title)) add(['title'], 'wh_title_required', 'Give the activity a title.');
+  if (Array.isArray(draft.clips)) {
+    draft.clips.forEach((clip, index) => {
+      if (!isRecord(clip)) return;
+      if (blank(clip.title)) {
+        add(['clips', index, 'title'], 'wh_clip_title_required', 'Give the clip a title.');
+      }
+      if (isRecord(clip.video) && blank(clip.video.assetKey)) {
+        add(['clips', index, 'video', 'assetKey'], 'wh_video_required', 'Upload the clip.');
+      }
+      if (clip.freezeAt === 0) {
+        add(['clips', index, 'freezeAt'], 'wh_freeze_required', 'Set the freeze point.');
+      }
+    });
+  }
+  return issues;
+}
+
+/**
+ * A new, unauthored What Happens activity: 8 clips (the default), supports on,
+ * English content, the default style. Titles and media are empty and freeze
+ * points unset, so `validateWhatHappensData` refuses it and lk-core's
+ * `validateDraft` reports it `incomplete` until it is written.
+ *
+ * `newId` names the clips; by default `clip-1` to `clip-8`.
+ */
+export function createWhatHappensDraft(id = 'untitled', newId?: () => string): WhatHappensData {
+  let next = 0;
+  const clipId = newId ?? (() => `clip-${++next}`);
+  return {
+    schemaVersion: WHAT_HAPPENS_SCHEMA_VERSION,
+    type: WHAT_HAPPENS_TYPE,
+    id,
+    title: '',
+    locale: 'en',
+    style: { presetId: 'default' },
+    supportsEnabled: true,
+    clips: Array.from({ length: WHAT_HAPPENS_CLIP_COUNT_DEFAULT }, () => ({
+      id: clipId(),
+      title: '',
+      video: { assetKey: '', aspect: '9:16' as const },
+      freezeAt: 0,
+      answer: { text: '' },
+    })),
+  };
+}
+
+const hasKey = (ref: unknown): ref is Record<string, unknown> & { assetKey: string } =>
+  isRecord(ref) && typeof ref.assetKey === 'string' && ref.assetKey.trim() !== '';
+
+/** Every file the activity has or needs, filled or not. Accepts partial drafts. */
+export function whatHappensMediaSlots(data: WhatHappensData): TemplateMediaSlot[] {
+  const slots: TemplateMediaSlot[] = [];
+  const clips: unknown[] = isRecord(data) && Array.isArray(data.clips) ? data.clips : [];
+  clips.forEach((raw, index) => {
+    const clip: Record<string, unknown> = isRecord(raw) ? raw : {};
+    const label = typeof clip.title === 'string' && clip.title !== '' ? clip.title : undefined;
+    const slot = (
+      role: TemplateMediaSlot['role'],
+      kind: TemplateMediaSlot['kind'],
+      required: boolean,
+    ) => {
+      const ref = clip[role];
+      const entry: TemplateMediaSlot = {
+        path: ['clips', index, role],
+        kind,
+        role,
+        required,
+        present: hasKey(ref),
+      };
+      if (hasKey(ref)) entry.assetKey = ref.assetKey;
+      if (label !== undefined) entry.label = label;
+      if (role === 'video' && isRecord(ref)) {
+        if (ref.aspect === '9:16' || ref.aspect === '16:9') entry.aspect = ref.aspect;
+        if (typeof ref.durationS === 'number') entry.durationS = ref.durationS;
+      }
+      slots.push(entry);
+    };
+    slot('video', 'video', true);
+    slot('thumb', 'image', false);
+    slot('poster', 'image', false);
+    slot('captions', 'captions', false);
+    slot('audio', 'audio', false);
+  });
+  return slots;
+}
+
 export const whatHappensType: ActivityTypeDescriptor<WhatHappensData, WhatHappensResponse> =
   defineActivityType<WhatHappensData, WhatHappensResponse>({
     type: WHAT_HAPPENS_TYPE,
     schema: whatHappensSchema,
+    redactedSchema: whatHappensRedactedSchema,
     jsonSchema: WHAT_HAPPENS_JSON_SCHEMA,
+    // Speaking is practice and is never graded (FR-70). `deferred` is lk-core's
+    // only "no score" kind; nothing is waiting for a grade.
     scoring: { kind: 'deferred', reason: 'requires_async_grading' },
     fieldPolicy: {
       schemaVersion: 'public',
@@ -570,77 +459,32 @@ export const whatHappensType: ActivityTypeDescriptor<WhatHappensData, WhatHappen
         video: 'public',
         thumb: 'public',
         poster: 'public',
+        captions: 'public',
         freezeAt: 'public',
         predictPrompt: 'public',
         tellPrompt: 'public',
         supportsEnabled: 'public',
         supportsLabel: 'public',
         supports: 'public',
+        // The sample answer is shown to every learner after they speak.
         answer: 'public',
         audio: 'public',
         videoPrompt: 'author-only',
         origin: 'author-only',
       },
     },
-    mediaSlots: (data) =>
-      data.clips.flatMap((clip, index) => {
-        const slots: Array<{ path: Array<string | number>; kind: 'video' | 'image' | 'audio' }> = [
-          { path: ['clips', index, 'video'], kind: 'video' },
-        ];
-        if (clip.thumb) slots.push({ path: ['clips', index, 'thumb'], kind: 'image' });
-        if (clip.poster) slots.push({ path: ['clips', index, 'poster'], kind: 'image' });
-        if (clip.audio) slots.push({ path: ['clips', index, 'audio'], kind: 'audio' });
-        return slots;
-      }),
+    authoring: {
+      createDraft: (context) => createWhatHappensDraft(context.newId(), context.newId),
+      checkDraft: checkWhatHappensDraft,
+    },
+    // lk-core reads the files that are there; `whatHappensMediaSlots` lists all.
+    mediaSlots: (data): MediaSlot[] =>
+      whatHappensMediaSlots(data)
+        .filter((slot) => slot.present)
+        .map((slot) =>
+          slot.kind === 'captions' ? { path: slot.path } : { path: slot.path, kind: slot.kind },
+        ),
   });
-
-export function createWhatHappensDraft(id = 'untitled'): WhatHappensData {
-  return {
-    schemaVersion: WHAT_HAPPENS_SCHEMA_VERSION,
-    type: WHAT_HAPPENS_TYPE,
-    id,
-    title: 'Untitled activity',
-    locale: 'en',
-    style: { presetId: 'default' },
-    supportsEnabled: true,
-    clips: Array.from({ length: WHAT_HAPPENS_CLIP_COUNT_DEFAULT }, (_, index) => ({
-      id: `clip-${index + 1}`,
-      title: `Clip ${index + 1}`,
-      video: { assetKey: `clip-${index + 1}`, aspect: '9:16' },
-      freezeAt: 1,
-      answer: { text: 'Sample answer' },
-    })),
-  };
-}
-
-export function isSupportsEnabled(activity: WhatHappensData, clip?: WhatHappensClip): boolean {
-  if (clip?.supportsEnabled !== undefined) {
-    return clip.supportsEnabled;
-  }
-  return activity.supportsEnabled !== false;
-}
-
-export function validateWhatHappensData(data: unknown): ValidationResult<WhatHappensData> {
-  return validateWhatHappens(data);
-}
-
-function templateMediaSlots(data: WhatHappensData): TemplateMediaSlot[] {
-  const slots: TemplateMediaSlot[] = [];
-  data.clips.forEach((clip, index) => {
-    slots.push({ path: ['clips', index, 'video'], kind: 'video', assetKey: clip.video.assetKey });
-    if (clip.thumb)
-      slots.push({ path: ['clips', index, 'thumb'], kind: 'image', assetKey: clip.thumb.assetKey });
-    if (clip.poster)
-      slots.push({
-        path: ['clips', index, 'poster'],
-        kind: 'image',
-        assetKey: clip.poster.assetKey,
-      });
-    if (clip.audio)
-      slots.push({ path: ['clips', index, 'audio'], kind: 'audio', assetKey: clip.audio.assetKey });
-  });
-  return slots;
-}
 
 export const whatHappensTemplate: TemplateDefinition<WhatHappensData> = {
   id: WHAT_HAPPENS_TYPE,
@@ -648,9 +492,8 @@ export const whatHappensTemplate: TemplateDefinition<WhatHappensData> = {
   label: 'What Happens',
   activityType: WHAT_HAPPENS_TYPE,
   validate: validateWhatHappensData,
+  createDraft: (id) => createWhatHappensDraft(id),
   jsonSchema: WHAT_HAPPENS_JSON_SCHEMA,
   aiSpec: WHAT_HAPPENS_AI_SPEC,
-  mediaSlots: templateMediaSlots,
+  mediaSlots: whatHappensMediaSlots,
 };
-
-export { whatHappensChrome };

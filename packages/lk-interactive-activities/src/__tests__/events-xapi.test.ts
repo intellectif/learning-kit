@@ -19,6 +19,9 @@ const events: PlayerEvent[] = [
   { type: 'audio.played', ...clip, via: 'speechSynthesis' },
   { type: 'clip.completed', ...clip },
   { type: 'board.completed', activityId: 'activity-1' },
+  { type: 'activity.completed', activityId: 'activity-1' },
+  { type: 'supports.shown', ...clip },
+  { type: 'supports.hidden', ...clip },
   { type: 'scramble.started', ...scene },
   { type: 'scramble.completed', ...scene },
   { type: 'scramble.checked', ...scene, correct: true },
@@ -50,10 +53,15 @@ describe('player event xAPI adapter', () => {
       expect(statement.result).toEqual({ success: event.correct });
     } else {
       expect(statement.result ?? {}).not.toHaveProperty('success');
-      if (event.type.endsWith('.completed')) {
+      if (event.type === 'board.completed' || event.type === 'activity.completed') {
+        // Only the whole activity is completed.
         expect(statement.verb.id).toBe(XAPIVerb.COMPLETED);
         expect(statement.result).toEqual({ completion: true });
+      } else if (event.type.startsWith('supports.')) {
+        expect(statement.verb.id).toBe(XAPIVerb.INTERACTED);
+        expect(statement).not.toHaveProperty('result');
       } else {
+        // Progress inside it, a clip or a scene included, is experienced.
         expect(statement.verb.id).toBe(XAPIVerb.EXPERIENCED);
         expect(statement).not.toHaveProperty('result');
       }
@@ -62,7 +70,7 @@ describe('player event xAPI adapter', () => {
 
   it('lets a host resolve object IRIs from event IDs and preserves context without mutation', () => {
     const context = Object.freeze({
-      platform: 'OCW',
+      platform: 'example-lms',
       language: 'es',
       extensions: Object.freeze({
         'https://example.org/custom': 'retained',
@@ -83,7 +91,7 @@ describe('player event xAPI adapter', () => {
       },
     });
     expect(statement.context).toMatchObject({
-      platform: 'OCW',
+      platform: 'example-lms',
       language: 'es',
       extensions: {
         'https://example.org/custom': 'retained',

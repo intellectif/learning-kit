@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { cineScrambleFixture } from '../src/__tests__/player-fixtures.js';
-import { BBB_WEBSITE_SHARE_ALLOW, BBB_WEBSITE_SHARE_SANDBOX } from '../src/player/embed.js';
+import { BBB_WEBSITE_SHARE_ALLOW, BBB_WEBSITE_SHARE_SANDBOX } from '../src/contract/embed.js';
 import { startOrder } from '../src/templates/cine-scramble/player/machine.js';
 
 // The page never says which clip goes where; the test works it out as a learner's
@@ -35,9 +35,14 @@ for (const template of ['what-happens', 'cine-scramble']) {
     if (template === 'cine-scramble') {
       await frame.getByRole('button', { name: 'Start' }).click();
       await expect(frame.locator('[data-stage="arranging"]')).toBeVisible();
-      await expect(frame.locator('[data-lkia-root]')).toBeFocused();
-      // Intentionally missing fixture media settles into the real error fallback before dragging.
-      await expect(frame.getByRole('alert')).toHaveCount(4);
+      // The step's heading takes focus, so a screen reader announces the scene.
+      await expect(frame.locator('[data-lkia-eyebrow]')).toBeFocused();
+      // Intentionally missing fixture media settles into the real error fallback before dragging:
+      // one quiet message per clip, announced once.
+      await expect(frame.locator('[data-lkia-loop] [data-lkia-error]')).toHaveCount(4);
+      await expect(frame.locator('[data-lkia-status]')).toHaveText(
+        'This clip could not be played.',
+      );
       // Clip 1 is never the first clip, so dragging it to slot 1 is wrong; drag it
       // where it belongs instead: its chronological index.
       const draggedId = order[0]?.id ?? 0;
@@ -75,5 +80,34 @@ for (const template of ['what-happens', 'cine-scramble']) {
     }
     await page.setViewportSize({ width: 400, height: 800 });
     await expect(frame.locator('[data-lkia-root]')).toHaveAttribute('data-lkia-layout', 'portrait');
+  });
+}
+
+// On a phone the step heading stays a small one-line eyebrow: the big titles'
+// sizes must not reach it (they once did, through their higher specificity).
+for (const template of ['what-happens', 'cine-scramble']) {
+  test(`${template} keeps its step heading small on a phone`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/?template=${template}`);
+    const frame = page.frameLocator('iframe');
+    await expect(frame.locator('[data-lkia-root]')).toHaveAttribute('data-lkia-layout', 'portrait');
+    if (template === 'cine-scramble') {
+      await frame.getByRole('button', { name: 'Start' }).click();
+    } else {
+      await frame.getByRole('button', { name: /The garden/ }).click();
+    }
+    const eyebrow = frame.locator('[data-lkia-eyebrow]');
+    await expect(eyebrow).toBeVisible();
+    const sizes = await eyebrow.evaluate((element) => {
+      const stage = element.closest('[data-lkia-stage]') as HTMLElement;
+      const title = element.querySelector('[data-lkia-eyebrow-title]') as HTMLElement;
+      return {
+        eyebrow: Number.parseFloat(getComputedStyle(element).fontSize),
+        stage: Number.parseFloat(getComputedStyle(stage).fontSize),
+        title: title.getBoundingClientRect().width,
+      };
+    });
+    expect(sizes.eyebrow).toBeLessThan(sizes.stage);
+    expect(sizes.title).toBeGreaterThan(40);
   });
 }

@@ -1,5 +1,5 @@
 import { orderingStart } from '@intellectif/lk-core';
-import type { CineScrambleClip } from '../schema.js';
+import type { CineScrambleClip } from '../types.js';
 
 /** A scene's clips in chronological order (their ids are 0..n-1). */
 export function chronological<T extends { id: number }>(clips: readonly T[]): T[] {

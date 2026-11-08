@@ -1,4 +1,4 @@
-import { evaluate, jsonSchemaFor, validateActivity } from '@intellectif/lk-core';
+import { evaluate, jsonSchemaFor, validateActivity, validateDraft } from '@intellectif/lk-core';
 import { describe, expect, it } from 'vitest';
 import { registerInteractiveActivities } from '../registry/templates.js';
 import {
@@ -48,7 +48,9 @@ describe('Cine-Scramble schema', () => {
     expect(draft.scenes).toHaveLength(CINE_SCRAMBLE_SCENE_COUNT_DEFAULT);
     expect(draft.scenes[0]?.clips).toHaveLength(CINE_SCRAMBLE_CLIPS_PER_SCENE_DEFAULT);
     expect(draft.vocabEnabled).toBe(true);
-    expect(validateCineScrambleData(draft).success).toBe(true);
+    // A new draft is not publishable: titles, captions and media are still to write.
+    expect(validateCineScrambleData(draft).success).toBe(false);
+    expect(validateDraft('cine-scramble' as never, draft)).toMatchObject({ status: 'incomplete' });
   });
 
   it('hides vocab when it is empty even if enabled', () => {
@@ -81,7 +83,7 @@ describe('Cine-Scramble schema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('scores a correct chronological order', () => {
+  it('never grades the order, right or wrong', () => {
     const parsed = validateCineScrambleData(sample());
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
@@ -93,8 +95,10 @@ describe('Cine-Scramble schema', () => {
       parsed.data as never,
       { sceneId: 'scene-1', order: [3, 2, 1, 0] } as never,
     );
-    expect(correct).toMatchObject({ status: 'scored', score: 1, passed: true });
-    expect(wrong).toMatchObject({ status: 'scored', score: 0, passed: false });
+    // Ordering the clips is practice: lk-core never grades it, right or wrong.
+    expect(correct).toMatchObject({ status: 'deferred' });
+    expect(wrong).toMatchObject({ status: 'deferred' });
+    expect(correct).not.toHaveProperty('score');
   });
 
   it('exports JSON Schema for AI', () => {

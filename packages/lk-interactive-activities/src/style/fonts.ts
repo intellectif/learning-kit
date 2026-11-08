@@ -16,9 +16,36 @@ export interface FontExportFile {
   fileName: string;
 }
 
+/**
+ * What an offline export needs: the Google Fonts stylesheet to fetch, and the
+ * families and weights it holds. The real files come from that stylesheet:
+ * fetch `cssUrl` with a browser's User-Agent (Google serves `woff2` only to
+ * browsers, and TrueType to Node's default agent), then read it with
+ * {@link parseGoogleFontsCss}.
+ */
 export interface FontExportManifest {
   cssUrl: string;
   files: FontExportFile[];
+}
+
+/**
+ * One `@font-face` of a Google Fonts stylesheet: the file it loads, and what it
+ * covers. Several faces can share one file (a variable font serves every
+ * weight); download each distinct `url` once, to `fileName`.
+ */
+export interface GoogleFontFile {
+  family: string;
+  style: string;
+  /** A weight (`"400"`) or a variable range (`"400 700"`). */
+  weight: string;
+  /** The subset Google names in its comment (`latin`, `latin-ext`, `vietnamese`…). */
+  subset?: string;
+  unicodeRange?: string;
+  /** Where Google serves the file. */
+  url: string;
+  format: string;
+  /** A local file name for the bundle, unique per `url`. */
+  fileName: string;
 }
 
 export const FONT_DEFINITIONS: Record<AllowedFont, FontDefinition> = {
@@ -154,19 +181,67 @@ export function googleFontsExportManifest(families: readonly string[]): FontExpo
   };
 }
 
-export function localFontFaceCss(files: readonly FontExportFile[], directory = 'fonts'): string {
+/**
+ * Reads a Google Fonts css2 stylesheet (fetched from `hostedFontsCssUrl` or a
+ * manifest's `cssUrl`) into its faces: one per `@font-face`, with the file's
+ * URL, the subset and unicode range it covers, and a local file name. Pure: it
+ * fetches nothing.
+ */
+export function parseGoogleFontsCss(css: string): GoogleFontFile[] {
+  const faces: GoogleFontFile[] = [];
+  const pattern = /(?:\/\*\s*([\w-]+)\s*\*\/\s*)?@font-face\s*\{([^}]*)\}/g;
+  for (const match of css.matchAll(pattern)) {
+    const body = match[2] ?? '';
+    const read = (name: string) =>
+      new RegExp(`${name}\\s*:\\s*([^;]+);`, 'i').exec(body)?.[1]?.trim();
+    const src = /url\(\s*['"]?([^'")]+)['"]?\s*\)\s*(?:format\(\s*['"]?([\w-]+)['"]?\s*\))?/i.exec(
+      body,
+    );
+    const family = read('font-family')?.replace(/^['"]|['"]$/g, '');
+    if (!src?.[1] || !family) continue;
+    const url = src[1];
+    const base = url.split(/[?#]/)[0]?.split('/').pop() ?? 'font';
+    const face: GoogleFontFile = {
+      family,
+      style: read('font-style') ?? 'normal',
+      weight: read('font-weight') ?? '400',
+      url,
+      format: src[2] ?? (base.endsWith('.ttf') ? 'truetype' : 'woff2'),
+      fileName: `${family.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${base}`,
+    };
+    if (match[1]) face.subset = match[1];
+    const range = read('unicode-range');
+    if (range) face.unicodeRange = range;
+    faces.push(face);
+  }
+  return faces;
+}
+
+/**
+ * `@font-face` rules for fonts bundled in an offline export, from
+ * {@link parseGoogleFontsCss} faces (each keeps its unicode range, so every
+ * subset you bundle is used where it is needed) or from export files.
+ */
+export function localFontFaceCss(
+  files: readonly (FontExportFile | GoogleFontFile)[],
+  directory = 'fonts',
+): string {
   return files
     .map((file) => {
       const path = `${directory.replace(/\/$/, '')}/${file.fileName}`;
-      return [
+      const lines = [
         '@font-face {',
         `  font-family: "${file.family}";`,
         `  font-style: ${file.style};`,
         `  font-weight: ${file.weight};`,
         '  font-display: swap;',
         `  src: url("${path}") format("${file.format}");`,
-        '}',
-      ].join('\n');
+      ];
+      if ('unicodeRange' in file && file.unicodeRange) {
+        lines.push(`  unicode-range: ${file.unicodeRange};`);
+      }
+      lines.push('}');
+      return lines.join('\n');
     })
     .join('\n');
 }

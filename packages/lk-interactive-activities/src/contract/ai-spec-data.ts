@@ -16,7 +16,8 @@ export const aiCatalogs: TemplateAiSpec['catalogs'] = {
   })),
 };
 
-export const textField = { type: 'string' };
+/** Text the model must write: never empty (the validator refuses empty labels and prompts). */
+export const textField = { type: 'string', minLength: 1 };
 export const titleField = { type: 'string', minLength: 1 };
 export const videoPromptField = {
   type: 'object',
@@ -56,4 +57,5 @@ export const sharedAiRules = [
   'Return only writable fields. Merge content into host-owned slots, then run template.validate().',
   'Validation failures must be shown to the editor, not silently repaired. Editor review is required.',
   'No model clients, media reads, video-generation API calls, speech grading or XP belong in this package.',
+  'Strict structured-output modes may drop minLength, minItems, maxItems, uniqueItems and exclusiveMinimum from this schema; template.validate() enforces them all, so always validate the merged draft.',
 ];

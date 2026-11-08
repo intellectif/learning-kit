@@ -295,6 +295,7 @@ describe('validation fixes', () => {
       errors: [
         {
           path: ['type'],
+          code: 'unknown_template',
           message: 'Unknown template "reveal". Known: "what-happens", "cine-scramble".',
         },
       ],
@@ -334,6 +335,7 @@ describe('embed resize', () => {
         template="t"
         stage="s"
         label="Activity"
+        chromeLocale="en"
         viewport={{ width: 400, height: 700 }}
         embed={{ postResize: true }}
       >

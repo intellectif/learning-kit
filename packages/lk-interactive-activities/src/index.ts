@@ -1,3 +1,10 @@
+/**
+ * Contracts for interactive activities: the template registry, validators, JSON
+ * Schemas, drafts, AI authoring specs, the style catalog, fonts and xAPI. No
+ * React and no DOM: usable on a server. The players are in
+ * `@intellectif/lk-interactive-activities/player`.
+ */
+
 /** Published name of this package. */
 export const PACKAGE_NAME = '@intellectif/lk-interactive-activities';
 
@@ -8,6 +15,8 @@ export type {
   TemplateAiSpec,
   VideoPromptSpec,
 } from './contract/ai-spec.js';
+export { BBB_WEBSITE_SHARE_ALLOW, BBB_WEBSITE_SHARE_SANDBOX } from './contract/embed.js';
+export { isSafeMediaUrl } from './contract/read.js';
 export type {
   AssetRef,
   ColorMode,
@@ -15,24 +24,16 @@ export type {
   TemplateDefinition,
   TemplateMediaSlot,
   ValidationIssue,
+  ValidationIssueCode,
   ValidationResult,
   VideoAspect,
 } from './contract/types.js';
+export type { PlayerEvent } from './events/types.js';
 export type { PlayerEventXapiContext } from './events/xapi.js';
 export { PLAYER_EVENT_XAPI_EXTENSION, playerEventToXapi } from './events/xapi.js';
-export {
-  BBB_WEBSITE_SHARE_ALLOW,
-  BBB_WEBSITE_SHARE_SANDBOX,
-  postEmbedResize,
-} from './player/embed.js';
-export type { PlayerEvent } from './player/events.js';
-export type { InteractiveActivityPlayerProps } from './player/InteractiveActivityPlayer.js';
-export { InteractiveActivityPlayer } from './player/InteractiveActivityPlayer.js';
-export type { PlayerViewport } from './player/layout.js';
-export { resolveLayout, STAGE_HEIGHT, STAGE_WIDTH, stageScale } from './player/layout.js';
 export type { AssetUrlResolver } from './player/resolve-url.js';
 export { defaultResolveUrl, resolveAssetUrl } from './player/resolve-url.js';
-export type { PlayerHostOptions } from './player/types.js';
+export type { InteractiveActivity } from './registry/templates.js';
 export {
   getTemplate,
   listTemplates,
@@ -40,11 +41,7 @@ export {
   registerTemplate,
   validateInteractiveActivity,
 } from './registry/templates.js';
-export type {
-  AnimationPreset,
-  MotionPreset,
-  MotionTokens,
-} from './style/animations.js';
+export type { AnimationPreset, MotionPreset, MotionTokens } from './style/animations.js';
 export {
   ANIMATION_CATALOG,
   getAnimation,
@@ -54,12 +51,7 @@ export {
   MOTION_PRESETS,
   resolveMotionTokens,
 } from './style/animations.js';
-export type {
-  AllowedFont,
-  AnimationId,
-  MotionPresetId,
-  StylePresetId,
-} from './style/catalog.js';
+export type { AllowedFont, AnimationId, MotionPresetId, StylePresetId } from './style/catalog.js';
 export {
   ANIMATION_IDS,
   FONT_ALLOW_LIST,
@@ -75,6 +67,7 @@ export type {
   FontDefinition,
   FontExportFile,
   FontExportManifest,
+  GoogleFontFile,
 } from './style/fonts.js';
 export {
   FONT_DEFINITIONS,
@@ -87,6 +80,7 @@ export {
   listAllowedFonts,
   localFontFaceCss,
   offlineFontExport,
+  parseGoogleFontsCss,
   resolveFontPair,
   uniqueAllowedFonts,
 } from './style/fonts.js';
@@ -99,20 +93,9 @@ export {
   STYLE_PRESETS,
 } from './style/tokens.js';
 export { CINE_SCRAMBLE_AI_SPEC } from './templates/cine-scramble/ai-spec.js';
-export {
-  CINE_SCRAMBLE_CHROME,
-  cineScrambleChrome,
-} from './templates/cine-scramble/copy.js';
-export type { CineScramblePlayerProps } from './templates/cine-scramble/player/CineScramblePlayer.js';
-export { CineScramblePlayer } from './templates/cine-scramble/player/CineScramblePlayer.js';
-export type {
-  CineScrambleClip,
-  CineScrambleCopy,
-  CineScrambleData,
-  CineScrambleResponse,
-  CineScrambleScene,
-  CineScrambleVocabItem,
-} from './templates/cine-scramble/schema.js';
+export type { CineScrambleChrome } from './templates/cine-scramble/copy.js';
+export { CINE_SCRAMBLE_CHROME, cineScrambleChrome } from './templates/cine-scramble/copy.js';
+export type { CineScrambleDraftCode } from './templates/cine-scramble/schema.js';
 export {
   CINE_SCRAMBLE_CLIPS_PER_SCENE_DEFAULT,
   CINE_SCRAMBLE_CLIPS_PER_SCENE_MAX,
@@ -123,12 +106,22 @@ export {
   CINE_SCRAMBLE_SCENE_COUNT_MIN,
   CINE_SCRAMBLE_SCHEMA_VERSION,
   CINE_SCRAMBLE_TYPE,
+  checkCineScrambleDraft,
+  cineScrambleMediaSlots,
   cineScrambleTemplate,
   cineScrambleType,
   createCineScrambleDraft,
   isVocabEnabled,
   validateCineScrambleData,
 } from './templates/cine-scramble/schema.js';
+export type {
+  CineScrambleClip,
+  CineScrambleCopy,
+  CineScrambleData,
+  CineScrambleResponse,
+  CineScrambleScene,
+  CineScrambleVocabItem,
+} from './templates/cine-scramble/types.js';
 export { WHAT_HAPPENS_AI_SPEC } from './templates/what-happens/ai-spec.js';
 export type { ChromeLocale, WhatHappensChrome } from './templates/what-happens/copy.js';
 export {
@@ -136,16 +129,12 @@ export {
   WHAT_HAPPENS_CHROME,
   whatHappensChrome,
 } from './templates/what-happens/copy.js';
-export type { WhatHappensPlayerProps } from './templates/what-happens/player/WhatHappensPlayer.js';
-export { WhatHappensPlayer } from './templates/what-happens/player/WhatHappensPlayer.js';
-export type {
-  WhatHappensClip,
-  WhatHappensCopy,
-  WhatHappensData,
-  WhatHappensResponse,
-} from './templates/what-happens/schema.js';
+export type { WhatHappensDraftCode } from './templates/what-happens/schema.js';
 export {
+  answerTextHash,
+  checkWhatHappensDraft,
   createWhatHappensDraft,
+  isAnswerAudioCurrent,
   isSupportsEnabled,
   validateWhatHappensData,
   WHAT_HAPPENS_CLIP_COUNT_DEFAULT,
@@ -154,8 +143,15 @@ export {
   WHAT_HAPPENS_JSON_SCHEMA,
   WHAT_HAPPENS_SCHEMA_VERSION,
   WHAT_HAPPENS_TYPE,
+  whatHappensMediaSlots,
   whatHappensTemplate,
   whatHappensType,
 } from './templates/what-happens/schema.js';
+export type {
+  WhatHappensClip,
+  WhatHappensCopy,
+  WhatHappensData,
+  WhatHappensResponse,
+} from './templates/what-happens/types.js';
 export type { SupportMatch } from './templates/what-happens/underline.js';
 export { matchSupportsInAnswer } from './templates/what-happens/underline.js';

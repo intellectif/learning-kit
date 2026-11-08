@@ -373,7 +373,7 @@ describe('Cine-Scramble validation edges', () => {
       result.data as never,
       { sceneId: 'missing', order: [0, 1, 2] } as never,
     );
-    expect(missingScene).toMatchObject({ status: 'scored', score: 0, passed: false });
+    expect(missingScene).toMatchObject({ status: 'deferred' });
   });
 
   it('rejects malformed activity, scene, clip, and vocab values', () => {

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { score } from '@intellectif/lk-core';
+import { evaluate, score } from '@intellectif/lk-core';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { InteractiveActivityPlayer } from '../player/InteractiveActivityPlayer.js';
@@ -56,6 +56,10 @@ function card(activity: CineScrambleData, id: number, sceneIndex = 0) {
 function clipButton(activity: CineScrambleData, id: number, sceneIndex = 0) {
   return card(activity, id, sceneIndex).querySelector('[data-lkia-clip-button]') as HTMLElement;
 }
+/** The text of the player's one status region, once it has been read out. */
+async function status(text: string) {
+  await waitFor(() => expect(document.querySelector('[data-lkia-status]')?.textContent).toBe(text));
+}
 function start(name = 'Start') {
   fireEvent.click(screen.getByRole('button', { name }));
 }
@@ -107,30 +111,27 @@ describe('Cine-Scramble pure arrangement', () => {
     const clips = cineScrambleFixture(3).scenes[0].clips;
     expect(stitchCaptions([clips[2], clips[0], clips[1]])).toBe('Step 1. Step 2. Step 3.');
   });
-  it('lk-core scores the chronological order, whatever order the clips are stored in', () => {
+  it('lk-core never grades the order, whatever it is', () => {
     registerInteractiveActivities();
     const activity = cineScrambleFixture();
     activity.scenes[0].clips = [2, 0, 1, 3].map((id) => activity.scenes[0].clips[id]);
-    const scoreOf = (order: unknown[]) =>
-      score('cine-scramble' as never, activity as never, { sceneId: 'morning', order } as never)
-        .score;
-    expect(scoreOf([0, 1, 2, 3])).toBe(1);
-    expect(scoreOf([2, 0, 1, 3])).toBe(0);
-    expect(scoreOf([0, 1, 2, 3, 9])).toBe(0);
-    expect(scoreOf([0, 1, 2])).toBe(0);
-    expect(scoreOf('0123' as never)).toBe(0);
-    expect(
+    for (const order of [[0, 1, 2, 3], [2, 0, 1, 3], [0, 1, 2, 3, 9], '0123']) {
+      expect(evaluate(activity as never, { sceneId: 'morning', order } as never)).toMatchObject({
+        status: 'deferred',
+      });
+    }
+    expect(() =>
       score(
         'cine-scramble' as never,
         activity as never,
-        { sceneId: 'nope', order: [0, 1, 2, 3] } as never,
-      ).score,
-    ).toBe(0);
+        { sceneId: 'morning', order: [] } as never,
+      ),
+    ).toThrow(/no synchronous score/);
   });
 });
 
 describe('Cine-Scramble React player', () => {
-  it('shows start, slots with hints, a muted pool, and per-slot feedback until fixed', () => {
+  it('shows start, slots with hints, a muted pool, and per-slot feedback until fixed', async () => {
     const onEvent = vi.fn();
     const activity = cineScrambleFixture();
     const { container } = render(
@@ -153,7 +154,7 @@ describe('Cine-Scramble React player', () => {
     expect(numbers).toEqual(['1', '2', '3', '4']);
     // Check before every clip is placed: nothing is graded, the learner is told why.
     fireEvent.click(screen.getByRole('button', { name: 'Check' }));
-    expect(screen.getByRole('status').textContent).toBe('Place every clip before checking.');
+    await status('Place every clip before checking.');
     expect(onEvent.mock.calls.map((call) => call[0].type)).toEqual(['scramble.started']);
     fireEvent.keyDown(clipButton(activity, 1), { key: '1' });
     fireEvent.keyDown(clipButton(activity, 0), { key: '2' });
@@ -164,9 +165,7 @@ describe('Cine-Scramble React player', () => {
     expect(slot(container, 2).getAttribute('data-slot-result')).toBe('correct');
     expect(screen.getAllByText('Not here')).toHaveLength(2);
     expect(screen.getAllByText('Right place')).toHaveLength(2);
-    expect(screen.getByRole('status').textContent).toBe(
-      '2 of 4 in the right place. Move the others and check again.',
-    );
+    await status('2 of 4 in the right place. Move the others and check again.');
     fireEvent.keyDown(clipButton(activity, 0), { key: '1' });
     expect(slot(container, 0).getAttribute('data-slot-result')).toBeNull();
     fireEvent.keyDown(clipButton(activity, 1), { key: '2' });
@@ -185,15 +184,17 @@ describe('Cine-Scramble React player', () => {
       'scramble.checked',
       'scramble.checked',
       'scramble.completed',
+      // One scene: completing it completes the activity.
+      'activity.completed',
     ]);
     expect(onEvent.mock.calls[1]?.[0].correct).toBe(false);
     expect(onEvent.mock.calls[2]?.[0].correct).toBe(true);
     // Play again starts a new attempt in a new order.
-    fireEvent.click(screen.getByRole('button', { name: 'Play again' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start over' }));
     expect(container.querySelector('[data-stage="arranging"]')).not.toBeNull();
     expect(onEvent.mock.calls.at(-1)?.[0].type).toBe('scramble.started');
   });
-  it.each([3, 5, 6])('reflows %s clips into two-column clip+caption rows', (count) => {
+  it.each([3, 5, 6])('reflows %s clips into rows of clip and caption', (count) => {
     const activity = cineScrambleFixture(count);
     const { container } = render(<CineScramblePlayer activity={activity} />);
     start();
@@ -203,7 +204,7 @@ describe('Cine-Scramble React player', () => {
         container.querySelectorAll('[data-lkia-row]'),
         (row) => row.querySelectorAll('figure').length,
       ),
-    ).toEqual(wrapRows(count));
+    ).toEqual(wrapRows(count, count > 4 ? 3 : 2));
   });
   it('keeps keyboard focus moving: placing focuses the next clip, then Check', () => {
     const activity = cineScrambleFixture(3);
@@ -227,15 +228,13 @@ describe('Cine-Scramble React player', () => {
     ).toBe(number);
     expect(document.activeElement?.closest('[data-lkia-pool]')).not.toBeNull();
   });
-  it('places by selecting a clip and then a slot, and replaces an occupied slot', () => {
+  it('places by selecting a clip and then a slot, and replaces an occupied slot', async () => {
     const activity = cineScrambleFixture();
     const { container } = render(<CineScramblePlayer activity={activity} />);
     start();
     fireEvent.click(clipButton(activity, 0));
     expect(clipButton(activity, 0).getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByRole('status').textContent).toBe(
-      `Clip ${numberOf(activity, 0)} selected. Choose a slot.`,
-    );
+    await status(`Clip ${numberOf(activity, 0)} selected. Choose a slot.`);
     fireEvent.click(within(slot(container, 0)).getByRole('button', { name: /Slot 1/ }));
     expect(slot(container, 0).querySelector('[data-lkia-clip]')).not.toBeNull();
     // A drop zone with nothing selected does nothing.
@@ -259,7 +258,9 @@ describe('Cine-Scramble React player', () => {
     fireEvent.keyDown(clipButton(activity, 3), { key: '9' });
     fireEvent.keyDown(clipButton(activity, 3), { key: '1', metaKey: true });
     expect(card(activity, 3).closest('[data-lkia-pool]')).not.toBeNull();
-    fireEvent.click(within(slot(container, 0)).getByRole('button', { name: /Return to pool/ }));
+    fireEvent.click(
+      within(slot(container, 0)).getByRole('button', { name: /Take out of the slot/ }),
+    );
     expect(container.querySelector('[data-lkia-pool]')?.querySelectorAll('video')).toHaveLength(4);
   });
   it('drags with native pointer events into slots and back to the pool, with guards', () => {
@@ -398,24 +399,21 @@ describe('Cine-Scramble React player', () => {
       expect(container.querySelector('[data-lkia-root]')?.getAttribute('lang')).toBe('es-CO');
     },
   );
-  it('shows media errors and autoplay retry per loop and cleans up pending playback', async () => {
+  it('pauses every loop behind one control when autoplay is blocked, and announces a failed clip once', async () => {
     play.mockRejectedValueOnce(new Error('blocked'));
     const { container, unmount } = render(<CineScramblePlayer activity={cineScrambleFixture()} />);
     start();
-    await screen.findByRole('button', { name: /Play/ });
-    fireEvent.pointerDown(screen.getByRole('button', { name: /Play/ }), { button: 0 });
-    fireEvent.click(screen.getByRole('button', { name: /Play/ }));
-    await waitFor(() => expect(screen.queryByRole('button', { name: /Play/ })).toBeNull());
-    fireEvent.error(container.querySelector('video') as Element);
-    expect(screen.getByRole('alert')).toBeTruthy();
+    const toggle = await screen.findByRole('button', { name: /Play clips/ });
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: /Pause clips/ }).getAttribute('aria-pressed')).toBe(
+      'false',
+    );
+    for (const video of container.querySelectorAll('video')) fireEvent.error(video);
+    await status('This clip could not be played.');
+    expect(container.querySelectorAll('[data-lkia-loop] [data-lkia-error]')).toHaveLength(4);
+    expect(screen.queryAllByRole('alert')).toHaveLength(0);
     unmount();
-    play.mockRejectedValue(new Error('all blocked'));
-    const next = render(<CineScramblePlayer activity={cineScrambleFixture(3)} />);
-    start();
-    await screen.findAllByRole('button', { name: /Play/ });
-    fireEvent.click(screen.getAllByRole('button', { name: /Play/ })[0] as HTMLElement);
-    await screen.findByRole('alert');
-    next.unmount();
     let reject: (error: Error) => void = () => {};
     play.mockImplementation(
       () =>
@@ -427,6 +425,16 @@ describe('Cine-Scramble React player', () => {
     start();
     last.unmount();
     await act(async () => reject(new Error('late')));
+  });
+  it('starts paused under reduced motion', () => {
+    const { container } = render(
+      <CineScramblePlayer activity={cineScrambleFixture()} reducedMotion />,
+    );
+    start();
+    expect(screen.getByRole('button', { name: /Play clips/ }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    expect(container.querySelector('[data-lkia-pool]')?.querySelectorAll('video')).toHaveLength(4);
   });
 });
 

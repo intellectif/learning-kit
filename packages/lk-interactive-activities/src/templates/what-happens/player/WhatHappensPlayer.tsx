@@ -2,16 +2,20 @@ import type { CSSProperties, JSX, KeyboardEvent } from 'react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Icon } from '../../../player/icons.js';
 import {
+  chromeLocaleFor,
+  definedOnly,
   fillTemplate,
   hasCommandModifier,
   isTypingTarget,
+  keyShortcuts,
   languageAttributes,
 } from '../../../player/locale.js';
 import { resolveAssetUrl } from '../../../player/resolve-url.js';
 import { Stage } from '../../../player/Stage.js';
 import type { PlayerHostOptions } from '../../../player/types.js';
 import { whatHappensChrome } from '../copy.js';
-import { isSupportsEnabled, type WhatHappensData } from '../schema.js';
+import { isSupportsEnabled } from '../rules.js';
+import type { WhatHappensData } from '../types.js';
 import { answerSegments } from './answer-text.js';
 import { listenToAnswer } from './listen.js';
 import {
@@ -40,50 +44,76 @@ function previewUrl(url: string, freezeAt: number): string {
   return `${url}#t=${(freezeAt / 2).toFixed(2)}`;
 }
 
-export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps): JSX.Element {
+/** What identifies the activity a player shows: a new one starts the player afresh. */
+function identityOf(activity: WhatHappensData): string {
+  return [activity.id, ...(activity.clips ?? []).map((clip) => clip.id)].join('\u0000');
+}
+
+/**
+ * The What Happens player: a board of clips; each plays to its freeze point,
+ * asks its question, reveals the rest, asks the learner to tell it, then shows
+ * and speaks the sample answer. Never graded.
+ */
+export function WhatHappensPlayer(props: WhatHappensPlayerProps): JSX.Element {
+  // A different activity, or a different set of clips, starts from the board.
+  return <WhatHappensView key={identityOf(props.activity)} {...props} />;
+}
+
+function WhatHappensView({ activity, ...host }: WhatHappensPlayerProps): JSX.Element {
   // Built-in chrome < host strings < the editor's own copy for this activity.
-  const chrome = { ...whatHappensChrome(host.locale), ...host.strings, ...activity.copy };
+  const chrome = {
+    ...whatHappensChrome(host.locale),
+    ...definedOnly(host.strings),
+    ...definedOnly(activity.copy),
+  };
+  const chromeLocale = chromeLocaleFor(host.locale, host.strings);
   const content = languageAttributes(activity.locale);
+  const shortcuts = host.shortcuts !== false;
   const [stage, setStage] = useState<WhatHappensStage>('board');
   const [clipIndex, setClipIndex] = useState(0);
   const [completed, setCompleted] = useState<string[]>([]);
   const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState(false);
-  const [controls, setControls] = useState(true);
+  const [listenError, setListenError] = useState(false);
+  const [ended, setEnded] = useState(false);
   const [progress, setProgress] = useState(0);
   // The supports start hidden on every clip: the teacher shows them when the class needs them.
   const [helpOpen, setHelpOpen] = useState(false);
   const helpId = useId();
   const video = useRef<HTMLVideoElement>(null);
   const audio = useRef<HTMLAudioElement>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const playButton = useRef<HTMLButtonElement>(null);
   const live = useRef(true);
   const listenGeneration = useRef(0);
+  const utterance = useRef<SpeechSynthesisUtterance | null>(null);
   const frozen = useRef(false);
   const clip = activity.clips[clipIndex] ?? activity.clips[0];
   const answerText = clip?.answer?.text ?? '';
   const hasAnswer = answerText.trim() !== '';
-  const move = (action: WhatHappensAction) =>
+  const move = (action: WhatHappensAction) => {
     setStage((previous) => nextWhatHappensStage(previous, action));
+    setListenError(false);
+  };
   const emit = (
     type: 'clip.opened' | 'clip.frozen' | 'clip.revealed' | 'answer.shown' | 'clip.completed',
   ) => {
     host.onEvent?.({ type, activityId: activity.id, clipId: clip.id });
   };
+  // Stops only what this player started: its recording, or its own utterance.
   const stopListening = () => {
     listenGeneration.current += 1;
     audio.current?.pause();
-    if ('speechSynthesis' in window && window.speechSynthesis) window.speechSynthesis.cancel();
+    const speech = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
+    if (utterance.current && speech && (speech.speaking || speech.pending)) speech.cancel();
+    utterance.current = null;
   };
+  const stopRef = useRef(stopListening);
+  stopRef.current = stopListening;
   useEffect(() => {
     live.current = true;
-    const element = audio.current;
     return () => {
       live.current = false;
-      listenGeneration.current += 1;
-      clearTimeout(timer.current);
-      element?.pause();
-      if ('speechSynthesis' in window && window.speechSynthesis) window.speechSynthesis.cancel();
+      stopRef.current();
     };
   }, []);
 
@@ -92,7 +122,11 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
     if (!element || frozen.current) return;
     frozen.current = true;
     element.pause();
-    element.currentTime = clip.freezeAt;
+    // A clip that ends before its freeze point freezes on its last frame.
+    const end =
+      Number.isFinite(element.duration) && element.duration > 0 ? element.duration : clip.freezeAt;
+    element.currentTime = Math.min(clip.freezeAt, end);
+    setProgress(1);
     emit('clip.frozen');
     move('freeze');
   };
@@ -113,6 +147,7 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
       frozen.current = false;
       setProgress(0);
     }
+    setEnded(false);
     element.currentTime = stage === 'watch' ? 0 : freezeAt;
     setBlocked(false);
     let active = true;
@@ -126,8 +161,8 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
   }, [stage, clipId, freezeAt]);
 
   // Frame-accurate freeze: check every presented frame (or every animation
-  // frame) and stop one frame before the freeze point, so no frame after it is
-  // ever shown. `timeupdate` (about four times a second) is only a backstop.
+  // frame while playing) and stop one frame before the freeze point, so no frame
+  // after it is ever shown. `timeupdate` and `ended` are backstops.
   // biome-ignore lint/correctness/useExhaustiveDependencies: clipId restarts the frame watch when another clip opens.
   useEffect(() => {
     if (stage !== 'watch') return;
@@ -160,16 +195,33 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
         element.cancelVideoFrameCallback(handle);
       };
     }
+    // Without frame callbacks, poll on animation frames, but only while playing.
     const onAnimationFrame = () => {
-      if (!cancelled && !reached(element.currentTime))
-        handle = requestAnimationFrame(onAnimationFrame);
+      handle = 0;
+      if (cancelled || reached(element.currentTime) || element.paused) return;
+      handle = requestAnimationFrame(onAnimationFrame);
     };
-    handle = requestAnimationFrame(onAnimationFrame);
+    const start = () => {
+      if (!cancelled && handle === 0) handle = requestAnimationFrame(onAnimationFrame);
+    };
+    element.addEventListener('play', start);
+    start();
     return () => {
       cancelled = true;
+      element.removeEventListener('play', start);
       cancelAnimationFrame(handle);
     };
   }, [stage, clipId, freezeAt]);
+
+  // The fallback Play button takes focus when it appears, if the player has it.
+  useEffect(() => {
+    if (!blocked) return;
+    const active = document.activeElement;
+    const root = playButton.current?.closest('[data-lkia-root]');
+    if (root && (active === document.body || active === null || root.contains(active))) {
+      playButton.current?.focus({ preventScroll: true });
+    }
+  }, [blocked]);
 
   const play = () => {
     setBlocked(false);
@@ -184,7 +236,6 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
     setError(false);
     setBlocked(false);
     setHelpOpen(false);
-    showControls();
     move('open');
     host.onEvent?.({ type: 'clip.opened', activityId: activity.id, clipId: item.id });
   };
@@ -209,20 +260,24 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
   const listen = async () => {
     if (!audio.current || !hasAnswer) return;
     stopListening();
+    setListenError(false);
     const generation = listenGeneration.current;
     const isActive = () => live.current && generation === listenGeneration.current;
     try {
-      const via = await listenToAnswer(
-        clip,
-        audio.current,
-        host.resolveUrl,
+      const via = await listenToAnswer(clip, audio.current, host.resolveUrl, {
         isActive,
-        content.lang,
-      );
+        ...(content.lang !== undefined ? { lang: content.lang } : {}),
+        onUtterance: (spoken) => {
+          utterance.current = spoken;
+        },
+        onSpeechError: () => {
+          if (isActive()) setListenError(true);
+        },
+      });
       if (via && isActive())
         host.onEvent?.({ type: 'audio.played', activityId: activity.id, clipId: clip.id, via });
     } catch {
-      if (isActive()) setError(true);
+      if (isActive()) setListenError(true);
     }
   };
   const next = () => {
@@ -235,10 +290,9 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
       host.onEvent?.({ type: 'board.completed', activityId: activity.id });
     move('next');
   };
-  const showControls = () => {
-    setControls(true);
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setControls(false), 2500);
+  // After a stall or an error mid-reveal, the learner can still go on.
+  const skipToTell = () => {
+    if (stage === 'reveal') move('ended');
   };
   const locked = stage === 'watch' || stage === 'guess';
   const syncTime = () => {
@@ -250,40 +304,12 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
     if (stage === 'watch' && time >= clip.freezeAt) freezeNow();
     else if (stage === 'guess') element.pause();
   };
-  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (hasCommandModifier(event) || isTypingTarget(event.target)) return;
-    const target = event.target as HTMLElement;
-    if (event.key === 'Escape' && stage !== 'board') {
-      event.preventDefault();
-      back();
-      return;
-    }
-    // A focused button handles Enter itself.
-    if (event.key === 'Enter' && target.tagName === 'BUTTON') return;
-    const key = event.key.toLowerCase();
-    if (stage === 'guess' && (key === 'enter' || key === 'r')) {
-      event.preventDefault();
-      reveal();
-    } else if (stage === 'tell' && (key === 'enter' || key === 'a')) {
-      event.preventDefault();
-      if (hasAnswer) showAnswer();
-      else next();
-    } else if (stage === 'tell' && key === 'h' && showSupports) {
-      event.preventDefault();
-      toggleHelp();
-    } else if (stage === 'answer' && key === 'l') {
-      event.preventDefault();
-      void listen();
-    } else if (stage === 'answer' && (key === 'enter' || key === 'n')) {
-      event.preventDefault();
-      next();
-    }
-  };
   const authored = (value: string | undefined) => (value === undefined ? {} : content);
   const predictPrompt = clip.predictPrompt ?? chrome.predictTitle;
   const tellPrompt = clip.tellPrompt ?? chrome.tellTitle;
   const supportsLabel = clip.supportsLabel ?? chrome.supportsLabel;
-  const showSupports = isSupportsEnabled(activity, clip) && !!clip.supports?.length;
+  const supportsEnabled = isSupportsEnabled(activity, clip);
+  const showSupports = supportsEnabled && !!clip.supports?.length;
   const toggleHelp = () => {
     const opening = !helpOpen;
     setHelpOpen(opening);
@@ -293,10 +319,46 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
       clipId: clip.id,
     });
   };
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (hasCommandModifier(event) || isTypingTarget(event.target)) return;
+    const target = event.target as HTMLElement;
+    if (event.key === 'Escape' && stage !== 'board') {
+      event.preventDefault();
+      back();
+      return;
+    }
+    // A focused control (a button, the video) handles Enter itself.
+    if (event.key === 'Enter' && (target.tagName === 'BUTTON' || target.tagName === 'VIDEO'))
+      return;
+    const key = event.key.toLowerCase();
+    const letter = shortcuts ? key : '';
+    if (stage === 'guess' && (key === 'enter' || letter === 'r')) {
+      event.preventDefault();
+      reveal();
+    } else if (
+      stage === 'tell' &&
+      (key === 'enter' || letter === 'a' || (letter === 'n' && !hasAnswer))
+    ) {
+      event.preventDefault();
+      if (hasAnswer) showAnswer();
+      else next();
+    } else if (stage === 'tell' && letter === 'h' && showSupports) {
+      event.preventDefault();
+      toggleHelp();
+    } else if (stage === 'answer' && letter === 'l') {
+      event.preventDefault();
+      void listen();
+    } else if (stage === 'answer' && (key === 'enter' || letter === 'n')) {
+      event.preventDefault();
+      next();
+    }
+  };
+  const captions = clip.captions;
 
   return (
     <Stage
       {...host}
+      chromeLocale={chromeLocale}
       label={activity.title}
       style={activity.style}
       template="what-happens"
@@ -313,14 +375,24 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
           </div>
         ) : (
           <>
-            <button type="button" data-lkia-back="" data-animate="button-press" onClick={back}>
+            <button
+              type="button"
+              data-lkia-back=""
+              data-animate="button-press"
+              aria-keyshortcuts="Escape"
+              onClick={back}
+            >
               <Icon name="back" /> {chrome.backButton}
             </button>
-            <p data-lkia-eyebrow="">
-              <span {...content}>{activity.title}</span>
-              <span aria-hidden="true"> · </span>
-              {fillTemplate(chrome.clipCount, { n: clipIndex + 1, total: activity.clips.length })}
-            </p>
+            <h1 data-lkia-eyebrow="">
+              <span data-lkia-eyebrow-title="" {...content}>
+                {activity.title}
+              </span>
+              <span data-lkia-eyebrow-count="">
+                <span aria-hidden="true">· </span>
+                {fillTemplate(chrome.clipCount, { n: clipIndex + 1, total: activity.clips.length })}
+              </span>
+            </h1>
           </>
         )}
       </header>
@@ -341,6 +413,8 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
                   data-lkia-card=""
                   data-completed={done}
                   data-aspect={item.video.aspect}
+                  // Back on the board, focus returns to the card the learner came from.
+                  {...(index === clipIndex ? { 'data-lkia-focus': '' } : {})}
                   onClick={() => open(index)}
                 >
                   <span data-lkia-thumb="">
@@ -378,8 +452,6 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
           data-lkia-watch=""
           data-aspect={clip.video.aspect}
           data-has-backdrop={clip.poster !== undefined}
-          onPointerMove={showControls}
-          onFocusCapture={showControls}
         >
           {clip.poster && (
             <>
@@ -393,15 +465,17 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
             </>
           )}
           <div data-lkia-frame="" data-animate="video-glide">
-            {/* biome-ignore lint/a11y/useMediaCaption: The v1 video contract has no caption track; the host supplies the media. */}
             <video
               key={clip.id}
               ref={video}
               src={resolveAssetUrl(clip.video, host.resolveUrl)}
               poster={clip.poster ? resolveAssetUrl(clip.poster, host.resolveUrl) : undefined}
+              // A captions file from another origin needs CORS on the video too.
+              {...(captions ? { crossOrigin: 'anonymous' as const } : {})}
               playsInline
               preload="auto"
-              controls={controls && stage !== 'guess'}
+              // Frozen, the clip offers no controls: Replay and Reveal move it on.
+              controls={stage !== 'guess'}
               aria-label={clip.title}
               style={{ aspectRatio: clip.video.aspect.replace(':', ' / ') }}
               onTimeUpdate={syncTime}
@@ -409,19 +483,38 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
               onPlay={() => {
                 if (stage === 'guess') video.current?.pause();
               }}
+              onPlaying={() => setBlocked(false)}
               onError={() => setError(true)}
               onEnded={() => {
+                setEnded(true);
                 if (stage === 'reveal') move('ended');
-                else if (stage === 'watch') syncTime();
+                // A clip that ends before its freeze point still freezes.
+                else if (stage === 'watch') freezeNow();
               }}
-            />
+            >
+              {captions && (
+                <track
+                  kind="captions"
+                  src={resolveAssetUrl(captions, host.resolveUrl)}
+                  srcLang={captions.srclang ?? activity.locale}
+                  label={captions.label ?? captions.srclang ?? activity.locale}
+                  default
+                />
+              )}
+            </video>
             {blocked && (
-              <button type="button" data-lkia-play="" data-animate="button-press" onClick={play}>
+              <button
+                ref={playButton}
+                type="button"
+                data-lkia-play=""
+                data-animate="button-press"
+                onClick={play}
+              >
                 <Icon name="play" /> {chrome.playFallback}
               </button>
             )}
           </div>
-          <section data-lkia-panel="" data-animate="panel-fade" aria-live="polite">
+          <section data-lkia-panel="" data-animate="panel-fade">
             {error && (
               <p role="alert" data-lkia-error="">
                 {chrome.mediaError}
@@ -429,7 +522,9 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
             )}
             {stage === 'watch' && !error && (
               <div data-lkia-watching="">
-                <p data-lkia-hint="">{chrome.watchHint}</p>
+                <h2 data-lkia-hint="" data-lkia-focus="" tabIndex={-1}>
+                  {chrome.watchHint}
+                </h2>
                 <span
                   data-lkia-progress=""
                   aria-hidden="true"
@@ -437,9 +532,26 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
                 />
               </div>
             )}
+            {stage === 'reveal' && (error || ended) && (
+              <div data-lkia-actions="">
+                <button
+                  type="button"
+                  data-lkia-primary=""
+                  data-lkia-focus=""
+                  data-animate="button-press"
+                  onClick={skipToTell}
+                >
+                  {chrome.nextButton}
+                </button>
+              </div>
+            )}
             {stage === 'guess' && (
               <>
-                <h2 {...authored(clip.predictPrompt ?? activity.copy?.predictTitle)}>
+                <h2
+                  data-lkia-focus=""
+                  tabIndex={-1}
+                  {...authored(clip.predictPrompt ?? activity.copy?.predictTitle)}
+                >
                   {predictPrompt}
                 </h2>
                 <div data-lkia-actions="">
@@ -447,11 +559,18 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
                     type="button"
                     data-lkia-primary=""
                     data-animate="button-press"
+                    {...keyShortcuts(shortcuts, 'R')}
+                    {...authored(activity.copy?.revealButton)}
                     onClick={reveal}
                   >
                     {chrome.revealButton}
                   </button>
-                  <button type="button" data-animate="button-press" onClick={() => move('replay')}>
+                  <button
+                    type="button"
+                    data-animate="button-press"
+                    {...authored(activity.copy?.replayToFreeze)}
+                    onClick={() => move('replay')}
+                  >
                     <Icon name="replay" /> {chrome.replayToFreeze}
                   </button>
                 </div>
@@ -459,7 +578,13 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
             )}
             {stage === 'tell' && (
               <>
-                <h2 {...authored(clip.tellPrompt ?? activity.copy?.tellTitle)}>{tellPrompt}</h2>
+                <h2
+                  data-lkia-focus=""
+                  tabIndex={-1}
+                  {...authored(clip.tellPrompt ?? activity.copy?.tellTitle)}
+                >
+                  {tellPrompt}
+                </h2>
                 {showSupports && (
                   <div data-lkia-supports="" data-open={helpOpen}>
                     <button
@@ -468,6 +593,7 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
                       data-animate="button-press"
                       aria-expanded={helpOpen}
                       aria-controls={helpId}
+                      {...keyShortcuts(shortcuts, 'H')}
                       onClick={toggleHelp}
                     >
                       <Icon name="help" />
@@ -494,6 +620,8 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
                     type="button"
                     data-lkia-primary=""
                     data-animate="button-press"
+                    {...keyShortcuts(shortcuts, hasAnswer ? 'A' : 'N')}
+                    {...authored(hasAnswer ? activity.copy?.showAnswer : activity.copy?.nextButton)}
                     onClick={hasAnswer ? showAnswer : next}
                   >
                     {hasAnswer ? chrome.showAnswer : chrome.nextButton}
@@ -503,26 +631,42 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
             )}
             {stage === 'answer' && (
               <div data-animate="answer-fade-up">
-                <h2>{chrome.answerLabel}</h2>
+                <h2 data-lkia-focus="" tabIndex={-1} {...authored(activity.copy?.answerLabel)}>
+                  {chrome.answerLabel}
+                </h2>
                 <p data-lkia-answer="" {...content}>
-                  {answerSegments(answerText, clip.supports ?? []).map((segment) =>
-                    segment.underline ? (
-                      <mark data-lkia-underline="" key={segment.start}>
-                        {segment.text}
-                      </mark>
-                    ) : (
-                      segment.text
-                    ),
+                  {answerSegments(answerText, supportsEnabled ? (clip.supports ?? []) : []).map(
+                    (segment) =>
+                      segment.underline ? (
+                        <mark data-lkia-underline="" key={segment.start}>
+                          {segment.text}
+                        </mark>
+                      ) : (
+                        segment.text
+                      ),
                   )}
                 </p>
+                {listenError && (
+                  <p role="alert" data-lkia-error="">
+                    {chrome.listenError}
+                  </p>
+                )}
                 <div data-lkia-actions="">
-                  <button type="button" data-animate="button-press" onClick={() => void listen()}>
+                  <button
+                    type="button"
+                    data-animate="button-press"
+                    {...keyShortcuts(shortcuts, 'L')}
+                    {...authored(activity.copy?.listenButton)}
+                    onClick={() => void listen()}
+                  >
                     <Icon name="listen" /> {chrome.listenButton}
                   </button>
                   <button
                     type="button"
                     data-lkia-primary=""
                     data-animate="button-press"
+                    {...keyShortcuts(shortcuts, 'N')}
+                    {...authored(activity.copy?.nextButton)}
                     onClick={next}
                   >
                     {chrome.nextButton}

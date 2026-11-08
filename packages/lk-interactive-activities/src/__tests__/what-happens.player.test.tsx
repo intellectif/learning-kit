@@ -9,6 +9,7 @@ import {
   nextWhatHappensStage,
 } from '../templates/what-happens/player/machine.js';
 import { WhatHappensPlayer } from '../templates/what-happens/player/WhatHappensPlayer.js';
+import { answerTextHash } from '../templates/what-happens/rules.js';
 import { whatHappensFixture } from './player-fixtures.js';
 
 let play: ReturnType<typeof vi.spyOn>;
@@ -101,7 +102,7 @@ describe('What Happens React player', () => {
     fireEvent.seeking(video(container));
     expect(video(container).currentTime).toBe(3);
     fireEvent.play(video(container));
-    fireEvent.click(screen.getByRole('button', { name: 'Replay to freeze' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Watch again' }));
     expect(video(container).currentTime).toBe(0);
     freeze(container);
     fireEvent.keyDown(container.querySelector('[data-lkia-root]') as Element, { key: 'r' });
@@ -153,7 +154,7 @@ describe('What Happens React player', () => {
     clip.predictPrompt = 'Your prediction';
     clip.tellPrompt = 'Describe it';
     clip.supportsLabel = 'Hints';
-    clip.audio = { assetKey: 'voice.mp3', textHash: 'hash' };
+    clip.audio = { assetKey: 'voice.mp3', textHash: answerTextHash(clip.answer.text) };
     activity.copy = { answerLabel: 'Example' };
     const onEvent = vi.fn();
     const resolveUrl = vi.fn((asset) => `https://cdn.example/${asset.assetKey}?sig=abc`);
@@ -222,18 +223,20 @@ describe('What Happens React player', () => {
     await screen.findByRole('button', { name: 'Play' });
     fireEvent.error(video(container));
     expect(screen.getByRole('alert').textContent).toBe('This clip could not be played.');
-    vi.useFakeTimers();
-    fireEvent.pointerMove(container.querySelector('[data-lkia-watch]') as Element);
-    act(() => vi.advanceTimersByTime(2501));
-    expect(video(container).controls).toBe(false);
-    fireEvent.focus(video(container));
+    // Controls stay while the clip plays (the browser hides them itself), so a
+    // focused video never loses focus to a hidden control bar.
     expect(video(container).controls).toBe(true);
+    // A reveal that fails can still be left: Next goes on to the telling step.
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(container.querySelector('[data-stage="tell"]')).not.toBeNull();
   });
   it('ignores native Enter on focused buttons; shortcuts on the shell work with Enter', () => {
     const { container } = render(<WhatHappensPlayer activity={whatHappensFixture()} />);
     open();
+    // A clip that ends before its freeze point still freezes (on its last frame).
     fireEvent.ended(video(container));
-    expect(container.querySelector('[data-stage="watch"]')).not.toBeNull();
+    expect(container.querySelector('[data-stage="guess"]')).not.toBeNull();
+    expect(video(container).controls).toBe(false);
     freeze(container);
     const root = container.querySelector('[data-lkia-root]') as Element;
     fireEvent.keyDown(screen.getByRole('button', { name: 'Reveal' }), { key: 'Enter' });
@@ -274,7 +277,7 @@ describe('What Happens React player', () => {
 describe('listen audio fallback', () => {
   it('falls back to speech when supplied audio fails', async () => {
     const clip = whatHappensFixture().clips[0];
-    clip.audio = { assetKey: 'audio.mp3', textHash: 'hash' };
+    clip.audio = { assetKey: 'audio.mp3', textHash: answerTextHash(clip.answer.text) };
     play.mockRejectedValueOnce(new Error('not available'));
     expect(await listenToAnswer(clip, document.createElement('audio'))).toBe('speechSynthesis');
     expect(speak.mock.calls[0]?.[0].text).toBe(clip.answer.text);
@@ -288,7 +291,11 @@ describe('player focus, multi-clip progress and pending listen cancellation', ()
     const onEvent = vi.fn();
     const { container } = render(<WhatHappensPlayer activity={activity} onEvent={onEvent} />);
     tell(container);
-    expect(document.activeElement).toBe(container.querySelector('[data-lkia-root]'));
+    // Each step's heading takes focus, inside the player, so its shortcuts keep working.
+    expect(document.activeElement?.textContent).toBe('Tell the story');
+    expect(container.querySelector('[data-lkia-root]')?.contains(document.activeElement)).toBe(
+      true,
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Show answer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(onEvent.mock.calls.some((call) => call[0].type === 'board.completed')).toBe(false);
@@ -302,7 +309,10 @@ describe('player focus, multi-clip progress and pending listen cancellation', ()
   });
   it('never starts speech or emits a stale audio event when Next cancels pending media playback', async () => {
     const activity = whatHappensFixture();
-    activity.clips[0].audio = { assetKey: 'voice.mp3', textHash: 'hash' };
+    activity.clips[0].audio = {
+      assetKey: 'voice.mp3',
+      textHash: answerTextHash(activity.clips[0].answer.text),
+    };
     const onEvent = vi.fn();
     const { container } = render(<WhatHappensPlayer activity={activity} onEvent={onEvent} />);
     tell(container);
@@ -322,9 +332,11 @@ describe('player focus, multi-clip progress and pending listen cancellation', ()
   });
   it('stops an audio play promise which resolves after cancellation', async () => {
     const clip = whatHappensFixture().clips[0];
-    clip.audio = { assetKey: 'voice.mp3', textHash: 'hash' };
+    clip.audio = { assetKey: 'voice.mp3', textHash: answerTextHash(clip.answer.text) };
     expect(
-      await listenToAnswer(clip, document.createElement('audio'), undefined, () => false),
+      await listenToAnswer(clip, document.createElement('audio'), undefined, {
+        isActive: () => false,
+      }),
     ).toBeNull();
   });
 });
