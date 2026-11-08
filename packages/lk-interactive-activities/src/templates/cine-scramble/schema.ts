@@ -69,14 +69,25 @@ export interface CineScrambleCopy {
   playFallback?: string;
   mediaError?: string;
   sceneLabel?: string;
+  scenesLabel?: string;
   clipLabel?: string;
   slotLabel?: string;
+  emptySlotLabel?: string;
   poolLabel?: string;
   removeLabel?: string;
   correctLabel?: string;
   incorrectLabel?: string;
   completeLabel?: string;
+  storyLabel?: string;
+  replayLabel?: string;
+  nextSceneLabel?: string;
+  doneLabel?: string;
   keyboardHelp?: string;
+  selectedLabel?: string;
+  placedLabel?: string;
+  returnedLabel?: string;
+  fillAllLabel?: string;
+  resultSummary?: string;
 
   checkLabel?: string;
   vocabButtonLabel?: string;
@@ -147,6 +158,14 @@ function readStyle(value: unknown, path: Array<string | number>): StyleChoice | 
       }
     }
   }
+  if (
+    object.mode !== undefined &&
+    object.mode !== 'light' &&
+    object.mode !== 'dark' &&
+    object.mode !== 'auto'
+  ) {
+    errors.push(issue([...path, 'mode'], 'Expected "light", "dark", or "auto".'));
+  }
   if (errors.length > 0) return errors;
   const style: StyleChoice = { presetId: presetId as string };
   if (object.mode === 'light' || object.mode === 'dark' || object.mode === 'auto') {
@@ -199,6 +218,8 @@ function readClip(
       if (videoObject.durationS !== undefined) {
         const durationS = readNumber(videoObject.durationS, [...path, 'video', 'durationS']);
         if (isIssue(durationS)) errors.push(durationS);
+        else if (durationS <= 0)
+          errors.push(issue([...path, 'video', 'durationS'], 'Duration must be greater than 0.'));
         else video.durationS = durationS;
       }
     }
@@ -211,7 +232,20 @@ function readClip(
     else {
       const text = readString(prompt.text, [...path, 'videoPrompt', 'text'], { allowEmpty: true });
       if (isIssue(text)) errors.push(text);
-      else extras.videoPrompt = { text };
+      else {
+        extras.videoPrompt = { text };
+        if (prompt.generatedBy !== undefined) {
+          const generatedBy = readString(
+            prompt.generatedBy,
+            [...path, 'videoPrompt', 'generatedBy'],
+            {
+              allowEmpty: true,
+            },
+          );
+          if (isIssue(generatedBy)) errors.push(generatedBy);
+          else extras.videoPrompt.generatedBy = generatedBy;
+        }
+      }
     }
   }
 
@@ -299,7 +333,7 @@ function validateCineScramble(value: unknown): ValidationResult<CineScrambleData
   }
   let tagline: string | undefined;
   if (object.tagline !== undefined) {
-    const value = readString(object.tagline, ['tagline'], { allowEmpty: true });
+    const value = readString(object.tagline, ['tagline']);
     if (isIssue(value)) errors.push(value);
     else tagline = value;
   }
@@ -327,6 +361,7 @@ function validateCineScramble(value: unknown): ValidationResult<CineScrambleData
       errors.push(issue(['vocab'], 'Expected an array of vocabulary items.'));
     } else {
       vocab = [];
+      const terms = new Set<string>();
       object.vocab.forEach((raw, index) => {
         const item = readObject(raw, ['vocab', index]);
         if (isIssue(item)) {
@@ -337,6 +372,12 @@ function validateCineScramble(value: unknown): ValidationResult<CineScrambleData
         const definition = readString(item.definition, ['vocab', index, 'definition']);
         if (isIssue(term)) errors.push(term);
         if (isIssue(definition)) errors.push(definition);
+        if (!isIssue(term)) {
+          const key = term.trim().toLowerCase();
+          if (terms.has(key))
+            errors.push(issue(['vocab', index, 'term'], `Duplicate vocabulary term "${term}".`));
+          terms.add(key);
+        }
         if (!isIssue(term) && !isIssue(definition)) vocab?.push({ term, definition });
       });
     }
@@ -349,7 +390,7 @@ function validateCineScramble(value: unknown): ValidationResult<CineScrambleData
       copy = {};
       for (const key of Object.keys(CINE_SCRAMBLE_CHROME.en) as Array<keyof CineScrambleCopy>) {
         if (copyObject[key] === undefined) continue;
-        const text = readString(copyObject[key], ['copy', key], { allowEmpty: true });
+        const text = readString(copyObject[key], ['copy', key]);
         if (isIssue(text)) errors.push(text);
         else copy[key] = text;
       }
@@ -424,7 +465,8 @@ export const CINE_SCRAMBLE_JSON_SCHEMA: Record<string, unknown> = {
     id: { type: 'string', minLength: 1 },
     title: { type: 'string', minLength: 1 },
     locale: { type: 'string' },
-    tagline: { type: 'string' },
+    tagline: { type: 'string', minLength: 1 },
+    copy: { type: 'object', additionalProperties: { type: 'string', minLength: 1 } },
     vocabEnabled: { type: 'boolean', default: true },
     vocab: {
       type: 'array',
@@ -442,6 +484,7 @@ export const CINE_SCRAMBLE_JSON_SCHEMA: Record<string, unknown> = {
       required: ['presetId'],
       properties: {
         presetId: { type: 'string', enum: [...STYLE_PRESET_IDS] },
+        mode: { type: 'string', enum: ['light', 'dark', 'auto'] },
         motionPresetId: { type: 'string', enum: [...MOTION_PRESET_IDS] },
         fonts: {
           type: 'object',
@@ -478,7 +521,7 @@ export const CINE_SCRAMBLE_JSON_SCHEMA: Record<string, unknown> = {
                   properties: {
                     assetKey: { type: 'string', minLength: 1 },
                     aspect: { type: 'string', enum: ['9:16', '16:9'] },
-                    durationS: { type: 'number' },
+                    durationS: { type: 'number', exclusiveMinimum: 0 },
                   },
                 },
               },
@@ -502,8 +545,9 @@ export const cineScrambleType: ActivityTypeDescriptor<CineScrambleData, CineScra
         if (!scene) {
           return { score: 0, maxScore: 1, feedback: null, details: [] };
         }
-        const expected = scene.clips.map((clip) => clip.id);
-        const correct = expected.every((clipId, index) => response.order[index] === clipId);
+        const order: unknown[] = Array.isArray(response.order) ? response.order : [];
+        const correct =
+          order.length === scene.clips.length && order.every((clipId, index) => clipId === index);
         return { score: correct ? 1 : 0, maxScore: 1, feedback: null, details: [] };
       },
     },

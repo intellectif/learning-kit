@@ -7,14 +7,25 @@ import {
 } from './catalog.js';
 
 export interface StyleTokens {
+  /** The ground the player sits on. */
   bg: string;
+  /** Surfaces one tone step from the ground: panels, cards, buttons. */
   panel: string;
+  /** A second tone step: empty drop zones, pressed controls, chips. */
+  surfaceStrong: string;
+  /** Edges where a state needs one (a dashed empty slot); never a resting divider. */
   line: string;
   ink1: string;
   ink2: string;
   ink3: string;
   accent: string;
   accentSoft: string;
+  /** Text and icons on an accent fill. */
+  onAccent: string;
+  /** A right answer's mark. Never the only signal: an icon and words go with it. */
+  positive: string;
+  /** A wrong answer's mark. Never the only signal: an icon and words go with it. */
+  negative: string;
   frost: string;
   veil: string;
   radiusPanel: string;
@@ -36,92 +47,111 @@ export interface StylePreset {
   tokens: { light: StyleTokens; dark: StyleTokens };
 }
 
-const sharedRadii = {
-  radiusPanel: '1.5rem',
-  radiusVideo: '1.15rem',
+const classroomRadii = {
+  radiusPanel: '28px',
+  radiusVideo: '22px',
   radiusButton: '999px',
 } as const;
 
 const cinemaRadii = {
-  radiusPanel: '1.25rem',
-  radiusVideo: '0.85rem',
+  radiusPanel: '14px',
+  radiusVideo: '8px',
   radiusButton: '999px',
 } as const;
 
+/** Chalkboard green on a cool paper ground: calm, high contrast, readable from the back row. */
 const DEFAULT_LIGHT: StyleTokens = {
-  bg: '#F4EEE4',
-  panel: 'rgba(255, 252, 247, 0.64)',
-  line: 'rgba(48, 40, 32, 0.12)',
-  ink1: '#1F1A16',
-  ink2: '#4A433C',
-  ink3: '#7A7268',
-  accent: '#C45C26',
-  accentSoft: 'rgba(196, 92, 38, 0.16)',
-  frost: 'rgba(255, 255, 255, 0.46)',
-  veil: 'rgba(244, 238, 228, 0.58)',
-  ...sharedRadii,
-  shadowSm: '0 1px 2px rgba(31, 26, 22, 0.06), 0 4px 12px rgba(31, 26, 22, 0.06)',
-  shadowMd: '0 8px 28px rgba(31, 26, 22, 0.12), 0 2px 8px rgba(31, 26, 22, 0.06)',
-  shadowLg: '0 24px 60px rgba(31, 26, 22, 0.18)',
-  glassBlur: '18px',
-  backdropBlur: '42px',
-};
-
-const DEFAULT_DARK: StyleTokens = {
-  bg: '#1B1714',
-  panel: 'rgba(44, 38, 34, 0.58)',
-  line: 'rgba(244, 238, 228, 0.12)',
-  ink1: '#F4EEE4',
-  ink2: '#C9C0B5',
-  ink3: '#8C847A',
-  accent: '#E08A52',
-  accentSoft: 'rgba(224, 138, 82, 0.2)',
-  frost: 'rgba(255, 255, 255, 0.08)',
-  veil: 'rgba(14, 12, 10, 0.55)',
-  ...sharedRadii,
-  shadowSm: '0 1px 2px rgba(0, 0, 0, 0.24), 0 4px 14px rgba(0, 0, 0, 0.18)',
-  shadowMd: '0 10px 32px rgba(0, 0, 0, 0.32), 0 2px 8px rgba(0, 0, 0, 0.2)',
-  shadowLg: '0 28px 64px rgba(0, 0, 0, 0.42)',
-  glassBlur: '16px',
+  bg: '#F2F4F1',
+  panel: '#E4E9E4',
+  surfaceStrong: '#D3DBD4',
+  line: '#9AA79F',
+  ink1: '#111714',
+  ink2: '#37423C',
+  ink3: '#56625B',
+  accent: '#0B6E4F',
+  accentSoft: 'rgba(11, 110, 79, 0.14)',
+  onAccent: '#FFFFFF',
+  positive: '#0B6E4F',
+  negative: '#B42318',
+  frost: 'rgba(242, 244, 241, 0.72)',
+  veil: 'rgba(242, 244, 241, 0.55)',
+  ...classroomRadii,
+  shadowSm: '0 2px 6px rgba(17, 23, 20, 0.10)',
+  shadowMd: '0 12px 32px rgba(17, 23, 20, 0.14)',
+  shadowLg: '0 28px 64px rgba(17, 23, 20, 0.24)',
+  glassBlur: '20px',
   backdropBlur: '48px',
 };
 
+const DEFAULT_DARK: StyleTokens = {
+  bg: '#0F1412',
+  panel: '#1A211E',
+  surfaceStrong: '#26302B',
+  line: '#4F5E56',
+  ink1: '#EEF3EF',
+  ink2: '#C2CCC6',
+  ink3: '#99A69F',
+  accent: '#46D19E',
+  accentSoft: 'rgba(70, 209, 158, 0.18)',
+  onAccent: '#06140E',
+  positive: '#46D19E',
+  negative: '#FF8A7A',
+  frost: 'rgba(15, 20, 18, 0.62)',
+  veil: 'rgba(8, 11, 10, 0.6)',
+  ...classroomRadii,
+  shadowSm: '0 2px 6px rgba(0, 0, 0, 0.35)',
+  shadowMd: '0 14px 36px rgba(0, 0, 0, 0.45)',
+  shadowLg: '0 30px 72px rgba(0, 0, 0, 0.6)',
+  glassBlur: '20px',
+  backdropBlur: '56px',
+};
+
+/** A screening room: near-black, warm screen-white text, projector amber. */
 const CINEMA_DARK: StyleTokens = {
-  bg: '#0C0D12',
-  panel: 'rgba(22, 24, 32, 0.56)',
-  line: 'rgba(236, 226, 204, 0.14)',
-  ink1: '#F3EBDD',
-  ink2: '#C4BBA8',
-  ink3: '#8A8476',
-  accent: '#E0C07A',
-  accentSoft: 'rgba(224, 192, 122, 0.18)',
-  frost: 'rgba(255, 252, 244, 0.08)',
-  veil: 'rgba(6, 7, 10, 0.62)',
+  bg: '#0A0A0B',
+  panel: '#161618',
+  surfaceStrong: '#232326',
+  line: '#5A5A60',
+  ink1: '#F6F2E9',
+  ink2: '#CFC9BD',
+  ink3: '#A39D92',
+  accent: '#F4B740',
+  accentSoft: 'rgba(244, 183, 64, 0.16)',
+  onAccent: '#1A1205',
+  positive: '#7FD99A',
+  negative: '#FF8473',
+  frost: 'rgba(10, 10, 11, 0.6)',
+  veil: 'rgba(5, 5, 6, 0.62)',
   ...cinemaRadii,
-  shadowSm: '0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 16px rgba(0, 0, 0, 0.28)',
-  shadowMd: '0 14px 40px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.28)',
-  shadowLg: '0 32px 80px rgba(0, 0, 0, 0.55)',
-  glassBlur: '22px',
+  shadowSm: '0 2px 8px rgba(0, 0, 0, 0.5)',
+  shadowMd: '0 16px 40px rgba(0, 0, 0, 0.6)',
+  shadowLg: '0 32px 80px rgba(0, 0, 0, 0.75)',
+  glassBlur: '24px',
   backdropBlur: '64px',
 };
 
+/** The same room with the lights up: cool grey ground, deep amber. */
 const CINEMA_LIGHT: StyleTokens = {
-  bg: '#F2EBDD',
-  panel: 'rgba(255, 251, 244, 0.7)',
-  line: 'rgba(32, 28, 22, 0.12)',
-  ink1: '#19160F',
-  ink2: '#4A453A',
-  ink3: '#7A7466',
-  accent: '#8A5A12',
-  accentSoft: 'rgba(138, 90, 18, 0.14)',
-  frost: 'rgba(255, 255, 255, 0.5)',
-  veil: 'rgba(242, 235, 221, 0.5)',
+  bg: '#EBEBEE',
+  panel: '#DCDCE1',
+  surfaceStrong: '#CACACF',
+  line: '#8C8C94',
+  ink1: '#121214',
+  ink2: '#38383D',
+  ink3: '#55555C',
+  accent: '#8A4F00',
+  accentSoft: 'rgba(138, 79, 0, 0.13)',
+  onAccent: '#FFFFFF',
+  positive: '#1D6B36',
+  negative: '#B42318',
+  frost: 'rgba(235, 235, 238, 0.72)',
+  veil: 'rgba(235, 235, 238, 0.55)',
   ...cinemaRadii,
-  shadowSm: '0 1px 2px rgba(25, 22, 15, 0.06), 0 4px 12px rgba(25, 22, 15, 0.06)',
-  shadowMd: '0 10px 28px rgba(25, 22, 15, 0.12), 0 2px 8px rgba(25, 22, 15, 0.06)',
-  shadowLg: '0 24px 56px rgba(25, 22, 15, 0.16)',
-  glassBlur: '18px',
-  backdropBlur: '40px',
+  shadowSm: '0 2px 6px rgba(18, 18, 20, 0.12)',
+  shadowMd: '0 12px 32px rgba(18, 18, 20, 0.16)',
+  shadowLg: '0 28px 64px rgba(18, 18, 20, 0.26)',
+  glassBlur: '20px',
+  backdropBlur: '48px',
 };
 
 export const STYLE_PRESETS: readonly StylePreset[] = [
@@ -129,8 +159,8 @@ export const STYLE_PRESETS: readonly StylePreset[] = [
     id: 'default',
     label: 'Default',
     description:
-      'Warm frosted glass panels, a softly blurred backdrop, and layered shadows for classroom activities.',
-    defaultFonts: { heading: 'Fraunces', body: 'Inter' },
+      'A calm classroom look: cool paper ground, chalkboard-green actions, large readable type (Lexend), and frosted panels over a clip’s blurred poster.',
+    defaultFonts: { heading: 'Bricolage Grotesque', body: 'Lexend' },
     defaultMotionPresetId: 'default',
     tokens: { light: DEFAULT_LIGHT, dark: DEFAULT_DARK },
   },
@@ -138,8 +168,8 @@ export const STYLE_PRESETS: readonly StylePreset[] = [
     id: 'cinema-dark',
     label: 'Cinema Dark',
     description:
-      'A dark cinema stage with frosted panels, a heavy backdrop blur, and gold accents. Not tied to any film.',
-    defaultFonts: { heading: 'Source Serif 4', body: 'Inter' },
+      'A screening room: near-black stage, screen-white captions, projector-amber actions and condensed marquee titles. Not tied to any film.',
+    defaultFonts: { heading: 'Big Shoulders Display', body: 'Atkinson Hyperlegible Next' },
     defaultMotionPresetId: 'gentle',
     tokens: { light: CINEMA_LIGHT, dark: CINEMA_DARK },
   },

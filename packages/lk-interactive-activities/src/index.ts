@@ -38,6 +38,7 @@ export {
   listTemplates,
   registerInteractiveActivities,
   registerTemplate,
+  validateInteractiveActivity,
 } from './registry/templates.js';
 export type {
   AnimationPreset,

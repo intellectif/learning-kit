@@ -1,5 +1,12 @@
-import type { CSSProperties, JSX } from 'react';
+import type { CSSProperties, JSX, KeyboardEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { Icon } from '../../../player/icons.js';
+import {
+  fillTemplate,
+  hasCommandModifier,
+  isTypingTarget,
+  languageAttributes,
+} from '../../../player/locale.js';
 import { resolveAssetUrl } from '../../../player/resolve-url.js';
 import { Stage } from '../../../player/Stage.js';
 import type { PlayerHostOptions } from '../../../player/types.js';
@@ -10,26 +17,49 @@ import { listenToAnswer } from './listen.js';
 import {
   clampPlaybackTime,
   nextWhatHappensStage,
+  reachesFreeze,
   type WhatHappensAction,
   type WhatHappensStage,
 } from './machine.js';
+
 export interface WhatHappensPlayerProps extends PlayerHostOptions {
   activity: WhatHappensData;
 }
+
+const DEFAULT_FRAME_INTERVAL = 1 / 30;
+
+/** Board columns for a clip count: one row up to four, then four, then six. */
+export function boardColumns(count: number): number {
+  if (count <= 4) return Math.max(1, count);
+  return count <= 8 ? 4 : 6;
+}
+
+/** A frame early in the clip, for a card with no thumbnail: never past the freeze. */
+function previewUrl(url: string, freezeAt: number): string {
+  if (url.includes('#')) return url;
+  return `${url}#t=${(freezeAt / 2).toFixed(2)}`;
+}
+
 export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps): JSX.Element {
-  const chrome = { ...whatHappensChrome(activity.locale), ...activity.copy, ...host.strings };
+  // Built-in chrome < host strings < the editor's own copy for this activity.
+  const chrome = { ...whatHappensChrome(host.locale), ...host.strings, ...activity.copy };
+  const content = languageAttributes(activity.locale);
   const [stage, setStage] = useState<WhatHappensStage>('board');
   const [clipIndex, setClipIndex] = useState(0);
   const [completed, setCompleted] = useState<string[]>([]);
   const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState(false);
   const [controls, setControls] = useState(true);
+  const [progress, setProgress] = useState(0);
   const video = useRef<HTMLVideoElement>(null);
   const audio = useRef<HTMLAudioElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const live = useRef(true);
   const listenGeneration = useRef(0);
-  const clip = activity.clips[clipIndex];
+  const frozen = useRef(false);
+  const clip = activity.clips[clipIndex] ?? activity.clips[0];
+  const answerText = clip?.answer?.text ?? '';
+  const hasAnswer = answerText.trim() !== '';
   const move = (action: WhatHappensAction) =>
     setStage((previous) => nextWhatHappensStage(previous, action));
   const emit = (
@@ -40,7 +70,7 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
   const stopListening = () => {
     listenGeneration.current += 1;
     audio.current?.pause();
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if ('speechSynthesis' in window && window.speechSynthesis) window.speechSynthesis.cancel();
   };
   useEffect(() => {
     live.current = true;
@@ -50,14 +80,37 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
       listenGeneration.current += 1;
       clearTimeout(timer.current);
       element?.pause();
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      if ('speechSynthesis' in window && window.speechSynthesis) window.speechSynthesis.cancel();
     };
   }, []);
+
+  const freezeNow = () => {
+    const element = video.current;
+    if (!element || frozen.current) return;
+    frozen.current = true;
+    element.pause();
+    element.currentTime = clip.freezeAt;
+    emit('clip.frozen');
+    move('freeze');
+  };
+  const freezeRef = useRef(freezeNow);
+  freezeRef.current = freezeNow;
+
+  const clipId = clip.id;
+  const freezeAt = clip.freezeAt;
+  // Start (or restart) playback when a stage that plays begins. Keyed on the
+  // clip's id and freeze point, not the clip object, so a host re-render with
+  // fresh data does not restart the video.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clipId restarts playback when another clip opens.
   useEffect(() => {
     if (stage !== 'watch' && stage !== 'reveal') return;
     const element = video.current;
     if (!element) return;
-    element.currentTime = stage === 'watch' ? 0 : clip.freezeAt;
+    if (stage === 'watch') {
+      frozen.current = false;
+      setProgress(0);
+    }
+    element.currentTime = stage === 'watch' ? 0 : freezeAt;
     setBlocked(false);
     let active = true;
     void element.play().catch(() => {
@@ -67,12 +120,75 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
       active = false;
       element.pause();
     };
-  }, [stage, clip]);
+  }, [stage, clipId, freezeAt]);
+
+  // Frame-accurate freeze: check every presented frame (or every animation
+  // frame) and stop one frame before the freeze point, so no frame after it is
+  // ever shown. `timeupdate` (about four times a second) is only a backstop.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clipId restarts the frame watch when another clip opens.
+  useEffect(() => {
+    if (stage !== 'watch') return;
+    const element = video.current;
+    if (!element) return;
+    let cancelled = false;
+    let handle = 0;
+    let last = -1;
+    let interval = DEFAULT_FRAME_INTERVAL;
+    const reached = (mediaTime: number) => {
+      if (last >= 0 && mediaTime > last)
+        interval = Math.min(0.1, Math.max(1 / 120, mediaTime - last));
+      last = mediaTime;
+      if (element.paused || !reachesFreeze(mediaTime, interval, freezeAt)) return false;
+      freezeRef.current();
+      return true;
+    };
+    // Not every browser (nor jsdom) has requestVideoFrameCallback yet.
+    const byFrame =
+      typeof element.requestVideoFrameCallback === 'function'
+        ? element.requestVideoFrameCallback.bind(element)
+        : undefined;
+    if (byFrame) {
+      const onFrame = (_now: number, metadata: { mediaTime: number }) => {
+        if (!cancelled && !reached(metadata.mediaTime)) handle = byFrame(onFrame);
+      };
+      handle = byFrame(onFrame);
+      return () => {
+        cancelled = true;
+        element.cancelVideoFrameCallback(handle);
+      };
+    }
+    const onAnimationFrame = () => {
+      if (!cancelled && !reached(element.currentTime))
+        handle = requestAnimationFrame(onAnimationFrame);
+    };
+    handle = requestAnimationFrame(onAnimationFrame);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(handle);
+    };
+  }, [stage, clipId, freezeAt]);
+
   const play = () => {
     setBlocked(false);
     void video.current?.play().catch(() => {
       if (live.current) setBlocked(true);
     });
+  };
+  const open = (index: number) => {
+    const item = activity.clips[index];
+    if (!item) return;
+    setClipIndex(index);
+    setError(false);
+    setBlocked(false);
+    showControls();
+    move('open');
+    host.onEvent?.({ type: 'clip.opened', activityId: activity.id, clipId: item.id });
+  };
+  const back = () => {
+    if (stage === 'board') return;
+    stopListening();
+    video.current?.pause();
+    move('back');
   };
   const reveal = () => {
     if (stage === 'guess') {
@@ -81,18 +197,24 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
     }
   };
   const showAnswer = () => {
-    if (stage === 'tell') {
+    if (stage === 'tell' && hasAnswer) {
       emit('answer.shown');
       move('answer');
     }
   };
   const listen = async () => {
-    if (!audio.current) return;
+    if (!audio.current || !hasAnswer) return;
     stopListening();
     const generation = listenGeneration.current;
     const isActive = () => live.current && generation === listenGeneration.current;
     try {
-      const via = await listenToAnswer(clip, audio.current, host.resolveUrl, isActive);
+      const via = await listenToAnswer(
+        clip,
+        audio.current,
+        host.resolveUrl,
+        isActive,
+        content.lang,
+      );
       if (via && isActive())
         host.onEvent?.({ type: 'audio.played', activityId: activity.id, clipId: clip.id, via });
     } catch {
@@ -100,7 +222,7 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
     }
   };
   const next = () => {
-    if (stage !== 'answer') return;
+    if (stage !== 'answer' && !(stage === 'tell' && !hasAnswer)) return;
     stopListening();
     emit('clip.completed');
     const done = completed.includes(clip.id) ? completed : [...completed, clip.id];
@@ -120,71 +242,129 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
     if (!element) return;
     const time = clampPlaybackTime(element.currentTime, clip.freezeAt, !locked);
     if (element.currentTime !== time) element.currentTime = time;
-    if (stage === 'watch' && time >= clip.freezeAt) {
-      element.pause();
-      emit('clip.frozen');
-      move('freeze');
-    } else if (stage === 'guess') element.pause();
+    if (stage === 'watch') setProgress(Math.min(1, time / clip.freezeAt));
+    if (stage === 'watch' && time >= clip.freezeAt) freezeNow();
+    else if (stage === 'guess') element.pause();
   };
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (hasCommandModifier(event) || isTypingTarget(event.target)) return;
+    const target = event.target as HTMLElement;
+    if (event.key === 'Escape' && stage !== 'board') {
+      event.preventDefault();
+      back();
+      return;
+    }
+    // A focused button handles Enter itself.
+    if (event.key === 'Enter' && target.tagName === 'BUTTON') return;
+    const key = event.key.toLowerCase();
+    if (stage === 'guess' && (key === 'enter' || key === 'r')) {
+      event.preventDefault();
+      reveal();
+    } else if (stage === 'tell' && (key === 'enter' || key === 'a')) {
+      event.preventDefault();
+      if (hasAnswer) showAnswer();
+      else next();
+    } else if (stage === 'answer' && key === 'l') {
+      event.preventDefault();
+      void listen();
+    } else if (stage === 'answer' && (key === 'enter' || key === 'n')) {
+      event.preventDefault();
+      next();
+    }
+  };
+  const authored = (value: string | undefined) => (value === undefined ? {} : content);
+  const predictPrompt = clip.predictPrompt ?? chrome.predictTitle;
+  const tellPrompt = clip.tellPrompt ?? chrome.tellTitle;
+  const supportsLabel = clip.supportsLabel ?? chrome.supportsLabel;
+  const showSupports = isSupportsEnabled(activity, clip) && !!clip.supports?.length;
+
   return (
     <Stage
       {...host}
+      label={activity.title}
       style={activity.style}
       template="what-happens"
       stage={stage}
-      onKeyDown={(event) => {
-        // Native focused buttons already handle Enter. Shortcuts never consume form input.
-        const target = event.target as HTMLElement;
-        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
-          return;
-        if (event.key === 'Enter' && target.tagName === 'BUTTON') return;
-        const key = event.key.toLowerCase();
-        if (stage === 'guess' && ['enter', 'r'].includes(key)) {
-          event.preventDefault();
-          reveal();
-        }
-        if (stage === 'tell' && ['enter', 'a'].includes(key)) {
-          event.preventDefault();
-          showAnswer();
-        }
-        if (stage === 'answer' && key === 'l') {
-          event.preventDefault();
-          void listen();
-        }
-        if (stage === 'answer' && ['enter', 'n'].includes(key)) {
-          event.preventDefault();
-          next();
-        }
-      }}
+      onKeyDown={onKeyDown}
     >
-      <h1>{activity.title}</h1>
-      {/* biome-ignore lint/a11y/useMediaCaption: Listen is the spoken version of the adjacent sample answer. */}
+      {/* biome-ignore lint/a11y/useMediaCaption: Listen is the spoken version of the sample answer shown beside it. */}
       <audio ref={audio} />
-      {stage === 'board' ? (
-        <div data-lkia-board="">
-          {activity.clips.map((item, index) => (
-            <button
-              key={item.id}
-              type="button"
-              style={{ '--i': index } as CSSProperties}
-              data-animate="card-stagger"
-              data-completed={completed.includes(item.id)}
-              onClick={() => {
-                setClipIndex(index);
-                setError(false);
-                setBlocked(false);
-                showControls();
-                move('open');
-                host.onEvent?.({ type: 'clip.opened', activityId: activity.id, clipId: item.id });
-              }}
-            >
-              {item.thumb && <img src={resolveAssetUrl(item.thumb, host.resolveUrl)} alt="" />}
-              <span>{item.title}</span>
+      <header data-lkia-bar="">
+        {stage === 'board' ? (
+          <div data-lkia-heading="">
+            <h1 {...content}>{activity.title}</h1>
+            <p data-lkia-lede="">{chrome.boardHint}</p>
+          </div>
+        ) : (
+          <>
+            <button type="button" data-lkia-back="" data-animate="button-press" onClick={back}>
+              <Icon name="back" /> {chrome.backButton}
             </button>
-          ))}
-        </div>
+            <p data-lkia-eyebrow="">
+              <span {...content}>{activity.title}</span>
+              <span aria-hidden="true"> · </span>
+              {fillTemplate(chrome.clipCount, { n: clipIndex + 1, total: activity.clips.length })}
+            </p>
+          </>
+        )}
+      </header>
+      {stage === 'board' ? (
+        <ol
+          data-lkia-board=""
+          data-count={activity.clips.length}
+          style={{ '--lkia-cols': boardColumns(activity.clips.length) } as CSSProperties}
+        >
+          {activity.clips.map((item, index) => {
+            const done = completed.includes(item.id);
+            return (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  style={{ '--i': index } as CSSProperties}
+                  data-animate="card-stagger"
+                  data-lkia-card=""
+                  data-completed={done}
+                  data-aspect={item.video.aspect}
+                  onClick={() => open(index)}
+                >
+                  <span data-lkia-thumb="">
+                    {item.thumb ? (
+                      <img src={resolveAssetUrl(item.thumb, host.resolveUrl)} alt="" />
+                    ) : (
+                      <video
+                        src={previewUrl(
+                          resolveAssetUrl(item.video, host.resolveUrl),
+                          item.freezeAt,
+                        )}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        aria-hidden="true"
+                        tabIndex={-1}
+                      />
+                    )}
+                  </span>
+                  <span data-lkia-card-title="" {...content}>
+                    {item.title}
+                  </span>
+                  {done && (
+                    <span data-lkia-done="">
+                      <Icon name="check" /> {chrome.completedLabel}
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
       ) : (
-        <div data-lkia-watch="" onPointerMove={showControls} onFocusCapture={showControls}>
+        <div
+          data-lkia-watch=""
+          data-aspect={clip.video.aspect}
+          data-has-backdrop={clip.poster !== undefined}
+          onPointerMove={showControls}
+          onFocusCapture={showControls}
+        >
           {clip.poster && (
             <>
               <div
@@ -196,69 +376,103 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
               <div data-lkia-veil="" />
             </>
           )}
-          {/* biome-ignore lint/a11y/useMediaCaption: The v1 video contract has no caption track; authored speaking media is supplied by the host. */}
-          <video
-            ref={video}
-            src={resolveAssetUrl(clip.video, host.resolveUrl)}
-            playsInline
-            controls={controls}
-            aria-label={clip.title}
-            style={{ aspectRatio: clip.video.aspect.replace(':', ' / ') }}
-            data-animate="video-glide"
-            onTimeUpdate={syncTime}
-            onSeeking={syncTime}
-            onPlay={() => {
-              if (stage === 'guess') video.current?.pause();
-            }}
-            onError={() => setError(true)}
-            onEnded={() => {
-              if (stage === 'reveal') move('ended');
-              else if (stage === 'watch') syncTime();
-            }}
-          />
-          <section data-lkia-panel="" data-animate="panel-fade">
-            {error && <p role="alert">{chrome.mediaError}</p>}
+          <div data-lkia-frame="" data-animate="video-glide">
+            {/* biome-ignore lint/a11y/useMediaCaption: The v1 video contract has no caption track; the host supplies the media. */}
+            <video
+              key={clip.id}
+              ref={video}
+              src={resolveAssetUrl(clip.video, host.resolveUrl)}
+              poster={clip.poster ? resolveAssetUrl(clip.poster, host.resolveUrl) : undefined}
+              playsInline
+              preload="auto"
+              controls={controls && stage !== 'guess'}
+              aria-label={clip.title}
+              style={{ aspectRatio: clip.video.aspect.replace(':', ' / ') }}
+              onTimeUpdate={syncTime}
+              onSeeking={syncTime}
+              onPlay={() => {
+                if (stage === 'guess') video.current?.pause();
+              }}
+              onError={() => setError(true)}
+              onEnded={() => {
+                if (stage === 'reveal') move('ended');
+                else if (stage === 'watch') syncTime();
+              }}
+            />
             {blocked && (
-              <button type="button" onClick={play}>
-                {chrome.playFallback}
+              <button type="button" data-lkia-play="" data-animate="button-press" onClick={play}>
+                <Icon name="play" /> {chrome.playFallback}
               </button>
+            )}
+          </div>
+          <section data-lkia-panel="" data-animate="panel-fade" aria-live="polite">
+            {error && (
+              <p role="alert" data-lkia-error="">
+                {chrome.mediaError}
+              </p>
+            )}
+            {stage === 'watch' && !error && (
+              <div data-lkia-watching="">
+                <p data-lkia-hint="">{chrome.watchHint}</p>
+                <span
+                  data-lkia-progress=""
+                  aria-hidden="true"
+                  style={{ '--lkia-progress': progress } as CSSProperties}
+                />
+              </div>
             )}
             {stage === 'guess' && (
               <>
-                <h2>{clip.predictPrompt ?? chrome.predictTitle}</h2>
+                <h2 {...authored(clip.predictPrompt ?? activity.copy?.predictTitle)}>
+                  {predictPrompt}
+                </h2>
                 <div data-lkia-actions="">
-                  <button type="button" onClick={reveal}>
+                  <button
+                    type="button"
+                    data-lkia-primary=""
+                    data-animate="button-press"
+                    onClick={reveal}
+                  >
                     {chrome.revealButton}
                   </button>
-                  <button type="button" onClick={() => move('replay')}>
-                    {chrome.replayToFreeze}
+                  <button type="button" data-animate="button-press" onClick={() => move('replay')}>
+                    <Icon name="replay" /> {chrome.replayToFreeze}
                   </button>
                 </div>
               </>
             )}
             {stage === 'tell' && (
               <>
-                <h2>{clip.tellPrompt ?? chrome.tellTitle}</h2>
-                {isSupportsEnabled(activity, clip) && !!clip.supports?.length && (
-                  <div>
-                    <h3>{clip.supportsLabel ?? chrome.supportsLabel}</h3>
-                    <ul>
-                      {clip.supports.map((support) => (
+                <h2 {...authored(clip.tellPrompt ?? activity.copy?.tellTitle)}>{tellPrompt}</h2>
+                {showSupports && (
+                  <div data-lkia-supports="">
+                    <h3 {...authored(clip.supportsLabel ?? activity.copy?.supportsLabel)}>
+                      {supportsLabel}
+                    </h3>
+                    <ul {...content}>
+                      {clip.supports?.map((support) => (
                         <li key={support}>{support}</li>
                       ))}
                     </ul>
                   </div>
                 )}
-                <button type="button" onClick={showAnswer}>
-                  {chrome.showAnswer}
-                </button>
+                <div data-lkia-actions="">
+                  <button
+                    type="button"
+                    data-lkia-primary=""
+                    data-animate="button-press"
+                    onClick={hasAnswer ? showAnswer : next}
+                  >
+                    {hasAnswer ? chrome.showAnswer : chrome.nextButton}
+                  </button>
+                </div>
               </>
             )}
             {stage === 'answer' && (
               <div data-animate="answer-fade-up">
                 <h2>{chrome.answerLabel}</h2>
-                <p>
-                  {answerSegments(clip.answer.text, clip.supports ?? []).map((segment) =>
+                <p data-lkia-answer="" {...content}>
+                  {answerSegments(answerText, clip.supports ?? []).map((segment) =>
                     segment.underline ? (
                       <mark data-lkia-underline="" key={segment.start}>
                         {segment.text}
@@ -269,10 +483,15 @@ export function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps)
                   )}
                 </p>
                 <div data-lkia-actions="">
-                  <button type="button" onClick={() => void listen()}>
-                    {chrome.listenButton}
+                  <button type="button" data-animate="button-press" onClick={() => void listen()}>
+                    <Icon name="listen" /> {chrome.listenButton}
                   </button>
-                  <button type="button" onClick={next}>
+                  <button
+                    type="button"
+                    data-lkia-primary=""
+                    data-animate="button-press"
+                    onClick={next}
+                  >
                     {chrome.nextButton}
                   </button>
                 </div>

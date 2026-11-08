@@ -5,7 +5,18 @@
  */
 export const STYLE_PRESET_IDS = ['default', 'cinema-dark'] as const;
 export const MOTION_PRESET_IDS = ['default', 'lively', 'gentle'] as const;
-export const FONT_ALLOW_LIST = ['Inter', 'Source Serif 4', 'Fraunces'] as const;
+export const FONT_ALLOW_LIST = [
+  'Inter',
+  'Source Serif 4',
+  'Fraunces',
+  'Lexend',
+  'Atkinson Hyperlegible Next',
+  'Bricolage Grotesque',
+  'Big Shoulders Display',
+  'DM Sans',
+  'Figtree',
+  'Literata',
+] as const;
 export const ANIMATION_IDS = [
   'card-stagger',
   'video-glide',

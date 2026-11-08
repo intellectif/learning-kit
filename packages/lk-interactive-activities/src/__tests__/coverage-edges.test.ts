@@ -127,7 +127,7 @@ describe('What Happens validation edges', () => {
             tellPrompt: 'Tell the story',
             supportsEnabled: true,
             supportsLabel: 'To help you',
-            supports: ['flour', ''],
+            supports: ['flour', 'sugar'],
             audio: { assetKey: 'bowl-audio', textHash: 'abc', voice: 'en-US' },
             videoPrompt: { text: 'A person pours flour', generatedBy: 'anthropic' },
             origin: 'authored',

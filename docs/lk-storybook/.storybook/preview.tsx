@@ -91,10 +91,22 @@ const preview: Preview = {
   decorators: [
     validContent,
     // `parameters.wide`: a story that lays two panes side by side, as a
-    // reading route does, gets the width a paper page has.
+    // reading route does, gets the width a paper page has. `parameters.frameWidth`
+    // sets an exact width instead, as a phone's.
     (Story, context) => (
       <ThemeProvider>
-        <div style={{ maxWidth: context.parameters.wide === true ? 1280 : 680, padding: 24 }}>
+        <div
+          style={{
+            maxWidth:
+              typeof context.parameters.frameWidth === 'number'
+                ? context.parameters.frameWidth
+                : context.parameters.wide === true
+                  ? 1280
+                  : 680,
+            padding: 24,
+            boxSizing: 'content-box',
+          }}
+        >
           <Story />
         </div>
       </ThemeProvider>

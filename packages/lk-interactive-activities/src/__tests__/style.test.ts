@@ -61,14 +61,18 @@ describe('style and motion catalogs', () => {
 describe('tokens and CSS variables', () => {
   it('maps the reference glass tokens to --lkia custom properties', () => {
     const light = resolveStyleTokens({ presetId: 'default', mode: 'light' });
-    expect(light.panel).toMatch(/rgba/);
-    expect(light.glassBlur).toBe('18px');
-    expect(light.backdropBlur).toBe('42px');
+    expect(light.frost).toMatch(/rgba/);
+    expect(light.glassBlur).toBe('20px');
+    expect(light.backdropBlur).toBe('48px');
     const css = cssVariablesForTokens(light);
-    expect(css).toContain('--lkia-bg: #F4EEE4;');
+    expect(css).toContain('--lkia-bg: #F2F4F1;');
     expect(css).toContain('--lkia-panel:');
-    expect(css).toContain('--lkia-glass-blur: 18px;');
-    expect(css).toContain('--lkia-backdrop-blur: 42px;');
+    expect(css).toContain('--lkia-surface-strong:');
+    expect(css).toContain('--lkia-on-accent: #FFFFFF;');
+    expect(css).toContain('--lkia-positive:');
+    expect(css).toContain('--lkia-negative:');
+    expect(css).toContain('--lkia-glass-blur: 20px;');
+    expect(css).toContain('--lkia-backdrop-blur: 48px;');
     expect(css).toContain('--lkia-ink-1:');
     expect(css).toContain('--lkia-accent-soft:');
   });
@@ -82,8 +86,8 @@ describe('tokens and CSS variables', () => {
     expect(autoLight.bg).toBe(light.bg);
     expect(autoDark.bg).toBe(dark.bg);
     const cinema = resolveStyleTokens({ presetId: 'cinema-dark', mode: 'dark' });
-    expect(cinema.bg).toBe('#0C0D12');
-    expect(cinema.glassBlur).toBe('22px');
+    expect(cinema.bg).toBe('#0A0A0B');
+    expect(cinema.glassBlur).toBe('24px');
     expect(resolveStylePreset('unknown').id).toBe('default');
   });
 
@@ -120,10 +124,10 @@ describe('tokens and CSS variables', () => {
       motionPresetId: 'bounce-forever',
       fonts: { heading: 'Comic Sans', body: 'Papyrus' },
     });
-    expect(css).toContain('--lkia-bg: #F4EEE4;');
+    expect(css).toContain('--lkia-bg: #F2F4F1;');
     expect(css).toContain('--lkia-duration: 280ms;');
-    expect(css).toContain('--lkia-font-heading: "Fraunces"');
-    expect(css).toContain('--lkia-font-body: "Inter"');
+    expect(css).toContain('--lkia-font-heading: "Bricolage Grotesque"');
+    expect(css).toContain('--lkia-font-body: "Lexend"');
     expect(resolveMotionTokens('nope').duration).toBe('280ms');
     expect(resolveMotionTokens().duration).toBe('280ms');
     expect(resolveMotionTokens('gentle').durationSlow).toBe('700ms');
@@ -154,8 +158,8 @@ describe('Google Fonts helpers', () => {
 
   it('resolves heading and body fonts per activity and writes local @font-face rules', () => {
     expect(resolveFontPair({ presetId: 'default' })).toEqual({
-      heading: 'Fraunces',
-      body: 'Inter',
+      heading: 'Bricolage Grotesque',
+      body: 'Lexend',
     });
     expect(
       resolveFontPair({
@@ -163,15 +167,17 @@ describe('Google Fonts helpers', () => {
         fonts: { heading: 'Inter', body: 'Source Serif 4' },
       }),
     ).toEqual({ heading: 'Inter', body: 'Source Serif 4' });
-    expect(hostedFontsCssUrl({ presetId: 'cinema-dark' })).toContain('Source+Serif+4');
-    expect(hostedFontsCssUrl({ presetId: 'cinema-dark' })).toContain('family=Inter');
+    expect(hostedFontsCssUrl({ presetId: 'cinema-dark' })).toContain('Big+Shoulders+Display');
+    expect(hostedFontsCssUrl({ presetId: 'cinema-dark' })).toContain(
+      'family=Atkinson+Hyperlegible+Next',
+    );
     const offline = offlineFontExport({ presetId: 'default' });
     expect(offline.cssUrl).toContain('fonts.googleapis.com');
-    expect(offline.files.some((file) => file.family === 'Fraunces')).toBe(true);
+    expect(offline.files.some((file) => file.family === 'Lexend')).toBe(true);
     const local = localFontFaceCss(offline.files);
     expect(local).toContain('@font-face');
-    expect(local).toContain('url("fonts/fraunces-400-normal.woff2")');
-    expect(local).toContain('url("fonts/inter-400-normal.woff2")');
+    expect(local).toContain('url("fonts/bricolage-grotesque-400-normal.woff2")');
+    expect(local).toContain('url("fonts/lexend-400-normal.woff2")');
     expect(local).not.toContain('fonts.googleapis.com');
     expect(fontStack('Inter')).toContain('sans-serif');
     expect(listAllowedFonts().map((item) => item.family)).toEqual([...FONT_ALLOW_LIST]);

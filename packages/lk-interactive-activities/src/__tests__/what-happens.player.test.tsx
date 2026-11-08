@@ -42,7 +42,7 @@ function freeze(container: HTMLElement) {
   fireEvent.timeUpdate(element);
 }
 function open() {
-  fireEvent.click(screen.getByRole('button', { name: 'The garden' }));
+  fireEvent.click(screen.getByRole('button', { name: /^The garden/ }));
 }
 function tell(container: HTMLElement) {
   open();
@@ -190,10 +190,9 @@ describe('What Happens React player', () => {
     'hides absent or disabled supports (%s), with Spanish chrome',
     (disabled) => {
       const activity = whatHappensFixture();
-      activity.locale = 'es';
       if (disabled) activity.supportsEnabled = false;
       else delete activity.clips[0].supports;
-      const { container } = render(<WhatHappensPlayer activity={activity} />);
+      const { container } = render(<WhatHappensPlayer activity={activity} locale="es-419" />);
       open();
       freeze(container);
       fireEvent.click(screen.getByRole('button', { name: 'Revelar' }));
@@ -218,7 +217,7 @@ describe('What Happens React player', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Play' }));
     await screen.findByRole('button', { name: 'Play' });
     fireEvent.error(video(container));
-    expect(screen.getByRole('alert').textContent).toBe('Media unavailable');
+    expect(screen.getByRole('alert').textContent).toBe('This clip could not be played.');
     vi.useFakeTimers();
     fireEvent.pointerMove(container.querySelector('[data-lkia-watch]') as Element);
     act(() => vi.advanceTimersByTime(2501));
@@ -289,7 +288,7 @@ describe('player focus, multi-clip progress and pending listen cancellation', ()
     fireEvent.click(screen.getByRole('button', { name: 'Show answer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(onEvent.mock.calls.some((call) => call[0].type === 'board.completed')).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'The second garden' }));
+    fireEvent.click(screen.getByRole('button', { name: /^The second garden/ }));
     freeze(container);
     fireEvent.click(screen.getByRole('button', { name: 'Reveal' }));
     fireEvent.ended(video(container));

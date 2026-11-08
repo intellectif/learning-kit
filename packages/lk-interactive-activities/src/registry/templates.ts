@@ -1,5 +1,5 @@
 import { registerActivityType } from '@intellectif/lk-core';
-import type { TemplateDefinition } from '../contract/types.js';
+import type { TemplateDefinition, ValidationResult } from '../contract/types.js';
 import { cineScrambleTemplate, cineScrambleType } from '../templates/cine-scramble/schema.js';
 import { whatHappensTemplate, whatHappensType } from '../templates/what-happens/schema.js';
 
@@ -48,4 +48,27 @@ export function getTemplate(id: string): TemplateDefinition | undefined {
 export function listTemplates(): TemplateDefinition[] {
   ensureBuiltins();
   return [...templates.values()];
+}
+
+/**
+ * Validates stored activity JSON of any registered template: the template is
+ * read from `type`, and an unknown template or schema version is reported as
+ * an error at that field rather than thrown.
+ */
+export function validateInteractiveActivity(data: unknown): ValidationResult<unknown> {
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+    return { success: false, errors: [{ path: [], message: 'Expected an object.' }] };
+  }
+  const { type } = data as { type?: unknown };
+  const template = typeof type === 'string' ? getTemplate(type) : undefined;
+  if (template === undefined) {
+    const known = listTemplates()
+      .map((item) => `"${item.id}"`)
+      .join(', ');
+    return {
+      success: false,
+      errors: [{ path: ['type'], message: `Unknown template "${String(type)}". Known: ${known}.` }],
+    };
+  }
+  return template.validate(data);
 }

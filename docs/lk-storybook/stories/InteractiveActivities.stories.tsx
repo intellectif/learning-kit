@@ -1,19 +1,21 @@
 import {
   type CineScrambleData,
+  hostedFontsCssUrl,
   InteractiveActivityPlayer,
+  type StyleChoice,
   validateCineScrambleData,
   validateWhatHappensData,
   type WhatHappensData,
 } from '@intellectif/lk-interactive-activities';
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Decorator, Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 
 /**
- * Both activities play the example app's clip - eight seconds of ffmpeg's test
- * pattern, served from `apps/lk-example-vite/public` (see `.storybook/main.ts`).
- * The copy is placeholder text written for these stories.
+ * The clips are original flat animations drawn with ffmpeg for these stories
+ * (`docs/lk-storybook/public/interactive-activities`), and the copy is
+ * placeholder text written for them.
  */
-const clip = { url: '/demo-video.webm', aspect: '16:9' as const, durationS: 8 };
+const media = (file: string) => ({ assetKey: file, url: `/interactive-activities/${file}` });
 
 const whatHappens: WhatHappensData = {
   schemaVersion: '1.0',
@@ -24,48 +26,102 @@ const whatHappens: WhatHappensData = {
   style: { presetId: 'default' },
   clips: [
     {
-      id: 'sb-wh-count',
-      title: 'The counting clock',
-      video: { ...clip, assetKey: 'demo-video-a.webm' },
-      freezeAt: 3,
-      predictPrompt: 'The clock has stopped for a moment. What do you think it does next?',
-      tellPrompt: 'Say what happened after the pause.',
-      supports: ['keeps counting', 'the numbers go up'],
-      answer: { text: 'The clock keeps counting, and the numbers go up one by one.' },
+      id: 'sb-wh-ball',
+      title: 'The rolling ball',
+      video: { ...media('wh-ball.webm'), aspect: '16:9', durationS: 6 },
+      poster: media('wh-ball-poster.jpg'),
+      freezeAt: 3.2,
+      predictPrompt: 'The ball is rolling towards the gap. What will happen?',
+      tellPrompt: 'Tell your partner what happened, from the start.',
+      supports: ['rolls along the grass', 'falls into the hole', 'first … then …'],
+      answer: { text: 'The ball rolls along the grass and falls into the hole.' },
     },
     {
-      id: 'sb-wh-colours',
-      title: 'The colour bars',
-      video: { ...clip, assetKey: 'demo-video-b.webm' },
-      freezeAt: 5,
-      answer: { text: 'The colour bars stay on the screen until the clip ends.' },
+      id: 'sb-wh-balloon',
+      title: 'The red balloon',
+      video: { ...media('wh-balloon.webm'), aspect: '9:16', durationS: 6 },
+      freezeAt: 3.4,
+      predictPrompt: 'What would you do if this were your balloon?',
+      supports: ['floats up', 'touches the spikes', 'pops'],
+      answer: { text: 'The balloon floats up, touches the spikes and pops.' },
+    },
+    {
+      id: 'sb-wh-lights',
+      title: 'At the lights',
+      video: { ...media('wh-lights.webm'), aspect: '16:9', durationS: 6 },
+      poster: media('wh-lights-poster.jpg'),
+      freezeAt: 2.9,
+      supports: ['turns red', 'stops before the line', 'Remember: the light was amber.'],
+      answer: { text: 'The light turns red and the car stops before the line.' },
     },
   ],
 };
+
+/** The default count: eight clips (the three above, repeated with new titles). */
+const fullBoard: WhatHappensData = {
+  ...whatHappens,
+  id: 'sb-what-happens-eight',
+  title: 'Eight short clips',
+  clips: Array.from({ length: 8 }, (_, index) => {
+    const source = whatHappens.clips[index % 3] as WhatHappensData['clips'][number];
+    return { ...source, id: `sb-wh-${index + 1}`, title: `${source.title} ${index + 1}` };
+  }),
+};
+
+const flower = [
+  'A seed drops into the pot.',
+  'A small green shoot pushes up.',
+  'The stem grows tall and leafy.',
+  'A pink flower opens at the top.',
+];
+const sunset = [
+  'The sun is high in a blue sky.',
+  'The sky turns orange as the sun goes down.',
+  'The sun sinks behind the hills.',
+];
 
 const cineScramble: CineScrambleData = {
   schemaVersion: '1.0',
   type: 'cine-scramble',
   id: 'sb-cine-scramble',
-  title: 'Put the clock in order',
+  title: 'The flower',
+  tagline: 'Four clips, one story. Put them in order.',
+  poster: media('cs-poster.jpg'),
   locale: 'en',
+  style: { presetId: 'cinema-dark', mode: 'dark' },
   vocab: [
-    { term: 'second', definition: 'One sixtieth of a minute.' },
-    { term: 'pattern', definition: 'Shapes or colours that repeat.' },
+    { term: 'seed', definition: 'The small part of a plant that a new plant grows from.' },
+    { term: 'shoot', definition: 'A new part of a plant that has just started to grow.' },
+    { term: 'stem', definition: 'The long, thin part of a plant that holds the leaves.' },
+    { term: 'sink', definition: 'To go down slowly.' },
   ],
   scenes: [
     {
-      id: 'sb-cs-clock',
-      title: 'Counting',
-      clips: [
-        'The clock starts.',
-        'It counts on.',
-        'It passes the middle.',
-        'It reaches the end.',
-      ].map((caption, id) => ({
+      id: 'sb-cs-flower',
+      title: 'Growing a flower',
+      clips: flower.map((caption, id) => ({
         id,
         caption,
-        video: { ...clip, assetKey: `demo-video-${id}.webm` },
+        video: { ...media(`cs-flower-${id}.webm`), aspect: '16:9' as const, durationS: 3 },
+      })),
+    },
+  ],
+};
+
+const twoScenes: CineScrambleData = {
+  ...cineScramble,
+  id: 'sb-cine-scramble-scenes',
+  title: 'A day in the garden',
+  tagline: 'Two short scenes. Pick one, then put its clips in order.',
+  scenes: [
+    ...cineScramble.scenes,
+    {
+      id: 'sb-cs-sunset',
+      title: 'The sunset',
+      clips: sunset.map((caption, id) => ({
+        id,
+        caption,
+        video: { ...media(`cs-sunset-${id}.webm`), aspect: '16:9' as const, durationS: 3 },
       })),
     },
   ],
@@ -74,7 +130,9 @@ const cineScramble: CineScrambleData = {
 /** A story with invalid content fails to render rather than drawing it as best it can. */
 for (const result of [
   validateWhatHappensData(whatHappens),
+  validateWhatHappensData(fullBoard),
   validateCineScrambleData(cineScramble),
+  validateCineScrambleData(twoScenes),
 ]) {
   if (!result.success) {
     throw new Error(
@@ -83,27 +141,81 @@ for (const result of [
   }
 }
 
-const viewport = { width: 1232, height: 693 };
+/**
+ * Loads the activity's fonts from Google Fonts, as a host page does
+ * (`hostedFontsCssUrl`): the package itself never fetches anything.
+ */
+function loadHostFonts(style: StyleChoice): void {
+  const href = hostedFontsCssUrl(style);
+  if (!href || document.querySelector(`link[href="${href}"]`)) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+  document.head.append(link);
+}
+
+const withHostFonts: Decorator = (Story, context) => {
+  const activity = context.args.activity as WhatHappensData | CineScrambleData | undefined;
+  loadHostFonts(activity?.style ?? { presetId: 'cinema-dark' });
+  return Story();
+};
+
+/** A phone-width frame (`frameWidth`, read by the preview): the player stacks into its portrait layout. */
+const phone = { frameWidth: 390 };
 
 const meta: Meta<typeof InteractiveActivityPlayer> = {
   title: 'Interactive activities/InteractiveActivityPlayer',
   component: InteractiveActivityPlayer,
-  parameters: { wide: true },
-  args: { activity: whatHappens, onEvent: fn(), viewport },
+  parameters: { wide: true, layout: 'fullscreen' },
+  decorators: [withHostFonts],
+  args: { activity: whatHappens, onEvent: fn() },
 };
 export default meta;
 
 type Story = StoryObj<typeof InteractiveActivityPlayer>;
 
-/** Pick a card, watch to the freeze, predict, reveal, tell, then compare with the answer. */
+/**
+ * Pick a card, watch to the freeze, predict, reveal, tell with the supports,
+ * then compare with the sample answer and listen. Keys: R reveals, A shows the
+ * answer, L listens, N goes on, Escape returns to the cards.
+ */
 export const WhatHappens: Story = {};
 
-/** Order the clips by dragging, or focus one and press 1-4; C checks. */
+/** The same activity in dark mode. */
+export const WhatHappensDark: Story = {
+  args: { activity: { ...whatHappens, style: { presetId: 'default', mode: 'dark' } } },
+};
+
+/** The default count of eight clips on the board. */
+export const WhatHappensEightClips: Story = { args: { activity: fullBoard } };
+
+/**
+ * Spanish chrome for Spanish-speaking learners of English: the host's
+ * `locale` sets the buttons, the activity's own text stays in English.
+ */
+export const WhatHappensSpanishChrome: Story = { args: { locale: 'es-CO' } };
+
+/** The phone layout: everything stacks. */
+export const WhatHappensPhone: Story = { parameters: phone };
+
+/**
+ * Drag each clip onto the slot whose caption it shows, or tap a clip and then a
+ * slot. Keyboard: focus a clip and press a slot number; Delete returns it; C checks.
+ */
 export const CineScramble: Story = { args: { activity: cineScramble } };
 
-/** Spanish chrome from the locale; the activity's own text is unchanged. */
-export const WhatHappensSpanishChrome: Story = {
-  args: { activity: { ...whatHappens, locale: 'es' } },
+/** Two scenes: a scene list first, then the next unfinished scene after each story. */
+export const CineScrambleTwoScenes: Story = { args: { activity: twoScenes } };
+
+/** The cinema preset with the lights up. */
+export const CineScrambleLight: Story = {
+  args: { activity: { ...cineScramble, style: { presetId: 'cinema-dark', mode: 'light' } } },
+};
+
+/** Spanish chrome, on a phone. */
+export const CineScramblePhone: Story = {
+  args: { activity: cineScramble, locale: 'es' },
+  parameters: phone,
 };
 
 /** No spatial motion, whatever the system setting. */

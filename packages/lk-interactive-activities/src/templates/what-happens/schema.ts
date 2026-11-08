@@ -39,6 +39,11 @@ export interface WhatHappensCopy {
   playFallback?: string;
   replayToFreeze?: string;
   mediaError?: string;
+  backButton?: string;
+  boardHint?: string;
+  watchHint?: string;
+  completedLabel?: string;
+  clipCount?: string;
 
   predictTitle?: string;
   revealButton?: string;
@@ -242,7 +247,7 @@ function readClip(
   const extras: Partial<WhatHappensClip> = {};
   for (const key of optionalStrings) {
     if (object[key] === undefined) continue;
-    const text = readString(object[key], [...path, key], { allowEmpty: true });
+    const text = readString(object[key], [...path, key]);
     if (isIssue(text)) errors.push(text);
     else extras[key] = text;
   }
@@ -256,10 +261,19 @@ function readClip(
       errors.push(issue([...path, 'supports'], 'Expected an array of strings.'));
     } else {
       const supports: string[] = [];
+      const seenSupports = new Set<string>();
       object.supports.forEach((item, index) => {
-        const text = readString(item, [...path, 'supports', index], { allowEmpty: true });
-        if (isIssue(text)) errors.push(text);
-        else supports.push(text);
+        const text = readString(item, [...path, 'supports', index]);
+        if (isIssue(text)) {
+          errors.push(text);
+          return;
+        }
+        const key = text.trim().toLowerCase();
+        if (seenSupports.has(key)) {
+          errors.push(issue([...path, 'supports', index], `Duplicate support item "${text}".`));
+        }
+        seenSupports.add(key);
+        supports.push(text);
       });
       extras.supports = supports;
     }
@@ -396,7 +410,7 @@ function validateWhatHappens(value: unknown): ValidationResult<WhatHappensData> 
       copy = {};
       for (const key of Object.keys(WHAT_HAPPENS_CHROME.en) as Array<keyof WhatHappensCopy>) {
         if (copyObject[key] === undefined) continue;
-        const text = readString(copyObject[key], ['copy', key], { allowEmpty: true });
+        const text = readString(copyObject[key], ['copy', key]);
         if (isIssue(text)) errors.push(text);
         else copy[key] = text;
       }
@@ -494,7 +508,7 @@ export const WHAT_HAPPENS_JSON_SCHEMA: Record<string, unknown> = {
         },
       },
     },
-    copy: { type: 'object', additionalProperties: { type: 'string' } },
+    copy: { type: 'object', additionalProperties: { type: 'string', minLength: 1 } },
     clips: {
       type: 'array',
       minItems: WHAT_HAPPENS_CLIP_COUNT_MIN,
@@ -520,11 +534,11 @@ export const WHAT_HAPPENS_JSON_SCHEMA: Record<string, unknown> = {
           },
         },
         freezeAt: { type: 'number', exclusiveMinimum: 0 },
-        predictPrompt: { type: 'string' },
-        tellPrompt: { type: 'string' },
+        predictPrompt: { type: 'string', minLength: 1 },
+        tellPrompt: { type: 'string', minLength: 1 },
         supportsEnabled: { type: 'boolean' },
-        supportsLabel: { type: 'string' },
-        supports: { type: 'array', items: { type: 'string' } },
+        supportsLabel: { type: 'string', minLength: 1 },
+        supports: { type: 'array', uniqueItems: true, items: { type: 'string', minLength: 1 } },
         answer: {
           type: 'object',
           required: ['text'],
@@ -562,7 +576,7 @@ export const whatHappensType: ActivityTypeDescriptor<WhatHappensData, WhatHappen
         supportsEnabled: 'public',
         supportsLabel: 'public',
         supports: 'public',
-        answer: 'answer-key',
+        answer: 'public',
         audio: 'public',
         videoPrompt: 'author-only',
         origin: 'author-only',

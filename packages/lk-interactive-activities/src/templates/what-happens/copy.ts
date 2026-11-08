@@ -1,9 +1,16 @@
-export const DEFAULT_CHROME_LOCALE = 'en';
+import { DEFAULT_CHROME_LOCALE, primaryLanguage } from '../../player/locale.js';
+
+export { DEFAULT_CHROME_LOCALE };
 
 export interface WhatHappensChrome {
   playFallback: string;
   replayToFreeze: string;
   mediaError: string;
+  backButton: string;
+  boardHint: string;
+  watchHint: string;
+  completedLabel: string;
+  clipCount: string;
 
   predictTitle: string;
   revealButton: string;
@@ -19,7 +26,12 @@ export const WHAT_HAPPENS_CHROME = {
   en: {
     playFallback: 'Play',
     replayToFreeze: 'Replay to freeze',
-    mediaError: 'Media unavailable',
+    mediaError: 'This clip could not be played.',
+    backButton: 'All clips',
+    boardHint: 'Choose a clip. When it pauses, say what you think happens next.',
+    watchHint: 'Watch closely. The clip will pause.',
+    completedLabel: 'Done',
+    clipCount: 'Clip {n} of {total}',
 
     predictTitle: 'What happens next?',
     revealButton: 'Reveal',
@@ -33,7 +45,12 @@ export const WHAT_HAPPENS_CHROME = {
   es: {
     playFallback: 'Reproducir',
     replayToFreeze: 'Repetir hasta la pausa',
-    mediaError: 'Medio no disponible',
+    mediaError: 'No se pudo reproducir este clip.',
+    backButton: 'Todos los clips',
+    boardHint: 'Elige un clip. Cuando se detenga, di qué crees que pasa después.',
+    watchHint: 'Mira con atención. El clip se detendrá.',
+    completedLabel: 'Hecho',
+    clipCount: 'Clip {n} de {total}',
 
     predictTitle: '¿Qué pasa después?',
     revealButton: 'Revelar',
@@ -48,6 +65,10 @@ export const WHAT_HAPPENS_CHROME = {
 
 export type ChromeLocale = keyof typeof WHAT_HAPPENS_CHROME;
 
+/**
+ * The built-in chrome for a BCP 47 tag: Spanish for any `es` tag (`es`,
+ * `es-CO`, `es-419`), English otherwise.
+ */
 export function whatHappensChrome(locale: string = DEFAULT_CHROME_LOCALE): WhatHappensChrome {
-  return locale === 'es' ? WHAT_HAPPENS_CHROME.es : WHAT_HAPPENS_CHROME.en;
+  return primaryLanguage(locale) === 'es' ? WHAT_HAPPENS_CHROME.es : WHAT_HAPPENS_CHROME.en;
 }
