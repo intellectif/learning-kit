@@ -12,6 +12,19 @@ export type {
   VideoAspect,
 } from './contract/types.js';
 export {
+  BBB_WEBSITE_SHARE_ALLOW,
+  BBB_WEBSITE_SHARE_SANDBOX,
+  postEmbedResize,
+} from './player/embed.js';
+export type { PlayerEvent } from './player/events.js';
+export type { InteractiveActivityPlayerProps } from './player/InteractiveActivityPlayer.js';
+export { InteractiveActivityPlayer } from './player/InteractiveActivityPlayer.js';
+export type { PlayerViewport } from './player/layout.js';
+export { resolveLayout, STAGE_HEIGHT, STAGE_WIDTH, stageScale } from './player/layout.js';
+export type { AssetUrlResolver } from './player/resolve-url.js';
+export { defaultResolveUrl, resolveAssetUrl } from './player/resolve-url.js';
+export type { PlayerHostOptions } from './player/types.js';
+export {
   getTemplate,
   listTemplates,
   registerInteractiveActivities,
@@ -75,11 +88,12 @@ export {
   resolveStyleTokens,
   STYLE_PRESETS,
 } from './style/tokens.js';
-
 export {
   CINE_SCRAMBLE_CHROME,
   cineScrambleChrome,
 } from './templates/cine-scramble/copy.js';
+export type { CineScramblePlayerProps } from './templates/cine-scramble/player/CineScramblePlayer.js';
+export { CineScramblePlayer } from './templates/cine-scramble/player/CineScramblePlayer.js';
 export type {
   CineScrambleClip,
   CineScrambleCopy,
@@ -110,6 +124,8 @@ export {
   WHAT_HAPPENS_CHROME,
   whatHappensChrome,
 } from './templates/what-happens/copy.js';
+export type { WhatHappensPlayerProps } from './templates/what-happens/player/WhatHappensPlayer.js';
+export { WhatHappensPlayer } from './templates/what-happens/player/WhatHappensPlayer.js';
 export type {
   WhatHappensClip,
   WhatHappensCopy,

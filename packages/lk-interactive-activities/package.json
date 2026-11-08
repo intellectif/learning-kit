@@ -1,7 +1,7 @@
 {
   "name": "@intellectif/lk-interactive-activities",
   "version": "0.0.0",
-  "description": "React player and activity contracts for hosted interactive activities — starting with What Happens and Cine-Scramble — with zero runtime dependencies.",
+  "description": "React player and activity contracts for hosted interactive activities \u2014 starting with What Happens and Cine-Scramble \u2014 with zero runtime dependencies.",
   "keywords": [
     "react",
     "react19",
@@ -51,7 +51,8 @@
     "publint": "publint",
     "verify-dist": "node scripts/verify-dist.mjs",
     "attw": "attw --pack . --ignore-rules no-resolution",
-    "typecheck": "tsc -p tsconfig.typecheck.json"
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "e2e": "playwright test -c playwright.config.ts"
   },
   "dependencies": {},
   "peerDependencies": {
@@ -69,7 +70,11 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "tsdown": "0.23.5",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.6",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "jsdom": "^30.1.3",
+    "@playwright/test": "^1.64.1"
   },
   "license": "MIT",
   "engines": {

@@ -16,6 +16,10 @@ const failures = [];
 
 const REQUIRED = [
   'PACKAGE_NAME',
+  'InteractiveActivityPlayer',
+  'resolveAssetUrl',
+  'BBB_WEBSITE_SHARE_SANDBOX',
+  'BBB_WEBSITE_SHARE_ALLOW',
   'getTemplate',
   'listTemplates',
   'registerInteractiveActivities',

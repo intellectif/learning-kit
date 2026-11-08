@@ -63,6 +63,20 @@ export interface CineScrambleScene {
 }
 
 export interface CineScrambleCopy {
+  startLabel?: string;
+  closeLabel?: string;
+  playFallback?: string;
+  mediaError?: string;
+  sceneLabel?: string;
+  clipLabel?: string;
+  slotLabel?: string;
+  poolLabel?: string;
+  removeLabel?: string;
+  correctLabel?: string;
+  incorrectLabel?: string;
+  completeLabel?: string;
+  keyboardHelp?: string;
+
   checkLabel?: string;
   vocabButtonLabel?: string;
 }
