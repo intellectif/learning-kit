@@ -1,6 +1,6 @@
 # Stability
 
-What `@intellectif/lk-core` 1.x, `@intellectif/lk-react` 23.x, `@intellectif/lk-azure` 2.x and `@intellectif/lk-practice` 0.x promise, and what they don't.
+What `@intellectif/lk-core` 1.x, `@intellectif/lk-react` 23.x, `@intellectif/lk-azure` 2.x, `@intellectif/lk-practice` 0.x and `@intellectif/lk-interactive-activities` 0.x promise, and what they don't.
 Versions follow [semantic versioning](https://semver.org): anything this page says is covered changes
 only in a **major**.
 
@@ -8,6 +8,7 @@ only in a **major**.
 - [Grades](#grades)
 - [Azure results](#azure-results)
 - [Practice planning](#practice-planning)
+- [Interactive activities](#interactive-activities)
 - [The public API](#the-public-api)
 - [Content](#content)
 - [Registering your own activity types](#registering-your-own-activity-types)
@@ -88,6 +89,24 @@ patch never changes behaviour.
   build's tests prove by running it with the clock and the random source trapped.
 - **1.0** follows real use: at least 60 days in a code-practice product and 30 days in a
   language-practice product.
+
+## Interactive activities
+
+`@intellectif/lk-interactive-activities` plays hosted What Happens and Cine-Scramble activities. It is
+at **0.x**: a `0.x` minor may break, and this package uses minors that way until 1.0. A patch never
+changes behaviour.
+
+- **A change that makes stored activity JSON fail `template.validate()`, or validate differently, is
+  a new minor,** and its changeset says what to migrate under **Action required**. From 1.0, it is a
+  major.
+- **Its public API is `packages/lk-interactive-activities/api/surface.md`,** checked by CI like the
+  others. Style, motion and font catalog IDs are part of it: removing one is a breaking change.
+- **It grades nothing.** Speaking is never scored, and `playerEventToXapi` never puts a score in a
+  statement; only a Cine-Scramble order check reports `success`. Adding a score would be a breaking
+  change.
+- **It has no runtime dependencies and does no I/O of its own:** no network, no storage, no media
+  reads. Media loads only from the URLs the host supplies.
+- **It peers on lk-core and lk-react.** An lk-core or lk-react major may need a release of it.
 
 ## The public API
 

@@ -286,6 +286,9 @@ importers:
       '@intellectif/lk-core':
         specifier: workspace:*
         version: link:../../packages/lk-core
+      '@intellectif/lk-interactive-activities':
+        specifier: workspace:*
+        version: link:../../packages/lk-interactive-activities
       '@intellectif/lk-react':
         specifier: workspace:*
         version: link:../../packages/lk-react

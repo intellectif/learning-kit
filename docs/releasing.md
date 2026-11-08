@@ -1,6 +1,6 @@
 # Releasing & publishing to npm
 
-Published packages: `@intellectif/lk-core`, `@intellectif/lk-react` and `@intellectif/lk-azure` (everything else is `private` and never published). Versioning is driven by [Changesets](https://github.com/changesets/changesets); `.changeset/config.json` sets `access: public` (required for scoped packages) and base branch `main`.
+Published packages: `@intellectif/lk-core`, `@intellectif/lk-react`, `@intellectif/lk-azure`, `@intellectif/lk-practice` and `@intellectif/lk-interactive-activities` (everything else is `private` and never published). Versioning is driven by [Changesets](https://github.com/changesets/changesets); `.changeset/config.json` sets `access: public` (required for scoped packages) and base branch `main`.
 
 ## Security model (read this first)
 
@@ -72,6 +72,13 @@ The steps below name lk-azure. For lk-practice:
 - It needs no lk-core build. Use `pnpm --filter @intellectif/lk-practice build`, `test` and
   `verify-dist`, and publish it the same way.
 - Its first version is `0.1.0`, and it has no peer to check on the package page.
+
+For lk-interactive-activities:
+- It peers on lk-core and lk-react, so build both before it: `pnpm --filter @intellectif/lk-core build`,
+  `pnpm --filter @intellectif/lk-react build`, then `pnpm --filter @intellectif/lk-interactive-activities build`,
+  `test` and `verify-dist`, and publish it the same way.
+- Its first version is `0.1.0`. On the package page, check the peers `@intellectif/lk-core` and
+  `@intellectif/lk-react` show real ranges (`^1.x`, `^23.x`), not `workspace:^`.
 
 1. Merge the feature PR that adds the package. The Release job opens the **"chore: version packages"**
    PR, which takes the new package to `1.0.0`.

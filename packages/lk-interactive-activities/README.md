@@ -1,76 +1,203 @@
 # @intellectif/lk-interactive-activities
 
-React player and activity contracts for hosted interactive activities in Learning Kit, starting with What Happens and Cine-Scramble.
+React 19 players and activity contracts for hosted interactive activities in Learning Kit: **What
+Happens** and **Cine-Scramble**. A host embeds an activity whole, with its own media, and gets typed
+player events back.
 
-This package has no runtime dependencies. It peers on [`@intellectif/lk-core`](https://www.npmjs.com/package/@intellectif/lk-core), [`@intellectif/lk-react`](https://www.npmjs.com/package/@intellectif/lk-react), `react`, and `react-dom`.
+**No runtime dependencies, no I/O of its own.** The package never fetches, stores or reads media:
+the host supplies every URL, keeps the files and decides what to do with each event. It peers on
+[`@intellectif/lk-core`](https://www.npmjs.com/package/@intellectif/lk-core),
+[`@intellectif/lk-react`](https://www.npmjs.com/package/@intellectif/lk-react), `react` and
+`react-dom` (v19).
 
 ```bash
 pnpm add @intellectif/lk-interactive-activities @intellectif/lk-core @intellectif/lk-react react react-dom
 ```
 
-This private workspace package currently ships the template registry (`registerTemplate`, `getTemplate`, `listTemplates`), the What Happens and Cine-Scramble contracts (validators registered with `@intellectif/lk-core`, JSON Schema for AI, and English/Spanish chrome), and the style system: named style and motion catalogs, tokens mapped to `--lkia-*` CSS variables, CSS-only animations with a `prefers-reduced-motion` path, and Google Fonts helpers that build a CDN stylesheet URL for hosted playback and list the files to bundle for an offline export. The React players now ship (M5). It is not published to npm yet.
-
-## Players (private / unpublished)
+## Use
 
 ```tsx
 import { InteractiveActivityPlayer } from '@intellectif/lk-interactive-activities';
 
-<InteractiveActivityPlayer activity={activity}
-  resolveUrl={asset => asset.url || `media/${asset.assetKey}`}
-  onEvent={event => console.log(event)}
-  embed={{ postResize: true }} />
+<InteractiveActivityPlayer
+  activity={activity}
+  resolveUrl={(asset) => asset.url || `media/${asset.assetKey}`}
+  onEvent={(event) => console.log(event)}
+  embed={{ postResize: true }}
+/>;
 ```
 
-`WhatHappensPlayer` and `CineScramblePlayer` can also be mounted directly. Contracts remain React-free. Copy priority: host `strings`, activity `copy`, then locale defaults (`en` / `es`). `reducedMotion` disables spatial motion; system reduced-motion is always respected. CSS is injected/scoped per player: no CSS loader or font/media fetching helpers required. Media elements load only the URLs supplied by the host. `resolveUrl` accepts signed HTTPS URLs or offline relative paths; without it the player uses nonempty `asset.url`, then `assetKey`. Host is responsible for payload validation, media licensing, signing and offline bundling. No analytics delivery, scoring for speaking or AI clients are included; local xAPI helpers are opt-in.
+`InteractiveActivityPlayer` picks the player from `activity.type`; `WhatHappensPlayer` and
+`CineScramblePlayer` can also be mounted directly. Validate stored JSON before rendering it (see
+[Templates](#templates-and-validation)).
 
-Landscape uses a 1920×1080 scaled stage; narrow/portrait viewports stack. Pass `viewport={{ width, height }}` when constraining a player within another view. Optional embed resize notifications post `{ type: 'lk-interactive-activity:resize', width, height }`; a receiving host must validate `event.source` and `event.origin`. Exported BBB sandbox/allow constants match Website Share; append `allow-same-origin` for a player on a different origin than BBB.
+Host options, shared by every player:
 
-What Happens: select a card, watch to the locked freeze point, predict, reveal, tell, show the sample answer, listen and return to the board. Supports are optional; only verbatim matches are underlined. Shortcuts on the player: R/Enter reveal, A/Enter answer, L listen, N/Enter next. Playback controls hide after inactivity (pointer/focus restores them). Blocked autoplay and unavailable media have visible fallbacks. Listen tries supplied audio then the OS speech voice (offline availability depends on the OS).
+- **`resolveUrl`** turns an asset reference into a URL: a signed HTTPS URL for hosted playback, or a
+  relative path for an offline bundle. Without it the player uses a nonempty `asset.url`, then
+  `assetKey`.
+- **`onEvent`** receives typed `PlayerEvent`s: a clip opened, frozen, revealed or completed, an answer
+  shown, audio played, a board or scene completed, an order checked, the vocabulary opened.
+- **`strings`** overrides the chrome's copy. Precedence: host `strings`, then the activity's `copy`,
+  then the locale defaults (`en`, `es`).
+- **`reducedMotion`** turns off spatial motion. The system's `prefers-reduced-motion` is always
+  respected.
+- **`viewport`** (`{ width, height }`) constrains the player inside another view; otherwise it
+  follows the window. Landscape uses a scaled 1920×1080 stage; narrow and portrait viewports stack.
+- **`embed: { postResize: true }`** posts `{ type: 'lk-interactive-activity:resize', width, height }`
+  to the parent window. A receiving page must check `event.source` and `event.origin`.
+  `BBB_WEBSITE_SHARE_SANDBOX` and `BBB_WEBSITE_SHARE_ALLOW` match BigBlueButton's Website Share
+  iframe; add `allow-same-origin` when the player is served from another origin.
 
-Cine-Scramble: start, drag clips with native pointer capture or focus a clip and press 1–6 to assign it; Delete/Backspace on a slot returns it to the pool. Replacing a filled slot returns its previous clip. C checks; per-slot textual feedback remains until the next edit. Correct scenes pair each clip with its caption in two-column rows (3–6 clips). Optional vocabulary opens a keyboard-dismissable dialog. Media loops are muted and inline. No Reveal or Easy/Hard mode.
+Styles are injected and scoped per player: no CSS import or loader is needed.
 
-Verification: `pnpm coverage` checks all source with the 80% four-metric floor; `pnpm e2e` runs a self-contained Chromium cross-origin Website Share iframe fixture on port 4176, separate from lk-react's e2e suite. Install Playwright Chromium before first use.
+## What Happens
 
-## AI authoring ports (M6)
+The learner picks a card, watches the clip to its freeze point, predicts what happens next, reveals
+the rest, tells the story aloud, compares it with a sample answer and can listen to it. Optional
+supports (useful phrases) are shown while telling; only the ones that appear verbatim in the answer
+are underlined.
+
+- Keyboard: R or Enter reveals, A or Enter shows the answer, L listens, N or Enter goes on.
+- Playback controls hide after inactivity and come back on pointer or focus. Blocked autoplay and
+  unavailable media show a visible fallback.
+- Listen plays the supplied audio, or else the system speech voice (offline availability depends on
+  the operating system).
+- The speaking step is **practice, never graded**: nothing is recorded or scored.
+
+## Cine-Scramble
+
+The learner puts a scene's 3 to 6 muted, looping clips in order and checks.
+
+- Drag with native pointer capture, or focus a clip and press 1–6 to place it. Delete or Backspace
+  on a slot returns its clip; placing on a filled slot returns the previous clip.
+- C checks. Each slot's feedback is in words as well as colour, and stays until the next edit. A
+  correct scene pairs each clip with its caption.
+- An optional vocabulary list opens in a keyboard-dismissable dialog.
+- There is no Reveal step and no Easy/Hard caption mode.
+
+## Templates and validation
+
+```ts
+import {
+  getTemplate,
+  listTemplates,
+  validateWhatHappensData,
+} from '@intellectif/lk-interactive-activities';
+
+const template = getTemplate('what-happens');
+if (!template) throw new Error('Unknown template');
+const result = template.validate(stored); // or validateWhatHappensData(stored)
+if (!result.success) console.error(result.errors); // [{ path, message }]
+```
+
+Each template (`whatHappensTemplate`, `cineScrambleTemplate`) carries a validator, a JSON Schema
+(`template.jsonSchema`), its media slots (`template.mediaSlots(data)`, for an upload checklist or an
+export manifest), English and Spanish chrome, and an AI authoring spec. The registry
+(`getTemplate`, `listTemplates`, `registerTemplate`) holds both built-ins; `registerInteractiveActivities()`
+also registers the two activity types with lk-core, so lk-core's `validateActivity` knows them.
+`createWhatHappensDraft` and `createCineScrambleDraft` start a new activity.
+
+A JSON Schema never replaces `validate()`: freeze points inside the clip, counts, unique IDs and the
+style, motion and font IDs are checked semantically. Unknown catalog IDs fail validation.
+
+## Styles, motion and fonts
+
+- **Style presets** (`default`, `cinema-dark`) with light and dark token bundles, mapped to `--lkia-*`
+  CSS variables (`cssVariablesForTokens`, `interactiveActivitiesStylesheet`).
+- **Motion presets** (`default`, `lively`, `gentle`): CSS-only animations with a reduced-motion path.
+  An activity selects one with `style.motionPresetId`; it never carries its own CSS or keyframes.
+- **Fonts** from a fixed allow-list. `googleFontsCssUrl` builds a CDN stylesheet URL for hosted
+  playback; `offlineFontExport` and `googleFontsExportManifest` list the files to bundle for an
+  offline export. The package never fetches a font itself.
+
+## AI authoring specs
 
 ```ts
 import { getTemplate } from '@intellectif/lk-interactive-activities';
 
 const template = getTemplate('what-happens');
 if (!template) throw new Error('Unknown template');
-const guide = template.aiSpec; // Serializable data: send with the editor brief.
-// Host calls its model, merges writable content into host-owned media slots,
-// then checks the complete draft before saving:
+const guide = template.aiSpec; // Serializable data: send it with the editor's brief.
+// The host calls its own model, merges the generated content into host-owned
+// media slots, then checks the complete draft before saving:
 const validation = template.validate(mergedDraft);
 ```
 
-`TemplateDefinition.aiSpec` supplies a JSON Schema for **AI-fillable content**, writable dot paths (`[]` means every array element), count/default rules, prompt fragments and catalog IDs/labels/descriptions. The original `template.jsonSchema` remains the complete activity schema; `aiSpec.jsonSchema` deliberately excludes host-owned IDs, media keys/URLs, actual durations and provenance. OCW assigns these when allocating slots and merges generated content before calling `template.validate()`. Neither JSON Schema replaces semantic validation. Unknown style/motion/font IDs fail validation. Animation catalog entries describe packaged transitions; the selectable contract field is `style.motionPresetId`, not arbitrary per-element animation fields. Never generate CSS or keyframes.
+`template.aiSpec` is plain data for an editor's model: a JSON Schema of the **AI-fillable content**,
+the writable dot paths (`[]` means every array element), count and default rules, prompt fragments,
+and the style, motion, animation and font catalogs with labels and descriptions. It deliberately
+leaves out host-owned IDs, media keys and URLs, real durations and provenance; the host assigns
+those when it allocates media slots, and merges the generated content before `template.validate()`.
 
-`WHAT_HAPPENS_AI_SPEC` defaults to 8 clips (1–12), free-text freeze/post-play speaking prompts, sample answers and optional supports enabled by default. Supports need not appear in the answer. `CINE_SCRAMBLE_AI_SPEC` defaults to 1 scene (1–8) with 4 clips (3–6), one caption per clip and one optional glossary enabled by default, all from one story brief. It generates no Easy/Hard pairs, Reveal prompts or freeze fields.
+- **`WHAT_HAPPENS_AI_SPEC`**: 8 clips by default (1–12), predict and tell prompts, sample answers and
+  optional supports. Supports need not appear in the answer.
+- **`CINE_SCRAMBLE_AI_SPEC`**: 1 scene by default (1–8) of 4 clips (3–6), one caption per clip and an
+  optional glossary, from one story brief. No Easy/Hard pairs, Reveal prompts or freeze points.
+- **`videoPrompt`** describes one text prompt per video slot: aspect, target length, scene, action and
+  continuity, and no text or logos. What Happens also describes the surprise the freeze should
+  precede. These guide text generation; they are not calls to a video API.
+- **`freezeSuggestion`** (What Happens only) describes a freeze point for an uploaded clip, inside
+  `0 < freezeAt < durationS`. The host supplies the real duration and runs any analysis; a suggestion
+  is provisional until the editor accepts it and the merged clip validates.
 
-Each spec's `videoPrompt` describes one prompt per video slot: host/editor aspect and target length in seconds, scene/action/continuity and no text/logos. What Happens also describes the surprise the freeze should precede. These are text-generation guides, not calls to a video API. The host handles model selection, uploads, duration probing, provenance and editor review.
+The package calls no model and holds no AI client.
 
-Only What Happens supplies `freezeSuggestion`: post-upload inputs, clip-relative writable fields and exclusive bounds `0 < freezeAt < durationS`. The host supplies actual duration/aspect and orchestrates any model analysis; this package never reads media. Initial generated freeze times are provisional until validated against actual duration. Accept/edit/discard suggestions in the editor and validate the merged clip before saving.
-
-## Local events and xAPI
+## Events and xAPI
 
 ```ts
 import { playerEventToXapi } from '@intellectif/lk-interactive-activities';
+import type { PlayerEvent } from '@intellectif/lk-interactive-activities';
 
-// Use as the player's onEvent callback. The host chooses an actor/account,
-// stable activity/clip/scene IRIs, and whether to persist or deliver statements.
-const onEvent = event => {
+// Use as the player's onEvent. The host picks the actor, stable activity, clip
+// and scene IRIs, and whether to store or deliver the statement.
+const onEvent = (event: PlayerEvent) => {
   const statement = playerEventToXapi(event, {
-    actor: { objectType: 'Agent', account: {
-      homePage: 'https://example.org', name: 'host-session',
-    } },
+    actor: {
+      objectType: 'Agent',
+      account: { homePage: 'https://example.org', name: 'host-session' },
+    },
     object: { id: 'https://example.org/activities/story-1' },
-    context: { platform: 'OCW', language: 'en' },
+    context: { platform: 'example-host', language: 'en' },
   });
-  console.log(statement); // No sending in the package.
+  console.log(statement); // The package sends nothing.
 };
 ```
 
-`PlayerEventXapiContext.object` also accepts `(event: PlayerEvent) => XAPIObjectParams` for host-specific clip/scene IRIs. `playerEventToXapi` calls lk-core's validated `xAPIBuilder`, which stamps a fresh UUID and timestamp. Non-completion observations use `EXPERIENCED`; clip/board/scene completion uses `COMPLETED` with `completion: true`. Only `scramble.checked` uses `INTERACTED` and order correctness as `result.success`. **No statement has a score; speaking, listening, reveal and speaking completion never have success.** All event details (including audio transport) are preserved under the exported `PLAYER_EVENT_XAPI_EXTENSION` context-extension IRI, alongside host context extensions. `PlayerEvent` remains compatible with existing player imports. No network, persistence, speech grading or XP is wired; anonymous playback does not need an actor unless the host opts into xAPI.
+`object` may also be a function of the event, for clip and scene IRIs. Statements are built with
+lk-core's validated `xAPIBuilder` (fresh UUID and timestamp). Progress uses `experienced`; clip, board
+and scene completion uses `completed` with `completion: true`; a Cine-Scramble check uses
+`interacted` with the order's correctness as `result.success`. **No statement carries a score, and
+only an order check carries `success`:** listening, reveals and the speaking step never do. Each event's details are kept under
+the `PLAYER_EVENT_XAPI_EXTENSION` context extension. Anonymous playback needs no actor unless the host
+opts into xAPI.
 
-Before a milestone handoff, run package tests/coverage (all four metrics ≥80%), lint, typecheck, build and verify-dist, then root `pnpm api-report`, `pnpm api-check` and `pnpm docs-check`. Root gates validate imports and exported API that package tests alone cannot cover.
+## What the host owns
+
+- Validating stored activities before rendering them.
+- Media: licensing, upload, signing, duration probing, offline bundling, and the URLs it passes in.
+- Authoring: the editor, the model calls behind the AI specs, and review of what they produce.
+- Learner data: identity, storage, xAPI delivery to an LRS, and any progress or reward.
+
+## What it does not do
+
+- No network requests, storage or analytics delivery.
+- No media reads or media processing.
+- No speech recording or grading; no score anywhere.
+- No XP, streaks or other rewards.
+
+## Testing
+
+`pnpm coverage` runs the package's tests over all source with an 80% floor on statements, branches,
+functions and lines. `pnpm e2e` runs a self-contained Chromium test of a cross-origin Website Share
+iframe; install Playwright's Chromium first.
+
+## Stability and releases
+
+The package is at 0.x; what it promises is in
+[Stability](https://github.com/intellectif/learning-kit/blob/main/docs/stability.md#interactive-activities),
+and its public API is `api/surface.md`. Releases follow
+[Releasing](https://github.com/intellectif/learning-kit/blob/main/docs/releasing.md); the first
+version of a new package is published by hand, as
+[a package added later](https://github.com/intellectif/learning-kit/blob/main/docs/releasing.md#3a-a-package-added-later)
+describes.
