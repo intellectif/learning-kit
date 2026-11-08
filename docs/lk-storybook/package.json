@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@intellectif/lk-core": "workspace:*",
+    "@intellectif/lk-interactive-activities": "workspace:*",
     "@intellectif/lk-react": "workspace:*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
