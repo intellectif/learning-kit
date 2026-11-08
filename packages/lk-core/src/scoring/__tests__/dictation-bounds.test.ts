@@ -481,6 +481,9 @@ describe('dictation — bounded on any input', () => {
     expect(paths(validateActivity('dictation', described))).toEqual(['media.alt']);
   });
 
+  // slowdown waits on CPU time over several large item-group checks.
+  // Coverage on a shared CI runner can stretch the wall clock past the
+  // suite's 30s hang guard even when the search itself stays linear.
   it('finds a transcript in linear time, however a title repeats it', () => {
     const letter = (index: number) => String.fromCharCode(97 + (index % 26));
     // Each half of a title is `size` letters, and each half of a transcript an eighth of that.
@@ -513,7 +516,7 @@ describe('dictation — bounded on any input', () => {
     // groups with titles of 2,000: a search that restarted after every rejected
     // occurrence makes the one group about eight times slower than the eight.
     expect(slowdown(group(8000), repeatedly(8, group(1000)))).toBeLessThan(3);
-  });
+  }, 90_000);
 
   it('refuses a title or description too long to be searched in full, raw or once its rules apply', () => {
     const revealedLate = `${'Listen carefully. '.repeat(900)}It isn't raining in Lisbon today`;
