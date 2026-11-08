@@ -7,6 +7,8 @@ this file with the changeset that explains it.
 ## @intellectif/lk-interactive-activities
 
 ```ts
+const ANIMATION_CATALOG: ANIMATION_CATALOG: readonly AnimationPreset[]
+const ANIMATION_IDS: ANIMATION_IDS: readonly ["card-stagger", "video-glide", "panel-fade", "answer-fade-up", "button-press"]
 const CINE_SCRAMBLE_CHROME: CINE_SCRAMBLE_CHROME: { readonly en: { readonly checkLabel: "Check"; readonly vocabButtonLabel: "Vocabulary"; }; readonly es: { readonly checkLabel: "Comprobar"; readonly vocabButtonLabel: "Vocabulario"; }; }
 const CINE_SCRAMBLE_CLIPS_PER_SCENE_DEFAULT: CINE_SCRAMBLE_CLIPS_PER_SCENE_DEFAULT = 4
 const CINE_SCRAMBLE_CLIPS_PER_SCENE_MAX: CINE_SCRAMBLE_CLIPS_PER_SCENE_MAX = 6
@@ -21,9 +23,12 @@ const cineScrambleTemplate: cineScrambleTemplate: TemplateDefinition<CineScrambl
 const cineScrambleType: cineScrambleType: ActivityTypeDescriptor<CineScrambleData, CineScrambleResponse>
 const DEFAULT_CHROME_LOCALE: DEFAULT_CHROME_LOCALE = "en"
 const FONT_ALLOW_LIST: FONT_ALLOW_LIST: readonly ["Inter", "Source Serif 4", "Fraunces"]
+const FONT_DEFINITIONS: FONT_DEFINITIONS: Record<AllowedFont, FontDefinition>
 const MOTION_PRESET_IDS: MOTION_PRESET_IDS: readonly ["default", "lively", "gentle"]
+const MOTION_PRESETS: MOTION_PRESETS: readonly MotionPreset[]
 const PACKAGE_NAME: PACKAGE_NAME = "@intellectif/lk-interactive-activities"
 const STYLE_PRESET_IDS: STYLE_PRESET_IDS: readonly ["default", "cinema-dark"]
+const STYLE_PRESETS: STYLE_PRESETS: readonly StylePreset[]
 const WHAT_HAPPENS_CHROME: WHAT_HAPPENS_CHROME: { readonly en: { readonly answerLabel: "Sample answer"; readonly listenButton: "Listen"; readonly nextButton: "Next"; readonly predictTitle: "What happens next?"; readonly revealButton: "Reveal"; readonly showAnswer: "Show answer"; readonly supportsLabel: "To help you"; readonly tellTitle: "Tell the story"; }; readonly es: { readonly answerLabel: "Respuesta de ejemplo"; readonly listenButton: "Escuchar"; readonly nextButton: "Siguiente"; readonly predictTitle: "¿Qué pasa después?"; readonly revealButton: "Revelar"; readonly showAnswer: "Mostrar respuesta"; readonly supportsLabel: "Para ayudarte"; readonly tellTitle: "Cuenta la historia"; }; }
 const WHAT_HAPPENS_CLIP_COUNT_DEFAULT: WHAT_HAPPENS_CLIP_COUNT_DEFAULT = 8
 const WHAT_HAPPENS_CLIP_COUNT_MAX: WHAT_HAPPENS_CLIP_COUNT_MAX = 12
@@ -36,19 +41,43 @@ const whatHappensType: whatHappensType: ActivityTypeDescriptor<WhatHappensData, 
 function cineScrambleChrome: declare function cineScrambleChrome(locale?: string): CineScrambleChrome;
 function createCineScrambleDraft: declare function createCineScrambleDraft(id?: string): CineScrambleData;
 function createWhatHappensDraft: declare function createWhatHappensDraft(id?: string): WhatHappensData;
+function cssVariablesForTokens: declare function cssVariablesForTokens(tokens: StyleTokens): string;
+function fontFileName: declare function fontFileName(family: AllowedFont, weight: number): string;
+function fontStack: declare function fontStack(family: AllowedFont): string;
+function getAnimation: declare function getAnimation(id: string): AnimationPreset | undefined;
+function getMotionPreset: declare function getMotionPreset(id: string): MotionPreset | undefined;
+function getStylePreset: declare function getStylePreset(id: string): StylePreset | undefined;
 function getTemplate: declare function getTemplate(id: string): TemplateDefinition | undefined;
+function googleFontsCssUrl: declare function googleFontsCssUrl(families: readonly string[]): string;
+function googleFontsExportFiles: declare function googleFontsExportFiles(families: readonly string[]): FontExportFile[];
+function googleFontsExportManifest: declare function googleFontsExportManifest(families: readonly string[]): FontExportManifest;
+function hostedFontsCssUrl: declare function hostedFontsCssUrl(style?: StyleChoice): string;
+function interactiveActivitiesStylesheet: declare function interactiveActivitiesStylesheet(style?: StyleChoice): string;
 function isAllowedFont: declare function isAllowedFont(value: string): value is AllowedFont;
+function isAnimationId: declare function isAnimationId(value: string): value is AnimationId;
 function isMotionPresetId: declare function isMotionPresetId(value: string): value is MotionPresetId;
 function isStylePresetId: declare function isStylePresetId(value: string): value is StylePresetId;
 function isSupportsEnabled: declare function isSupportsEnabled(activity: WhatHappensData, clip?: WhatHappensClip): boolean;
 function isVocabEnabled: declare function isVocabEnabled(activity: CineScrambleData): boolean;
+function listAllowedFonts: declare function listAllowedFonts(): FontDefinition[];
+function listAnimations: declare function listAnimations(): AnimationPreset[];
+function listMotionPresets: declare function listMotionPresets(): MotionPreset[];
+function listStylePresets: declare function listStylePresets(): StylePreset[];
 function listTemplates: declare function listTemplates(): TemplateDefinition[];
+function localFontFaceCss: declare function localFontFaceCss(files: readonly FontExportFile[], directory?: string): string;
 function matchSupportsInAnswer: declare function matchSupportsInAnswer(answer: string, supports: readonly string[]): SupportMatch[];
+function offlineFontExport: declare function offlineFontExport(style?: StyleChoice): FontExportManifest;
 function registerInteractiveActivities: declare function registerInteractiveActivities(): void;
 function registerTemplate: declare function registerTemplate(definition: TemplateDefinition): void;
+function resolveFontPair: declare function resolveFontPair(style?: StyleChoice): { body: AllowedFont; heading: AllowedFont; };
+function resolveMotionTokens: declare function resolveMotionTokens(motionPresetId?: string): MotionTokens;
+function resolveStylePreset: declare function resolveStylePreset(presetId?: string): StylePreset;
+function resolveStyleTokens: declare function resolveStyleTokens(style?: StyleChoice, systemPrefersDark?: boolean): StyleTokens;
+function uniqueAllowedFonts: declare function uniqueAllowedFonts(families: readonly string[]): AllowedFont[];
 function validateCineScrambleData: declare function validateCineScrambleData(data: unknown): ValidationResult<CineScrambleData>;
 function validateWhatHappensData: declare function validateWhatHappensData(data: unknown): ValidationResult<WhatHappensData>;
 function whatHappensChrome: declare function whatHappensChrome(locale?: string): WhatHappensChrome;
+interface AnimationPreset: interface AnimationPreset { id: AnimationId; label: string; description: string; }
 interface AssetRef: interface AssetRef { assetKey: string; url?: string; }
 interface CineScrambleClip: interface CineScrambleClip { id: number; video: AssetRef & { aspect: VideoAspect; durationS?: number; }; caption: string; videoPrompt?: { generatedBy?: string; text: string; }; }
 interface CineScrambleCopy: interface CineScrambleCopy { checkLabel?: string; vocabButtonLabel?: string; }
@@ -56,7 +85,14 @@ interface CineScrambleData: interface CineScrambleData { schemaVersion: typeof C
 interface CineScrambleResponse: interface CineScrambleResponse { sceneId: string; order: number[]; }
 interface CineScrambleScene: interface CineScrambleScene { id: string; title: string; clips: CineScrambleClip[]; }
 interface CineScrambleVocabItem: interface CineScrambleVocabItem { term: string; definition: string; }
+interface FontDefinition: interface FontDefinition { family: AllowedFont; weights: readonly number[]; fallback: string; }
+interface FontExportFile: interface FontExportFile { family: AllowedFont; weight: number; style: 'normal'; format: 'woff2'; fileName: string; }
+interface FontExportManifest: interface FontExportManifest { cssUrl: string; files: FontExportFile[]; }
+interface MotionPreset: interface MotionPreset { id: MotionPresetId; label: string; description: string; tokens: MotionTokens; }
+interface MotionTokens: interface MotionTokens { durationFast: string; duration: string; durationSlow: string; easing: string; stagger: string; }
 interface StyleChoice: interface StyleChoice { presetId: string; mode?: ColorMode; fonts?: { body?: string; heading?: string; }; motionPresetId?: string; }
+interface StylePreset: interface StylePreset { id: StylePresetId; label: string; description: string; defaultFonts: { body: AllowedFont; heading: AllowedFont; }; defaultMotionPresetId: MotionPresetId; tokens: { dark: StyleTokens; light: StyleTokens; }; }
+interface StyleTokens: interface StyleTokens { bg: string; panel: string; line: string; ink1: string; ink2: string; ink3: string; accent: string; accentSoft: string; frost: string; veil: string; radiusPanel: string; radiusVideo: string; radiusButton: string; shadowSm: string; shadowMd: string; shadowLg: string; glassBlur: string; backdropBlur: string; }
 interface SupportMatch: interface SupportMatch { support: string; start: number; end: number; }
 interface TemplateDefinition: interface TemplateDefinition<TData = unknown> { id: string; version: string; label: string; activityType: string; validate(data: unknown): ValidationResult<TData>; jsonSchema: Record<string, unknown>; mediaSlots(data: TData): TemplateMediaSlot[]; }
 interface TemplateMediaSlot: interface TemplateMediaSlot { path: Array<number | string>; kind: 'audio' | 'image' | 'video'; assetKey?: string; }
@@ -67,6 +103,7 @@ interface WhatHappensCopy: interface WhatHappensCopy { predictTitle?: string; re
 interface WhatHappensData: interface WhatHappensData { schemaVersion: typeof WHAT_HAPPENS_SCHEMA_VERSION; type: typeof WHAT_HAPPENS_TYPE; id: string; title: string; locale: string; style: StyleChoice; supportsEnabled?: boolean; copy?: WhatHappensCopy; clips: WhatHappensClip[]; }
 interface WhatHappensResponse: interface WhatHappensResponse { clipId: string; }
 type AllowedFont: type AllowedFont = (typeof FONT_ALLOW_LIST)[number];
+type AnimationId: type AnimationId = (typeof ANIMATION_IDS)[number];
 type ChromeLocale: type ChromeLocale = keyof typeof WHAT_HAPPENS_CHROME;
 type ColorMode: type ColorMode = 'auto' | 'dark' | 'light';
 type MotionPresetId: type MotionPresetId = (typeof MOTION_PRESET_IDS)[number];
