@@ -6,17 +6,19 @@ export type WhatHappensAction =
   | 'reveal'
   | 'ended'
   | 'answer'
-  | 'next';
+  | 'next'
+  | 'back';
 const transitions: Record<
   WhatHappensStage,
   Partial<Record<WhatHappensAction, WhatHappensStage>>
 > = {
   board: { open: 'watch' },
-  watch: { freeze: 'guess' },
-  guess: { replay: 'watch', reveal: 'reveal' },
-  reveal: { ended: 'tell' },
-  tell: { answer: 'answer' },
-  answer: { next: 'board' },
+  watch: { freeze: 'guess', back: 'board' },
+  guess: { replay: 'watch', reveal: 'reveal', back: 'board' },
+  reveal: { ended: 'tell', back: 'board' },
+  // `next` from tell: a clip without a sample answer is complete once told.
+  tell: { answer: 'answer', next: 'board', back: 'board' },
+  answer: { next: 'board', back: 'board' },
 };
 export function nextWhatHappensStage(
   stage: WhatHappensStage,
@@ -26,4 +28,11 @@ export function nextWhatHappensStage(
 }
 export function clampPlaybackTime(time: number, freezeAt: number, revealed: boolean): number {
   return Math.max(0, revealed ? time : Math.min(time, freezeAt));
+}
+/**
+ * Whether playback must stop now so the next frame cannot pass the freeze
+ * point: the current media time plus one frame interval reaches it.
+ */
+export function reachesFreeze(mediaTime: number, frameInterval: number, freezeAt: number): boolean {
+  return mediaTime + frameInterval >= freezeAt;
 }

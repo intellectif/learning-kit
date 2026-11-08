@@ -37,6 +37,41 @@ export const FONT_DEFINITIONS: Record<AllowedFont, FontDefinition> = {
     weights: [400, 600, 700],
     fallback: 'ui-serif, Georgia, serif',
   },
+  Lexend: {
+    family: 'Lexend',
+    weights: [400, 600, 700],
+    fallback: 'ui-sans-serif, system-ui, sans-serif',
+  },
+  'Atkinson Hyperlegible Next': {
+    family: 'Atkinson Hyperlegible Next',
+    weights: [400, 600, 700],
+    fallback: 'ui-sans-serif, system-ui, sans-serif',
+  },
+  'Bricolage Grotesque': {
+    family: 'Bricolage Grotesque',
+    weights: [400, 600, 700],
+    fallback: 'ui-sans-serif, system-ui, sans-serif',
+  },
+  'Big Shoulders Display': {
+    family: 'Big Shoulders Display',
+    weights: [400, 600, 700],
+    fallback: '"Arial Narrow", ui-sans-serif, system-ui, sans-serif',
+  },
+  'DM Sans': {
+    family: 'DM Sans',
+    weights: [400, 600, 700],
+    fallback: 'ui-sans-serif, system-ui, sans-serif',
+  },
+  Figtree: {
+    family: 'Figtree',
+    weights: [400, 600, 700],
+    fallback: 'ui-sans-serif, system-ui, sans-serif',
+  },
+  Literata: {
+    family: 'Literata',
+    weights: [400, 600, 700],
+    fallback: 'ui-serif, Georgia, serif',
+  },
 };
 
 const GOOGLE_FONTS_CSS = 'https://fonts.googleapis.com/css2';

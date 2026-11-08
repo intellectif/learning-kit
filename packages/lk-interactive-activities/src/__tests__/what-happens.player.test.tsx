@@ -42,7 +42,7 @@ function freeze(container: HTMLElement) {
   fireEvent.timeUpdate(element);
 }
 function open() {
-  fireEvent.click(screen.getByRole('button', { name: 'The garden' }));
+  fireEvent.click(screen.getByRole('button', { name: /^The garden/ }));
 }
 function tell(container: HTMLElement) {
   open();
@@ -110,7 +110,10 @@ describe('What Happens React player', () => {
     fireEvent.seeking(video(container));
     expect(video(container).currentTime).toBe(8);
     fireEvent.ended(video(container));
-    expect(screen.getByText('To help you')).toBeTruthy();
+    const help = screen.getByRole('button', { name: 'To help you' });
+    expect(help.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(help);
+    expect(help.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
     fireEvent.keyDown(container.querySelector('[data-lkia-root]') as Element, { key: 'a' });
     expect(screen.queryByRole('list')).toBeNull();
@@ -125,6 +128,7 @@ describe('What Happens React player', () => {
       'clip.frozen',
       'clip.frozen',
       'clip.revealed',
+      'supports.shown',
       'answer.shown',
       'audio.played',
       'clip.completed',
@@ -190,10 +194,9 @@ describe('What Happens React player', () => {
     'hides absent or disabled supports (%s), with Spanish chrome',
     (disabled) => {
       const activity = whatHappensFixture();
-      activity.locale = 'es';
       if (disabled) activity.supportsEnabled = false;
       else delete activity.clips[0].supports;
-      const { container } = render(<WhatHappensPlayer activity={activity} />);
+      const { container } = render(<WhatHappensPlayer activity={activity} locale="es-419" />);
       open();
       freeze(container);
       fireEvent.click(screen.getByRole('button', { name: 'Revelar' }));
@@ -218,7 +221,7 @@ describe('What Happens React player', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Play' }));
     await screen.findByRole('button', { name: 'Play' });
     fireEvent.error(video(container));
-    expect(screen.getByRole('alert').textContent).toBe('Media unavailable');
+    expect(screen.getByRole('alert').textContent).toBe('This clip could not be played.');
     vi.useFakeTimers();
     fireEvent.pointerMove(container.querySelector('[data-lkia-watch]') as Element);
     act(() => vi.advanceTimersByTime(2501));
@@ -289,7 +292,7 @@ describe('player focus, multi-clip progress and pending listen cancellation', ()
     fireEvent.click(screen.getByRole('button', { name: 'Show answer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(onEvent.mock.calls.some((call) => call[0].type === 'board.completed')).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'The second garden' }));
+    fireEvent.click(screen.getByRole('button', { name: /^The second garden/ }));
     freeze(container);
     fireEvent.click(screen.getByRole('button', { name: 'Reveal' }));
     fireEvent.ended(video(container));

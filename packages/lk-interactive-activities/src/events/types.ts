@@ -6,6 +6,7 @@ export type PlayerEvent =
       clipId: string;
     }
   | { type: 'audio.played'; activityId: string; clipId: string; via: 'audio' | 'speechSynthesis' }
+  | { type: 'supports.shown' | 'supports.hidden'; activityId: string; clipId: string }
   | { type: 'board.completed'; activityId: string }
   | { type: 'scramble.started' | 'scramble.completed'; activityId: string; sceneId: string }
   | { type: 'scramble.checked'; activityId: string; sceneId: string; correct: boolean }
