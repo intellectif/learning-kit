@@ -2,6 +2,13 @@
 export const PACKAGE_NAME = '@intellectif/lk-interactive-activities';
 
 export type {
+  AiCatalogEntry,
+  AiCountRule,
+  FreezeSuggestionSpec,
+  TemplateAiSpec,
+  VideoPromptSpec,
+} from './contract/ai-spec.js';
+export type {
   AssetRef,
   ColorMode,
   StyleChoice,
@@ -11,6 +18,8 @@ export type {
   ValidationResult,
   VideoAspect,
 } from './contract/types.js';
+export type { PlayerEventXapiContext } from './events/xapi.js';
+export { PLAYER_EVENT_XAPI_EXTENSION, playerEventToXapi } from './events/xapi.js';
 export {
   BBB_WEBSITE_SHARE_ALLOW,
   BBB_WEBSITE_SHARE_SANDBOX,
@@ -88,6 +97,7 @@ export {
   resolveStyleTokens,
   STYLE_PRESETS,
 } from './style/tokens.js';
+export { CINE_SCRAMBLE_AI_SPEC } from './templates/cine-scramble/ai-spec.js';
 export {
   CINE_SCRAMBLE_CHROME,
   cineScrambleChrome,
@@ -118,6 +128,7 @@ export {
   isVocabEnabled,
   validateCineScrambleData,
 } from './templates/cine-scramble/schema.js';
+export { WHAT_HAPPENS_AI_SPEC } from './templates/what-happens/ai-spec.js';
 export type { ChromeLocale, WhatHappensChrome } from './templates/what-happens/copy.js';
 export {
   DEFAULT_CHROME_LOCALE,

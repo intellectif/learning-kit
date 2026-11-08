@@ -16,6 +16,10 @@ const failures = [];
 
 const REQUIRED = [
   'PACKAGE_NAME',
+  'WHAT_HAPPENS_AI_SPEC',
+  'CINE_SCRAMBLE_AI_SPEC',
+  'playerEventToXapi',
+  'PLAYER_EVENT_XAPI_EXTENSION',
   'InteractiveActivityPlayer',
   'resolveAssetUrl',
   'BBB_WEBSITE_SHARE_SANDBOX',

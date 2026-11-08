@@ -1,3 +1,5 @@
+import type { TemplateAiSpec } from './ai-spec.js';
+
 /** A media file the host resolves at render time. */
 export interface AssetRef {
   assetKey: string;
@@ -41,5 +43,6 @@ export interface TemplateDefinition<TData = unknown> {
   activityType: string;
   validate(data: unknown): ValidationResult<TData>;
   jsonSchema: Record<string, unknown>;
+  aiSpec: TemplateAiSpec;
   mediaSlots(data: TData): TemplateMediaSlot[];
 }
