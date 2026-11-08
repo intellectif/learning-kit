@@ -362,6 +362,7 @@ const PACKAGES = [
   'packages/lk-react',
   'packages/lk-azure',
   'packages/lk-practice',
+  'packages/lk-interactive-activities',
 ];
 const failures = [];
 let checked = 0;

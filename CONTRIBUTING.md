@@ -14,7 +14,7 @@ Thanks for contributing! This guide covers local setup, the test suite, how to a
 git clone https://github.com/intellectif/learning-kit.git
 cd learning-kit
 pnpm install
-pnpm build      # builds lk-core, then lk-react and lk-azure, and lk-practice (Turborepo respects ^build)
+pnpm build      # builds lk-core, then lk-react, lk-azure, lk-practice, and lk-interactive-activities (Turborepo respects ^build)
 ```
 
 This is a pnpm + Turborepo monorepo:
@@ -25,11 +25,12 @@ packages/lk-react   React 19 components, hooks, ThemeProvider, optional skin
 packages/lk-azure   Azure pronunciation assessment results read into lk-core's evidence
 packages/lk-practice Practice planning over a skill graph (Node 24); its design and milestone
                     plan are in packages/lk-practice/plan/
+packages/lk-interactive-activities  Hosted interactive-activity templates and React players
 apps/lk-example-vite Vite + React demo (MSW mock LRS) — also the e2e target
 docs/lk-storybook   Storybook 10
 ```
 
-`@intellectif/lk-core` has no runtime dependency other than Zod; `@intellectif/lk-react` keeps `react`, `react-dom`, and `@intellectif/lk-core` as peers; `@intellectif/lk-azure` has no runtime dependency, and `@intellectif/lk-core` as a peer; `@intellectif/lk-practice` has one runtime dependency, `ts-fsrs`, pinned exactly, and no peer. Keep it that way.
+`@intellectif/lk-core` has no runtime dependency other than Zod; `@intellectif/lk-react` keeps `react`, `react-dom`, and `@intellectif/lk-core` as peers; `@intellectif/lk-azure` has no runtime dependency, and `@intellectif/lk-core` as a peer; `@intellectif/lk-practice` has one runtime dependency, `ts-fsrs`, pinned exactly, and no peer; `@intellectif/lk-interactive-activities` has no runtime dependency, and `@intellectif/lk-core`, `@intellectif/lk-react`, `react`, and `react-dom` as peers. Keep it that way.
 
 ## Running tests & checks
 
