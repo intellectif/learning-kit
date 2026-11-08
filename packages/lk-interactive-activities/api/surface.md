@@ -11,6 +11,7 @@ const ANIMATION_CATALOG: ANIMATION_CATALOG: readonly AnimationPreset[]
 const ANIMATION_IDS: ANIMATION_IDS: readonly ["card-stagger", "video-glide", "panel-fade", "answer-fade-up", "button-press"]
 const BBB_WEBSITE_SHARE_ALLOW: BBB_WEBSITE_SHARE_ALLOW = "fullscreen; autoplay; encrypted-media; picture-in-picture; clipboard-write"
 const BBB_WEBSITE_SHARE_SANDBOX: BBB_WEBSITE_SHARE_SANDBOX = "allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-modals allow-downloads"
+const CINE_SCRAMBLE_AI_SPEC: CINE_SCRAMBLE_AI_SPEC: TemplateAiSpec
 const CINE_SCRAMBLE_CHROME: CINE_SCRAMBLE_CHROME: { readonly en: { readonly checkLabel: "Check"; readonly clipLabel: "Clip"; readonly closeLabel: "Close"; readonly completeLabel: "Story complete"; readonly correctLabel: "Correct"; readonly incorrectLabel: "Try again"; readonly keyboardHelp: "Focus a clip and press 1–6 to place it. Delete on a slot returns it to the pool. Press C to check."; readonly mediaError: "Media unavailable"; readonly playFallback: "Play"; readonly poolLabel: "Clip pool"; readonly removeLabel: "Return to pool"; readonly sceneLabel: "Scene"; readonly slotLabel: "Slot"; readonly startLabel: "Start"; readonly vocabButtonLabel: "Vocabulary"; }; readonly es: { readonly checkLabel: "Comprobar"; readonly clipLabel: "Clip"; readonly closeLabel: "Cerrar"; readonly completeLabel: "Historia completa"; readonly correctLabel: "Correcto"; readonly incorrectLabel: "Inténtalo de nuevo"; readonly keyboardHelp: "Enfoca un clip y pulsa 1–6 para colocarlo. Supr en una posición lo devuelve. Pulsa C para comprobar."; readonly mediaError: "Medio no disponible"; readonly playFallback: "Reproducir"; readonly poolLabel: "Clips disponibles"; readonly removeLabel: "Devolver a los clips disponibles"; readonly sceneLabel: "Escena"; readonly slotLabel: "Posición"; readonly startLabel: "Comenzar"; readonly vocabButtonLabel: "Vocabulario"; }; }
 const CINE_SCRAMBLE_CLIPS_PER_SCENE_DEFAULT: CINE_SCRAMBLE_CLIPS_PER_SCENE_DEFAULT = 4
 const CINE_SCRAMBLE_CLIPS_PER_SCENE_MAX: CINE_SCRAMBLE_CLIPS_PER_SCENE_MAX = 6
@@ -29,10 +30,12 @@ const FONT_DEFINITIONS: FONT_DEFINITIONS: Record<AllowedFont, FontDefinition>
 const MOTION_PRESET_IDS: MOTION_PRESET_IDS: readonly ["default", "lively", "gentle"]
 const MOTION_PRESETS: MOTION_PRESETS: readonly MotionPreset[]
 const PACKAGE_NAME: PACKAGE_NAME = "@intellectif/lk-interactive-activities"
+const PLAYER_EVENT_XAPI_EXTENSION: PLAYER_EVENT_XAPI_EXTENSION = "https://intellectif.com/xapi/extensions/interactive-activities/player-event"
 const STAGE_HEIGHT: STAGE_HEIGHT = 1080
 const STAGE_WIDTH: STAGE_WIDTH = 1920
 const STYLE_PRESET_IDS: STYLE_PRESET_IDS: readonly ["default", "cinema-dark"]
 const STYLE_PRESETS: STYLE_PRESETS: readonly StylePreset[]
+const WHAT_HAPPENS_AI_SPEC: WHAT_HAPPENS_AI_SPEC: TemplateAiSpec
 const WHAT_HAPPENS_CHROME: WHAT_HAPPENS_CHROME: { readonly en: { readonly answerLabel: "Sample answer"; readonly listenButton: "Listen"; readonly mediaError: "Media unavailable"; readonly nextButton: "Next"; readonly playFallback: "Play"; readonly predictTitle: "What happens next?"; readonly replayToFreeze: "Replay to freeze"; readonly revealButton: "Reveal"; readonly showAnswer: "Show answer"; readonly supportsLabel: "To help you"; readonly tellTitle: "Tell the story"; }; readonly es: { readonly answerLabel: "Respuesta de ejemplo"; readonly listenButton: "Escuchar"; readonly mediaError: "Medio no disponible"; readonly nextButton: "Siguiente"; readonly playFallback: "Reproducir"; readonly predictTitle: "¿Qué pasa después?"; readonly replayToFreeze: "Repetir hasta la pausa"; readonly revealButton: "Revelar"; readonly showAnswer: "Mostrar respuesta"; readonly supportsLabel: "Para ayudarte"; readonly tellTitle: "Cuenta la historia"; }; }
 const WHAT_HAPPENS_CLIP_COUNT_DEFAULT: WHAT_HAPPENS_CLIP_COUNT_DEFAULT = 8
 const WHAT_HAPPENS_CLIP_COUNT_MAX: WHAT_HAPPENS_CLIP_COUNT_MAX = 12
@@ -74,6 +77,7 @@ function listTemplates: declare function listTemplates(): TemplateDefinition[];
 function localFontFaceCss: declare function localFontFaceCss(files: readonly FontExportFile[], directory?: string): string;
 function matchSupportsInAnswer: declare function matchSupportsInAnswer(answer: string, supports: readonly string[]): SupportMatch[];
 function offlineFontExport: declare function offlineFontExport(style?: StyleChoice): FontExportManifest;
+function playerEventToXapi: declare function playerEventToXapi(event: PlayerEvent, host: PlayerEventXapiContext): XAPIStatement;
 function postEmbedResize: declare function postEmbedResize(width: number, height: number): void;
 function registerInteractiveActivities: declare function registerInteractiveActivities(): void;
 function registerTemplate: declare function registerTemplate(definition: TemplateDefinition): void;
@@ -89,6 +93,8 @@ function validateCineScrambleData: declare function validateCineScrambleData(dat
 function validateWhatHappensData: declare function validateWhatHappensData(data: unknown): ValidationResult<WhatHappensData>;
 function whatHappensChrome: declare function whatHappensChrome(locale?: string): WhatHappensChrome;
 function WhatHappensPlayer: declare function WhatHappensPlayer({ activity, ...host }: WhatHappensPlayerProps): JSX.Element;
+interface AiCatalogEntry: interface AiCatalogEntry { id: string; label: string; description: string; }
+interface AiCountRule: interface AiCountRule { min: number; max: number; default: number; }
 interface AnimationPreset: interface AnimationPreset { id: AnimationId; label: string; description: string; }
 interface AssetRef: interface AssetRef { assetKey: string; url?: string; }
 interface CineScrambleClip: interface CineScrambleClip { id: number; video: AssetRef & { aspect: VideoAspect; durationS?: number; }; caption: string; videoPrompt?: { generatedBy?: string; text: string; }; }
@@ -101,18 +107,22 @@ interface CineScrambleVocabItem: interface CineScrambleVocabItem { term: string;
 interface FontDefinition: interface FontDefinition { family: AllowedFont; weights: readonly number[]; fallback: string; }
 interface FontExportFile: interface FontExportFile { family: AllowedFont; weight: number; style: 'normal'; format: 'woff2'; fileName: string; }
 interface FontExportManifest: interface FontExportManifest { cssUrl: string; files: FontExportFile[]; }
+interface FreezeSuggestionSpec: interface FreezeSuggestionSpec { inputs: readonly string[]; writableFields: readonly string[]; bounds: { exclusiveMaximumField: 'durationS'; exclusiveMinimum: 0; }; jsonSchema: Record<string, unknown>; rules: readonly string[]; promptFragments: readonly string[]; }
 interface InteractiveActivityPlayerProps: interface InteractiveActivityPlayerProps extends PlayerHostOptions { activity: CineScrambleData | WhatHappensData; }
 interface MotionPreset: interface MotionPreset { id: MotionPresetId; label: string; description: string; tokens: MotionTokens; }
 interface MotionTokens: interface MotionTokens { durationFast: string; duration: string; durationSlow: string; easing: string; stagger: string; }
+interface PlayerEventXapiContext: interface PlayerEventXapiContext { actor: XAPIActor; object: ((event: PlayerEvent) => XAPIObjectParams) | XAPIObjectParams; context?: XAPIContext; }
 interface PlayerHostOptions: interface PlayerHostOptions { resolveUrl?: AssetUrlResolver; onEvent?: (event: PlayerEvent) => void; strings?: WhatHappensCopy & CineScrambleCopy; reducedMotion?: boolean; embed?: { postResize: boolean; }; viewport?: PlayerViewport; }
 interface PlayerViewport: interface PlayerViewport { width: number; height: number; }
 interface StyleChoice: interface StyleChoice { presetId: string; mode?: ColorMode; fonts?: { body?: string; heading?: string; }; motionPresetId?: string; }
 interface StylePreset: interface StylePreset { id: StylePresetId; label: string; description: string; defaultFonts: { body: AllowedFont; heading: AllowedFont; }; defaultMotionPresetId: MotionPresetId; tokens: { dark: StyleTokens; light: StyleTokens; }; }
 interface StyleTokens: interface StyleTokens { bg: string; panel: string; line: string; ink1: string; ink2: string; ink3: string; accent: string; accentSoft: string; frost: string; veil: string; radiusPanel: string; radiusVideo: string; radiusButton: string; shadowSm: string; shadowMd: string; shadowLg: string; glassBlur: string; backdropBlur: string; }
 interface SupportMatch: interface SupportMatch { support: string; start: number; end: number; }
-interface TemplateDefinition: interface TemplateDefinition<TData = unknown> { id: string; version: string; label: string; activityType: string; validate(data: unknown): ValidationResult<TData>; jsonSchema: Record<string, unknown>; mediaSlots(data: TData): TemplateMediaSlot[]; }
+interface TemplateAiSpec: interface TemplateAiSpec { jsonSchema: Record<string, unknown>; writableFields: readonly string[]; counts: Readonly<Record<string, AiCountRule>>; rules: readonly string[]; promptFragments: readonly string[]; catalogs: { animations: readonly AiCatalogEntry[]; fonts: readonly AiCatalogEntry[]; motions: readonly AiCatalogEntry[]; styles: readonly AiCatalogEntry[]; }; videoPrompt: VideoPromptSpec; freezeSuggestion?: FreezeSuggestionSpec; }
+interface TemplateDefinition: interface TemplateDefinition<TData = unknown> { id: string; version: string; label: string; activityType: string; validate(data: unknown): ValidationResult<TData>; jsonSchema: Record<string, unknown>; aiSpec: TemplateAiSpec; mediaSlots(data: TData): TemplateMediaSlot[]; }
 interface TemplateMediaSlot: interface TemplateMediaSlot { path: Array<number | string>; kind: 'audio' | 'image' | 'video'; assetKey?: string; }
 interface ValidationIssue: interface ValidationIssue { path: Array<number | string>; message: string; }
+interface VideoPromptSpec: interface VideoPromptSpec { slotPath: string; writableFields: readonly string[]; inputs: readonly string[]; aspectRatios: readonly ['9:16', '16:9']; defaultAspect: '16:9' | '9:16'; targetLength: string; scene: string; surpriseMoment?: string; rules: readonly string[]; promptFragments: readonly string[]; }
 interface WhatHappensChrome: interface WhatHappensChrome { playFallback: string; replayToFreeze: string; mediaError: string; predictTitle: string; revealButton: string; tellTitle: string; supportsLabel: string; showAnswer: string; answerLabel: string; nextButton: string; listenButton: string; }
 interface WhatHappensClip: interface WhatHappensClip { id: string; title: string; video: AssetRef & { aspect: VideoAspect; durationS?: number; }; thumb?: AssetRef; poster?: AssetRef; freezeAt: number; predictPrompt?: string; tellPrompt?: string; supportsEnabled?: boolean; supportsLabel?: string; supports?: string[]; answer: { text: string; }; audio?: AssetRef & { textHash: string; voice?: string; }; videoPrompt?: { generatedBy?: string; text: string; }; origin?: 'authored' | 'generated'; }
 interface WhatHappensCopy: interface WhatHappensCopy { playFallback?: string; replayToFreeze?: string; mediaError?: string; predictTitle?: string; revealButton?: string; tellTitle?: string; supportsLabel?: string; showAnswer?: string; answerLabel?: string; nextButton?: string; listenButton?: string; }

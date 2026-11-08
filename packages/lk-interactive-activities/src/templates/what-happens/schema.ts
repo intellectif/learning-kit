@@ -24,6 +24,7 @@ import {
   MOTION_PRESET_IDS,
   STYLE_PRESET_IDS,
 } from '../../style/catalog.js';
+import { WHAT_HAPPENS_AI_SPEC } from './ai-spec.js';
 import { WHAT_HAPPENS_CHROME, whatHappensChrome } from './copy.js';
 
 export const WHAT_HAPPENS_TYPE = 'what-happens';
@@ -634,6 +635,7 @@ export const whatHappensTemplate: TemplateDefinition<WhatHappensData> = {
   activityType: WHAT_HAPPENS_TYPE,
   validate: validateWhatHappensData,
   jsonSchema: WHAT_HAPPENS_JSON_SCHEMA,
+  aiSpec: WHAT_HAPPENS_AI_SPEC,
   mediaSlots: templateMediaSlots,
 };
 

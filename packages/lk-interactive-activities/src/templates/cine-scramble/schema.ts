@@ -24,6 +24,7 @@ import {
   MOTION_PRESET_IDS,
   STYLE_PRESET_IDS,
 } from '../../style/catalog.js';
+import { CINE_SCRAMBLE_AI_SPEC } from './ai-spec.js';
 import { CINE_SCRAMBLE_CHROME } from './copy.js';
 
 export const CINE_SCRAMBLE_TYPE = 'cine-scramble';
@@ -583,6 +584,7 @@ export const cineScrambleTemplate: TemplateDefinition<CineScrambleData> = {
   activityType: CINE_SCRAMBLE_TYPE,
   validate: validateCineScrambleData,
   jsonSchema: CINE_SCRAMBLE_JSON_SCHEMA,
+  aiSpec: CINE_SCRAMBLE_AI_SPEC,
   mediaSlots: (data) => {
     const slots: TemplateMediaSlot[] = [];
     if (data.poster)
