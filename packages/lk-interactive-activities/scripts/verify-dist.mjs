@@ -27,6 +27,12 @@ const REQUIRED = [
   'CINE_SCRAMBLE_CHROME',
   'WHAT_HAPPENS_JSON_SCHEMA',
   'CINE_SCRAMBLE_JSON_SCHEMA',
+  'interactiveActivitiesStylesheet',
+  'googleFontsCssUrl',
+  'googleFontsExportFiles',
+  'listStylePresets',
+  'listMotionPresets',
+  'listAnimations',
 ];
 const EXPECTED_VALUE = '@intellectif/lk-interactive-activities';
 
@@ -67,5 +73,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `verify-dist OK: ESM and CommonJS export PACKAGE_NAME as ${EXPECTED_VALUE} plus the template registry and schemas.`,
+  `verify-dist OK: ESM and CommonJS export PACKAGE_NAME as ${EXPECTED_VALUE} plus the template registry, schemas, and style catalog.`,
 );

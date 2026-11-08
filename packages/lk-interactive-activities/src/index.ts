@@ -17,15 +17,64 @@ export {
   registerInteractiveActivities,
   registerTemplate,
 } from './registry/templates.js';
-export type { AllowedFont, MotionPresetId, StylePresetId } from './style/catalog.js';
+export type {
+  AnimationPreset,
+  MotionPreset,
+  MotionTokens,
+} from './style/animations.js';
 export {
+  ANIMATION_CATALOG,
+  getAnimation,
+  getMotionPreset,
+  listAnimations,
+  listMotionPresets,
+  MOTION_PRESETS,
+  resolveMotionTokens,
+} from './style/animations.js';
+export type {
+  AllowedFont,
+  AnimationId,
+  MotionPresetId,
+  StylePresetId,
+} from './style/catalog.js';
+export {
+  ANIMATION_IDS,
   FONT_ALLOW_LIST,
   isAllowedFont,
+  isAnimationId,
   isMotionPresetId,
   isStylePresetId,
   MOTION_PRESET_IDS,
   STYLE_PRESET_IDS,
 } from './style/catalog.js';
+export { cssVariablesForTokens, interactiveActivitiesStylesheet } from './style/css.js';
+export type {
+  FontDefinition,
+  FontExportFile,
+  FontExportManifest,
+} from './style/fonts.js';
+export {
+  FONT_DEFINITIONS,
+  fontFileName,
+  fontStack,
+  googleFontsCssUrl,
+  googleFontsExportFiles,
+  googleFontsExportManifest,
+  hostedFontsCssUrl,
+  listAllowedFonts,
+  localFontFaceCss,
+  offlineFontExport,
+  resolveFontPair,
+  uniqueAllowedFonts,
+} from './style/fonts.js';
+export type { StylePreset, StyleTokens } from './style/tokens.js';
+export {
+  getStylePreset,
+  listStylePresets,
+  resolveStylePreset,
+  resolveStyleTokens,
+  STYLE_PRESETS,
+} from './style/tokens.js';
 
 export {
   CINE_SCRAMBLE_CHROME,
