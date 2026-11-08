@@ -1,6 +1,10 @@
 export const DEFAULT_CHROME_LOCALE = 'en';
 
 export interface WhatHappensChrome {
+  playFallback: string;
+  replayToFreeze: string;
+  mediaError: string;
+
   predictTitle: string;
   revealButton: string;
   tellTitle: string;
@@ -13,6 +17,10 @@ export interface WhatHappensChrome {
 
 export const WHAT_HAPPENS_CHROME = {
   en: {
+    playFallback: 'Play',
+    replayToFreeze: 'Replay to freeze',
+    mediaError: 'Media unavailable',
+
     predictTitle: 'What happens next?',
     revealButton: 'Reveal',
     tellTitle: 'Tell the story',
@@ -23,6 +31,10 @@ export const WHAT_HAPPENS_CHROME = {
     listenButton: 'Listen',
   },
   es: {
+    playFallback: 'Reproducir',
+    replayToFreeze: 'Repetir hasta la pausa',
+    mediaError: 'Medio no disponible',
+
     predictTitle: '¿Qué pasa después?',
     revealButton: 'Revelar',
     tellTitle: 'Cuenta la historia',

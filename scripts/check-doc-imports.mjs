@@ -24,6 +24,7 @@ const PACKAGES = [
   'packages/lk-react',
   'packages/lk-azure',
   'packages/lk-practice',
+  'packages/lk-interactive-activities',
 ];
 
 /** Each entry point a consumer can import, e.g. `@intellectif/lk-core/xapi`, and what it exports. */

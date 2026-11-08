@@ -35,6 +35,10 @@ export const WHAT_HAPPENS_CLIP_COUNT_MAX = 12;
 const REVEAL_KEYS = new Set(['easyCaption', 'hardCaption', 'revealPrompt', 'captions']);
 
 export interface WhatHappensCopy {
+  playFallback?: string;
+  replayToFreeze?: string;
+  mediaError?: string;
+
   predictTitle?: string;
   revealButton?: string;
   tellTitle?: string;
