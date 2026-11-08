@@ -85,8 +85,14 @@ describe('Cine-Scramble schema', () => {
     const parsed = validateCineScrambleData(sample());
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
-    const correct = evaluate(parsed.data as never, { sceneId: 'scene-1', order: [0, 1, 2, 3] } as never);
-    const wrong = evaluate(parsed.data as never, { sceneId: 'scene-1', order: [3, 2, 1, 0] } as never);
+    const correct = evaluate(
+      parsed.data as never,
+      { sceneId: 'scene-1', order: [0, 1, 2, 3] } as never,
+    );
+    const wrong = evaluate(
+      parsed.data as never,
+      { sceneId: 'scene-1', order: [3, 2, 1, 0] } as never,
+    );
     expect(correct).toMatchObject({ status: 'scored', score: 1, passed: true });
     expect(wrong).toMatchObject({ status: 'scored', score: 0, passed: false });
   });
