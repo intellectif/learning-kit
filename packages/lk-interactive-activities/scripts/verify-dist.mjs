@@ -14,7 +14,20 @@ const require = createRequire(import.meta.url);
 const PKG_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const failures = [];
 
-const EXPECTED_EXPORTS = 'PACKAGE_NAME';
+const REQUIRED = [
+  'PACKAGE_NAME',
+  'getTemplate',
+  'listTemplates',
+  'registerInteractiveActivities',
+  'registerTemplate',
+  'validateWhatHappensData',
+  'validateCineScrambleData',
+  'matchSupportsInAnswer',
+  'WHAT_HAPPENS_CHROME',
+  'CINE_SCRAMBLE_CHROME',
+  'WHAT_HAPPENS_JSON_SCHEMA',
+  'CINE_SCRAMBLE_JSON_SCHEMA',
+];
 const EXPECTED_VALUE = '@intellectif/lk-interactive-activities';
 
 const esm = await import(pathToFileURL(join(PKG_ROOT, 'dist', 'index.js')).href);
@@ -24,9 +37,11 @@ for (const [format, module] of [
   ['ESM', esm],
   ['CJS', cjs],
 ]) {
-  const exported = Object.keys(module).sort().join(', ');
-  if (exported !== EXPECTED_EXPORTS) {
-    failures.push(`${format} exports ${exported || 'nothing'}; expected ${EXPECTED_EXPORTS}.`);
+  const exported = Object.keys(module).sort();
+  for (const name of REQUIRED) {
+    if (!exported.includes(name)) {
+      failures.push(`${format} is missing export ${name}.`);
+    }
   }
   if (module.PACKAGE_NAME !== EXPECTED_VALUE) {
     failures.push(
@@ -51,4 +66,6 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`verify-dist OK: ESM and CommonJS export PACKAGE_NAME as ${EXPECTED_VALUE}.`);
+console.log(
+  `verify-dist OK: ESM and CommonJS export PACKAGE_NAME as ${EXPECTED_VALUE} plus the template registry and schemas.`,
+);
