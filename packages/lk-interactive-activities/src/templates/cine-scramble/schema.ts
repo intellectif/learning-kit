@@ -1,31 +1,47 @@
-import { type ActivityTypeDescriptor, defineActivityType } from '@intellectif/lk-core';
 import {
-  defineStandardSchema,
-  isIssue,
-  readBoolean,
-  readNumber,
-  readObject,
-  readString,
-} from '../../contract/standard-schema.js';
+  type ActivityTypeDescriptor,
+  type DraftIssue,
+  defineActivityType,
+  type MediaSlot,
+} from '@intellectif/lk-core';
+import {
+  arrayAt,
+  assetRefAt,
+  booleanAt,
+  copyAt,
+  detached,
+  Issues,
+  isRecord,
+  localeAt,
+  numberAt,
+  objectAt,
+  oneOfAt,
+  type Path,
+  refuseKeys,
+  result,
+  stringAt,
+  styleAt,
+} from '../../contract/read.js';
+import { defineStandardSchema } from '../../contract/standard-schema.js';
 import type {
-  AssetRef,
-  StyleChoice,
   TemplateDefinition,
   TemplateMediaSlot,
-  ValidationIssue,
   ValidationResult,
-  VideoAspect,
 } from '../../contract/types.js';
-import {
-  FONT_ALLOW_LIST,
-  isAllowedFont,
-  isMotionPresetId,
-  isStylePresetId,
-  MOTION_PRESET_IDS,
-  STYLE_PRESET_IDS,
-} from '../../style/catalog.js';
+import { FONT_ALLOW_LIST, MOTION_PRESET_IDS, STYLE_PRESET_IDS } from '../../style/catalog.js';
 import { CINE_SCRAMBLE_AI_SPEC } from './ai-spec.js';
 import { CINE_SCRAMBLE_CHROME } from './copy.js';
+import type { CineScrambleData, CineScrambleResponse } from './types.js';
+
+export { isVocabEnabled } from './rules.js';
+export type {
+  CineScrambleClip,
+  CineScrambleCopy,
+  CineScrambleData,
+  CineScrambleResponse,
+  CineScrambleScene,
+  CineScrambleVocabItem,
+} from './types.js';
 
 export const CINE_SCRAMBLE_TYPE = 'cine-scramble';
 export const CINE_SCRAMBLE_SCHEMA_VERSION = '1.0';
@@ -36,447 +52,255 @@ export const CINE_SCRAMBLE_CLIPS_PER_SCENE_DEFAULT = 4;
 export const CINE_SCRAMBLE_CLIPS_PER_SCENE_MIN = 3;
 export const CINE_SCRAMBLE_CLIPS_PER_SCENE_MAX = 6;
 
-const REVEAL_KEYS = new Set([
+const REVEAL_KEYS = [
   'easyCaption',
   'hardCaption',
   'revealPrompt',
   'captions',
   'easy',
   'hard',
-]);
-
-export interface CineScrambleVocabItem {
-  term: string;
-  definition: string;
-}
-
-export interface CineScrambleClip {
-  id: number;
-  video: AssetRef & { aspect: VideoAspect; durationS?: number };
-  caption: string;
-  videoPrompt?: { text: string; generatedBy?: string };
-}
-
-export interface CineScrambleScene {
-  id: string;
-  title: string;
-  clips: CineScrambleClip[];
-}
-
-export interface CineScrambleCopy {
-  startLabel?: string;
-  closeLabel?: string;
-  playFallback?: string;
-  mediaError?: string;
-  sceneLabel?: string;
-  scenesLabel?: string;
-  clipLabel?: string;
-  slotLabel?: string;
-  emptySlotLabel?: string;
-  poolLabel?: string;
-  removeLabel?: string;
-  correctLabel?: string;
-  incorrectLabel?: string;
-  completeLabel?: string;
-  storyLabel?: string;
-  replayLabel?: string;
-  nextSceneLabel?: string;
-  doneLabel?: string;
-  keyboardHelp?: string;
-  selectedLabel?: string;
-  placedLabel?: string;
-  returnedLabel?: string;
-  fillAllLabel?: string;
-  resultSummary?: string;
-
-  checkLabel?: string;
-  vocabButtonLabel?: string;
-}
-
-export interface CineScrambleData {
-  schemaVersion: typeof CINE_SCRAMBLE_SCHEMA_VERSION;
-  type: typeof CINE_SCRAMBLE_TYPE;
-  id: string;
-  title: string;
-  locale?: string;
-  tagline?: string;
-  poster?: AssetRef;
-  style?: StyleChoice;
-  vocabEnabled?: boolean;
-  vocab?: CineScrambleVocabItem[];
-  scenes: CineScrambleScene[];
-  copy?: CineScrambleCopy;
-}
-
-export interface CineScrambleResponse {
-  sceneId: string;
-  order: number[];
-}
-
-function issue(path: Array<string | number>, message: string): ValidationIssue {
-  return { path, message };
-}
-
-function readAssetRef(value: unknown, path: Array<string | number>): AssetRef | ValidationIssue {
-  const object = readObject(value, path);
-  if (isIssue(object)) return object;
-  const assetKey = readString(object.assetKey, [...path, 'assetKey']);
-  if (isIssue(assetKey)) return assetKey;
-  const ref: AssetRef = { assetKey };
-  if (object.url !== undefined) {
-    const url = readString(object.url, [...path, 'url']);
-    if (isIssue(url)) return url;
-    ref.url = url;
-  }
-  return ref;
-}
-
-function readStyle(value: unknown, path: Array<string | number>): StyleChoice | ValidationIssue[] {
-  const errors: ValidationIssue[] = [];
-  const object = readObject(value, path);
-  if (isIssue(object)) return [object];
-  const presetId = readString(object.presetId, [...path, 'presetId']);
-  if (isIssue(presetId)) errors.push(presetId);
-  else if (!isStylePresetId(presetId))
-    errors.push(issue([...path, 'presetId'], `Unknown style preset "${presetId}".`));
-  if (object.motionPresetId !== undefined) {
-    const motion = readString(object.motionPresetId, [...path, 'motionPresetId']);
-    if (isIssue(motion)) errors.push(motion);
-    else if (!isMotionPresetId(motion))
-      errors.push(issue([...path, 'motionPresetId'], `Unknown motion preset "${motion}".`));
-  }
-  if (object.fonts !== undefined) {
-    const fonts = readObject(object.fonts, [...path, 'fonts']);
-    if (isIssue(fonts)) errors.push(fonts);
-    else {
-      for (const key of ['heading', 'body'] as const) {
-        if (fonts[key] === undefined) continue;
-        const font = readString(fonts[key], [...path, 'fonts', key]);
-        if (isIssue(font)) errors.push(font);
-        else if (!isAllowedFont(font))
-          errors.push(issue([...path, 'fonts', key], `Unknown font "${font}".`));
-      }
-    }
-  }
-  if (
-    object.mode !== undefined &&
-    object.mode !== 'light' &&
-    object.mode !== 'dark' &&
-    object.mode !== 'auto'
-  ) {
-    errors.push(issue([...path, 'mode'], 'Expected "light", "dark", or "auto".'));
-  }
-  if (errors.length > 0) return errors;
-  const style: StyleChoice = { presetId: presetId as string };
-  if (object.mode === 'light' || object.mode === 'dark' || object.mode === 'auto') {
-    style.mode = object.mode;
-  }
-  if (typeof object.motionPresetId === 'string') {
-    style.motionPresetId = object.motionPresetId;
-  }
-  if (object.fonts !== undefined) {
-    style.fonts = object.fonts as NonNullable<StyleChoice['fonts']>;
-  }
-  return style;
-}
+] as const;
+const AUTHOR_ONLY_CLIP_KEYS = ['videoPrompt'] as const;
+const COPY_KEYS = Object.keys(CINE_SCRAMBLE_CHROME.en);
 
 function readClip(
-  value: unknown,
-  path: Array<string | number>,
-): CineScrambleClip | ValidationIssue[] {
-  const errors: ValidationIssue[] = [];
-  const object = readObject(value, path);
-  if (isIssue(object)) return [object];
-  for (const key of Object.keys(object)) {
-    if (REVEAL_KEYS.has(key)) {
-      errors.push(
-        issue([...path, key], 'Reveal and Easy/Hard fields are not part of Cine-Scramble.'),
+  issues: Issues,
+  raw: unknown,
+  path: Path,
+  learnerCopy: boolean,
+): number | undefined {
+  const object = objectAt(issues, raw, path);
+  if (object === undefined) return undefined;
+  const before = issues.count;
+  for (const key of REVEAL_KEYS) {
+    if (key in object) {
+      issues.add(
+        [...path, key],
+        'reveal_field',
+        'Reveal and Easy/Hard fields are not part of Cine-Scramble.',
       );
     }
   }
-  const id = readNumber(object.id, [...path, 'id']);
-  if (isIssue(id)) errors.push(id);
-  else if (!Number.isInteger(id) || id < 0) {
-    errors.push(
-      issue([...path, 'id'], 'Clip id must be a chronological integer index starting at 0.'),
+  if (learnerCopy) {
+    refuseKeys(
+      issues,
+      object,
+      path,
+      AUTHOR_ONLY_CLIP_KEYS,
+      'author_only_field',
+      'An authoring-only field; a learner copy must not carry it.',
     );
   }
-  const caption = readString(object.caption, [...path, 'caption']);
-  if (isIssue(caption)) errors.push(caption);
-
-  const videoObject = readObject(object.video, [...path, 'video']);
-  let video: (AssetRef & { aspect: VideoAspect; durationS?: number }) | undefined;
-  if (isIssue(videoObject)) {
-    errors.push(videoObject);
-  } else {
-    const asset = readAssetRef(videoObject, [...path, 'video']);
-    if (isIssue(asset)) errors.push(asset);
-    else if (videoObject.aspect !== '9:16' && videoObject.aspect !== '16:9') {
-      errors.push(issue([...path, 'video', 'aspect'], 'Expected "9:16" or "16:9".'));
-    } else {
-      video = { ...asset, aspect: videoObject.aspect };
-      if (videoObject.durationS !== undefined) {
-        const durationS = readNumber(videoObject.durationS, [...path, 'video', 'durationS']);
-        if (isIssue(durationS)) errors.push(durationS);
-        else if (durationS <= 0)
-          errors.push(issue([...path, 'video', 'durationS'], 'Duration must be greater than 0.'));
-        else video.durationS = durationS;
-      }
+  const id = numberAt(issues, object.id, [...path, 'id']);
+  if (id !== undefined && (!Number.isInteger(id) || id < 0)) {
+    issues.add(
+      [...path, 'id'],
+      'not_chronological',
+      'A clip id is its place in the story: a whole number from 0.',
+    );
+  }
+  stringAt(issues, object.caption, [...path, 'caption']);
+  assetRefAt(issues, object.video, [...path, 'video']);
+  if (isRecord(object.video)) {
+    oneOfAt(issues, object.video.aspect, [...path, 'video', 'aspect'], ['9:16', '16:9']);
+    const durationS = numberAt(issues, object.video.durationS, [...path, 'video', 'durationS'], {
+      required: false,
+    });
+    if (durationS !== undefined && durationS <= 0) {
+      issues.add(
+        [...path, 'video', 'durationS'],
+        'not_positive',
+        'The duration must be more than 0 seconds.',
+      );
     }
   }
-
-  const extras: Partial<CineScrambleClip> = {};
   if (object.videoPrompt !== undefined) {
-    const prompt = readObject(object.videoPrompt, [...path, 'videoPrompt']);
-    if (isIssue(prompt)) errors.push(prompt);
-    else {
-      const text = readString(prompt.text, [...path, 'videoPrompt', 'text'], { allowEmpty: true });
-      if (isIssue(text)) errors.push(text);
-      else {
-        extras.videoPrompt = { text };
-        if (prompt.generatedBy !== undefined) {
-          const generatedBy = readString(
-            prompt.generatedBy,
-            [...path, 'videoPrompt', 'generatedBy'],
-            {
-              allowEmpty: true,
-            },
-          );
-          if (isIssue(generatedBy)) errors.push(generatedBy);
-          else extras.videoPrompt.generatedBy = generatedBy;
-        }
-      }
-    }
-  }
-
-  if (errors.length > 0 || isIssue(id) || isIssue(caption) || video === undefined) {
-    return errors.length > 0 ? errors : [issue(path, 'Clip is incomplete.')];
-  }
-  return { id, video, caption, ...extras };
-}
-
-function readScene(
-  value: unknown,
-  path: Array<string | number>,
-): CineScrambleScene | ValidationIssue[] {
-  const errors: ValidationIssue[] = [];
-  const object = readObject(value, path);
-  if (isIssue(object)) return [object];
-  const id = readString(object.id, [...path, 'id']);
-  const title = readString(object.title, [...path, 'title']);
-  if (isIssue(id)) errors.push(id);
-  if (isIssue(title)) errors.push(title);
-  if (!Array.isArray(object.clips)) {
-    errors.push(issue([...path, 'clips'], 'Expected an array of clips.'));
-    return errors;
-  }
-  if (
-    object.clips.length < CINE_SCRAMBLE_CLIPS_PER_SCENE_MIN ||
-    object.clips.length > CINE_SCRAMBLE_CLIPS_PER_SCENE_MAX
-  ) {
-    errors.push(
-      issue(
-        [...path, 'clips'],
-        `Expected between ${CINE_SCRAMBLE_CLIPS_PER_SCENE_MIN} and ${CINE_SCRAMBLE_CLIPS_PER_SCENE_MAX} clips in a scene.`,
-      ),
-    );
-  }
-  const clips: CineScrambleClip[] = [];
-  const seen = new Set<number>();
-  object.clips.forEach((raw, index) => {
-    const clip = readClip(raw, [...path, 'clips', index]);
-    if (Array.isArray(clip)) {
-      errors.push(...clip);
-      return;
-    }
-    if (seen.has(clip.id)) {
-      errors.push(issue([...path, 'clips', index, 'id'], `Duplicate clip id ${clip.id}.`));
-    }
-    seen.add(clip.id);
-    clips.push(clip);
-  });
-  if (errors.length === 0) {
-    const expected = clips.map((_, index) => index);
-    const actual = [...clips.map((clip) => clip.id)].sort((a, b) => a - b);
-    if (expected.join(',') !== actual.join(',')) {
-      errors.push(issue([...path, 'clips'], 'Clip ids must be the chronological indexes 0..n-1.'));
-    }
-  }
-  if (errors.length > 0 || isIssue(id) || isIssue(title)) return errors;
-  return { id, title, clips };
-}
-
-function validateCineScramble(value: unknown): ValidationResult<CineScrambleData> {
-  const errors: ValidationIssue[] = [];
-  const object = readObject(value);
-  if (isIssue(object)) return { success: false, errors: [object] };
-
-  if (object.schemaVersion !== CINE_SCRAMBLE_SCHEMA_VERSION) {
-    errors.push(
-      issue(['schemaVersion'], `Unknown schema version "${String(object.schemaVersion)}".`),
-    );
-  }
-  if (object.type !== CINE_SCRAMBLE_TYPE) {
-    errors.push(issue(['type'], `Unknown template "${String(object.type)}".`));
-  }
-
-  const id = readString(object.id, ['id']);
-  const title = readString(object.title, ['title']);
-  if (isIssue(id)) errors.push(id);
-  if (isIssue(title)) errors.push(title);
-
-  let locale: string | undefined;
-  if (object.locale !== undefined) {
-    const value = readString(object.locale, ['locale']);
-    if (isIssue(value)) errors.push(value);
-    else locale = value;
-  }
-  let tagline: string | undefined;
-  if (object.tagline !== undefined) {
-    const value = readString(object.tagline, ['tagline']);
-    if (isIssue(value)) errors.push(value);
-    else tagline = value;
-  }
-  let poster: AssetRef | undefined;
-  if (object.poster !== undefined) {
-    const value = readAssetRef(object.poster, ['poster']);
-    if (isIssue(value)) errors.push(value);
-    else poster = value;
-  }
-  let style: StyleChoice | undefined;
-  if (object.style !== undefined) {
-    const value = readStyle(object.style, ['style']);
-    if (Array.isArray(value)) errors.push(...value);
-    else style = value;
-  }
-  let vocabEnabled: boolean | undefined;
-  if (object.vocabEnabled !== undefined) {
-    const value = readBoolean(object.vocabEnabled, ['vocabEnabled']);
-    if (isIssue(value)) errors.push(value);
-    else vocabEnabled = value;
-  }
-  let vocab: CineScrambleVocabItem[] | undefined;
-  if (object.vocab !== undefined) {
-    if (!Array.isArray(object.vocab)) {
-      errors.push(issue(['vocab'], 'Expected an array of vocabulary items.'));
-    } else {
-      vocab = [];
-      const terms = new Set<string>();
-      object.vocab.forEach((raw, index) => {
-        const item = readObject(raw, ['vocab', index]);
-        if (isIssue(item)) {
-          errors.push(item);
-          return;
-        }
-        const term = readString(item.term, ['vocab', index, 'term']);
-        const definition = readString(item.definition, ['vocab', index, 'definition']);
-        if (isIssue(term)) errors.push(term);
-        if (isIssue(definition)) errors.push(definition);
-        if (!isIssue(term)) {
-          const key = term.trim().toLowerCase();
-          if (terms.has(key))
-            errors.push(issue(['vocab', index, 'term'], `Duplicate vocabulary term "${term}".`));
-          terms.add(key);
-        }
-        if (!isIssue(term) && !isIssue(definition)) vocab?.push({ term, definition });
+    const prompt = objectAt(issues, object.videoPrompt, [...path, 'videoPrompt']);
+    if (prompt !== undefined) {
+      stringAt(issues, prompt.text, [...path, 'videoPrompt', 'text'], { allowEmpty: true });
+      stringAt(issues, prompt.generatedBy, [...path, 'videoPrompt', 'generatedBy'], {
+        required: false,
+        allowEmpty: true,
       });
     }
   }
-  let copy: CineScrambleCopy | undefined;
-  if (object.copy !== undefined) {
-    const copyObject = readObject(object.copy, ['copy']);
-    if (isIssue(copyObject)) errors.push(copyObject);
-    else {
-      copy = {};
-      for (const key of Object.keys(CINE_SCRAMBLE_CHROME.en) as Array<keyof CineScrambleCopy>) {
-        if (copyObject[key] === undefined) continue;
-        const text = readString(copyObject[key], ['copy', key]);
-        if (isIssue(text)) errors.push(text);
-        else copy[key] = text;
-      }
-    }
-  }
-
-  if (!Array.isArray(object.scenes)) {
-    errors.push(issue(['scenes'], 'Expected an array of scenes.'));
-    return { success: false, errors };
-  }
-  if (
-    object.scenes.length < CINE_SCRAMBLE_SCENE_COUNT_MIN ||
-    object.scenes.length > CINE_SCRAMBLE_SCENE_COUNT_MAX
-  ) {
-    errors.push(
-      issue(
-        ['scenes'],
-        `Expected between ${CINE_SCRAMBLE_SCENE_COUNT_MIN} and ${CINE_SCRAMBLE_SCENE_COUNT_MAX} scenes.`,
-      ),
-    );
-  }
-  const scenes: CineScrambleScene[] = [];
-  const seen = new Set<string>();
-  object.scenes.forEach((raw, index) => {
-    const scene = readScene(raw, ['scenes', index]);
-    if (Array.isArray(scene)) {
-      errors.push(...scene);
-      return;
-    }
-    if (seen.has(scene.id))
-      errors.push(issue(['scenes', index, 'id'], `Duplicate scene id "${scene.id}".`));
-    seen.add(scene.id);
-    scenes.push(scene);
-  });
-
-  if (errors.length > 0 || isIssue(id) || isIssue(title)) {
-    return { success: false, errors };
-  }
-  return {
-    success: true,
-    data: {
-      schemaVersion: CINE_SCRAMBLE_SCHEMA_VERSION,
-      type: CINE_SCRAMBLE_TYPE,
-      id,
-      title,
-      ...(locale !== undefined ? { locale } : {}),
-      ...(tagline !== undefined ? { tagline } : {}),
-      ...(poster !== undefined ? { poster } : {}),
-      ...(style !== undefined ? { style } : {}),
-      ...(vocabEnabled !== undefined ? { vocabEnabled } : {}),
-      ...(vocab !== undefined ? { vocab } : {}),
-      ...(copy !== undefined ? { copy } : {}),
-      scenes,
-    },
-  };
+  return issues.count > before ? undefined : id;
 }
 
-export const cineScrambleSchema = defineStandardSchema<CineScrambleData>((value) => {
-  const result = validateCineScramble(value);
-  return result.success ? { value: result.data } : { issues: result.errors };
-});
+function readScene(
+  issues: Issues,
+  raw: unknown,
+  path: Path,
+  learnerCopy: boolean,
+): string | undefined {
+  const object = objectAt(issues, raw, path);
+  if (object === undefined) return undefined;
+  const before = issues.count;
+  const id = stringAt(issues, object.id, [...path, 'id']);
+  stringAt(issues, object.title, [...path, 'title']);
+  const clips = arrayAt(issues, object.clips, [...path, 'clips']);
+  if (clips !== undefined) {
+    if (
+      clips.length < CINE_SCRAMBLE_CLIPS_PER_SCENE_MIN ||
+      clips.length > CINE_SCRAMBLE_CLIPS_PER_SCENE_MAX
+    ) {
+      issues.add(
+        [...path, 'clips'],
+        'count_out_of_range',
+        `Expected between ${CINE_SCRAMBLE_CLIPS_PER_SCENE_MIN} and ${CINE_SCRAMBLE_CLIPS_PER_SCENE_MAX} clips in a scene.`,
+      );
+    }
+    const ids: number[] = [];
+    const seen = new Set<number>();
+    clips.forEach((clip, index) => {
+      const clipId = readClip(issues, clip, [...path, 'clips', index], learnerCopy);
+      if (clipId === undefined) return;
+      if (seen.has(clipId)) {
+        issues.add([...path, 'clips', index, 'id'], 'duplicate_id', `Duplicate clip id ${clipId}.`);
+      }
+      seen.add(clipId);
+      ids.push(clipId);
+    });
+    if (issues.count === before && ids.some((clipId) => clipId >= ids.length)) {
+      issues.add(
+        [...path, 'clips'],
+        'not_chronological',
+        'Clip ids must be the story positions 0..n-1.',
+      );
+    }
+  }
+  return issues.count > before ? undefined : id;
+}
 
+function validate(
+  value: unknown,
+  { learnerCopy = false } = {},
+): ValidationResult<CineScrambleData> {
+  const issues = new Issues();
+  const object = objectAt(issues, value, []);
+  if (object === undefined) return result<CineScrambleData>(issues, undefined);
+
+  if (object.schemaVersion !== CINE_SCRAMBLE_SCHEMA_VERSION) {
+    issues.add(
+      ['schemaVersion'],
+      'unknown_schema_version',
+      `Unknown schema version "${String(object.schemaVersion)}"; expected "${CINE_SCRAMBLE_SCHEMA_VERSION}".`,
+    );
+  }
+  if (object.type !== CINE_SCRAMBLE_TYPE) {
+    issues.add(['type'], 'unknown_template', `Unknown template "${String(object.type)}".`);
+  }
+  stringAt(issues, object.id, ['id']);
+  stringAt(issues, object.title, ['title']);
+  localeAt(issues, object.locale, ['locale'], { required: false });
+  stringAt(issues, object.tagline, ['tagline'], { required: false });
+  assetRefAt(issues, object.poster, ['poster'], { required: false });
+  styleAt(issues, object.style, ['style'], { required: false });
+  booleanAt(issues, object.vocabEnabled, ['vocabEnabled'], { required: false });
+  const vocab = arrayAt(issues, object.vocab, ['vocab'], { required: false });
+  if (vocab !== undefined) {
+    const terms = new Set<string>();
+    vocab.forEach((raw, index) => {
+      const item = objectAt(issues, raw, ['vocab', index]);
+      if (item === undefined) return;
+      const term = stringAt(issues, item.term, ['vocab', index, 'term']);
+      stringAt(issues, item.definition, ['vocab', index, 'definition']);
+      if (term === undefined) return;
+      const key = term.trim().toLowerCase();
+      if (terms.has(key)) {
+        issues.add(
+          ['vocab', index, 'term'],
+          'duplicate_item',
+          `Duplicate vocabulary term "${term}".`,
+        );
+      }
+      terms.add(key);
+    });
+  }
+  copyAt(issues, object.copy, ['copy'], COPY_KEYS);
+
+  const scenes = arrayAt(issues, object.scenes, ['scenes']);
+  if (scenes !== undefined) {
+    if (
+      scenes.length < CINE_SCRAMBLE_SCENE_COUNT_MIN ||
+      scenes.length > CINE_SCRAMBLE_SCENE_COUNT_MAX
+    ) {
+      issues.add(
+        ['scenes'],
+        'count_out_of_range',
+        `Expected between ${CINE_SCRAMBLE_SCENE_COUNT_MIN} and ${CINE_SCRAMBLE_SCENE_COUNT_MAX} scenes.`,
+      );
+    }
+    const seen = new Set<string>();
+    scenes.forEach((raw, index) => {
+      const sceneId = readScene(issues, raw, ['scenes', index], learnerCopy);
+      if (sceneId === undefined) return;
+      if (seen.has(sceneId)) {
+        issues.add(['scenes', index, 'id'], 'duplicate_id', `Duplicate scene id "${sceneId}".`);
+      }
+      seen.add(sceneId);
+    });
+  }
+  return result(
+    issues,
+    issues.count === 0 ? detached(object as unknown as CineScrambleData) : undefined,
+  );
+}
+
+/**
+ * Whether stored JSON is a publishable Cine-Scramble activity. Every problem is
+ * reported at its path with a stable code; nothing is fixed silently. Keys the
+ * contract does not know are kept as they are.
+ */
+export function validateCineScrambleData(data: unknown): ValidationResult<CineScrambleData> {
+  return validate(data);
+}
+
+export const cineScrambleSchema = defineStandardSchema<CineScrambleData>((value) =>
+  validate(value),
+);
+/** A learner's copy (`redact()` output): valid, and without authoring-only fields. */
+const cineScrambleRedactedSchema = defineStandardSchema<CineScrambleData>((value) =>
+  validate(value, { learnerCopy: true }),
+);
+
+const text = { type: 'string', pattern: '\\S' };
+const assetRef = {
+  type: 'object',
+  required: ['assetKey'],
+  properties: { assetKey: text, url: { type: 'string' } },
+};
+
+/**
+ * The contract as JSON Schema (draft 2020-12), for forms and API documentation.
+ * `validate()` stays authoritative: it also checks that clip ids are the story
+ * positions 0..n-1, unique ids and terms, safe URLs and language tags. Unknown
+ * keys are allowed, as the validator keeps them.
+ */
 export const CINE_SCRAMBLE_JSON_SCHEMA: Record<string, unknown> = {
   $id: 'https://intellectif.com/schemas/cine-scramble/1.0.json',
   title: 'Cine-Scramble activity',
   type: 'object',
-  additionalProperties: false,
   required: ['schemaVersion', 'type', 'id', 'title', 'scenes'],
   properties: {
     schemaVersion: { const: CINE_SCRAMBLE_SCHEMA_VERSION },
     type: { const: CINE_SCRAMBLE_TYPE },
-    id: { type: 'string', minLength: 1 },
-    title: { type: 'string', minLength: 1 },
-    locale: { type: 'string' },
-    tagline: { type: 'string', minLength: 1 },
-    copy: { type: 'object', additionalProperties: { type: 'string', minLength: 1 } },
+    id: text,
+    title: text,
+    locale: text,
+    tagline: text,
+    poster: assetRef,
+    copy: {
+      type: 'object',
+      properties: Object.fromEntries(COPY_KEYS.map((key) => [key, text])),
+    },
     vocabEnabled: { type: 'boolean', default: true },
     vocab: {
       type: 'array',
       items: {
         type: 'object',
         required: ['term', 'definition'],
-        properties: {
-          term: { type: 'string', minLength: 1 },
-          definition: { type: 'string', minLength: 1 },
-        },
+        properties: { term: text, definition: text },
       },
     },
     style: {
@@ -503,8 +327,8 @@ export const CINE_SCRAMBLE_JSON_SCHEMA: Record<string, unknown> = {
         type: 'object',
         required: ['id', 'title', 'clips'],
         properties: {
-          id: { type: 'string', minLength: 1 },
-          title: { type: 'string', minLength: 1 },
+          id: text,
+          title: text,
           clips: {
             type: 'array',
             minItems: CINE_SCRAMBLE_CLIPS_PER_SCENE_MIN,
@@ -514,15 +338,20 @@ export const CINE_SCRAMBLE_JSON_SCHEMA: Record<string, unknown> = {
               required: ['id', 'video', 'caption'],
               properties: {
                 id: { type: 'integer', minimum: 0 },
-                caption: { type: 'string', minLength: 1 },
+                caption: text,
                 video: {
                   type: 'object',
                   required: ['assetKey', 'aspect'],
                   properties: {
-                    assetKey: { type: 'string', minLength: 1 },
+                    ...assetRef.properties,
                     aspect: { type: 'string', enum: ['9:16', '16:9'] },
                     durationS: { type: 'number', exclusiveMinimum: 0 },
                   },
+                },
+                videoPrompt: {
+                  type: 'object',
+                  required: ['text'],
+                  properties: { text: { type: 'string' }, generatedBy: { type: 'string' } },
                 },
               },
             },
@@ -533,24 +362,128 @@ export const CINE_SCRAMBLE_JSON_SCHEMA: Record<string, unknown> = {
   },
 };
 
+/** Draft codes `checkCineScrambleDraft` reports, each `incomplete`. */
+export type CineScrambleDraftCode =
+  | 'cs_title_required'
+  | 'cs_scene_title_required'
+  | 'cs_caption_required'
+  | 'cs_video_required';
+
+/**
+ * What is still to write in a draft, as lk-core `DraftIssue`s of severity
+ * `incomplete`, at the paths `validate` reports them: an empty title, an
+ * untitled scene, a clip with no caption or no video yet. Accepts any object
+ * and never throws.
+ */
+export function checkCineScrambleDraft(draft: Readonly<Record<string, unknown>>): DraftIssue[] {
+  const issues: DraftIssue[] = [];
+  const add = (path: Path, code: CineScrambleDraftCode, message: string) =>
+    issues.push({ path: path.map(String), code, message, severity: 'incomplete' });
+  const blank = (value: unknown) => typeof value === 'string' && value.trim() === '';
+  if (blank(draft.title)) add(['title'], 'cs_title_required', 'Give the activity a title.');
+  if (Array.isArray(draft.scenes)) {
+    draft.scenes.forEach((scene, sceneIndex) => {
+      if (!isRecord(scene)) return;
+      if (blank(scene.title)) {
+        add(['scenes', sceneIndex, 'title'], 'cs_scene_title_required', 'Give the scene a title.');
+      }
+      if (!Array.isArray(scene.clips)) return;
+      scene.clips.forEach((clip, clipIndex) => {
+        if (!isRecord(clip)) return;
+        const path = ['scenes', sceneIndex, 'clips', clipIndex];
+        if (blank(clip.caption))
+          add([...path, 'caption'], 'cs_caption_required', 'Write the caption.');
+        if (isRecord(clip.video) && blank(clip.video.assetKey)) {
+          add([...path, 'video', 'assetKey'], 'cs_video_required', 'Upload the clip.');
+        }
+      });
+    });
+  }
+  return issues;
+}
+
+/**
+ * A new, unauthored Cine-Scramble activity: one scene of four clips (the
+ * defaults), vocabulary on, English content, the cinema style. Titles,
+ * captions and media are empty, so `validateCineScrambleData` refuses it and
+ * lk-core's `validateDraft` reports it `incomplete` until it is written.
+ */
+export function createCineScrambleDraft(id = 'untitled', sceneId = 'scene-1'): CineScrambleData {
+  return {
+    schemaVersion: CINE_SCRAMBLE_SCHEMA_VERSION,
+    type: CINE_SCRAMBLE_TYPE,
+    id,
+    title: '',
+    locale: 'en',
+    style: { presetId: 'cinema-dark', mode: 'dark' },
+    vocabEnabled: true,
+    vocab: [],
+    scenes: [
+      {
+        id: sceneId,
+        title: '',
+        clips: Array.from({ length: CINE_SCRAMBLE_CLIPS_PER_SCENE_DEFAULT }, (_, index) => ({
+          id: index,
+          video: { assetKey: '', aspect: '16:9' as const },
+          caption: '',
+        })),
+      },
+    ],
+  };
+}
+
+const hasKey = (ref: unknown): ref is Record<string, unknown> & { assetKey: string } =>
+  isRecord(ref) && typeof ref.assetKey === 'string' && ref.assetKey.trim() !== '';
+
+/** Every file the activity has or needs, filled or not. Accepts partial drafts. */
+export function cineScrambleMediaSlots(data: CineScrambleData): TemplateMediaSlot[] {
+  const slots: TemplateMediaSlot[] = [];
+  const activity: Record<string, unknown> = isRecord(data) ? data : {};
+  const poster: TemplateMediaSlot = {
+    path: ['poster'],
+    kind: 'image',
+    role: 'poster',
+    required: false,
+    present: hasKey(activity.poster),
+  };
+  if (hasKey(activity.poster)) poster.assetKey = activity.poster.assetKey;
+  slots.push(poster);
+  const scenes: unknown[] = Array.isArray(activity.scenes) ? activity.scenes : [];
+  scenes.forEach((rawScene, sceneIndex) => {
+    const scene: Record<string, unknown> = isRecord(rawScene) ? rawScene : {};
+    const clips: unknown[] = Array.isArray(scene.clips) ? scene.clips : [];
+    clips.forEach((rawClip, clipIndex) => {
+      const clip: Record<string, unknown> = isRecord(rawClip) ? rawClip : {};
+      const ref = clip.video;
+      const slot: TemplateMediaSlot = {
+        path: ['scenes', sceneIndex, 'clips', clipIndex, 'video'],
+        kind: 'video',
+        role: 'video',
+        required: true,
+        present: hasKey(ref),
+      };
+      if (hasKey(ref)) slot.assetKey = ref.assetKey;
+      if (typeof clip.caption === 'string' && clip.caption !== '') slot.label = clip.caption;
+      if (isRecord(ref)) {
+        if (ref.aspect === '9:16' || ref.aspect === '16:9') slot.aspect = ref.aspect;
+        if (typeof ref.durationS === 'number') slot.durationS = ref.durationS;
+      }
+      slots.push(slot);
+    });
+  });
+  return slots;
+}
+
 export const cineScrambleType: ActivityTypeDescriptor<CineScrambleData, CineScrambleResponse> =
   defineActivityType<CineScrambleData, CineScrambleResponse>({
     type: CINE_SCRAMBLE_TYPE,
     schema: cineScrambleSchema,
+    redactedSchema: cineScrambleRedactedSchema,
     jsonSchema: CINE_SCRAMBLE_JSON_SCHEMA,
-    scoring: {
-      kind: 'sync',
-      score: (data, response) => {
-        const scene = data.scenes.find((item) => item.id === response.sceneId);
-        if (!scene) {
-          return { score: 0, maxScore: 1, feedback: null, details: [] };
-        }
-        const order: unknown[] = Array.isArray(response.order) ? response.order : [];
-        const correct =
-          order.length === scene.clips.length && order.every((clipId, index) => clipId === index);
-        return { score: correct ? 1 : 0, maxScore: 1, feedback: null, details: [] };
-      },
-    },
+    // Ordering the clips is practice and is not graded: the player checks each
+    // scene for the learner, and the check reaches xAPI as `success` only.
+    // `deferred` is lk-core's only "no score" kind; nothing is waiting for a grade.
+    scoring: { kind: 'deferred', reason: 'requires_async_grading' },
     fieldPolicy: {
       schemaVersion: 'public',
       type: 'public',
@@ -567,6 +500,7 @@ export const cineScrambleType: ActivityTypeDescriptor<CineScrambleData, CineScra
         id: 'public',
         title: 'public',
         clips: {
+          // The story order travels with the clips: the player checks locally.
           id: 'public',
           video: 'public',
           caption: 'public',
@@ -574,52 +508,16 @@ export const cineScrambleType: ActivityTypeDescriptor<CineScrambleData, CineScra
         },
       },
     },
-    mediaSlots: (data) => {
-      const slots: Array<{ path: Array<string | number>; kind: 'video' | 'image' }> = [];
-      if (data.poster) slots.push({ path: ['poster'], kind: 'image' });
-      data.scenes.forEach((scene, sceneIndex) => {
-        scene.clips.forEach((_clip, clipIndex) => {
-          slots.push({
-            path: ['scenes', sceneIndex, 'clips', clipIndex, 'video'],
-            kind: 'video' as const,
-          });
-        });
-      });
-      return slots;
+    authoring: {
+      createDraft: (context) => createCineScrambleDraft(context.newId(), context.newId()),
+      checkDraft: checkCineScrambleDraft,
     },
+    // lk-core reads the files that are there; `cineScrambleMediaSlots` lists all.
+    mediaSlots: (data): MediaSlot[] =>
+      cineScrambleMediaSlots(data)
+        .filter((slot) => slot.present)
+        .map((slot) => ({ path: slot.path, kind: slot.kind === 'image' ? 'image' : 'video' })),
   });
-
-export function createCineScrambleDraft(id = 'untitled'): CineScrambleData {
-  return {
-    schemaVersion: CINE_SCRAMBLE_SCHEMA_VERSION,
-    type: CINE_SCRAMBLE_TYPE,
-    id,
-    title: 'Untitled scramble',
-    locale: 'en',
-    style: { presetId: 'cinema-dark' },
-    vocabEnabled: true,
-    vocab: [],
-    scenes: [
-      {
-        id: 'scene-1',
-        title: 'Scene 1',
-        clips: Array.from({ length: CINE_SCRAMBLE_CLIPS_PER_SCENE_DEFAULT }, (_, index) => ({
-          id: index,
-          video: { assetKey: `clip-${index + 1}`, aspect: '16:9' },
-          caption: `Caption ${index + 1}`,
-        })),
-      },
-    ],
-  };
-}
-
-export function isVocabEnabled(activity: CineScrambleData): boolean {
-  return activity.vocabEnabled !== false && (activity.vocab?.length ?? 0) > 0;
-}
-
-export function validateCineScrambleData(data: unknown): ValidationResult<CineScrambleData> {
-  return validateCineScramble(data);
-}
 
 export const cineScrambleTemplate: TemplateDefinition<CineScrambleData> = {
   id: CINE_SCRAMBLE_TYPE,
@@ -627,21 +525,8 @@ export const cineScrambleTemplate: TemplateDefinition<CineScrambleData> = {
   label: 'Cine-Scramble',
   activityType: CINE_SCRAMBLE_TYPE,
   validate: validateCineScrambleData,
+  createDraft: (id) => createCineScrambleDraft(id),
   jsonSchema: CINE_SCRAMBLE_JSON_SCHEMA,
   aiSpec: CINE_SCRAMBLE_AI_SPEC,
-  mediaSlots: (data) => {
-    const slots: TemplateMediaSlot[] = [];
-    if (data.poster)
-      slots.push({ path: ['poster'], kind: 'image', assetKey: data.poster.assetKey });
-    data.scenes.forEach((scene, sceneIndex) => {
-      scene.clips.forEach((clip, clipIndex) => {
-        slots.push({
-          path: ['scenes', sceneIndex, 'clips', clipIndex, 'video'],
-          kind: 'video',
-          assetKey: clip.video.assetKey,
-        });
-      });
-    });
-    return slots;
-  },
+  mediaSlots: cineScrambleMediaSlots,
 };

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { BBB_WEBSITE_SHARE_ALLOW, BBB_WEBSITE_SHARE_SANDBOX } from '../player/embed.js';
+import { BBB_WEBSITE_SHARE_ALLOW, BBB_WEBSITE_SHARE_SANDBOX } from '../contract/embed.js';
 
 it('matches the Website Share plugin delegation without top navigation', () => {
   expect(BBB_WEBSITE_SHARE_SANDBOX).toBe(

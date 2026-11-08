@@ -21,18 +21,24 @@ export interface PlayerEventXapiContext {
   context?: XAPIContext;
 }
 
+/**
+ * Progress inside an activity (a clip, a scene) is `experienced`; only the whole
+ * activity is `completed`, so an LRS given one static object never reads a single
+ * clip as the activity done. Give `object` as a function for clip and scene IRIs.
+ */
 const eventVerbs: Record<PlayerEvent['type'], XAPIVerbKey> = {
   'clip.opened': 'EXPERIENCED',
   'clip.frozen': 'EXPERIENCED',
   'clip.revealed': 'EXPERIENCED',
   'answer.shown': 'EXPERIENCED',
   'audio.played': 'EXPERIENCED',
-  'supports.shown': 'EXPERIENCED',
+  'supports.shown': 'INTERACTED',
   'supports.hidden': 'INTERACTED',
-  'clip.completed': 'COMPLETED',
+  'clip.completed': 'EXPERIENCED',
   'board.completed': 'COMPLETED',
   'scramble.started': 'EXPERIENCED',
-  'scramble.completed': 'COMPLETED',
+  'scramble.completed': 'EXPERIENCED',
+  'activity.completed': 'COMPLETED',
   'scramble.checked': 'INTERACTED',
   'vocab.opened': 'EXPERIENCED',
 };

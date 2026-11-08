@@ -30,7 +30,7 @@ apps/lk-example-vite Vite + React demo (MSW mock LRS) — also the e2e target
 docs/lk-storybook   Storybook 10
 ```
 
-`@intellectif/lk-core` has no runtime dependency other than Zod; `@intellectif/lk-react` keeps `react`, `react-dom`, and `@intellectif/lk-core` as peers; `@intellectif/lk-azure` has no runtime dependency, and `@intellectif/lk-core` as a peer; `@intellectif/lk-practice` has one runtime dependency, `ts-fsrs`, pinned exactly, and no peer; `@intellectif/lk-interactive-activities` has no runtime dependency, and `@intellectif/lk-core`, `@intellectif/lk-react`, `react`, and `react-dom` as peers. Keep it that way.
+`@intellectif/lk-core` has no runtime dependency other than Zod; `@intellectif/lk-react` keeps `react`, `react-dom`, and `@intellectif/lk-core` as peers; `@intellectif/lk-azure` has no runtime dependency, and `@intellectif/lk-core` as a peer; `@intellectif/lk-practice` has one runtime dependency, `ts-fsrs`, pinned exactly, and no peer; `@intellectif/lk-interactive-activities` has no runtime dependency, and `@intellectif/lk-core` as a peer, with `@intellectif/lk-react`, `react`, and `react-dom` as optional peers for its `/player` entry. Keep it that way.
 
 ## Running tests & checks
 

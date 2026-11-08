@@ -1,4 +1,5 @@
 import type {
+  AnimationEvent,
   CSSProperties,
   JSX,
   KeyboardEvent,
@@ -8,16 +9,20 @@ import type {
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../../player/icons.js';
 import {
+  chromeLocaleFor,
+  definedOnly,
   fillTemplate,
   hasCommandModifier,
   isTypingTarget,
+  keyShortcuts,
   languageAttributes,
 } from '../../../player/locale.js';
 import { resolveAssetUrl } from '../../../player/resolve-url.js';
-import { Stage } from '../../../player/Stage.js';
+import { type Announcement, Stage } from '../../../player/Stage.js';
 import type { PlayerHostOptions } from '../../../player/types.js';
 import { cineScrambleChrome } from '../copy.js';
-import { type CineScrambleClip, type CineScrambleData, isVocabEnabled } from '../schema.js';
+import { isVocabEnabled } from '../rules.js';
+import type { CineScrambleClip, CineScrambleData } from '../types.js';
 import {
   checkSlots,
   chronological,
@@ -33,6 +38,7 @@ export interface CineScramblePlayerProps extends PlayerHostOptions {
 
 type Via = 'keyboard' | 'pointer';
 type DropTarget = number | 'pool' | null;
+type ScrambleStage = 'start' | 'arranging' | 'checked-correct';
 
 interface Drag {
   id: number;
@@ -72,66 +78,72 @@ function clipRects(root: HTMLElement | null): Map<string, DOMRect> {
   return rects;
 }
 
+/** Whether the viewer asked the system for reduced motion. */
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    : false;
+}
+
+/** A muted loop of one clip, playing unless every loop is paused. */
 function LoopVideo({
   clip,
   host,
-  playLabel,
+  paused,
   errorLabel,
+  onBlocked,
+  onFailed,
 }: {
   clip: CineScrambleClip;
   host: PlayerHostOptions;
-  playLabel: string;
+  paused: boolean;
   errorLabel: string;
+  onBlocked: () => void;
+  onFailed: () => void;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
-  const [blocked, setBlocked] = useState(false);
   const [error, setError] = useState(false);
+  const src = resolveAssetUrl(clip.video, host.resolveUrl);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new source clears an old error.
+  useEffect(() => setError(false), [src]);
+  const blockedRef = useRef(onBlocked);
+  blockedRef.current = onBlocked;
   useEffect(() => {
-    let active = true;
     const element = ref.current;
-    void element?.play().catch(() => {
-      if (active) setBlocked(true);
+    if (!element) return;
+    if (paused) {
+      element.pause();
+      return;
+    }
+    let active = true;
+    void element.play().catch(() => {
+      if (active) blockedRef.current();
     });
     return () => {
       active = false;
-      element?.pause();
     };
+  }, [paused]);
+  useEffect(() => {
+    const element = ref.current;
+    return () => element?.pause();
   }, []);
   return (
     <span data-lkia-loop="" data-aspect={clip.video.aspect}>
       <video
         ref={ref}
-        src={resolveAssetUrl(clip.video, host.resolveUrl)}
+        src={src}
         muted
         loop
         playsInline
-        autoPlay
         preload="auto"
         aria-hidden="true"
         tabIndex={-1}
-        onError={() => setError(true)}
+        onError={() => {
+          setError(true);
+          onFailed();
+        }}
       />
-      {blocked && !error && (
-        <button
-          type="button"
-          data-lkia-no-drag=""
-          data-lkia-play=""
-          onClick={(event) => {
-            event.stopPropagation();
-            void ref.current
-              ?.play()
-              .then(() => setBlocked(false))
-              .catch(() => setError(true));
-          }}
-        >
-          <Icon name="play" /> {playLabel}
-        </button>
-      )}
-      {error && (
-        <span role="alert" data-lkia-error="">
-          {errorLabel}
-        </span>
-      )}
+      {error && <span data-lkia-error="">{errorLabel}</span>}
     </span>
   );
 }
@@ -157,12 +169,36 @@ function dropTargetAt(
   return null;
 }
 
-export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProps): JSX.Element {
+/** What identifies the activity a player shows: a new one starts the player afresh. */
+function identityOf(activity: CineScrambleData): string {
+  return [
+    activity.id,
+    ...(activity.scenes ?? []).map((scene) => `${scene.id}:${scene.clips?.length ?? 0}`),
+  ].join('\u0000');
+}
+
+/**
+ * The Cine-Scramble player: the learner puts a scene's muted looping clips back
+ * in story order, by dragging, by tapping a clip then a slot, or by keyboard,
+ * and checks. Never graded.
+ */
+export function CineScramblePlayer(props: CineScramblePlayerProps): JSX.Element {
+  // A different activity, or different scenes, starts from the beginning.
+  return <CineScrambleView key={identityOf(props.activity)} {...props} />;
+}
+
+function CineScrambleView({ activity, ...host }: CineScramblePlayerProps): JSX.Element {
   // Built-in chrome < host strings < the editor's own copy for this activity.
-  const chrome = { ...cineScrambleChrome(host.locale), ...host.strings, ...activity.copy };
+  const chrome = {
+    ...cineScrambleChrome(host.locale),
+    ...definedOnly(host.strings),
+    ...definedOnly(activity.copy),
+  };
+  const chromeLocale = chromeLocaleFor(host.locale, host.strings);
   const content = languageAttributes(activity.locale);
+  const shortcuts = host.shortcuts !== false;
   const helpId = useId();
-  const [stage, setStage] = useState<'start' | 'arranging' | 'checked-correct'>('start');
+  const [stage, setStage] = useState<ScrambleStage>('start');
   const [sceneIndex, setSceneIndex] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [completedScenes, setCompletedScenes] = useState<string[]>([]);
@@ -171,8 +207,12 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
   const [selected, setSelected] = useState<number | null>(null);
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [target, setTarget] = useState<DropTarget>(null);
-  const [announcement, setAnnouncement] = useState('');
+  const [announcement, setAnnouncement] = useState<Announcement>();
   const [vocab, setVocab] = useState(false);
+  // Every loop plays unless paused: by the viewer, by reduced motion, or
+  // because the browser blocked autoplay.
+  const [paused, setPaused] = useState(() => host.reducedMotion === true || prefersReducedMotion());
+  const failedAnnounced = useRef(false);
   const drag = useRef<Drag | null>(null);
   const suppressClickUntil = useRef(0);
   const focusAfter = useRef<string | null>(null);
@@ -180,6 +220,7 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
   const board = useRef<HTMLDivElement>(null);
   const vocabButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const vocabWasOpen = useRef(false);
   const scene = activity.scenes[sceneIndex] ?? activity.scenes[0];
   const ordered = chronological(scene.clips);
   const seed = `${activity.id}/${scene.id}`;
@@ -188,12 +229,21 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
   const nameOf = (id: number) => `${chrome.clipLabel} ${numberOf(id)}`;
   const vocabAvailable = isVocabEnabled(activity);
   const full = slots.length > 0 && slots.every((id) => id !== null);
+  const announce = (text: string) =>
+    setAnnouncement((previous) => ({ id: (previous?.id ?? 0) + 1, text }));
 
+  // The glossary takes focus when it opens and gives it back to its button.
   useEffect(() => {
-    if (vocab) closeButton.current?.focus();
+    if (vocab) {
+      vocabWasOpen.current = true;
+      closeButton.current?.focus();
+    } else if (vocabWasOpen.current) {
+      vocabWasOpen.current = false;
+      vocabButton.current?.focus();
+    }
   }, [vocab]);
-  // Moves focus after a keyboard placement, once the clip has re-rendered in
-  // its new place: to the next clip still to place, or to Check.
+  // Moves focus after a placement, once the clip has re-rendered in its new
+  // place: to the next clip still to place, to Check, or to the moved clip.
   useEffect(() => {
     const selector = focusAfter.current;
     if (!selector) return;
@@ -222,13 +272,29 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
       element.style.setProperty('--lkia-from-scale', `${from.width / to.width}`);
       element.removeAttribute('data-flip');
       void element.offsetWidth;
+      element.setAttribute('data-entered', '');
       element.setAttribute('data-flip', 'true');
-      element.addEventListener('animationend', () => element.removeAttribute('data-flip'), {
-        once: true,
-      });
     }
   });
 
+  const endDrag = () => {
+    const current = drag.current;
+    drag.current = null;
+    if (current) {
+      clearTimeout(current.settle);
+      for (const property of DRAG_PROPERTIES) current.element.style.removeProperty(property);
+      if (current.element.hasPointerCapture?.(current.pointerId)) {
+        current.element.releasePointerCapture(current.pointerId);
+      }
+    }
+    setDraggingId(null);
+    setTarget(null);
+  };
+  const goTo = (next: ScrambleStage) => {
+    endDrag();
+    setSelected(null);
+    setStage(next);
+  };
   const startScene = (index: number, nextAttempt: number) => {
     const chosen = activity.scenes[index];
     if (!chosen) return;
@@ -236,40 +302,46 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
     setAttempt(nextAttempt);
     setSlots(chosen.clips.map(() => null));
     setResults([]);
-    setSelected(null);
-    setAnnouncement('');
-    setStage('arranging');
+    goTo('arranging');
     host.onEvent?.({ type: 'scramble.started', activityId: activity.id, sceneId: chosen.id });
   };
   const focusNext = (nextSlots: readonly (number | null)[]) => {
     const remaining = pool.find((clip) => !nextSlots.includes(clip.id));
     focusAfter.current = remaining
-      ? `[data-lkia-clip="${numberOf(remaining.id)}"] [data-lkia-clip-button]`
+      ? `[data-lkia-pool] [data-lkia-clip="${numberOf(remaining.id)}"] [data-lkia-clip-button]`
       : '[data-lkia-check]';
   };
+  // A pointer that clicked a control the move unmounts keeps focus in the board.
+  const boardHasFocus = () => board.current?.contains(document.activeElement) === true;
   const place = (id: number, index: number, via: Via) => {
     if (index < 0 || index >= slots.length) return;
+    const keepFocus = via === 'pointer' && boardHasFocus();
     flipFrom.current ??= clipRects(board.current);
     const nextSlots = placeClip(slots, id, index);
     setSlots(nextSlots);
     setResults([]);
     setSelected(null);
-    setAnnouncement(fillTemplate(chrome.placedLabel, { clip: nameOf(id), slot: index + 1 }));
+    announce(fillTemplate(chrome.placedLabel, { clip: nameOf(id), slot: index + 1 }));
     if (via === 'keyboard') focusNext(nextSlots);
+    else if (keepFocus) {
+      focusAfter.current = `[data-lkia-slot="${index}"] [data-lkia-clip-button]`;
+    }
   };
   const returnToPool = (id: number, via: Via) => {
     if (!slots.includes(id)) return;
+    const keepFocus = via === 'keyboard' || boardHasFocus();
     flipFrom.current ??= clipRects(board.current);
     setSlots(slots.map((value) => (value === id ? null : value)));
     setResults([]);
     setSelected(null);
-    setAnnouncement(fillTemplate(chrome.returnedLabel, { clip: nameOf(id) }));
-    if (via === 'keyboard')
+    announce(fillTemplate(chrome.returnedLabel, { clip: nameOf(id) }));
+    if (keepFocus) {
       focusAfter.current = `[data-lkia-pool] [data-lkia-clip="${numberOf(id)}"] [data-lkia-clip-button]`;
+    }
   };
   const check = () => {
     if (!full) {
-      setAnnouncement(chrome.fillAllLabel);
+      announce(chrome.fillAllLabel);
       return;
     }
     const checked = checkSlots(slots);
@@ -282,12 +354,17 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
       correct,
     });
     if (correct) {
-      setCompletedScenes((done) => (done.includes(scene.id) ? done : [...done, scene.id]));
-      setAnnouncement(chrome.completeLabel);
-      setStage('checked-correct');
+      const done = completedScenes.includes(scene.id)
+        ? completedScenes
+        : [...completedScenes, scene.id];
+      setCompletedScenes(done);
+      announce(chrome.completeLabel);
+      goTo('checked-correct');
       host.onEvent?.({ type: 'scramble.completed', activityId: activity.id, sceneId: scene.id });
+      if (done.length === activity.scenes.length && completedScenes.length < activity.scenes.length)
+        host.onEvent?.({ type: 'activity.completed', activityId: activity.id });
     } else {
-      setAnnouncement(
+      announce(
         fillTemplate(chrome.resultSummary, {
           correct: checked.filter(Boolean).length,
           total: checked.length,
@@ -298,19 +375,32 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
   const select = (id: number) => {
     const next = selected === id ? null : id;
     setSelected(next);
-    if (next !== null) setAnnouncement(fillTemplate(chrome.selectedLabel, { clip: nameOf(next) }));
+    announce(next !== null ? fillTemplate(chrome.selectedLabel, { clip: nameOf(next) }) : '');
   };
   const openVocab = () => {
+    endDrag();
     setVocab(true);
     host.onEvent?.({ type: 'vocab.opened', activityId: activity.id });
   };
-  const closeVocab = () => {
-    setVocab(false);
-    vocabButton.current?.focus();
+  const closeVocab = () => setVocab(false);
+  const loopBlocked = () => setPaused(true);
+  const loopFailed = () => {
+    if (failedAnnounced.current) return;
+    failedAnnounced.current = true;
+    announce(chrome.mediaError);
   };
 
   const onPointerDown = (id: number) => (event: ReactPointerEvent<HTMLDivElement>) => {
+    // One drag at a time: a second finger never takes over a clip in flight.
+    if (drag.current !== null || event.isPrimary === false) return;
     if (event.button !== 0 || (event.target as Element).closest('[data-lkia-no-drag]')) return;
+    const element = event.currentTarget;
+    // Captured from the press, so the release is seen wherever it happens.
+    try {
+      element.setPointerCapture(event.pointerId);
+    } catch {
+      /* Not every environment captures; pointerup on the clip still ends it. */
+    }
     drag.current = {
       id,
       pointerId: event.pointerId,
@@ -318,7 +408,7 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
       y: event.clientY,
       moved: false,
       scale: stageScaleOf(board.current),
-      element: event.currentTarget,
+      element,
       lastX: event.clientX,
       tilt: 0,
     };
@@ -326,16 +416,16 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const current = drag.current;
     if (!current || current.pointerId !== event.pointerId) return;
+    // A mouse whose button is no longer held ended its drag somewhere we missed.
+    if (event.pointerType === 'mouse' && event.buttons === 0) {
+      cancelDrag(event);
+      return;
+    }
     const dx = event.clientX - current.x;
     const dy = event.clientY - current.y;
     if (!current.moved) {
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       current.moved = true;
-      try {
-        current.element.setPointerCapture(event.pointerId);
-      } catch {
-        /* The pointer is already gone; the drag ends at pointerup. */
-      }
       setSelected(null);
       setDraggingId(current.id);
     }
@@ -357,16 +447,6 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
     // The pool is a target only for a clip coming back from a slot.
     setTarget(over === 'pool' && !slots.includes(current.id) ? null : over);
   };
-  const endDrag = () => {
-    const current = drag.current;
-    drag.current = null;
-    if (current) {
-      clearTimeout(current.settle);
-      for (const property of DRAG_PROPERTIES) current.element.style.removeProperty(property);
-    }
-    setDraggingId(null);
-    setTarget(null);
-  };
   const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
     const current = drag.current;
     if (!current || current.pointerId !== event.pointerId) return;
@@ -382,8 +462,10 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
     if (typeof drop === 'number') place(current.id, drop, 'pointer');
     else if (drop === 'pool') returnToPool(current.id, 'pointer');
   };
-  const cancelDrag = () => {
-    if (drag.current?.moved) flipFrom.current = clipRects(board.current);
+  const cancelDrag = (event: { pointerId: number }) => {
+    const current = drag.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+    if (current.moved) flipFrom.current = clipRects(board.current);
     endDrag();
   };
   const onClipClick = (id: number) => (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -399,13 +481,19 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
   const onClipKeyDown = (id: number) => (event: KeyboardEvent<HTMLButtonElement>) => {
     if (hasCommandModifier(event)) return;
     const index = Number(event.key) - 1;
-    if (/^[1-9]$/.test(event.key) && index < slots.length) {
+    if (shortcuts && /^[1-9]$/.test(event.key) && index < slots.length) {
       event.preventDefault();
       place(id, index, 'keyboard');
     } else if ((event.key === 'Delete' || event.key === 'Backspace') && slots.includes(id)) {
       event.preventDefault();
       returnToPool(id, 'keyboard');
     }
+  };
+  // The entrance plays once; later moves are flights (`data-flip`), not re-entrances.
+  const onClipAnimationEnd = (event: AnimationEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    event.currentTarget.setAttribute('data-entered', '');
+    event.currentTarget.removeAttribute('data-flip');
   };
 
   const renderClip = (id: number, slotIndex?: number) => {
@@ -414,6 +502,18 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
     const number = numberOf(id);
     const name = nameOf(id);
     const dragging = draggingId === id;
+    const placedIn =
+      slotIndex === undefined
+        ? ''
+        : `${name}, ${chrome.slotLabel} ${slotIndex + 1}${
+            results[slotIndex] === undefined
+              ? ''
+              : `, ${results[slotIndex] ? chrome.correctLabel : chrome.incorrectLabel}`
+          }`;
+    const described = [
+      `${helpId}-clip`,
+      ...(slotIndex === undefined ? [] : [`${helpId}-hint-${slotIndex}`]),
+    ].join(' ');
     return (
       // biome-ignore lint/a11y/noStaticElementInteractions: Pointer dragging; the button inside is the keyboard and screen-reader control.
       // biome-ignore lint/a11y/useKeyWithClickEvents: Keyboard clicks come from the button inside and bubble here.
@@ -426,13 +526,17 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={cancelDrag}
+        onLostPointerCapture={cancelDrag}
+        onAnimationEnd={onClipAnimationEnd}
         onClick={onClipClick(id)}
       >
         <LoopVideo
           clip={clip}
           host={host}
-          playLabel={chrome.playFallback}
+          paused={paused}
           errorLabel={chrome.mediaError}
+          onBlocked={loopBlocked}
+          onFailed={loopFailed}
         />
         <span data-lkia-grip="" aria-hidden="true">
           <Icon name="grip" />
@@ -442,14 +546,13 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
             type="button"
             data-lkia-clip-button=""
             aria-pressed={selected === id}
-            aria-describedby={helpId}
-            aria-label={
-              slotIndex === undefined ? name : `${name}, ${chrome.slotLabel} ${slotIndex + 1}`
-            }
+            aria-describedby={described}
+            aria-label={slotIndex === undefined ? name : placedIn}
+            {...keyShortcuts(shortcuts, `1-${slots.length}`)}
             onKeyDown={onClipKeyDown(id)}
           >
             <span data-lkia-chip="">{number}</span>
-            {name}
+            <span data-lkia-clip-name="">{name}</span>
           </button>
           {slotIndex !== undefined && (
             <button
@@ -486,15 +589,15 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
     if (stage === 'arranging' && event.key === 'Escape' && selected !== null) {
       event.preventDefault();
       setSelected(null);
+      announce('');
       return;
     }
-    if (!vocab && stage === 'arranging' && event.key.toLowerCase() === 'c') {
+    if (shortcuts && !vocab && stage === 'arranging' && event.key.toLowerCase() === 'c') {
       event.preventDefault();
       check();
     }
   };
 
-  // The next scene still to do: after this one first, then from the start.
   const unfinished = (index: number) => {
     const item = activity.scenes[index];
     return item !== undefined && index !== sceneIndex && !completedScenes.includes(item.id);
@@ -502,259 +605,296 @@ export function CineScramblePlayer({ activity, ...host }: CineScramblePlayerProp
   const after = activity.scenes.findIndex((_, index) => index > sceneIndex && unfinished(index));
   const nextScene =
     after !== -1 ? after : activity.scenes.findIndex((_, index) => unfinished(index));
+  const pauseToggle = (
+    <button
+      type="button"
+      data-lkia-pause=""
+      data-animate="button-press"
+      aria-pressed={paused}
+      onClick={() => setPaused((value) => !value)}
+    >
+      <Icon name={paused ? 'play' : 'pause'} /> {paused ? chrome.resumeLabel : chrome.pauseLabel}
+    </button>
+  );
   let offset = 0;
   return (
     <Stage
       {...host}
+      chromeLocale={chromeLocale}
       label={activity.title}
       style={activity.style ?? { presetId: 'cinema-dark', mode: 'dark' }}
       template="cine-scramble"
       stage={stage}
+      {...(announcement !== undefined ? { announcement } : {})}
       onKeyDown={onKeyDown}
     >
-      <header data-lkia-bar="">
-        {stage !== 'start' && activity.scenes.length > 1 && (
-          <button
-            type="button"
-            data-lkia-back=""
-            data-animate="button-press"
-            onClick={() => setStage('start')}
-          >
-            <Icon name="back" /> {chrome.scenesLabel}
-          </button>
-        )}
-        {stage !== 'start' && (
-          <p data-lkia-eyebrow="">
-            <span {...content}>{activity.title}</span>
-            <span aria-hidden="true"> · </span>
-            <span {...content}>{scene.title}</span>
-          </p>
-        )}
-        {vocabAvailable && (
-          <button
-            ref={vocabButton}
-            type="button"
-            data-lkia-vocab-button=""
-            data-animate="button-press"
-            aria-haspopup="dialog"
-            onClick={openVocab}
-          >
-            <Icon name="book" /> {chrome.vocabButtonLabel}
-          </button>
-        )}
-      </header>
-
-      {stage === 'start' && (
-        <div data-lkia-start="" data-animate="panel-fade">
-          {activity.poster && (
-            <img
-              data-lkia-poster=""
-              src={resolveAssetUrl(activity.poster, host.resolveUrl)}
-              alt=""
-            />
+      <div data-lkia-content="" inert={vocab}>
+        <header data-lkia-bar="">
+          {stage !== 'start' && activity.scenes.length > 1 && (
+            <button
+              type="button"
+              data-lkia-back=""
+              data-animate="button-press"
+              onClick={() => goTo('start')}
+            >
+              <Icon name="back" /> {chrome.scenesLabel}
+            </button>
           )}
-          <div data-lkia-start-body="">
-            <h1 {...content}>{activity.title}</h1>
-            {activity.tagline && (
-              <p data-lkia-tagline="" {...content}>
-                {activity.tagline}
-              </p>
-            )}
-            {activity.scenes.length > 1 ? (
-              <ol data-lkia-scenes="">
-                {activity.scenes.map((item, index) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      data-lkia-scene=""
-                      data-animate="card-stagger"
-                      style={{ '--i': index } as CSSProperties}
-                      data-completed={completedScenes.includes(item.id)}
-                      onClick={() => startScene(index, 0)}
-                    >
-                      <span data-lkia-chip="">{index + 1}</span>
-                      <span {...content}>{item.title}</span>
-                      {completedScenes.includes(item.id) && (
-                        <span data-lkia-done="">
-                          <Icon name="check" /> {chrome.doneLabel}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            ) : (
+          {stage !== 'start' && (
+            <h1
+              data-lkia-eyebrow=""
+              data-lkia-focus={stage === 'arranging' ? '' : undefined}
+              tabIndex={-1}
+            >
+              <span data-lkia-eyebrow-title="" {...content}>
+                {activity.title}
+              </span>
+              <span data-lkia-eyebrow-count="">
+                <span aria-hidden="true">· </span>
+                <span {...content}>{scene.title}</span>
+              </span>
+            </h1>
+          )}
+          <span data-lkia-bar-tools="">
+            {stage !== 'start' && pauseToggle}
+            {vocabAvailable && (
               <button
+                ref={vocabButton}
                 type="button"
-                data-lkia-primary=""
+                data-lkia-vocab-button=""
                 data-animate="button-press"
-                onClick={() => startScene(0, completedScenes.length > 0 ? attempt + 1 : 0)}
+                aria-haspopup="dialog"
+                onClick={openVocab}
               >
-                {chrome.startLabel}
+                <Icon name="book" /> {chrome.vocabButtonLabel}
               </button>
             )}
-          </div>
-        </div>
-      )}
+          </span>
+        </header>
 
-      {stage === 'arranging' && (
-        <div
-          ref={board}
-          data-lkia-arrange=""
-          data-has-selection={selected !== null}
-          data-drag-active={draggingId !== null}
-        >
-          <p id={helpId} data-lkia-help="">
-            {chrome.keyboardHelp}
-          </p>
-          <ol
-            data-lkia-timeline=""
-            style={{ '--lkia-clip-count': scene.clips.length } as CSSProperties}
-          >
-            {ordered.map((clip, index) => {
-              const placed = slots[index] ?? null;
-              const result = results[index];
-              return (
-                <li
-                  key={clip.id}
-                  data-lkia-slot={index}
-                  data-drop-target={target === index}
-                  data-filled={placed !== null}
-                  data-slot-result={
-                    result === undefined ? undefined : result ? 'correct' : 'incorrect'
-                  }
-                >
-                  <div data-lkia-dropzone="">
-                    <span data-lkia-slot-number="" aria-hidden="true">
-                      {index + 1}
-                    </span>
-                    {placed !== null ? (
-                      renderClip(placed, index)
-                    ) : (
+        {stage === 'start' && (
+          <div data-lkia-start="" data-animate="panel-fade">
+            {activity.poster && (
+              <img
+                data-lkia-poster=""
+                src={resolveAssetUrl(activity.poster, host.resolveUrl)}
+                alt=""
+              />
+            )}
+            <div data-lkia-start-body="">
+              <h1 {...content}>{activity.title}</h1>
+              {activity.tagline && (
+                <p data-lkia-tagline="" {...content}>
+                  {activity.tagline}
+                </p>
+              )}
+              {activity.scenes.length > 1 ? (
+                <ol data-lkia-scenes="">
+                  {activity.scenes.map((item, index) => (
+                    <li key={item.id}>
                       <button
                         type="button"
-                        data-lkia-drop=""
-                        aria-label={`${chrome.slotLabel} ${index + 1}: ${chrome.emptySlotLabel}`}
-                        onClick={(event) => {
-                          if (selected !== null)
-                            place(selected, index, event.detail === 0 ? 'keyboard' : 'pointer');
-                        }}
+                        data-lkia-scene=""
+                        data-animate="card-stagger"
+                        style={{ '--i': index } as CSSProperties}
+                        data-completed={completedScenes.includes(item.id)}
+                        // Back at the scene list, focus returns to the scene the learner left.
+                        {...(index === sceneIndex ? { 'data-lkia-focus': '' } : {})}
+                        onClick={() => startScene(index, 0)}
                       >
-                        {chrome.emptySlotLabel}
+                        <span data-lkia-chip="">{index + 1}</span>
+                        <span {...content}>{item.title}</span>
+                        {completedScenes.includes(item.id) && (
+                          <span data-lkia-done="">
+                            <Icon name="check" /> {chrome.doneLabel}
+                          </span>
+                        )}
                       </button>
-                    )}
-                  </div>
-                  <p data-lkia-hint="" {...content}>
-                    {clip.caption}
-                  </p>
-                  {result !== undefined && (
-                    <p data-lkia-result="">
-                      <Icon name={result ? 'check' : 'cross'} />{' '}
-                      {result ? chrome.correctLabel : chrome.incorrectLabel}
-                    </p>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-          <section
-            data-lkia-pool=""
-            data-drop-target={target === 'pool'}
-            aria-label={chrome.poolLabel}
-            style={{ '--lkia-clip-count': scene.clips.length } as CSSProperties}
-          >
-            {pool.map((clip) =>
-              slots.includes(clip.id) ? (
-                <div key={`gap-${clip.id}`} data-lkia-pool-gap="" aria-hidden="true" />
-              ) : (
-                <div key={`cell-${clip.id}`} data-lkia-cell="">
-                  {renderClip(clip.id)}
-                </div>
-              ),
-            )}
-          </section>
-          <div data-lkia-actions="">
-            <button
-              type="button"
-              data-lkia-check=""
-              data-lkia-primary=""
-              data-animate="button-press"
-              aria-disabled={!full}
-              onClick={check}
-            >
-              {chrome.checkLabel}
-            </button>
-          </div>
-          <p role="status" data-lkia-announce="">
-            {announcement}
-          </p>
-        </div>
-      )}
-
-      {stage === 'checked-correct' && (
-        <div data-lkia-complete="" data-animate="panel-fade">
-          <p role="status" data-lkia-celebrate="">
-            <Icon name="check" /> {chrome.completeLabel}
-          </p>
-          <section data-lkia-story="">
-            <h2>{chrome.storyLabel}</h2>
-            <p {...content}>{stitchCaptions(scene.clips)}</p>
-          </section>
-          <div data-lkia-pairs="">
-            {wrapRows(ordered.length).map((count, row) => {
-              const clips = ordered.slice(offset, offset + count);
-              offset += count;
-              return (
-                <div data-lkia-row={row} key={clips[0]?.id}>
-                  {clips.map((clip, index) => (
-                    <figure
-                      key={clip.id}
-                      data-animate="card-stagger"
-                      style={{ '--i': row * 2 + index } as CSSProperties}
-                    >
-                      <LoopVideo
-                        clip={clip}
-                        host={host}
-                        playLabel={chrome.playFallback}
-                        errorLabel={chrome.mediaError}
-                      />
-                      <figcaption>
-                        <span data-lkia-chip="">{clip.id + 1}</span>
-                        <span {...content}>{clip.caption}</span>
-                      </figcaption>
-                    </figure>
+                    </li>
                   ))}
-                </div>
-              );
-            })}
+                </ol>
+              ) : (
+                <button
+                  type="button"
+                  data-lkia-primary=""
+                  data-lkia-focus=""
+                  data-animate="button-press"
+                  onClick={() => startScene(0, completedScenes.length > 0 ? attempt + 1 : 0)}
+                >
+                  {chrome.startLabel}
+                </button>
+              )}
+            </div>
           </div>
-          <div data-lkia-actions="">
-            {nextScene !== -1 && (
+        )}
+
+        {stage === 'arranging' && (
+          <div
+            ref={board}
+            data-lkia-arrange=""
+            data-has-selection={selected !== null}
+            data-drag-active={draggingId !== null}
+          >
+            <p id={`${helpId}-help`} data-lkia-help="">
+              {chrome.keyboardHelp}
+            </p>
+            <span id={`${helpId}-clip`} hidden>
+              {shortcuts ? chrome.clipHelp : ''}
+            </span>
+            <ol
+              data-lkia-timeline=""
+              style={{ '--lkia-clip-count': scene.clips.length } as CSSProperties}
+            >
+              {ordered.map((clip, index) => {
+                const placed = slots[index] ?? null;
+                const result = results[index];
+                return (
+                  <li
+                    key={clip.id}
+                    data-lkia-slot={index}
+                    data-drop-target={target === index}
+                    data-filled={placed !== null}
+                    data-slot-result={
+                      result === undefined ? undefined : result ? 'correct' : 'incorrect'
+                    }
+                  >
+                    <div data-lkia-dropzone="">
+                      <span data-lkia-slot-number="" aria-hidden="true">
+                        {index + 1}
+                      </span>
+                      {placed !== null ? (
+                        renderClip(placed, index)
+                      ) : (
+                        <button
+                          type="button"
+                          data-lkia-drop=""
+                          aria-label={`${chrome.slotLabel} ${index + 1}: ${chrome.emptySlotLabel}`}
+                          aria-describedby={`${helpId}-hint-${index}`}
+                          onClick={(event) => {
+                            if (selected !== null) {
+                              place(selected, index, event.detail === 0 ? 'keyboard' : 'pointer');
+                            } else {
+                              announce(chrome.selectFirstLabel);
+                            }
+                          }}
+                        >
+                          {chrome.emptySlotLabel}
+                        </button>
+                      )}
+                    </div>
+                    <p id={`${helpId}-hint-${index}`} data-lkia-hint="" {...content}>
+                      {clip.caption}
+                    </p>
+                    {result !== undefined && (
+                      <p data-lkia-result="">
+                        <Icon name={result ? 'check' : 'cross'} />{' '}
+                        {result ? chrome.correctLabel : chrome.incorrectLabel}
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+            <section
+              data-lkia-pool=""
+              data-drop-target={target === 'pool'}
+              aria-label={chrome.poolLabel}
+              style={{ '--lkia-clip-count': scene.clips.length } as CSSProperties}
+            >
+              {pool.map((clip) =>
+                slots.includes(clip.id) ? (
+                  <div key={`gap-${clip.id}`} data-lkia-pool-gap="" aria-hidden="true" />
+                ) : (
+                  <div key={`cell-${clip.id}`} data-lkia-cell="">
+                    {renderClip(clip.id)}
+                  </div>
+                ),
+              )}
+            </section>
+            <div data-lkia-actions="">
               <button
                 type="button"
+                data-lkia-check=""
                 data-lkia-primary=""
                 data-animate="button-press"
-                onClick={() => startScene(nextScene, 0)}
+                aria-disabled={!full}
+                {...keyShortcuts(shortcuts, 'C')}
+                onClick={check}
               >
-                {chrome.nextSceneLabel}
+                {chrome.checkLabel}
               </button>
-            )}
-            <button
-              type="button"
-              data-lkia-primary={nextScene === -1 ? '' : undefined}
-              data-animate="button-press"
-              onClick={() => startScene(sceneIndex, attempt + 1)}
-            >
-              <Icon name="replay" /> {chrome.replayLabel}
-            </button>
-            {activity.scenes.length > 1 && (
-              <button type="button" data-animate="button-press" onClick={() => setStage('start')}>
-                {chrome.scenesLabel}
-              </button>
-            )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {stage === 'checked-correct' && (
+          <div data-lkia-complete="" data-count={ordered.length} data-animate="panel-fade">
+            <h2 data-lkia-celebrate="" data-lkia-focus="" tabIndex={-1}>
+              <Icon name="check" /> {chrome.completeLabel}
+            </h2>
+            <section data-lkia-story="">
+              <h3>{chrome.storyLabel}</h3>
+              <p {...content}>{stitchCaptions(scene.clips)}</p>
+            </section>
+            <div data-lkia-pairs="">
+              {wrapRows(ordered.length, ordered.length > 4 ? 3 : 2).map((count, row) => {
+                const clips = ordered.slice(offset, offset + count);
+                offset += count;
+                return (
+                  <div data-lkia-row={row} key={clips[0]?.id}>
+                    {clips.map((clip, index) => (
+                      <figure
+                        key={clip.id}
+                        data-animate="card-stagger"
+                        style={{ '--i': row * count + index } as CSSProperties}
+                      >
+                        <LoopVideo
+                          clip={clip}
+                          host={host}
+                          paused={paused}
+                          errorLabel={chrome.mediaError}
+                          onBlocked={loopBlocked}
+                          onFailed={loopFailed}
+                        />
+                        <figcaption>
+                          {/* The number the class used for this clip while arranging. */}
+                          <span data-lkia-chip="">{numberOf(clip.id)}</span>
+                          <span {...content}>{clip.caption}</span>
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+            <div data-lkia-actions="">
+              {nextScene !== -1 && (
+                <button
+                  type="button"
+                  data-lkia-primary=""
+                  data-animate="button-press"
+                  onClick={() => startScene(nextScene, 0)}
+                >
+                  {chrome.nextSceneLabel}
+                </button>
+              )}
+              <button
+                type="button"
+                data-lkia-primary={nextScene === -1 ? '' : undefined}
+                data-animate="button-press"
+                onClick={() => startScene(sceneIndex, attempt + 1)}
+              >
+                <Icon name="replay" /> {chrome.replayLabel}
+              </button>
+              {activity.scenes.length > 1 && (
+                <button type="button" data-animate="button-press" onClick={() => goTo('start')}>
+                  {chrome.scenesLabel}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {vocab && (
         // biome-ignore lint/a11y/noStaticElementInteractions: A click on the dimmed activity closes the glossary; Escape and Close do the same from the keyboard.

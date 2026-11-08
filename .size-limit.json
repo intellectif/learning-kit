@@ -174,24 +174,31 @@
     "limit": "10 kB"
   },
   {
-    "name": "lk-interactive-activities: InteractiveActivityPlayer",
-    "path": "packages/lk-interactive-activities/dist/index.js",
+    "name": "lk-interactive-activities/player: InteractiveActivityPlayer",
+    "path": "packages/lk-interactive-activities/dist/player.js",
     "import": "{ InteractiveActivityPlayer }",
     "ignore": ["react", "react-dom", "@intellectif/lk-core", "@intellectif/lk-react"],
-    "limit": "24 kB"
+    "limit": "20 kB"
   },
   {
     "name": "lk-interactive-activities: playerEventToXapi",
     "path": "packages/lk-interactive-activities/dist/index.js",
     "import": "{ playerEventToXapi }",
     "ignore": ["react", "react-dom", "@intellectif/lk-core", "@intellectif/lk-react"],
-    "limit": "10 kB"
+    "limit": "11 kB"
   },
   {
-    "name": "lk-interactive-activities: everything",
+    "name": "lk-interactive-activities: contracts (everything)",
     "path": "packages/lk-interactive-activities/dist/index.js",
     "import": "*",
     "ignore": ["react", "react-dom", "@intellectif/lk-core", "@intellectif/lk-react"],
-    "limit": "26 kB"
+    "limit": "15 kB"
+  },
+  {
+    "name": "lk-interactive-activities/player: everything",
+    "path": "packages/lk-interactive-activities/dist/player.js",
+    "import": "*",
+    "ignore": ["react", "react-dom", "@intellectif/lk-core", "@intellectif/lk-react"],
+    "limit": "20 kB"
   }
 ]

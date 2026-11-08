@@ -1,4 +1,4 @@
-import { DEFAULT_CHROME_LOCALE, primaryLanguage } from '../../player/locale.js';
+import { DEFAULT_CHROME_LOCALE, primaryLanguage } from '../../contract/locale.js';
 
 export { DEFAULT_CHROME_LOCALE };
 
@@ -6,6 +6,7 @@ export interface WhatHappensChrome {
   playFallback: string;
   replayToFreeze: string;
   mediaError: string;
+  listenError: string;
   backButton: string;
   boardHint: string;
   watchHint: string;
@@ -25,10 +26,11 @@ export interface WhatHappensChrome {
 export const WHAT_HAPPENS_CHROME = {
   en: {
     playFallback: 'Play',
-    replayToFreeze: 'Replay to freeze',
+    replayToFreeze: 'Watch again',
     mediaError: 'This clip could not be played.',
+    listenError: 'The answer could not be read aloud on this device.',
     backButton: 'All clips',
-    boardHint: 'Choose a clip. When it pauses, say what you think happens next.',
+    boardHint: 'Choose a clip. When it pauses, answer the question.',
     watchHint: 'Watch closely. The clip will pause.',
     completedLabel: 'Done',
     clipCount: 'Clip {n} of {total}',
@@ -44,15 +46,16 @@ export const WHAT_HAPPENS_CHROME = {
   },
   es: {
     playFallback: 'Reproducir',
-    replayToFreeze: 'Repetir hasta la pausa',
+    replayToFreeze: 'Ver otra vez',
     mediaError: 'No se pudo reproducir este clip.',
+    listenError: 'No se pudo leer la respuesta en voz alta en este dispositivo.',
     backButton: 'Todos los clips',
-    boardHint: 'Elige un clip. Cuando se detenga, di qué crees que pasa después.',
+    boardHint: 'Elige un clip. Cuando se detenga, responde la pregunta.',
     watchHint: 'Mira con atención. El clip se detendrá.',
-    completedLabel: 'Hecho',
+    completedLabel: 'Completado',
     clipCount: 'Clip {n} de {total}',
 
-    predictTitle: '¿Qué pasa después?',
+    predictTitle: '¿Qué crees que va a pasar?',
     revealButton: 'Revelar',
     tellTitle: 'Cuenta la historia',
     supportsLabel: 'Para ayudarte',

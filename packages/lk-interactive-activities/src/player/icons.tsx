@@ -15,7 +15,8 @@ type IconName =
   | 'book'
   | 'help'
   | 'chevron'
-  | 'grip';
+  | 'grip'
+  | 'pause';
 
 const PATHS: Record<IconName, JSX.Element> = {
   back: <path d="M15 5l-7 7 7 7" />,
@@ -37,6 +38,7 @@ const PATHS: Record<IconName, JSX.Element> = {
     </>
   ),
   chevron: <path d="M6 9l6 6 6-6" />,
+  pause: <path d="M8 5.5v13M16 5.5v13" strokeWidth="3.2" />,
   grip: (
     <g fill="currentColor" stroke="none">
       <circle cx="9" cy="6" r="1.7" />

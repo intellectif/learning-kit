@@ -15,7 +15,7 @@ const speakingFields = {
   tellPrompt: textField,
   supportsEnabled: { type: 'boolean', default: true },
   supportsLabel: textField,
-  supports: { type: 'array', items: textField },
+  supports: { type: 'array', uniqueItems: true, items: textField },
   answer: {
     type: 'object',
     additionalProperties: false,

@@ -5,9 +5,9 @@ export interface SupportMatch {
 }
 
 /**
- * Support items that occur verbatim in the sample answer, in list order.
- * Overlapping matches are resolved first-wins, so later items cannot claim
- * characters an earlier item already underlined.
+ * Every place a support item occurs verbatim in the sample answer, in answer
+ * order. Overlaps are resolved by list order: an earlier item keeps the
+ * characters it underlines, and a later item cannot claim them.
  */
 export function matchSupportsInAnswer(answer: string, supports: readonly string[]): SupportMatch[] {
   const claimed = Array<boolean>(answer.length).fill(false);
@@ -24,17 +24,17 @@ export function matchSupportsInAnswer(answer: string, supports: readonly string[
         break;
       }
       const end = start + support.length;
-      const overlaps = claimed.slice(start, end).some(Boolean);
-      if (!overlaps) {
-        for (let i = start; i < end; i += 1) {
-          claimed[i] = true;
-        }
-        matches.push({ support, start, end });
-        break;
+      if (claimed.slice(start, end).some(Boolean)) {
+        from = start + 1;
+        continue;
       }
-      from = start + 1;
+      for (let i = start; i < end; i += 1) {
+        claimed[i] = true;
+      }
+      matches.push({ support, start, end });
+      from = end;
     }
   }
 
-  return matches;
+  return matches.sort((a, b) => a.start - b.start);
 }

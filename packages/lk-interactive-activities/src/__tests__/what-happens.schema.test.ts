@@ -1,4 +1,4 @@
-import { jsonSchemaFor, validateActivity } from '@intellectif/lk-core';
+import { jsonSchemaFor, validateActivity, validateDraft } from '@intellectif/lk-core';
 import { describe, expect, it } from 'vitest';
 import { registerInteractiveActivities } from '../registry/templates.js';
 import { STYLE_PRESET_IDS } from '../style/catalog.js';
@@ -47,7 +47,9 @@ describe('What Happens schema', () => {
     expect(draft.clips).toHaveLength(WHAT_HAPPENS_CLIP_COUNT_DEFAULT);
     expect(draft.supportsEnabled).toBe(true);
     expect(isSupportsEnabled(draft)).toBe(true);
-    expect(validateWhatHappensData(draft).success).toBe(true);
+    // A new draft is not publishable: titles, media and freeze points are still to set.
+    expect(validateWhatHappensData(draft).success).toBe(false);
+    expect(validateDraft('what-happens' as never, draft)).toMatchObject({ status: 'incomplete' });
   });
 
   it('rejects clip counts outside 1–12', () => {

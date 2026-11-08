@@ -154,8 +154,12 @@ describe('serializable AI generation ports', () => {
     expect(spec.videoPrompt.surpriseMoment).toMatch(/before/);
     expect(spec.rules.join(' ')).toMatch(/need not occur/);
     const activity = createWhatHappensDraft();
+    activity.title = 'Garden';
+    activity.clips = activity.clips.slice(0, 1);
     const clip = activity.clips[0];
     if (!clip) throw new Error('Missing fixture clip');
+    clip.title = 'The gate';
+    clip.video.assetKey = 'gate.mp4';
     clip.supports = ['A hint absent from the answer'];
     clip.predictPrompt = 'What would you do?';
     clip.tellPrompt = 'Explain a different choice.';
@@ -191,6 +195,14 @@ describe('serializable AI generation ports', () => {
     expect(spec.writableFields).toContain('scenes[].title');
     expect(spec.writableFields).toContain('vocab[].term');
     const activity = createCineScrambleDraft();
+    activity.title = 'A story';
+    for (const scene of activity.scenes) {
+      scene.title = 'Morning';
+      for (const clip of scene.clips) {
+        clip.caption = `Step ${clip.id + 1}.`;
+        clip.video.assetKey = `clip-${clip.id}.mp4`;
+      }
+    }
     activity.vocab = [{ term: 'lantern', definition: 'A portable light' }];
     expect(validateCineScrambleData(activity).success).toBe(true);
   });

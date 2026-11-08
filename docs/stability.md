@@ -101,12 +101,17 @@ changes behaviour.
   major.
 - **Its public API is `packages/lk-interactive-activities/api/surface.md`,** checked by CI like the
   others. Style, motion and font catalog IDs are part of it: removing one is a breaking change.
-- **It grades nothing.** Speaking is never scored, and `playerEventToXapi` never puts a score in a
-  statement; only a Cine-Scramble order check reports `success`. Adding a score would be a breaking
-  change.
+- **It grades nothing.** Speaking is never scored, ordering clips is never scored (lk-core's
+  `evaluate()` reports both templates as `deferred`), and `playerEventToXapi` never puts a score in
+  a statement; only a Cine-Scramble order check reports `success`. Adding a score would be a
+  breaking change.
+- **Validation issue codes (`ValidationIssueCode`) and draft codes keep their meaning.** A new code
+  may come in a minor; an existing one is never repurposed.
 - **It has no runtime dependencies and does no I/O of its own:** no network, no storage, no media
   reads. Media loads only from the URLs the host supplies.
-- **It peers on lk-core and lk-react.** An lk-core or lk-react major may need a release of it.
+- **Its two entries have their own peers.** The contracts (the package root) peer on lk-core only;
+  the players (`/player`) also on lk-react, `react` and `react-dom`, optional peers for a host that
+  only validates. An lk-core or lk-react major may need a release of it.
 
 ## The public API
 

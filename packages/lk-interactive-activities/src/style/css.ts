@@ -37,7 +37,10 @@ function indentedVariables(tokens: StyleTokens, indent: string): string {
 }
 
 function sharedVariables(style: StyleChoice): string {
-  const motion = resolveMotionTokens(style.motionPresetId);
+  // The activity's own choice, else the style preset's own motion.
+  const motion = resolveMotionTokens(
+    style.motionPresetId ?? resolveStylePreset(style.presetId).defaultMotionPresetId,
+  );
   const fonts = resolveFontPair(style);
   return [
     `  --lkia-font-heading: ${fontStack(fonts.heading)};`,
@@ -70,7 +73,7 @@ const BASE_RULES = `
   text-wrap: balance;
 }
 
-[data-lkia-backdrop] {
+[data-lkia-root] [data-lkia-backdrop] {
   filter: blur(var(--lkia-backdrop-blur)) saturate(1.25);
 }
 
@@ -82,7 +85,7 @@ const BASE_RULES = `
   box-shadow: var(--lkia-shadow-md); /* taste-skill-ignore: the frosted panel of FR-20 floats over the blurred poster */
 }
 
-[data-lkia-veil] {
+[data-lkia-root] [data-lkia-veil] {
   background: var(--lkia-veil);
 }
 

@@ -64,10 +64,10 @@ const DEFAULT_LIGHT: StyleTokens = {
   bg: '#F2F4F1',
   panel: '#E4E9E4',
   surfaceStrong: '#D3DBD4',
-  line: '#9AA79F',
+  line: '#6E7C74',
   ink1: '#111714',
   ink2: '#37423C',
-  ink3: '#56625B',
+  ink3: '#4B5650',
   accent: '#0B6E4F',
   accentSoft: 'rgba(11, 110, 79, 0.14)',
   onAccent: '#FFFFFF',
@@ -87,10 +87,10 @@ const DEFAULT_DARK: StyleTokens = {
   bg: '#0F1412',
   panel: '#1A211E',
   surfaceStrong: '#26302B',
-  line: '#4F5E56',
+  line: '#7D8E86',
   ink1: '#EEF3EF',
   ink2: '#C2CCC6',
-  ink3: '#99A69F',
+  ink3: '#A3AFA9',
   accent: '#46D19E',
   accentSoft: 'rgba(70, 209, 158, 0.18)',
   onAccent: '#06140E',
@@ -111,10 +111,10 @@ const CINEMA_DARK: StyleTokens = {
   bg: '#0A0A0B',
   panel: '#161618',
   surfaceStrong: '#232326',
-  line: '#5A5A60',
+  line: '#8A8A91',
   ink1: '#F6F2E9',
   ink2: '#CFC9BD',
-  ink3: '#A39D92',
+  ink3: '#ABA59A',
   accent: '#F4B740',
   accentSoft: 'rgba(244, 183, 64, 0.16)',
   onAccent: '#1A1205',
@@ -135,10 +135,10 @@ const CINEMA_LIGHT: StyleTokens = {
   bg: '#EBEBEE',
   panel: '#DCDCE1',
   surfaceStrong: '#CACACF',
-  line: '#8C8C94',
+  line: '#6A6A72',
   ink1: '#121214',
   ink2: '#38383D',
-  ink3: '#55555C',
+  ink3: '#47474E',
   accent: '#8A4F00',
   accentSoft: 'rgba(138, 79, 0, 0.13)',
   onAccent: '#FFFFFF',
@@ -202,7 +202,9 @@ export function resolveStyleTokens(
   systemPrefersDark = false,
 ): StyleTokens {
   const preset = resolveStylePreset(isStylePresetId(style.presetId) ? style.presetId : 'default');
-  const mode =
-    style.mode === 'dark' || (style.mode === 'auto' && systemPrefersDark) ? 'dark' : 'light';
-  return preset.tokens[mode];
+  // No mode means `auto`, as in the player: the viewer's system setting.
+  const mode = style.mode ?? 'auto';
+  return preset.tokens[
+    mode === 'dark' || (mode === 'auto' && systemPrefersDark) ? 'dark' : 'light'
+  ];
 }

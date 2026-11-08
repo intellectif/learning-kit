@@ -25,22 +25,21 @@ describe('responsive stage', () => {
         style={{ presetId: 'cinema-dark', mode: 'dark' }}
         template="test"
         stage="start"
-        viewport={{ width: 960, height: 540 }}
+        viewport={{ width: 1152, height: 648 }}
         reducedMotion
         embed={{ postResize: true }}
+        chromeLocale="en"
       >
         Stage
       </Stage>,
     );
     expect(container.querySelector('[data-lkia-layout="landscape"]')).not.toBeNull();
     expect(container.querySelector('[data-lkia-stage]')?.getAttribute('style')).toContain(
-      'scale(0.5)',
+      'scale(0.6)',
     );
     expect(container.querySelector('[data-reduced-motion="true"]')).not.toBeNull();
-    expect(post).toHaveBeenCalledWith(
-      { type: 'lk-interactive-activity:resize', width: 960, height: 540 },
-      '*',
-    );
+    // Nothing is posted until the player has a real rendered size (jsdom draws none).
+    expect(post).not.toHaveBeenCalled();
     rerender(
       <Stage
         style={{ presetId: 'default' }}
@@ -48,6 +47,7 @@ describe('responsive stage', () => {
         stage="start"
         viewport={{ width: 400, height: 800 }}
         embed={{ postResize: false }}
+        chromeLocale="en"
       >
         Portrait
       </Stage>,
@@ -63,10 +63,10 @@ describe('responsive stage', () => {
   it('follows window resize and isolates two style presets', () => {
     const { container } = render(
       <>
-        <Stage style={{ presetId: 'default' }} template="a" stage="start">
+        <Stage style={{ presetId: 'default' }} template="a" stage="start" chromeLocale="en">
           A
         </Stage>
-        <Stage style={{ presetId: 'cinema-dark' }} template="b" stage="start">
+        <Stage style={{ presetId: 'cinema-dark' }} template="b" stage="start" chromeLocale="en">
           B
         </Stage>
       </>,
@@ -79,5 +79,25 @@ describe('responsive stage', () => {
     expect(roots[0]?.getAttribute('data-lkia-root')).not.toBe(
       roots[1]?.getAttribute('data-lkia-root'),
     );
+  });
+  it('fits the content box of its container, not its padded outer edge', () => {
+    vi.stubGlobal('innerWidth', 1920);
+    vi.stubGlobal('innerHeight', 1080);
+    const host = document.createElement('div');
+    host.style.padding = '24px';
+    Object.defineProperty(host, 'clientWidth', { configurable: true, value: 1280 });
+    document.body.append(host);
+    const { container } = render(
+      <Stage style={{ presetId: 'default' }} template="test" stage="start" chromeLocale="en">
+        Stage
+      </Stage>,
+      { container: host },
+    );
+    // 1280 wide with 24 px each side leaves 1232 for the player.
+    expect(container.querySelector('[data-lkia-root]')?.getAttribute('style')).toContain(
+      'width: 1232px',
+    );
+    vi.unstubAllGlobals();
+    host.remove();
   });
 });
