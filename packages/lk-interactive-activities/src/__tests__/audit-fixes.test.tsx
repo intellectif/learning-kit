@@ -201,7 +201,10 @@ describe('What Happens: answers, speech and copy', () => {
     const { container } = render(<WhatHappensPlayer activity={activity} onEvent={onEvent} />);
     toTell(container);
     expect(screen.queryByRole('button', { name: 'Show answer' })).toBeNull();
+    // A shows and hides an answer; with none, it does nothing. N goes on.
     fireEvent.keyDown(root(container), { key: 'a' });
+    expect(container.querySelector('[data-stage="tell"]')).not.toBeNull();
+    fireEvent.keyDown(root(container), { key: 'n' });
     expect(container.querySelector('[data-stage="board"]')).not.toBeNull();
     expect(onEvent.mock.calls.map(([event]) => event.type)).toContain('board.completed');
     expect(screen.getByRole('button', { name: /^The garden/ }).textContent).toContain('Done');

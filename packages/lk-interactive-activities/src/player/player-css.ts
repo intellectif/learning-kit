@@ -90,7 +90,11 @@ export const PLAYER_CSS = `
 [data-lkia-root] [data-lkia-supports][data-open="true"] li { opacity:1; transform:none; transition:transform var(--lkia-duration-slow) cubic-bezier(.34, 1.56, .64, 1), opacity var(--lkia-duration) var(--lkia-easing); transition-delay:calc(90ms + var(--i, 0) * var(--lkia-stagger)); }
 [data-lkia-root] [data-has-backdrop="true"] [data-lkia-supports] li { background:var(--lkia-bg); }
 [data-lkia-root] [data-animate="answer-fade-up"] { display:flex; flex-direction:column; gap:22px; }
-[data-lkia-root] [data-animate="answer-fade-up"] > h2 { font-size:.8em; font-family:var(--lkia-font-body); font-weight:600; color:var(--lkia-ink-2); letter-spacing:0; }
+[data-lkia-root] [data-lkia-tell] { display:flex; flex-direction:column; gap:inherit; }
+/* Hiding the answer: the open hints spring back one after another. */
+[data-lkia-root] [data-lkia-tell][data-returning] [data-lkia-supports][data-open="true"] li { animation:lkia-chip-return var(--lkia-duration-slow) cubic-bezier(.34, 1.56, .64, 1) calc(120ms + var(--i, 0) * var(--lkia-stagger, 60ms)) both; }
+@keyframes lkia-chip-return { from { opacity:0; transform:translateY(18px) scale(.86); } to { opacity:1; transform:none; } }
+[data-lkia-root][data-lkia-layout] [data-lkia-panel] [data-animate="answer-fade-up"] > h2 { font-size:.8em; font-family:var(--lkia-font-body); font-weight:600; color:var(--lkia-ink-2); letter-spacing:0; }
 [data-lkia-root] [data-lkia-answer] { font-family:var(--lkia-font-heading); font-size:1.65em; font-weight:600; line-height:1.3; letter-spacing:-0.01em; max-width:30ch; }
 [data-lkia-root] [data-lkia-underline] { background:var(--lkia-accent-soft); color:inherit; border-radius:.2em; padding:0 .08em; text-decoration:underline; text-decoration-color:var(--lkia-accent); text-decoration-thickness:.12em; text-underline-offset:.18em; }
 [data-lkia-root] [data-lkia-actions] { display:flex; flex-wrap:wrap; gap:16px; align-items:center; }
@@ -242,5 +246,6 @@ export const PLAYER_CSS = `
 @media (prefers-reduced-motion: reduce) {
   [data-lkia-root] [data-lkia-clip], [data-lkia-root] [data-lkia-watch], [data-lkia-root] [data-lkia-progress]::before, [data-lkia-root] [data-lkia-supports] li, [data-lkia-root] [data-lkia-drop] { animation-duration:.01ms; animation-iteration-count:1; transition-duration:.01ms; transition-delay:0ms; }
   [data-lkia-root] [data-lkia-clip][data-dragging="true"] { rotate:none; }
+  [data-lkia-root] [data-lkia-tell][data-returning] [data-lkia-supports] li { animation-delay:0ms; }
 }
 `;

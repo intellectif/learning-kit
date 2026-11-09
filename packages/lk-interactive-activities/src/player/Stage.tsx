@@ -74,7 +74,8 @@ export function Stage({
   // After a stage change, focus the new step's heading (or what the step marks
   // with `data-lkia-focus`), but only when focus was in the player or nowhere:
   // a stage the player changes by itself (the freeze, the end of a clip) never
-  // takes focus from the host page.
+  // takes focus from the host page. A control marked `data-lkia-keep-focus`
+  // that is still there after the change (a toggle that stays in place) keeps it.
   useLayoutEffect(() => {
     if (previousStage.current === stage) return;
     previousStage.current = stage;
@@ -83,6 +84,7 @@ export function Stage({
     const active = document.activeElement;
     const ownsFocus = active === null || active === document.body || element.contains(active);
     if (!ownsFocus) return;
+    if (active instanceof HTMLElement && active.hasAttribute('data-lkia-keep-focus')) return;
     const target = element.querySelector<HTMLElement>('[data-lkia-focus]');
     (target ?? element).focus({ preventScroll: true });
   }, [stage]);

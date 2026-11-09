@@ -11,7 +11,7 @@ import {
   languageAttributes,
 } from '../../../player/locale.js';
 import { resolveAssetUrl } from '../../../player/resolve-url.js';
-import { Stage } from '../../../player/Stage.js';
+import { type Announcement, Stage } from '../../../player/Stage.js';
 import type { PlayerHostOptions } from '../../../player/types.js';
 import { whatHappensChrome } from '../copy.js';
 import { isSupportsEnabled } from '../rules.js';
@@ -79,6 +79,12 @@ function WhatHappensView({ activity, ...host }: WhatHappensPlayerProps): JSX.Ele
   const [progress, setProgress] = useState(0);
   // The supports start hidden on every clip: the teacher shows them when the class needs them.
   const [helpOpen, setHelpOpen] = useState(false);
+  // Once the answer has been shown, hiding it again is an undo, never a dead end:
+  // the telling step then also offers Next.
+  const [answerSeen, setAnswerSeen] = useState(false);
+  const [announcement, setAnnouncement] = useState<Announcement>();
+  const announce = (text: string) =>
+    setAnnouncement((previous) => ({ id: (previous?.id ?? 0) + 1, text }));
   const helpId = useId();
   const video = useRef<HTMLVideoElement>(null);
   const audio = useRef<HTMLAudioElement>(null);
@@ -95,7 +101,13 @@ function WhatHappensView({ activity, ...host }: WhatHappensPlayerProps): JSX.Ele
     setListenError(false);
   };
   const emit = (
-    type: 'clip.opened' | 'clip.frozen' | 'clip.revealed' | 'answer.shown' | 'clip.completed',
+    type:
+      | 'clip.opened'
+      | 'clip.frozen'
+      | 'clip.revealed'
+      | 'answer.shown'
+      | 'answer.hidden'
+      | 'clip.completed',
   ) => {
     host.onEvent?.({ type, activityId: activity.id, clipId: clip.id });
   };
@@ -236,6 +248,7 @@ function WhatHappensView({ activity, ...host }: WhatHappensPlayerProps): JSX.Ele
     setError(false);
     setBlocked(false);
     setHelpOpen(false);
+    setAnswerSeen(false);
     move('open');
     host.onEvent?.({ type: 'clip.opened', activityId: activity.id, clipId: item.id });
   };
@@ -251,12 +264,30 @@ function WhatHappensView({ activity, ...host }: WhatHappensPlayerProps): JSX.Ele
       move('reveal');
     }
   };
+  // The Show/Hide answer button stays where it is and keeps focus, so the
+  // status region says what changed; from anywhere else the step's heading
+  // takes focus as usual and says it.
+  const toggleKeepsFocus = () =>
+    document.activeElement instanceof HTMLElement &&
+    document.activeElement.hasAttribute('data-lkia-answer-toggle');
   const showAnswer = () => {
-    if (stage === 'tell' && hasAnswer) {
-      emit('answer.shown');
-      move('answer');
-    }
+    if (stage !== 'tell' || !hasAnswer) return;
+    if (toggleKeepsFocus()) announce(`${chrome.answerLabel}: ${answerText}`);
+    setAnswerSeen(true);
+    emit('answer.shown');
+    move('answer');
   };
+  // Undoes Show answer: the telling step comes back with its supports exactly as
+  // they were (open or closed), and any spoken answer stops.
+  const hideAnswer = () => {
+    if (stage !== 'answer') return;
+    stopListening();
+    if (toggleKeepsFocus()) announce(chrome.answerHidden);
+    emit('answer.hidden');
+    move('hide');
+  };
+  const toggleAnswer = () => (stage === 'answer' ? hideAnswer() : showAnswer());
+  const canGoOn = stage === 'answer' || (stage === 'tell' && (!hasAnswer || answerSeen));
   const listen = async () => {
     if (!audio.current || !hasAnswer) return;
     stopListening();
@@ -281,7 +312,7 @@ function WhatHappensView({ activity, ...host }: WhatHappensPlayerProps): JSX.Ele
     }
   };
   const next = () => {
-    if (stage !== 'answer' && !(stage === 'tell' && !hasAnswer)) return;
+    if (!canGoOn) return;
     stopListening();
     emit('clip.completed');
     const done = completed.includes(clip.id) ? completed : [...completed, clip.id];
@@ -335,13 +366,15 @@ function WhatHappensView({ activity, ...host }: WhatHappensPlayerProps): JSX.Ele
     if (stage === 'guess' && (key === 'enter' || letter === 'r')) {
       event.preventDefault();
       reveal();
-    } else if (
-      stage === 'tell' &&
-      (key === 'enter' || letter === 'a' || (letter === 'n' && !hasAnswer))
-    ) {
+    } else if (stage === 'tell' && (key === 'enter' || letter === 'a') && hasAnswer) {
       event.preventDefault();
-      if (hasAnswer) showAnswer();
-      else next();
+      showAnswer();
+    } else if (stage === 'answer' && letter === 'a') {
+      event.preventDefault();
+      hideAnswer();
+    } else if (stage === 'tell' && (key === 'enter' || letter === 'n') && canGoOn) {
+      event.preventDefault();
+      next();
     } else if (stage === 'tell' && letter === 'h' && showSupports) {
       event.preventDefault();
       toggleHelp();
@@ -363,6 +396,7 @@ function WhatHappensView({ activity, ...host }: WhatHappensPlayerProps): JSX.Ele
       style={activity.style}
       template="what-happens"
       stage={stage}
+      {...(announcement ? { announcement } : {})}
       onKeyDown={onKeyDown}
     >
       {/* biome-ignore lint/a11y/useMediaCaption: Listen is the spoken version of the sample answer shown beside it. */}
@@ -576,103 +610,122 @@ function WhatHappensView({ activity, ...host }: WhatHappensPlayerProps): JSX.Ele
                 </div>
               </>
             )}
-            {stage === 'tell' && (
+            {(stage === 'tell' || stage === 'answer') && (
               <>
-                <h2
-                  data-lkia-focus=""
-                  tabIndex={-1}
-                  {...authored(clip.tellPrompt ?? activity.copy?.tellTitle)}
-                >
-                  {tellPrompt}
-                </h2>
-                {showSupports && (
-                  <div data-lkia-supports="" data-open={helpOpen}>
-                    <button
-                      type="button"
-                      data-lkia-help-toggle=""
-                      data-animate="button-press"
-                      aria-expanded={helpOpen}
-                      aria-controls={helpId}
-                      {...keyShortcuts(shortcuts, 'H')}
-                      onClick={toggleHelp}
+                {stage === 'tell' ? (
+                  <div
+                    key="tell"
+                    data-lkia-tell=""
+                    {...(answerSeen ? { 'data-returning': '', 'data-animate': 'panel-fade' } : {})}
+                  >
+                    <h2
+                      data-lkia-focus=""
+                      tabIndex={-1}
+                      {...authored(clip.tellPrompt ?? activity.copy?.tellTitle)}
                     >
-                      <Icon name="help" />
-                      <span {...authored(clip.supportsLabel ?? activity.copy?.supportsLabel)}>
-                        {supportsLabel}
-                      </span>
-                      <span data-lkia-chevron="">
-                        <Icon name="chevron" />
-                      </span>
-                    </button>
-                    <div id={helpId} data-lkia-supports-body="" inert={!helpOpen}>
-                      <ul {...content}>
-                        {clip.supports?.map((support, index) => (
-                          <li key={support} style={{ '--i': index } as CSSProperties}>
-                            {support}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                      {tellPrompt}
+                    </h2>
+                    {showSupports && (
+                      <div data-lkia-supports="" data-open={helpOpen}>
+                        <button
+                          type="button"
+                          data-lkia-help-toggle=""
+                          data-animate="button-press"
+                          aria-expanded={helpOpen}
+                          aria-controls={helpId}
+                          {...keyShortcuts(shortcuts, 'H')}
+                          onClick={toggleHelp}
+                        >
+                          <Icon name="help" />
+                          <span {...authored(clip.supportsLabel ?? activity.copy?.supportsLabel)}>
+                            {supportsLabel}
+                          </span>
+                          <span data-lkia-chevron="">
+                            <Icon name="chevron" />
+                          </span>
+                        </button>
+                        <div id={helpId} data-lkia-supports-body="" inert={!helpOpen}>
+                          <ul {...content}>
+                            {clip.supports?.map((support, index) => (
+                              <li key={support} style={{ '--i': index } as CSSProperties}>
+                                {support}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div key="answer" data-animate="answer-fade-up">
+                    <h2 data-lkia-focus="" tabIndex={-1} {...authored(activity.copy?.answerLabel)}>
+                      {chrome.answerLabel}
+                    </h2>
+                    <p data-lkia-answer="" {...content}>
+                      {answerSegments(answerText, supportsEnabled ? (clip.supports ?? []) : []).map(
+                        (segment) =>
+                          segment.underline ? (
+                            <mark data-lkia-underline="" key={segment.start}>
+                              {segment.text}
+                            </mark>
+                          ) : (
+                            segment.text
+                          ),
+                      )}
+                    </p>
+                    {listenError && (
+                      <p role="alert" data-lkia-error="">
+                        {chrome.listenError}
+                      </p>
+                    )}
                   </div>
                 )}
+                {/* One row for both steps: Show answer turns into Hide answer in
+                    place and keeps focus, so undoing a reveal is one press away. */}
                 <div data-lkia-actions="">
-                  <button
-                    type="button"
-                    data-lkia-primary=""
-                    data-animate="button-press"
-                    {...keyShortcuts(shortcuts, hasAnswer ? 'A' : 'N')}
-                    {...authored(hasAnswer ? activity.copy?.showAnswer : activity.copy?.nextButton)}
-                    onClick={hasAnswer ? showAnswer : next}
-                  >
-                    {hasAnswer ? chrome.showAnswer : chrome.nextButton}
-                  </button>
+                  {hasAnswer && (
+                    <button
+                      type="button"
+                      data-lkia-answer-toggle=""
+                      data-lkia-keep-focus=""
+                      data-shown={stage === 'answer'}
+                      {...(stage === 'tell' ? { 'data-lkia-primary': '' } : {})}
+                      data-animate="button-press"
+                      {...keyShortcuts(shortcuts, 'A')}
+                      {...authored(
+                        stage === 'answer' ? activity.copy?.hideAnswer : activity.copy?.showAnswer,
+                      )}
+                      onClick={toggleAnswer}
+                    >
+                      {stage === 'answer' && <Icon name="hide" />}
+                      {stage === 'answer' ? chrome.hideAnswer : chrome.showAnswer}
+                    </button>
+                  )}
+                  {stage === 'answer' && (
+                    <button
+                      type="button"
+                      data-animate="button-press"
+                      {...keyShortcuts(shortcuts, 'L')}
+                      {...authored(activity.copy?.listenButton)}
+                      onClick={() => void listen()}
+                    >
+                      <Icon name="listen" /> {chrome.listenButton}
+                    </button>
+                  )}
+                  {canGoOn && (
+                    <button
+                      type="button"
+                      {...(stage === 'answer' || !hasAnswer ? { 'data-lkia-primary': '' } : {})}
+                      data-animate="button-press"
+                      {...keyShortcuts(shortcuts, 'N')}
+                      {...authored(activity.copy?.nextButton)}
+                      onClick={next}
+                    >
+                      {chrome.nextButton}
+                    </button>
+                  )}
                 </div>
               </>
-            )}
-            {stage === 'answer' && (
-              <div data-animate="answer-fade-up">
-                <h2 data-lkia-focus="" tabIndex={-1} {...authored(activity.copy?.answerLabel)}>
-                  {chrome.answerLabel}
-                </h2>
-                <p data-lkia-answer="" {...content}>
-                  {answerSegments(answerText, supportsEnabled ? (clip.supports ?? []) : []).map(
-                    (segment) =>
-                      segment.underline ? (
-                        <mark data-lkia-underline="" key={segment.start}>
-                          {segment.text}
-                        </mark>
-                      ) : (
-                        segment.text
-                      ),
-                  )}
-                </p>
-                {listenError && (
-                  <p role="alert" data-lkia-error="">
-                    {chrome.listenError}
-                  </p>
-                )}
-                <div data-lkia-actions="">
-                  <button
-                    type="button"
-                    data-animate="button-press"
-                    {...keyShortcuts(shortcuts, 'L')}
-                    {...authored(activity.copy?.listenButton)}
-                    onClick={() => void listen()}
-                  >
-                    <Icon name="listen" /> {chrome.listenButton}
-                  </button>
-                  <button
-                    type="button"
-                    data-lkia-primary=""
-                    data-animate="button-press"
-                    {...keyShortcuts(shortcuts, 'N')}
-                    {...authored(activity.copy?.nextButton)}
-                    onClick={next}
-                  >
-                    {chrome.nextButton}
-                  </button>
-                </div>
-              </div>
             )}
           </section>
         </div>
