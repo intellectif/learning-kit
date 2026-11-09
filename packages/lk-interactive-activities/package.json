@@ -1,6 +1,6 @@
 {
   "name": "@intellectif/lk-interactive-activities",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Contracts and React players for hosted interactive activities — What Happens and Cine-Scramble — with zero runtime dependencies.",
   "keywords": [
     "react",
