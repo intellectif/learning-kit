@@ -31,6 +31,7 @@ const eventVerbs: Record<PlayerEvent['type'], XAPIVerbKey> = {
   'clip.frozen': 'EXPERIENCED',
   'clip.revealed': 'EXPERIENCED',
   'answer.shown': 'EXPERIENCED',
+  'answer.hidden': 'INTERACTED',
   'audio.played': 'EXPERIENCED',
   'supports.shown': 'INTERACTED',
   'supports.hidden': 'INTERACTED',

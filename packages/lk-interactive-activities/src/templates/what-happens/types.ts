@@ -17,6 +17,9 @@ export interface WhatHappensCopy {
   tellTitle?: string;
   supportsLabel?: string;
   showAnswer?: string;
+  hideAnswer?: string;
+  /** Announced when the answer is hidden again. */
+  answerHidden?: string;
   answerLabel?: string;
   nextButton?: string;
   listenButton?: string;

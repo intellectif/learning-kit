@@ -6,6 +6,7 @@ export type WhatHappensAction =
   | 'reveal'
   | 'ended'
   | 'answer'
+  | 'hide'
   | 'next'
   | 'back';
 const transitions: Record<
@@ -18,7 +19,8 @@ const transitions: Record<
   reveal: { ended: 'tell', back: 'board' },
   // `next` from tell: a clip without a sample answer is complete once told.
   tell: { answer: 'answer', next: 'board', back: 'board' },
-  answer: { next: 'board', back: 'board' },
+  // `hide` undoes Show answer: back to the telling step and its supports.
+  answer: { hide: 'tell', next: 'board', back: 'board' },
 };
 export function nextWhatHappensStage(
   stage: WhatHappensStage,

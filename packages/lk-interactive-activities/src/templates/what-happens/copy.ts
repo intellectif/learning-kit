@@ -18,6 +18,8 @@ export interface WhatHappensChrome {
   tellTitle: string;
   supportsLabel: string;
   showAnswer: string;
+  hideAnswer: string;
+  answerHidden: string;
   answerLabel: string;
   nextButton: string;
   listenButton: string;
@@ -40,6 +42,8 @@ export const WHAT_HAPPENS_CHROME = {
     tellTitle: 'Tell the story',
     supportsLabel: 'To help you',
     showAnswer: 'Show answer',
+    hideAnswer: 'Hide answer',
+    answerHidden: 'Answer hidden. Your turn again.',
     answerLabel: 'Sample answer',
     nextButton: 'Next',
     listenButton: 'Listen',
@@ -60,6 +64,8 @@ export const WHAT_HAPPENS_CHROME = {
     tellTitle: 'Cuenta la historia',
     supportsLabel: 'Para ayudarte',
     showAnswer: 'Mostrar respuesta',
+    hideAnswer: 'Ocultar respuesta',
+    answerHidden: 'Respuesta oculta. Te toca de nuevo.',
     answerLabel: 'Respuesta de ejemplo',
     nextButton: 'Siguiente',
     listenButton: 'Escuchar',

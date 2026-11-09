@@ -49,7 +49,7 @@ Host options, shared by every player:
   `assetKey`. Return the same URL for the same asset until it really changes (a refreshed
   signature): a new URL reloads that media.
 - **`onEvent`** receives typed `PlayerEvent`s: a clip opened, frozen, revealed or completed, the
-  supports shown or hidden, an answer shown, audio played, a board, scene or activity completed, an
+  supports shown or hidden, an answer shown or hidden again, audio played, a board, scene or activity completed, an
   order checked, the vocabulary opened.
 - **`locale`** is the language of the chrome (buttons, labels, announcements), a BCP 47 tag:
   Spanish for any `es` tag (`es`, `es-CO`, `es-419`), otherwise English, the default. It is
@@ -94,8 +94,13 @@ rest, tells the story aloud, compares it with a sample answer and can listen to 
   panel grows and the phrases spring in one after another. Supports that occur in the sample answer
   are underlined there, every time they occur, and only when the supports are switched on.
 - "All clips" (or Escape) returns to the cards from any step, focused on the card the learner left.
-- Keyboard: R or Enter reveals, H shows or hides the supports, A or Enter shows the answer, L
-  listens, N or Enter goes on, Escape goes back. Shortcuts never fire with Ctrl, Cmd or Alt held, nor
+- **Show answer can be undone.** The same button becomes "Hide answer" in place (A both ways) and
+  brings the telling step back exactly as it was: the prompt, and the supports open or closed as the
+  learner left them, the open ones springing back in. Focus stays on the button and the status
+  region reads the answer, or says it is hidden again; any spoken answer stops. Once the answer has
+  been seen, Next is offered beside Show answer, so hiding it is never a dead end.
+- Keyboard: R or Enter reveals, H shows or hides the supports, A shows or hides the answer (Enter
+  shows it), L listens, N or Enter goes on, Escape goes back. Shortcuts never fire with Ctrl, Cmd or Alt held, nor
   in a text field.
 - A clip may carry `captions` (a WebVTT file), shown as a captions track. The video then loads with
   `crossOrigin="anonymous"`, so a file from another origin needs CORS on the video and the captions.
@@ -257,7 +262,7 @@ Statements are built with lk-core's validated `xAPIBuilder` (fresh UUID and time
 inside an activity (a clip opened, frozen or completed, a scene completed) is `experienced`; only the
 whole activity (`board.completed`, `activity.completed`) is `completed`, with `completion: true`, so
 an LRS given one static object never reads one clip as the activity done. Showing or hiding the
-supports and checking an order are `interacted`; an order check carries its correctness as
+supports, hiding the answer again and checking an order are `interacted`; an order check carries its correctness as
 `result.success`. **No statement carries a score.** Each event's details are kept under the
 `PLAYER_EVENT_XAPI_EXTENSION` context extension. Anonymous playback needs no actor unless the host
 opts into xAPI.

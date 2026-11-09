@@ -1,7 +1,13 @@
 /** Local notifications only; delivery and persistence belong to the host. */
 export type PlayerEvent =
   | {
-      type: 'clip.opened' | 'clip.frozen' | 'clip.revealed' | 'answer.shown' | 'clip.completed';
+      type:
+        | 'clip.opened'
+        | 'clip.frozen'
+        | 'clip.revealed'
+        | 'answer.shown'
+        | 'answer.hidden'
+        | 'clip.completed';
       activityId: string;
       clipId: string;
     }
