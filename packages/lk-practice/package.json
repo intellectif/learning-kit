@@ -88,8 +88,8 @@
     "@intellectif/lk-core": "workspace:*",
     "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "^4.1.6",
-    "fast-check": "^4.10.2",
-    "tsdown": "0.23.5",
+    "fast-check": "^4.10.3",
+    "tsdown": "0.23.7",
     "vitest": "^4.1.6"
   },
   "license": "MIT",
